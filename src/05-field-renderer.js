@@ -2273,6 +2273,7 @@ class Ot extends mt.Scene {
       this.drawWearV86(et);   // v86: the turf remembers the game so far
       this.drawGoalpostsV87();   // v87: uprights at both ends
       this.stadiumLiveV92();     // v92: the big screen goes back to the feed
+      try { this.bigBoardSnapV172(et); } catch (e) {}   // v172: a big moment stays on the hung board into this snap
       this.resetCamera();   // v23: re-center on THIS play's line of scrimmage (focusPt was just refreshed by drawField)
       this.clearAlerts();   // v23: reset any scramble-warning ❗ from the previous play
       // build or GLIDE markers to the new formation (no teleporting between plays)
@@ -7292,6 +7293,7 @@ class Ot extends mt.Scene {
         (ST.lights || []).flatMap((L) => L ? [L.glow, L.beam].filter((o) => o && o.scene) : []))); } catch (e) {}
       if (ST.still && ST.still.scene) ST.still.setPosition(ST.rect.x + ST.rect.w / 2, ST.rect.y + ST.rect.h / 2).setDisplaySize(ST.rect.w, ST.rect.h).setDepth(depS + 0.01);
       this.stadiumModeV92(ST.mode === "replay" && ST.still && ST.still.scene ? "replay" : "live");
+      if (this.bigBoardUpV172()) this.bowlHideV172(true);   // v172: a rebake re-shows the bowl's screen; the hung board keeps it down
       /* v112: one hook for the stadium pass — the masts' size/row/face, the lamps, the bowl's
        * band and its entrance, the stars in the sky, and the near rows of the warped turf. */
       try { window.__V112_B = () => {
@@ -7853,6 +7855,10 @@ class Ot extends mt.Scene {
     o = o || {};
     const F = (window.__V164F = window.__V164F || { said: 0, fell: 0, last: null, log: [] });
     if (!this.jumboOnV164F() || !text) return false;
+    if (this.bigBoardUpV172()) {   // v172: the hung board is always in the frame — the line goes there
+      F.said++; F.last = { text: String(text), sub: o.sub || "", kind: o.kind || "", on: true, board: true, at: Date.now() }; F.log.push(F.last); if (F.log.length > 40) F.log.shift();
+      return this.bigBoardSayV172(text, o);
+    }
     const ST = this.stadium, R = ST.rect;
     // is the screen in the frame? otherwise the slim ribbon at the top of the picture (never over the play)
     let on = false;
@@ -7889,6 +7895,280 @@ class Ot extends mt.Scene {
     const ST = this.stadium; if (!ST) return;
     try { ST.msgT && ST.msgT.setVisible(false); ST.msgS && ST.msgS.setVisible(false); ST.msgBg && ST.msgBg.setVisible(false); } catch (e) {}
     if (ST.mode === "msg") this.stadiumModeV92(ST._modeBeforeMsgV164F === "replay" && ST.still && ST.still.scene ? "replay" : "live");
+  }
+  /* ===== v172 THE BIG BOARD =====
+   * The owner: "Have the jumbotron nearly always visible in the background. Please reimplement the turnover, big
+   * play, touchdown graphics on the jumbotron in the background so you dont miss action." v164 F put the callouts on
+   * the bowl's screen, but that screen stands ABOVE the far stands: the follow camera kept it at (or past) the top
+   * edge of the picture on most snaps, and on a phone the whole panel was ~55x18 CSS px — the line fell back to the
+   * slim ribbon or was unreadable, and a 1.4 s message was gone before anyone looked up.
+   * Now the screen is a CENTER-HUNG BOARD: a container pinned to the top centre of the broadcast frame (scroll factor
+   * 0, re-placed in the scene's `prerender` after the camera has moved, so it never lags), hanging on two cables from
+   * the roof, sized from the canvas's CSS width (`bigBoardWFracV172`, floored at `bigBoardMinCssV172` CSS px so a
+   * phone can read it). It lives at depth `bigBoardDepthV172` (3.7): above the turf, the lines and the crowd, BELOW
+   * the ball and the men — a deep route runs in front of it, never behind it. While it hangs, the bowl's own screen
+   * (its frame, tag, feed camera and replay still) stands down (`bowlHideV172`) so there are never two.
+   * Between moments it is the SCOREBOARD (the two teams in their kit colours, the score, the quarter and clock, the
+   * down and distance, read off the live scorebug) with a ticker strip (● LIVE and the last result line).
+   * `jumboSayV164F` routes here: a short line (a result, a sack, a toast) takes the panel for its time (at least
+   * `bigBoardMsgMinMsV172`); a BIG MOMENT (`BIG_BOARD_EVENTS_V172`: touchdown, turnover, intercepted, fumble, big play,
+   * breakaway, game changer, field goal) takes it over — the panel in the team's colour flashing, the title popping
+   * in and pulsing, a marquee chasing round the bezel, a sheen sweeping the LEDs, the man's name and the yards under
+   * it, the team and the score on the strip — and the board GROWS (`bigBoardGrowV172`) while it holds. It holds for
+   * `bigBoardEventMsV172` of wall time AND at least `bigBoardIntoSnapMsV172` into the next snap (`bigBoardSnapV172`
+   * from `animatePlay`), so it is still up when the next play starts. A stronger moment replaces a weaker one (the v95
+   * promotions: INTERCEPTED → TURNOVER "INTERCEPTION" → TOUCHDOWN "PICK SIX"); a weaker one goes to the ticker.
+   * Kill switch TU "v172jumbo" 0: the v164 F bowl screen (and its ribbon fallback) exactly as before.
+   * `window.__V172` (`state()`, `events`, `msgs`, `ticks`, `log`); `jumbocheck`. ===== */
+  bigBoardUpV172() {
+    if (!TU("v172jumbo", 1)) return false;
+    const ST = this.stadium;
+    return !!(ST && ST.on && this.add && this.cameras && this.cameras.main);
+  }
+  bigBoardBuildV172() {
+    const B = this._bbV172 || (this._bbV172 = { c: null, ev: null, msg: null, tickL: null, grow: 1, alpha: 0, t: 0, cssK: 0, cssW: 0, cssAt: 0, pal: null, palAt: 0, sb: null, sbAt: 0 });
+    if (B.c && B.c.scene) return B;
+    const T = (px, col, ox) => this.add.text(0, 0, "", { fontFamily: "Oswald, sans-serif", fontStyle: "bold", fontSize: px + "px", color: col, align: "center", stroke: "#05070c", strokeThickness: 0 }).setOrigin(ox == null ? 0.5 : ox, 0.5);
+    B.g = this.add.graphics();
+    B.usN = T(16, "#ffffff"); B.usS = T(30, "#ffffff"); B.thN = T(16, "#ffffff"); B.thS = T(30, "#ffffff");
+    B.clk = T(16, "#ffd75e"); B.dn = T(14, "#e8f0ff");
+    B.title = T(40, "#ffffff"); B.sub = T(20, "#f4f7ff");
+    B.tag = T(14, "#ff5a5a", 0); B.tick = T(14, "#f2e6c4", 1);
+    B.fx = this.add.graphics();   // over the texts: the LED grid, the sheen, the marquee
+    B.c = this.add.container(0, 0, [B.g, B.usN, B.usS, B.thN, B.thS, B.clk, B.dn, B.title, B.sub, B.tag, B.tick, B.fx])
+      .setDepth(TU("bigBoardDepthV172", 3.7)).setScrollFactor(0, 0, true).setAlpha(0);
+    B.alpha = 0;
+    try { this.stadium && this.stadium.cam && this.stadium.cam.ignore(B.c); } catch (e) {}
+    // the check's handle: where the board hangs (canvas px), what it says, and the bowl screen it stands in for
+    const V = (window.__V172 = window.__V172 || { events: 0, msgs: 0, ticks: 0, last: null, log: [] });
+    V.state = () => {
+      const S = this._bbV172, L = S && S.lay, ST = this.stadium || {}, cm = this.cameras && this.cameras.main;
+      const vis = !!(S && S.c && S.c.scene && S.c.visible), g = S ? S.grow : 1;
+      const rect = L ? { x: FW / 2 - (L.W * g) / 2, y: 0, w: L.W * g, h: (L.top + L.H) * g } : null;
+      const cw = cm ? cm.width : FW, ch = cm ? cm.height : FVH, k = S ? S.cssK : 0;
+      return { up: this.bigBoardUpV172(), visible: vis, alpha: S && S.c ? +S.c.alpha.toFixed(3) : 0, mode: S && S.mode, grow: +g.toFixed(3), depth: S && S.c ? S.c.depth : null,
+        rect, css: rect ? { w: Math.round(rect.w * k), h: Math.round(rect.h * k) } : null, onCanvas: !!(rect && rect.x >= 0 && rect.x + rect.w <= cw && rect.y >= 0 && rect.y + rect.h <= ch),
+        ev: S && S.ev ? { kind: S.ev.kind, text: S.ev.text, sub: S.ev.sub, side: S.ev.side, col: S.ev.col[0], left: S.ev.until - Date.now(), snapAt: S.ev.snapAt || 0 } : null,
+        msg: S && S.msg ? { text: S.msg.text, kind: S.msg.kind, left: S.msg.until - Date.now() } : null, tick: S && S.tickL ? S.tickL.text : null,
+        title: S && S.title && S.title.visible ? S.title.text : null, sub: S && S.sub && S.sub.visible ? S.sub.text : null,
+        score: S && S.usS && S.usS.visible ? { us: S.usN.text + " " + S.usS.text, them: S.thN.text + " " + S.thS.text, clock: S.clk.text, down: S.dn.text } : null,
+        pal: S && S.pal ? { us: S.pal.us[0], them: S.pal.them[0] } : null,
+        bowl: { frame: !!(ST.frame && ST.frame.visible), cam: !!(ST.cam && ST.cam.visible), hung: !!ST._hungV172 } };
+    };
+    V.clear = () => { const S = this._bbV172; if (S) { S.ev = null; S.msg = null; S.tickL = null; } };
+    // placed AFTER the frame's camera work (update moves the camera after the stadium ticks), so it never lags a frame
+    if (!this._bbPreV172) { this._bbPreV172 = true; try { this.events.on("prerender", () => { try { this.bigBoardPlaceV172(); } catch (e) {} }); } catch (e) {} }
+    return B;
+  }
+  // the board's size in canvas pixels, from the canvas's CSS width (a phone and a desktop read it at the same size)
+  bigBoardLayoutV172() {
+    const B = this._bbV172, now = performance.now();
+    if (!B.cssK || now - B.cssAt > 500) {
+      B.cssAt = now;
+      try { const r = this.game.canvas.getBoundingClientRect(); if (r.width > 0) { B.cssK = r.width / FW; B.cssW = r.width; } } catch (e) {}
+      if (!B.cssK) { B.cssK = 0.6; B.cssW = FW * 0.6; }
+    }
+    const cssW = Math.max(TU("bigBoardMinCssV172", 160), Math.min(TU("bigBoardMaxCssV172", 270), B.cssW * TU("bigBoardWFracV172", 0.42)));
+    const W = Math.round(Math.min(FW * TU("bigBoardMaxFracV172", 0.6), cssW / B.cssK));
+    const bz = Math.max(3, Math.round(W * 0.022)), PH = Math.round(W * TU("bigBoardPanelHV172", 0.25)), SH = Math.round(W * TU("bigBoardStripHV172", 0.085)), top = TU("bigBoardTopV172", 10);
+    return { W, bz, PH, SH, top, H: PH + SH + bz * 3, px: -W / 2 + bz, py: top + bz, pw: W - 2 * bz, sy: top + bz * 2 + PH };
+  }
+  // the kits: ours from the team's palette, theirs from the same walk the kits and the scorebug use
+  bigBoardPalsV172() {
+    const B = this._bbV172, now = performance.now();
+    if (B.pal && now - B.palAt < 1500) return B.pal;
+    const hx = (s, d) => { const n = parseInt(String(s || "").replace("#", ""), 16); return Number.isFinite(n) ? n : d; };
+    let us = TEAM_PALETTES[0], them = TEAM_PALETTES[1];
+    try { const ui = (window.__GRIDIRON_TEAM_CUSTOM__ && window.__GRIDIRON_TEAM_CUSTOM__.palette) || 0; us = TEAM_PALETTES[ui] || us; them = RIB.defPal || ribOppPalV98(this.teamNames().them) || them; } catch (e) {}
+    B.pal = { us: [hx(us[0], 0x2f9e4f), hx(us[1], 0xffffff)], them: [hx(them[0], 0xc8414b), hx(them[1], 0xffffff)] }; B.palAt = now;
+    return B.pal;
+  }
+  // the scoreboard's numbers, read off the live scorebug four times a second
+  bigBoardScoreV172() {
+    const B = this._bbV172, now = performance.now();
+    if (B.sb && now - B.sbAt < 250) return B.sb;
+    const tx = (id) => { try { const el = document.getElementById(id); return el ? String(el.textContent || "").trim() : ""; } catch (e) { return ""; } };
+    let nm = { us: "HOME", them: "AWAY" }; try { nm = this.teamNames(); } catch (e) {}
+    const q = tx("qtr"), clk = tx("gameClock");
+    B.sb = { usN: String(nm.us).toUpperCase(), thN: String(nm.them).toUpperCase(), us: tx("usScore") || "0", them: tx("themScore") || "0",
+      clock: ((/^\d+$/.test(q) ? "Q" + q : q.toUpperCase()) + (clk && clk !== "--:--" ? "  " + clk : "")).trim() || "LIVE", down: tx("downDist").toUpperCase() };
+    B.sbAt = now;
+    return B.sb;
+  }
+  // who made the moment: the side (us / them) and, when the ball is in his hands, the man's name
+  bigBoardWhoV172(kind) {
+    const P = this.play, pay = (P && P.payload) || this._payV172 || {};   // between plays: the last snap's
+    const off = pay.offense === "them" ? "them" : pay.offense === "us" ? "us" : null, def = off ? (off === "us" ? "them" : "us") : null;
+    const ci = P && P.carrierId != null && P.carrierId >= 0 ? P.carrierId : -1;
+    const A = ci >= 0 && P.script && P.script.actors ? P.script.actors[ci] : null;
+    const take = kind === "turnover" || kind === "intercepted" || kind === "fumble";
+    const side = take ? def : A ? (A.side === "def" ? def : off) : off;
+    let name = "";
+    if (A && /^(touchdown|bigplay|breakaway|intercepted|turnover)$/.test(kind) && (!take || A.side === "def")) {
+      try {
+        if (A.you) { const st = window.__getGridironState && window.__getGridironState(); name = String((st && st.player && st.player.name) || "").trim(); }
+        else if (A.nm) { const parts = String(A.nm).trim().split(/\s+/); name = parts[parts.length - 1]; }
+      } catch (e) {}
+    }
+    return { side, name: name.toUpperCase().slice(0, 18), you: !!(A && A.you) };
+  }
+  bigBoardTickV172(text, kind) {
+    const B = this.bigBoardBuildV172();
+    B.tickL = { text: String(text).toUpperCase(), col: (kind && JUMBO_COL_V164F[kind]) || "#f2e6c4", until: Date.now() + TU("bigBoardTickMsV172", 6000) };
+    const V = window.__V172; if (V) V.ticks++;
+  }
+  // jumboSayV164F's line, on the hung board
+  bigBoardSayV172(text, o) {
+    o = o || {};
+    const B = this.bigBoardBuildV172(), now = Date.now(), kind = String(o.kind || ""), sub = o.sub ? String(o.sub) : "";
+    const V = (window.__V172 = window.__V172 || { events: 0, msgs: 0, ticks: 0, last: null, log: [] });
+    const pr = BIG_BOARD_EVENTS_V172[kind];
+    const cur = B.ev && now < B.ev.until ? B.ev : null;
+    if (pr != null) {
+      if (cur && pr < cur.prio) { this.bigBoardTickV172(String(text) + (sub ? "  " + sub : ""), kind); return true; }   // a weaker moment does not cut a stronger one: the ticker says it
+      const promo = cur ? BADGE_PROMO_V95[cur.kind + ">" + kind] : null;
+      const who = this.bigBoardWhoV172(kind), pal = this.bigBoardPalsV172();
+      const name = who.name || (cur && cur.side === who.side ? cur.name : "");
+      const line = (promo || sub || "").toUpperCase();
+      const col = who.side === "them" ? pal.them : who.side === "us" ? pal.us : [parseInt(String(JUMBO_COL_V164F[kind] || "#3a4250").slice(1), 16) & 0x7f7f7f, 0xffffff];
+      B.ev = { kind, prio: pr, text: String(text).toUpperCase(), sub: [name, line].filter(Boolean).join("  ·  "), name, side: who.side, you: who.you, col, kcol: JUMBO_COL_V164F[kind] || "#ffd76a",
+        at: cur && cur.side === who.side ? cur.at : now, pop: now, until: Math.max(now + TU("bigBoardEventMsV172", 4500), cur ? cur.until : 0), snapped: false };
+      B.msg = null;
+      V.events++; V.last = { kind, text: B.ev.text, sub: B.ev.sub, side: who.side, at: now, event: true }; V.log.push(V.last); if (V.log.length > 40) V.log.shift();
+      return true;
+    }
+    if (cur) { this.bigBoardTickV172(String(text) + (sub ? "  " + sub : ""), kind); return true; }   // a big moment holds the panel; the line rides the ticker
+    B.msg = { text: String(text).toUpperCase(), sub: sub.toUpperCase(), kind, col: o.color || JUMBO_COL_V164F[kind] || "#fff2c4", at: now,
+      until: now + Math.max(TU("bigBoardMsgMinMsV172", 1800), o.ms || TU("jumboMsV164F", 1500)) };
+    if (kind === "result" || kind === "toast") this.bigBoardTickV172(text, kind);
+    V.msgs++; V.last = { kind, text: B.msg.text, sub: B.msg.sub, at: now, event: false }; V.log.push(V.last); if (V.log.length > 40) V.log.shift();
+    return true;
+  }
+  // the next snap: a big moment stays up into the play after it
+  bigBoardSnapV172(et) {
+    if (et) this._payV172 = et;
+    const B = this._bbV172; if (!B || !B.ev || B.ev.snapped) return;
+    B.ev.snapped = true; B.ev.snapAt = Date.now();
+    if (Date.now() < B.ev.until) B.ev.until = Math.max(B.ev.until, Date.now() + TU("bigBoardIntoSnapMsV172", 3000));
+  }
+  // the bowl's own screen stands down while the board hangs (and comes back when it does not)
+  bowlHideV172(hide) {
+    const ST = this.stadium; if (!ST) return;
+    if (hide) {
+      for (const o of [ST.frame, ST.tag, ST.score, ST.still, ST.msgT, ST.msgS, ST.msgBg]) { try { if (o && o.scene && o.visible) o.setVisible(false); } catch (e) {} }
+      try { if (ST.cam && ST.cam.visible) ST.cam.setVisible(false); } catch (e) {}
+      ST._hungV172 = true;
+    } else if (ST._hungV172) {
+      ST._hungV172 = false;
+      try { if (ST.on) { ST.frame && ST.frame.scene && ST.frame.setVisible(true); ST.tag && ST.tag.scene && ST.tag.setVisible(true); ST.score && ST.score.scene && ST.score.setVisible(true); } } catch (e) {}
+      if (ST.mode === "msg" && !ST._msgTimerV164F) ST.mode = "live";
+      try { this.stadiumModeV92(ST.mode === "replay" ? "replay" : "live"); } catch (e) {}
+    }
+  }
+  // the frame tick (from updateStadiumV92): the board's mode, its clocks, its picture
+  bigBoardV172(delta) {
+    const B0 = this._bbV172;
+    if (!this.bigBoardUpV172()) { if (B0 && B0.c && B0.c.scene && B0.c.visible) B0.c.setVisible(false); if (B0) B0.alpha = 0; return; }
+    const B = this.bigBoardBuildV172(), now = Date.now(), dt = Math.max(0, Math.min(100, delta || 16));
+    B.t += dt;
+    if (B.ev && now >= B.ev.until) B.ev = null;
+    if (B.msg && now >= B.msg.until) B.msg = null;
+    if (B.tickL && now >= B.tickL.until) B.tickL = null;
+    const mode = B.ev ? "event" : B.msg ? "msg" : "score";
+    const gw = mode === "event" ? TU("bigBoardGrowV172", 1.3) : 1;
+    B.grow += (gw - B.grow) * Math.min(1, dt / Math.max(1, TU("bigBoardGrowMsV172", 140)));
+    B.alpha = Math.min(1, B.alpha + dt / 320);
+    B.mode = mode;
+    B.c.setVisible(true).setAlpha(B.alpha);
+    B.lay = this.bigBoardLayoutV172();
+    this.bigBoardDrawV172(B, B.lay, mode, now);
+    this.bigBoardPlaceV172();
+  }
+  // where it hangs: the top centre of the frame, whatever the camera does (scroll factor 0 is still zoomed about the centre)
+  bigBoardPlaceV172() {
+    const B = this._bbV172; if (!B || !B.c || !B.c.scene || !B.c.visible) return;
+    const cm = this.cameras.main, z = cm.zoom || 1, w = cm.width || FW, h = cm.height || FVH;
+    B.c.setScale(B.grow / z).setPosition(w / 2, h / 2 - h / (2 * z));
+    if (this.stadium && this.stadium.frame && this.stadium.frame.visible) this.bowlHideV172(true);
+  }
+  // fit a line to a box: a fraction of the panel's height, shrunk until it fits the width (cached per text and size)
+  bigBoardFitV172(tx, str, px, maxW) {
+    const key = str + "|" + Math.round(px) + "|" + Math.round(maxW);
+    if (tx._fitV172 === key) return tx;
+    tx._fitV172 = key; tx.setText(str); let p = Math.max(6, px); tx.setFontSize(p);
+    for (let i = 0; i < 10 && tx.width > maxW && p > 6; i++) { p *= 0.88; tx.setFontSize(p); }
+    return tx;
+  }
+  bigBoardDrawV172(B, L, mode, now) {
+    const g = B.g, fx = B.fx, F = this.bigBoardFitV172.bind(this);
+    // a Text re-rasterises on every setColor / setStroke: only when the ink actually changes
+    const ink = (tx, col, sw) => { const k = col + "|" + (sw || 0); if (tx._inkV172 !== k) { tx._inkV172 = k; tx.setColor(col); tx.setStroke("#05070c", sw || 0); } return tx; };
+    g.clear(); fx.clear();
+    const { W, bz, PH, SH, top, H, px, py, pw, sy } = L, x0 = -W / 2, pal = this.bigBoardPalsV172(), sb = this.bigBoardScoreV172();
+    const shade = (c, k) => (Math.round(((c >> 16) & 255) * k) << 16) | (Math.round(((c >> 8) & 255) * k) << 8) | Math.round((c & 255) * k);
+    const toInt = (s) => parseInt(String(s || "#ffffff").replace("#", ""), 16) || 0xffffff;
+    // the cables to the roof, the bezel, the kit trims along its foot
+    g.fillStyle(0x2a313b, 1); g.fillRect(-W * 0.3 - 1, 0, 2, top + 1); g.fillRect(W * 0.3 - 1, 0, 2, top + 1);
+    g.fillStyle(0x0b0d12, 1); g.fillRect(x0, top, W, H);
+    g.lineStyle(2, 0x3a4250, 1); g.strokeRect(x0 + 1, top + 1, W - 2, H - 2);
+    g.fillStyle(pal.us[0], 1); g.fillRect(x0 + 2, top + H - 4, W / 2 - 2, 2);
+    g.fillStyle(pal.them[0], 1); g.fillRect(0, top + H - 4, W / 2 - 2, 2);
+    const E = mode === "event" ? B.ev : null, M = mode === "msg" ? B.msg : null, age = E ? now - E.at : 0, popAge = E ? now - E.pop : 0;
+    // the panel
+    let bg = 0x000000;
+    if (E) { const fl = age < TU("bigBoardFlashForMsV172", 2000) && Math.floor(age / Math.max(60, TU("bigBoardFlashMsV172", 190))) % 2 === 1; bg = fl ? shade(E.col[0], 0.3) : shade(E.col[0], 0.85); }
+    g.fillStyle(bg, 1); g.fillRect(px, py, pw, PH);
+    const score = mode === "score";
+    for (const o of [B.usN, B.usS, B.thN, B.thS, B.clk, B.dn]) o.setVisible(score);
+    B.title.setVisible(!score); B.sub.setVisible(!score);
+    if (score) {
+      // the two kits down the panel's edges, the names over the scores, the clock and the down between them
+      const bw = Math.max(4, Math.round(pw * 0.035));
+      g.fillStyle(pal.us[0], 1); g.fillRect(px, py, bw, PH); g.fillStyle(pal.us[1], 1); g.fillRect(px + bw, py, 2, PH);
+      g.fillStyle(pal.them[0], 1); g.fillRect(px + pw - bw, py, bw, PH); g.fillStyle(pal.them[1], 1); g.fillRect(px + pw - bw - 2, py, 2, PH);
+      const lx = px + pw * 0.2, rx = px + pw * 0.8, colW = pw * 0.3;
+      F(B.usN, sb.usN, PH * 0.24, colW).setPosition(lx, py + PH * 0.24);
+      F(B.usS, sb.us, PH * 0.5, colW).setPosition(lx, py + PH * 0.64);
+      F(B.thN, sb.thN, PH * 0.24, colW).setPosition(rx, py + PH * 0.24);
+      F(B.thS, sb.them, PH * 0.5, colW).setPosition(rx, py + PH * 0.64);
+      F(B.clk, sb.clock, PH * 0.24, pw * 0.3).setPosition(0, py + PH * 0.3);
+      F(B.dn, sb.down, PH * 0.22, pw * 0.3).setPosition(0, py + PH * 0.68);
+    } else if (E) {
+      // the takeover: the title pops in and pulses, flashing white / the moment's colour; the man and the yards under it
+      const pop = REDUCED_MOTION ? 1 : popAge < 260 ? 1.55 - 0.55 * Math.sin((popAge / 260) * Math.PI / 2) : 1 + 0.045 * Math.sin(popAge / 130);
+      const flashT = age < TU("bigBoardFlashForMsV172", 2000) && Math.floor(age / Math.max(60, TU("bigBoardFlashMsV172", 190))) % 2 === 0;
+      ink(F(B.title, E.text, PH * (E.sub ? 0.46 : 0.56), pw * 0.9 / Math.max(1, pop)), flashT ? E.kcol : "#ffffff", Math.max(2, Math.round(PH * 0.05)))
+        .setPosition(0, py + PH * (E.sub ? 0.38 : 0.5)).setScale(pop);
+      if (E.sub) ink(F(B.sub, E.sub, PH * 0.21, pw * 0.92), "#ffffff", Math.max(2, Math.round(PH * 0.03))).setPosition(0, py + PH * 0.8).setScale(1).setVisible(true);
+      else B.sub.setVisible(false);
+      // a sheen sweeps the panel
+      if (!REDUCED_MOTION) {
+        const per = TU("bigBoardSheenMsV172", 1300), u = (age % per) / per, bwid = pw * 0.16, sx = px - bwid + u * (pw + bwid * 2), sk = PH * 0.35;
+        const cl = (x) => Math.max(px, Math.min(px + pw, x));
+        fx.fillStyle(0xffffff, 0.14);
+        fx.fillPoints([{ x: cl(sx), y: py }, { x: cl(sx + bwid), y: py }, { x: cl(sx + bwid - sk), y: py + PH }, { x: cl(sx - sk), y: py + PH }], true);
+      }
+      // the marquee: lamps chase round the bezel
+      const kc = toInt(E.kcol), step = Math.max(6, Math.round(W / 34)), ph = REDUCED_MOTION ? 0 : Math.floor(age / 90);
+      for (let i = 0, x = x0 + step / 2; x < x0 + W; i++, x += step) {
+        const lit = (i + ph) % 3 === 0;
+        fx.fillStyle(lit ? kc : 0x3a4250, lit ? 1 : 0.8);
+        fx.fillRect(x - 1.5, top + 0.5, 3, 2.5); fx.fillRect(x - 1.5, top + H - 3, 3, 2.5);
+      }
+    } else if (M) {
+      ink(F(B.title, M.text, PH * (M.sub ? 0.44 : 0.5), pw * 0.92), M.col, 0).setPosition(0, py + PH * (M.sub ? 0.38 : 0.5)).setScale(1);
+      if (M.sub) ink(F(B.sub, M.sub, PH * 0.22, pw * 0.9), "#e8f0ff", 0).setPosition(0, py + PH * 0.78).setScale(1).setVisible(true);
+      else B.sub.setVisible(false);
+    }
+    // the LED grid over the whole panel: the board reads as a screen, not a sticker
+    { const pitch = Math.max(3, Math.round(PH / 26)); fx.fillStyle(0x000000, TU("bigBoardLedAV172", 0.2));
+      for (let y = py + pitch - 1; y < py + PH; y += pitch) fx.fillRect(px, y, pw, 1);
+      for (let x = px + pitch - 1; x < px + pw; x += pitch) fx.fillRect(x, py, 1, PH); }
+    // the strip: ● LIVE and the ticker (in a takeover: the team and the score)
+    const sTx = SH * 0.62;
+    F(B.tag, E ? "● " + (E.side === "them" ? sb.thN : E.side === "us" ? sb.usN : "LIVE") : "● LIVE", sTx, pw * 0.4).setPosition(px + 3, sy + SH / 2); ink(B.tag, E ? E.kcol : "#ff5a5a", 0);
+    const tick = E ? (sb.usN + " " + sb.us + " – " + sb.them + " " + sb.thN) : B.tickL ? B.tickL.text : (sb.usN + " " + sb.us + " – " + sb.them + " " + sb.thN);
+    ink(F(B.tick, tick, sTx, pw * 0.58), E ? "#ffffff" : B.tickL ? B.tickL.col : "#c9d2de", 0).setPosition(px + pw - 3, sy + SH / 2);
   }
   stadiumModeV92(mode) {
     const ST = this.stadium; if (!ST) return;
@@ -7929,6 +8209,7 @@ class Ot extends mt.Scene {
       return { us: rd("#usScore"), them: rd("#themScore") }; } catch (e) { return { us: 0, them: 0 }; }
   }
   updateStadiumV92(delta) {
+    try { this.bigBoardV172(delta); } catch (e) {}   // v172: the hung board (hidden with the stadium)
     const ST = this.stadium; if (!ST || !ST.on) return;
     try {
       // the lamps breathe: each tower walks its face's six frames on its own phase
@@ -7964,6 +8245,8 @@ class Ot extends mt.Scene {
         L.glow.setVisible(LM > 0.01); L.beam.setVisible(LM > 0.01); L.pool.setVisible(LM > 0.01);
         if (t._sway) { L.glow.x = L.hx + (t.x - t._bx) * 0.9; L.beam.x = L.hx + (t.x - t._bx) * 0.9; }
       });
+      // v172: while the big board hangs, the bowl's screen stands down (no second screen, no feed camera)
+      if (this.bigBoardUpV172()) { this.bowlHideV172(true); return; } else if (ST._hungV172) this.bowlHideV172(false);
       // the screen: where does its panel land on the main camera?
       const cm = this.cameras.main, R = ST.rect, wv = cm.worldView, z = cm.zoom;
       const sx = (R.x - wv.x) * z, sy = (R.y - wv.y) * z, sw = R.w * z, sh = R.h * z;
@@ -9297,6 +9580,8 @@ const DANCE_V164G = {
   throw: { default: "flex" },
   truck: { default: "flex" }
 };
+/* v172 THE BIG BOARD: the moments that take the hung board over (and their weight — a weaker one never cuts a stronger one) */
+const BIG_BOARD_EVENTS_V172 = { touchdown: 10, gamechanger: 9, turnover: 8, intercepted: 8, safety: 8, fumble: 7, fieldgoal: 6, breakaway: 6, bigplay: 5 };
 const JUMBO_LABEL_V164F = { touchdown: "TOUCHDOWN!", gamechanger: "GAME CHANGER!", turnover: "TURNOVER!", fieldgoal: "FIELD GOAL!", intercepted: "INTERCEPTED!", fumble: "FUMBLE!", flag: "FLAG", bigplay: "BIG PLAY!", sack: "SACK!", bighit: "BIG HIT!", breakaway: "BREAKAWAY!", firstdown: "FIRST DOWN", safety: "SAFETY!", stop: "STOP!", pancake: "PANCAKE!" };
 const BADGE_V95 = (() => {
   const lanes = { stage: { cur: null, q: [], timer: null }, hud: { cur: null, q: [], timer: null } };

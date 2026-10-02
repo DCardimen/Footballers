@@ -10,6 +10,19 @@ Names in older entries are the career app's pre-v149 C minified names (`q`, `ms`
 `index.html` + `src/` (`docs/LAYOUT.md`).
 
 <!-- new entries go here, newest first -->
+- **v172 — the big board.** (`src/05-field-renderer.js`, `scripts/jumbocheck.mjs`, `scripts/v164Fcheck.mjs`, `scripts/v92check.mjs`,
+  `scripts/badgecheck.mjs`.)
+  "Have the jumbotron nearly always visible in the background … so you dont miss action." v164 F put the callouts on the stadium's screen, but that
+  screen stands above the far stands: the follow camera left it at or past the top of the picture on most snaps (0 of 20 samples fully in frame on a
+  phone), and on a phone its panel was ~55x18 px, so most lines fell back to a slim ribbon and a 1.4 s message was gone before you looked up. Now the
+  screen is a center-hung board pinned to the top centre of the broadcast, hanging from the roof on two cables, behind the players (a deep route runs
+  in front of it), at a readable size on a phone and a desktop. Between plays it is the scoreboard — both teams in their kit colours, the score, the
+  quarter and clock, the down and distance, and a ticker with the last result. A touchdown, a turnover (interception, fumble, on downs), a big play,
+  a breakaway, a field goal or a game changer takes it over: the panel flashes in the team's colours, the title pops and pulses, lamps chase round the
+  bezel, the man's name and the yards sit under it, the team and the score on the strip, and the board grows — for 4.5 s and at least 3 s into the next
+  snap. A smaller moment never cuts a bigger one (it rides the ticker); INTERCEPTED then a TOUCHDOWN on the return reads PICK SIX. Kill switch
+  `v172jumbo` (the v164 F screen). `badgecheck` now pins `v164Fjumbo` 0: it measures the DOM wall (the path with the
+  jumbotron messages OFF), which it could not reach since v164 F (16 of its 43 assertions failed on main).
 - **v170 — the spray menu: hold, slide, slide.** (`src/34-spray.js` new, `src/22-hub-sections.js`, `src/25-shell.js`,
   `scripts/spraycheck.mjs`, `scripts/v146Echeck.mjs`, `scripts/phonecheck.mjs`.) Pages were split in half on a phone,
   each half scrolling on its own (training had four scroll boxes). Now holding any button on the bottom bar sprays its
