@@ -57,6 +57,7 @@ const WX_MODES_V144 = [
 ];
 try { window.__WX_MODES_V144 = WX_MODES_V144; } catch (e) {}
 const REDUCED_MOTION = (() => { try { return window.matchMedia("(prefers-reduced-motion: reduce)").matches; } catch (e) { return false; } })();
+const EASE_OUT_V177C = (q) => 1 - Math.pow(1 - Math.min(1, Math.max(0, q)), 3);   // v177 C: the fireball and its shock ring
 function vib(ms) { try { if (!REDUCED_MOTION && navigator.vibrate) navigator.vibrate(ms); } catch (e) {} }
 const EZ = 66, PLAY_L = EZ, PLAY_R = FW - EZ, PLAY_W = PLAY_R - PLAY_L;
 const F_TOP = 14, F_BOT = FH - 14;
@@ -87,7 +88,8 @@ let VDIR = 1, ANCHOR_U = null, PERSP = null;
 // camera bounds, and never drew. Raising it costs a little of the warp canvas's
 // height budget (VB's cap below) and shifts the whole projection down uniformly —
 // the camera centres on focusPt, which moves with it, so framing is unchanged.
-const NSTOP = 340, NSH = 1340, WORLD_H = 2800;
+const NSTOP = 340, NSH = 1340, WORLD_H0 = 2800, WORLD_HMAX_V177E = 6000;
+let WORLD_H = WORLD_H0;   // v177 E: the world (and the warp canvas) grows past WORLD_H0 when the ground behind the anchor needs it
 const PERSP_OA = 1.45, PERSP_AB = 46;          // art overscan; anchor sits ~8 yds behind the LOS
 const PERSP_BACKMAX = 1.2;                     // behind-anchor magnification cap
 function fieldRadius() { const r = (window.__FIELD_FX || {}).radius; return r == null ? 300 : r; }
@@ -130,7 +132,7 @@ function buildPersp() {
   const total = C(FW);
   // ideal row density keeps the LOS yard spacing of the flat view; cap it so the whole
   // projected field always fits inside the WORLD_H warp canvas
-  const VB0 = Math.min(2 * PERSP_OA / (sN * sN), (WORLD_H - NSTOP - 10) / Math.max(1, mkC(PERSP_BACKMAX)(FW)));
+  const VB0 = Math.min(2 * PERSP_OA / (sN * sN), (WORLD_H0 - NSTOP - 10) / Math.max(1, mkC(PERSP_BACKMAX)(FW)));
   /* ===== v148 THE LINES HOLD TO THE GOAL LINE =====
    * VB is the row density — how many canvas rows a unit of ground gets — and the line above made
    * it pay for the WHOLE field fitting in the WORLD_H canvas, measured from wherever the anchor
@@ -159,7 +161,27 @@ function buildPersp() {
     const AUr = PLAY_L + Math.max(0, Math.min(100, TU("rowRefYdV148", 25))) / 100 * PLAY_W - PERSP_AB;
     const qr = (u) => { const uc = AUr - (1 - 1 / PERSP_BACKMAX) / q; let c = PERSP_BACKMAX * PERSP_BACKMAX * Math.max(0, Math.min(u, uc));
       const lo = Math.max(0, uc); if (u > lo) { const G = (t) => -1 / (q * (1 + q * (t - AUr))); c += G(u) - G(lo); } return c; };
-    VB = Math.min(2 * PERSP_OA / (sN * sN), (WORLD_H - NSTOP - 10) / Math.max(1, qr(FW)));   // the drive-start density, not this snap's
+    VB = Math.min(2 * PERSP_OA / (sN * sN), (WORLD_H0 - NSTOP - 10) / Math.max(1, qr(FW)));   // the drive-start density, not this snap's
+    /* ===== v177 E THE FAR END HOLDS ITS SHAPE =====
+     * The owner: "make sure the bottom of the field is always adequate perspective. It usually distorts the higher north
+     * you go on the field." v148 fixed the row density for the whole drive, and paid for the canvas with the ground behind
+     * the anchor: past `rowKeepYdV148` it RECEDES — a pinhole looking the other way, rows and widths both shrinking toward
+     * the bottom of the screen. With the ball on the own 20 nothing needed it; on the opponent's 10 the taper starts ~33
+     * yards behind the line and runs the near half of the field down to 0.37 of its width, so every frame that looks back
+     * down the field (a punt return, a pick run back, the whistle's wide frame, a fixed camera) showed the touchlines
+     * pinching IN toward the viewer and the men shrinking as they came closer — inverted perspective, worse the further
+     * north the drive got. Nothing about the camera changes; the WORLD does: when the ground behind the anchor does not fit
+     * the WORLD_H0 canvas at the drive's density, the world (`WORLD_H`, the warp canvas, the camera bounds) grows to hold
+     * it (rounded up to 100 rows, plus `worldPadV177E` rows of apron past the near end line, capped at
+     * `worldHMaxV177E`), so the taper never has to run and the ground behind the line keeps the anchor's own scale —
+     * the same shape at every line of scrimmage. The light wash, the key light's reach and the sideline's depth ramp are
+     * still measured against WORLD_H0, so the picture in front of the line is unchanged to the pixel. Kill switch
+     * TU "v177E" 0 (v148's taper). `window.__V177E` (`worldH`, `need`, `tapered`); `perspcheck`. ===== */
+    {
+      const need = NSTOP + 10 + VB * C(FW) + Math.max(0, TU("worldPadV177E", 200)), cap = Math.max(WORLD_H0, Math.min(WORLD_HMAX_V177E, TU("worldHMaxV177E", 5600)));
+      WORLD_H = TU("v177E", 1) ? Math.max(WORLD_H0, Math.min(cap, Math.ceil(need / 100) * 100)) : WORLD_H0;
+      try { window.__V177E = { worldH: WORLD_H, need: Math.round(need), cap, on: !!TU("v177E", 1) }; } catch (e) {}
+    }
     const room = (WORLD_H - NSTOP - 10) / VB, km2 = kMax * kMax;
     const uc = Math.max(0, Math.min(FW, AU - (1 - 1 / kMax) / q)), head = C(FW) - C(uc);
     if (C(FW) > room) {
@@ -177,6 +199,7 @@ function buildPersp() {
   }
   const total148 = Cf(FW);
   PERSP = { s: sf, C: Cf, total: total148, sN, VB, kMax, d0, VB0, taper };
+  try { if (window.__V177E) window.__V177E.tapered = !!taper; } catch (e) {}
   try { window.__V148 = Object.assign(window.__V148 || {}, { VB: +VB.toFixed(3), VB0: +VB0.toFixed(3), ideal: +(2 * PERSP_OA / (sN * sN)).toFixed(3), sN: +sN.toFixed(4), AU: +AU.toFixed(1), taper, lastRow: +(NSTOP + VB * total148).toFixed(1) }); } catch (e) {}
 }
 function perspK(x) {
@@ -2486,7 +2509,7 @@ class Ot extends mt.Scene {
    * `camFollowSidePx` past either side (inside the painting); every other mode keeps 0..FW. */
   camSideV145(cam) {
     const xb = this.camModeV112().follow ? Math.max(0, TU("camFollowSidePx", 180)) : 0;
-    try { const b = cam._bounds; if (!b || b.x !== -xb || b.width !== FW + 2 * xb) cam.setBounds(-xb, 0, FW + 2 * xb, WORLD_H); } catch (e) {}
+    try { const b = cam._bounds; if (!b || b.x !== -xb || b.width !== FW + 2 * xb || b.height !== WORLD_H) cam.setBounds(-xb, 0, FW + 2 * xb, WORLD_H); } catch (e) {}   // v177 E: and the world's height
     return xb;
   }
   // v145: the you-player's marker, when this mode follows him and he is on the field this snap
@@ -2636,7 +2659,7 @@ class Ot extends mt.Scene {
        * user can select, so switching speed mid-play cannot truncate it either.
        * `TU("watchdogSlackMs")` is the headroom for slow-mo and hit-stop. */
       const wdRate144 = Math.max(.05, Math.min(TU("watchdogSlowestSpeed", .5), slowFloorV164F()) * TU("basePlayRate", 0.7));   // v164 F: budgeted at the slow dial's floor
-      const wdSpan144 = script.duration + ((this.play && this.play.delay) || 0) + TU("postPlayMs", 1450) + (TU("v175pan", 1) ? TU("screenPanHoldMsV175", 1700) + TU("screenPanDelayMsV175", 350) : 0);   // v175: a pan to the screen holds the post longer
+      const wdSpan144 = script.duration + ((this.play && this.play.delay) || 0) + TU("postPlayMs", 1450) + (TU("v175pan", 1) ? TU("screenPanHoldMsV175", 1700) + TU("screenPanDelayMsV175", 350) + (TU("v177Cparty", 1) ? TU("partyHoldMsV177C", 2800) : 0) : 0);   // v175: a pan to the screen holds the post longer
       const wdMs144 = wdSpan144 / wdRate144 + TU("watchdogSlackMs", 6000);
       try { (window.__V144 = window.__V144 || {}).watchdog = { ms: Math.round(wdMs144), span: Math.round(wdSpan144), rate: +wdRate144.toFixed(3), dur: Math.round(script.duration), delay: Math.round((this.play && this.play.delay) || 0) }; } catch (e) {}
       this.time.delayedCall(wdMs144, () => { try { (window.__V144 = window.__V144 || {}).watchdogFired = (window.__V144.watchdogFired || 0) + 1; } catch (e) {} this.complete(); });
@@ -3203,7 +3226,7 @@ class Ot extends mt.Scene {
       try { this.screenPanArmV175(P); } catch (e) {}   // v175: the camera may go to the screen while they settle
       const postMs = this.postPlayMsV86(P);
       if (postMs > 0) this.startPostV86(P, postMs + this.screenPanHoldMsV175());
-      else this.time.delayedCall((P.payload.scored ? 430 : 260) + (this._panV175 ? TU("screenPanDelayMsV175", 350) + TU("screenPanHoldMsV175", 1700) : 0), () => { if (!this._panV175) this.resetCamera(); this.complete(); });   // v175: a pan is not snapped off the screen
+      else this.time.delayedCall((P.payload.scored ? 430 : 260) + (this._panV175 ? TU("screenPanDelayMsV175", 350) + this.screenPanHoldMsV175() : 0), () => { if (!this._panV175) this.resetCamera(); this.complete(); });   // v175: a pan is not snapped off the screen
     }
   }
   /* ===== v86 BETWEEN THE WHISTLES — seven animations, no new art =====
@@ -4788,6 +4811,7 @@ class Ot extends mt.Scene {
         else if (e.gang) this.popText(e.x, e.y - 40, e.handsOn >= 2 ? "GANG TACKLE ×" + (e.handsOn + 1) : "GANG TACKLE", "#93a0b1", 12);
         /* v164 G: the big play's dance — a sack or a loss for the tackler; a long run or catch for the carrier (and the passer) */
         try { const ydG = Number(pay.yards ?? 0), tkG = this.markers[this.actorIdx(e.tackler)];
+          if ((e.sack || e.hitStick) && tkG) P._heroV177C = { idx: this.actorIdx(e.tackler), kind: e.sack ? "sack" : "bighit" };   // v177 C: who the board celebrates
           if (e.sack && tkG) this.danceV164G(tkG, "sack");
           else if (ydG < 0 && tkG && !e.oob) this.danceV164G(tkG, "tfl");
           else if (m && pay.event === "run" && ydG >= TU("danceRunYdV164G", 20)) this.danceV164G(m, "run", { off: true });
@@ -6872,6 +6896,7 @@ class Ot extends mt.Scene {
     for (let i = n; i < C.secs.length; i++) { const s = C.secs[i]; if (s.cheerJobV162A) { s.cheerJobV162A = null; C.jobsV162A--; } try { s.spr.idle.setVisible(false); s.spr.cheer.setVisible(false); } catch (e) {} }
     C.built = n;
     this.bowlTrimV112(built, HH);   // v112: the blue band round the foot of the bowl, and the way out of it
+    try { this.rimV177D(built, HH); } catch (e) {}   // v177 D: one clean line round the top of the bowl
     try { ribRegisterLightsV92(this); this.buildStadiumV92(); } catch (e) {}   // v92: the sky behind the bowl
     try {
       window.__CROWD_V57 = { tier, sections: n, sec: SEC, tiles, decks, height: +HH.toFixed(1), gap: GAP, endGap: EZG,
@@ -6991,6 +7016,69 @@ class Ot extends mt.Scene {
     return { x: Math.random() * 1.16 - 0.08, y: y0 == null ? Math.random() : y0 + Math.random() * 0.02,
       z: TU("wxNearV144", 0.55) + Math.random() * TU("wxSpreadV144", 0.75),
       sw: Math.random() < 0.5 ? -1 : 1, ph: Math.random() * 6.28 };
+  }
+  /* ===== v177 D THE RIM IS A CLEAN LINE =====
+   * The owner: "Make the top of the stadium not look jagged." The skyline of the bowl was whatever the crowd strip's top
+   * rows left once v57's sweep had sheared them onto the screen: the back wall's top, the aisle patches and the top deck's
+   * heads poking over it, the cheer pose's arms — and each section is its own sprite of affine slices, so along a sideline
+   * that climbs the frame diagonally the edge came out as a sawtooth of steps, and across the far bowl as a row of notches.
+   * Now the top of the stand is CAPPED: one continuous parapet — a roof fascia — runs round the whole bowl (the near-left
+   * sideline, the far bowl's sweep, the near-right sideline, one chain of the same ground samples the sections are cut
+   * from, so it rides the bowl's own projection and rake and meets itself at the corners). It is a polygon band from
+   * `rimDownV177D` of the stand's height below its top to `rimUpV177D` above it (thick enough to cover the ragged rows),
+   * drawn anti-aliased by the canvas, with a lit coping line along its top, a shadow line under it and a thin ribbon of
+   * the house's band colour (an equipped stadium theme's lip on a home game) — so the skyline is a single smooth edge at
+   * every camera position. Depth just over both crowd poses, under the bowl's base band. Kill switch TU "v177Drim" 0.
+   * `window.__V177D` (`rim()`: the chain's points, its segments' turn angles, the band's height); `rimcheck`. ===== */
+  rimV177D(built, HH) {
+    const C = this.crowd; if (!C || !this.add) return false;
+    let g = C.rimG;
+    if (!g || !g.scene) g = C.rimG = this.add.graphics();
+    g.clear(); g.setDepth(TU("crowdDepth", 3.45) + TU("rimDepthV177D", 0.007)).setVisible(true);
+    const V = (window.__V177D = window.__V177D || { builds: 0 });
+    V.on = !!TU("v177Drim", 1);
+    if (!V.on) { C.rim177 = null; return false; }
+    const MIDY = (F_TOP + F_BOT) / 2, RK = TU("crowdRake", 0.24);
+    const L = built.find((b) => b.wall.kind === "side" && b.wall.vv < MIDY), Rt = built.find((b) => b.wall.kind === "side" && b.wall.vv > MIDY), Bw = built.find((b) => b.wall.kind === "bowl");
+    // one chain round the bowl: up the left sideline, round the far end, down the right sideline
+    const chain = [];
+    const add = (P, rev) => { const Q = rev ? P.slice().reverse() : P; for (const p of Q) { const last = chain[chain.length - 1]; if (last && Math.abs(last.sx - p.sx) < 0.01 && Math.abs(last.sy - p.sy) < 0.01) continue; chain.push(p); } };
+    if (L) add(L.pts, false); if (Bw) add(Bw.pts, false); if (Rt) add(Rt.pts, true);
+    if (chain.length < 3) { C.rim177 = null; return false; }
+    const DN = Math.max(0, TU("rimDownV177D", 0.085)), UP = Math.max(0, TU("rimUpV177D", 0.012));
+    const at = (p, f) => { const h = HH * p.k * f; return { x: p.sx + (p.rk == null ? 0 : p.rk) * RK * h, y: p.sy - h }; };
+    /* v57 draws each slice as a parallelogram off its FIRST sample's height and rake, so where the stand's height changes
+     * along the wall the slices' tops step — that staircase is the jag. The cap's top edge rides the taller of each
+     * point's neighbours, so every step is under it, and stays as smooth as the heights themselves */
+    const kUp = chain.map((p, i) => p.k + 0.5 * Math.abs((chain[i + 1] || p).k - (chain[i - 1] || p).k));   // the height a neighbouring slice's step reaches
+    // smoothed along the rim's own length (the walls are sampled at different spacings), never under the point's own height
+    const arc = [0]; for (let i = 1; i < chain.length; i++) arc.push(arc[i - 1] + Math.hypot(chain[i].sx - chain[i - 1].sx, chain[i].sy - chain[i - 1].sy));
+    const SG = Math.max(2, TU("rimSmoothPxV177D", 24));
+    const kTop = kUp.map((k0, i) => { let a = 0, w = 0; for (let j = i; j >= 0 && arc[i] - arc[j] < SG * 2.5; j--) { const q = Math.exp(-Math.pow((arc[i] - arc[j]) / SG, 2)); a += kUp[j] * q; w += q; }
+      for (let j = i + 1; j < kUp.length && arc[j] - arc[i] < SG * 2.5; j++) { const q = Math.exp(-Math.pow((arc[j] - arc[i]) / SG, 2)); a += kUp[j] * q; w += q; }
+      return Math.max(chain[i].k, a / Math.max(1e-9, w)); });
+    const top = chain.map((p, i) => at(Object.assign({}, p, { k: Math.max(p.k, kTop[i]) }), 1 + UP)), bot = chain.map((p) => at(p, 1 - DN)), rim = chain.map((p) => at(p, 1));
+    // the theme's lip (an equipped stadium theme, home games) or the bowl's own band colour for the ribbon
+    let th = null; try { const CO = window.RIB_COSMETICS; th = CO && CO.stadiumTheme ? CO.stadiumTheme() : null; } catch (e) {}
+    const ribbon = th ? th.lip : TU("rimRibbonColV177D", TU("baseBandColV112", 0x1a4694));
+    g.fillStyle(TU("rimColV177D", 0x1c2027), 1); g.fillPoints(top.concat(bot.slice().reverse()), true);
+    const kk = (p) => p.k / 0.43, kMid = kk(chain[chain.length >> 1]);
+    // the ribbon: a thin band across the fascia's face
+    const r0 = chain.map((p) => at(p, 1 - DN * 0.3)), r1 = chain.map((p) => at(p, 1 - DN * 0.55));
+    g.fillStyle(ribbon, TU("rimRibbonAV177D", 0.75)); g.fillPoints(r0.concat(r1.slice().reverse()), true);
+    // the coping catches the light; the fascia throws a shadow onto the back rows
+    g.lineStyle(Math.max(0.8, TU("rimLipPxV177D", 1.2) * kMid), TU("rimLipColV177D", 0x9aa6b8), TU("rimLipAV177D", 0.85)); g.strokePoints(top, false);
+    g.lineStyle(Math.max(0.8, 1.4 * kMid), 0x05070a, TU("rimShadeAV177D", 0.45)); g.strokePoints(bot, false);
+    // what the check reads: how straight the skyline is (the turn between consecutive segments of the top edge)
+    let maxTurn = 0, turns = 0;
+    for (let i = 1; i < top.length - 1; i++) {
+      const a = Math.atan2(top[i].y - top[i - 1].y, top[i].x - top[i - 1].x), b = Math.atan2(top[i + 1].y - top[i].y, top[i + 1].x - top[i].x);
+      let d = Math.abs(b - a); if (d > Math.PI) d = 2 * Math.PI - d; maxTurn = Math.max(maxTurn, d); if (d > 0.35) turns++;
+    }
+    C.rim177 = { n: chain.length, maxTurn: +maxTurn.toFixed(3), sharp: turns, down: DN, up: UP, h: +(HH * chain[chain.length >> 1].k * (DN + UP)).toFixed(2) };
+    V.builds++;
+    V.rim = () => { const R = this.crowd && this.crowd.rim177; return R ? Object.assign({}, R, { top: top.map((q) => [+q.x.toFixed(1), +q.y.toFixed(1)]), bot: bot.map((q) => [+q.x.toFixed(1), +q.y.toFixed(1)]), rim: rim.map((q) => [+q.x.toFixed(1), +q.y.toFixed(1)]), depth: g.depth, visible: g.visible }) : null; };
+    return true;
   }
   bowlTrimV112(built, HH) {
     const C = this.crowd; if (!C || !this.add) return false;
@@ -7578,6 +7666,7 @@ class Ot extends mt.Scene {
       const W = TU("jumboW", 300) * KS, Hh = TU("jumboH", 112) * KS, cx = FW / 2, y1 = top - TU("jumboLift", 10) * KS, y0 = y1 - Hh;
       const bz = 5 * KS, strip = TU("jumboStrip", 11) * KS;   // the bezel's bottom strip carries the LIVE / REPLAY tag and the score
       ST.rect = { x: cx - W / 2 + bz, y: y0 + bz, w: W - 2 * bz, h: Hh - 2 * bz - strip };
+      ST.bezelV177C = { x: cx - W / 2, y: y0, w: W, h: Hh, ks: KS };   // v177 C: the bezel the party's lamps chase round and the pyro stands beside
       if (!ST.frame || !ST.frame.scene) ST.frame = this.add.graphics();
       const g = ST.frame; g.clear(); g.setDepth(depS).setVisible(true);
       g.fillStyle(0x1b2027, 1); g.fillRect(cx - 14 * KS, y1 - 4, 8 * KS, top - y1 + 30 * KS); g.fillRect(cx + 6 * KS, y1 - 4, 8 * KS, top - y1 + 30 * KS);   // the legs, down behind the top deck
@@ -7595,7 +7684,7 @@ class Ot extends mt.Scene {
       if (!ST.cam) {
         ST.cam = this.cameras.add(0, 0, 8, 8, false, "jumboV92");
         ST.cam.setBounds(0, 0, FW, WORLD_H).setRoundPixels(true).setVisible(false);
-      }
+      } else { try { const b = ST.cam._bounds; if (!b || b.height !== WORLD_H) ST.cam.setBounds(0, 0, FW, WORLD_H); } catch (e) {} }   // v177 E: the world can grow
       try { ST.cam.ignore([g, ST.tag, ST.score].concat(ST.towers.filter((t) => t && t.scene), ST.still && ST.still.scene ? [ST.still] : [],
         (ST.lights || []).flatMap((L) => L ? [L.glow, L.beam].filter((o) => o && o.scene) : []))); } catch (e) {}
       if (ST.still && ST.still.scene) ST.still.setPosition(ST.rect.x + ST.rect.w / 2, ST.rect.y + ST.rect.h / 2).setDisplaySize(ST.rect.w, ST.rect.h).setDepth(depS + 0.01);
@@ -8014,7 +8103,7 @@ class Ot extends mt.Scene {
   shadowVecV99(gx, gy) {
     const L = this._klV99 || (this._klV99 = this.keyLightV99());
     const vx = gx - L.x, vy = L.phys != null && !L.far ? Math.min(-30, gy - L.y) : Math.max(30, gy - L.y), d = Math.hypot(vx, vy) || 1;   // v164 A: a key behind the camera throws the shadow up the screen
-    const reach = Math.max(0, Math.min(1, (gy - NSTOP) / Math.max(1, WORLD_H - NSTOP)));
+    const reach = Math.max(0, Math.min(1, (gy - NSTOP) / Math.max(1, WORLD_H0 - NSTOP)));
     const q = (this.play && this.play.payload && this.play.payload.quarter) || 1;
     const rr = L.phys != null && !L.far ? 1 - reach : reach;   // v164 A: a key behind the camera rakes hardest at the FAR end
     const slope = TU("shadowSlope", 0.7) * (0.45 + rr * 1.35) * (1 + (q - 1) * TU("shadowStretchQ", 0.16));
@@ -8081,7 +8170,7 @@ class Ot extends mt.Scene {
   fillVecV101(gx, gy) {
     const L = this.fillLightV101(gx, gy); if (!L) return null;
     const vx = gx - L.x, vy = Math.max(30, gy - L.y), d = Math.hypot(vx, vy) || 1;
-    const reach = Math.max(0, Math.min(1, (gy - NSTOP) / Math.max(1, WORLD_H - NSTOP)));
+    const reach = Math.max(0, Math.min(1, (gy - NSTOP) / Math.max(1, WORLD_H0 - NSTOP)));
     return { ux: vx / d, uy: vy / d, slope: TU("fillSlopeV101", 0.44) * (0.45 + reach * 1.25), reach };
   }
   castFillV101(sh, gx, gy, h, o) {
@@ -8316,6 +8405,7 @@ class Ot extends mt.Scene {
       this._artLockV175 = { kind: W.kind, until: Date.now() + TU("screenPanMsgMsV175", 4400) };
     }
     V.pans++; V.last = { why, at: Date.now(), scored: this._panV175.scored }; V.log.push(V.last); if (V.log.length > 40) V.log.shift();
+    try { this.partyArmV177C(why, P); } catch (e) {}   // v177 C: after the art, the board throws a party
     return this._panV175;
   }
   // the camera's target while a pan is up: the screen, a little of the stands under it, the screen at a fraction of the frame
@@ -8332,11 +8422,458 @@ class Ot extends mt.Scene {
     if (V) { V.frames++; try { const wv = cam.worldView; V.inFrame = R.x >= wv.x - 1 && R.x + R.w <= wv.x + wv.width + 1 && R.y >= wv.y - 1 && R.y + R.h <= wv.y + wv.height + 1; if (V.inFrame) V.inFrameFrames = (V.inFrameFrames || 0) + 1; } catch (e) {} }
     return true;
   }
-  screenPanHoldMsV175() { return this._panV175 ? TU("screenPanHoldMsV175", 1700) : 0; }
+  screenPanHoldMsV175() { return this._panV175 ? TU("screenPanHoldMsV175", 1700) + (this._partyV177C && this._partyV177C.state === "armed" ? TU("partyHoldMsV177C", 2800) : 0) : 0; }   // v177 C: a party holds the screen longer
   // the glide home is gentle for a moment after a pan
   screenPanBackKV175() { return this._panBackV175 && performance.now() < this._panBackV175 ? TU("screenPanBackKV175", 0.45) : 1; }
   screenPanSnapV175() {
     if (this._panV175) { this._panBackV175 = performance.now() + TU("screenPanBackMsV175", 1400); this._panV175 = null; }
+    try { this.partyEndV177C("snap"); } catch (e) {}   // v177 C: the snap ends the board's party (the fireworks burn out on their own)
+  }
+  /* ===== v177 C THE BOARD THROWS A PARTY =====
+   * The owner: "Add TD celebrations after a key play (defense) or touchdown. Have it play on the jumbotron, when it zooms
+   * in on it after the graphic. Add explosives and fireworks behind it."
+   * v175 pans the camera up to the bowl's screen after a big moment and puts the moment's drawn badge on it. Now, when that
+   * moment is a TOUCHDOWN or a key defensive play (`partyKindsV177C`: touchdown, turnover, intercepted, sack, big hit), the
+   * pan is armed with a PARTY (`partyArmV177C`, from `screenPanArmV175`) and the post phase holds `partyHoldMsV177C` longer.
+   * Once the camera has landed and the badge has had its moment (`partyAtMsV177C` after the whistle, the screen in the
+   * frame — or `partyLateMsV177C` at the latest), the badge gives the panel over to the celebration:
+   *   THE BOARD   the man who made the moment (the scorer, the man with the pick or the recovery, the sacker, the hitter —
+   *               `P._heroV177C` from the tackle) plays one of the three drawn bodies (v161 A: flex / backflip / spike) ON
+   *               the screen, in his kit, through `RIB_COSMETICS.boardCel` (src/28 `v177 C`): HIS moment uses his kit, his
+   *               helmet and his EQUIPPED celebration (its v159 C plan — the kind, the colours — plays round him on the
+   *               board and its callout is the caption); anyone else gets a stock body and a stock plan (confetti / shock /
+   *               stars / pixel / rain) picked off the play's token, in his team's colours. A board "camera" follows him up a
+   *               backflip (`partyTrackV177C`), a sunburst turns behind him, the floor line, his dust and the loose ball,
+   *               an LED grid over it all, the bezel's lamps chasing in the team's colours, a white pop as it cuts in. All of
+   *               it is clipped to the panel (one geometry mask).
+   *   THE SKY     behind the screen (`fwDepthV177C` below the masts and the screen, above the sky; the bowl hides the
+   *               launch): rockets with sparkling trails rise from behind the stands and burst in the team's colours —
+   *               peony, ring, willow, crossette, palm and CRACKLE (gold stars that die in white pops) — each burst lighting
+   *               the sky; a finale volley; and PYRO at the board's sides: flame jets off the bezel's top corners and
+   *               fireballs with a shock ring, embers and smoke beside it. Seeded off the play (this file's own PRNG, never
+   *               Math.random), integrated in wall time, capped at `fwCapV177C` sparks.
+   *   REDUCED MOTION (or TU `partyCalmV177C` 1)  the body holds one calm pose, the plan is v159 C's calm version, three slow
+   *               peony bursts, no pyro, no flashes, no turning sunburst, no chase.
+   * The snap ends the board's party (`partyEndV177C`, from `screenPanSnapV175`) and hands the screen back; the fireworks
+   * burn out on their own. Kill switch TU "v177Cparty" 0 (the v175 pan and badge exactly as before). `window.__V177C`
+   * (`armed`, `started`, `ended`, `last`, `fw`, `state()`, `play(kind, o)`); `jumboPartycheck`. ===== */
+  partyOnV177C() {
+    if (!TU("v177Cparty", 1) || this.bigBoardUpV172()) return false;
+    if (REDUCED_MOTION && !TU("partyRMV177C", 1)) return false;
+    const ST = this.stadium; return !!(ST && ST.on && ST.rect && ST.frame && this.add);
+  }
+  partyHookV177C() {
+    const V = (window.__V177C = window.__V177C || { armed: 0, started: 0, ended: 0, frames: 0, cancelled: 0, last: null, log: [], errs: [],
+      fw: { rockets: 0, bursts: 0, sparks: 0, maxSparks: 0, jets: 0, booms: 0, crackles: 0, flashes: 0, frames: 0 } });
+    if (!V.state) {
+      V.state = () => {
+        const sc = window.__gridironScene, PT = sc && sc._partyV177C, B = sc && sc._pbV177C, FWK = sc && sc._fwV177C, ST = sc && sc.stadium, R = ST && ST.rect;
+        let body = null;
+        try { if (B && B.body && B.body.visible && R) { const b = B.body.getBounds(); body = { x: Math.round(b.x), y: Math.round(b.y), w: Math.round(b.width), h: Math.round(b.height), key: B.body.texture.key, cx: Math.round(b.centerX - R.x), inPanel: b.centerX > R.x && b.centerX < R.x + R.w && b.centerY > R.y && b.centerY < R.y + R.h }; } } catch (e) {}
+        return { state: PT ? PT.state : null, kind: PT ? PT.kind : null, name: PT ? PT.name : null, you: PT ? PT.you : null, calm: PT ? PT.calm : null, item: PT && PT.item ? PT.item.id : null,
+          caption: B && B.txt && B.txt.visible ? B.txt.text : null, body, rect: R ? { x: R.x, y: R.y, w: R.w, h: R.h } : null, mode: ST ? ST.mode : null,
+          badge: !!(ST && ST.msgImg && ST.msgImg.visible), masked: !!(B && B.body && B.body.mask),
+          sky: FWK ? { rockets: FWK.rockets.length, sparks: FWK.sparks.length, flames: FWK.flames.length, booms: FWK.booms.length, launching: FWK.sched.length, depth: FWK.gN ? FWK.gN.depth : null } : null,
+          depths: B && ST && ST.frame ? { screen: ST.frame.depth, body: B.body ? B.body.depth : null, sky: FWK && FWK.gN ? FWK.gN.depth : null, crowd: TU("crowdDepth", 3.45) } : null };
+      };
+      // a party on demand (the check, and a look at it on the dev server): the screen must be built
+      V.play = (kind, o) => { const sc = window.__gridironScene; if (!sc || !sc.partyArmV177C) return false; const P = sc.play || { payload: {} }; const pt = sc.partyArmV177C(kind || "touchdown", P, Object.assign({ force: true }, o || {})); if (pt) { pt.pinned = true; sc.partyStartV177C(); } return !!pt; };
+    }
+    return V;
+  }
+  rndV177C(seed) { let s = seed >>> 0; return () => { s = (s + 0x6d2b79f5) | 0; let t = Math.imul(s ^ (s >>> 15), 1 | s); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }; }
+  hashV177C(str) { str = String(str); let h = 2166136261; for (let i = 0; i < str.length; i++) h = Math.imul(h ^ str.charCodeAt(i), 16777619); return h >>> 0; }
+  // the man who made the moment: the sacker / hitter from the tackle, else whoever holds the ball at the whistle
+  partyHeroV177C(kind, P) {
+    const H = P && P._heroV177C;
+    let idx = H && H.idx >= 0 && (H.kind === kind || !/^(touchdown|turnover|intercepted)$/.test(kind)) ? H.idx : -1;
+    if (idx < 0 && P) idx = P.carrierId != null && P.carrierId >= 0 ? P.carrierId : P.ballHolderId != null && P.ballHolderId >= 0 ? P.ballHolderId : -1;
+    const m = idx >= 0 ? this.markers[idx] : null;
+    const A = m && P && P.script && P.script.actors ? P.script.actors[idx] : null;
+    const you = !!(m && m.team === "you");
+    let name = "";
+    try {
+      if (you) { const st = window.__getGridironState && window.__getGridironState(); const nm = String((st && st.player && st.player.name) || "").trim().split(/\s+/); name = nm[nm.length - 1] || ""; }
+      else if (A && A.nm) { const parts = String(A.nm).trim().split(/\s+/); name = parts[parts.length - 1]; }
+    } catch (e) {}
+    const kit = m ? (you ? "you" : (m.kit || m.team || "off")) : (idx >= 11 ? "def" : "off");
+    return { idx, you, kit, name: name.toUpperCase().slice(0, 14), tone: m && Number.isFinite(m.skinTone) ? m.skinTone : null };
+  }
+  // the team's colours (ints, brightened for a dark kit so a burst still shows against the night)
+  partyColsV177C(kit, extra) {
+    const hx = (s) => { const n = parseInt(String(s || "").replace("#", ""), 16); return Number.isFinite(n) ? n : null; };
+    const lift = (c) => { const r = (c >> 16) & 255, g = (c >> 8) & 255, b = c & 255, L = 0.3 * r + 0.59 * g + 0.11 * b; if (L > 90) return c; const k = Math.min(0.75, (110 - L) / 140);
+      return (Math.round(r + (255 - r) * k) << 16) | (Math.round(g + (255 - g) * k) << 8) | Math.round(b + (255 - b) * k); };
+    let tc = null; try { tc = RIB.teamCols[kit] || RIB.teamCols.off; } catch (e) {}
+    const c1 = hx(tc && tc[0]) != null ? hx(tc[0]) : 0x2f9e4f, c2 = hx(tc && tc[1]) != null ? hx(tc[1]) : 0xffffff;
+    const sky = [lift(c1), lift(c2), 0xffffff, 0xffd76f];
+    for (const h of extra || []) { const v = hx(h); if (v != null) sky.push(lift(v)); }
+    return { c1, c2, sky, hex: [tc && tc[0] ? tc[0] : "#2f9e4f", tc && tc[1] ? tc[1] : "#ffffff"] };
+  }
+  partyArmV177C(why, P, o) {
+    o = o || {};
+    const V = this.partyHookV177C();
+    if (this._partyV177C && this._partyV177C.state === "board") this.partyEndV177C("replaced");
+    this._partyV177C = null;
+    if (!this.partyOnV177C()) return null;
+    if (!o.force && TU("partyKindsV177C", ["touchdown", "turnover", "intercepted", "sack", "bighit"]).indexOf(why) < 0) return null;
+    const BC = window.RIB_COSMETICS && window.RIB_COSMETICS.boardCel;
+    try { BC && BC.load(); } catch (e) {}
+    const tok = String(o.tok != null ? o.tok : (P && P.__ballTokenV1514 != null ? P.__ballTokenV1514 : Date.now()));
+    const hero = o.hero || this.partyHeroV177C(why, P), calm = REDUCED_MOTION || !!TU("partyCalmV177C", 0);
+    const it = hero.you && BC ? BC.item() : null;
+    const pal = this.partyColsV177C(hero.kit, it ? it.cols : null);
+    const seed = this.hashV177C("v177C|" + tok + "|" + why), r = this.rndV177C(seed);
+    const anims = ["flex", "backflip", "spike"];
+    const name = o.name || (BC ? BC.pick(hero.you ? tok : "board:" + tok + ":" + why) : anims[Math.floor(r() * 3) % 3]);
+    const stock = TU("partyStockV177C", ["confetti", "shock", "stars", "pixel", "rain"]);
+    const label = { touchdown: "TOUCHDOWN", turnover: "TURNOVER", intercepted: "PICKED OFF", sack: "SACK", bighit: "BIG HIT", fumble: "FUMBLE" }[why] || String(why).toUpperCase();
+    const caption = it && it.say ? it.say : [hero.name, label].filter(Boolean).join("  ·  ");
+    const PT = this._partyV177C = { kind: why, tok, seed, hero, you: hero.you, name, calm, item: it, pal, stockKind: stock[Math.floor(r() * stock.length) % stock.length], caption,
+      mir: r() < 0.5 ? -1 : 1, state: "armed", armedAt: performance.now(), t: 0, at: null };
+    V.armed++; V.last = { kind: why, name: hero.name, body: name, you: hero.you, item: it ? it.id : null, caption, calm, tok, at: Date.now() };
+    V.log.push(V.last); if (V.log.length > 30) V.log.shift();
+    return PT;
+  }
+  // the board's layers: built once, reused, every one clipped to the panel and kept off the feed camera
+  partyLayersV177C() {
+    const ST = this.stadium; let B = this._pbV177C;
+    if (B && B.bg && B.bg.scene) return B;
+    B = this._pbV177C = {};
+    B.maskG = this.make.graphics({ x: 0, y: 0, add: false });
+    B.mask = B.maskG.createGeometryMask();
+    B.bg = this.add.graphics(); B.planN = this.add.graphics(); B.planA = this.add.graphics();
+    try { B.planA.setBlendMode(1); } catch (e) {}   // ADD → "lighter" on the canvas renderer
+    B.body = this.add.image(0, 0, "__DEFAULT").setVisible(false); B.ball = this.add.image(0, 0, "__DEFAULT").setVisible(false);
+    B.dust = this.add.graphics(); B.fx = this.add.graphics(); B.lamps = this.add.graphics();
+    const mR = Math.random; Math.random = this.rndV177C(177);   // a Text's canvas key is a UUID off Math.random: the game's stream never pays for the board
+    try { B.txt = this.add.text(0, 0, "", { fontFamily: "Oswald, sans-serif", fontStyle: "bold", fontSize: "20px", color: "#ffffff", align: "center", stroke: "#05070c", strokeThickness: 3 }).setOrigin(0.5); }
+    finally { Math.random = mR; }
+    B.all = [B.bg, B.planN, B.planA, B.body, B.ball, B.dust, B.fx, B.txt, B.lamps];
+    for (const o of B.all) { o.setVisible(false); if (o !== B.lamps) o.setMask(B.mask); }
+    try { ST && ST.cam && ST.cam.ignore(B.all); } catch (e) {}
+    return B;
+  }
+  partyStartV177C() {
+    const PT = this._partyV177C, ST = this.stadium, V = this.partyHookV177C();
+    if (!PT || PT.state !== "armed" || !ST || !ST.rect) return false;
+    const BC = window.RIB_COSMETICS && window.RIB_COSMETICS.boardCel, R = ST.rect;
+    PT.state = "board"; PT.t = 0; PT.at = performance.now();
+    PT.ready = !!(BC && BC.ready());
+    PT.total = PT.ready ? BC.total(PT.name, PT.calm) : TU("partyNoBodyMsV177C", 2200);
+    PT.end = PT.total + TU("partyTailMsV177C", 450);
+    const B = this.partyLayersV177C(), depS = ST.frame.depth;
+    // the mask is the panel, in world px
+    B.maskG.clear(); B.maskG.fillStyle(0xffffff, 1); B.maskG.fillRect(R.x, R.y, R.w, R.h);
+    B.bg.setDepth(depS + 0.027); B.planN.setDepth(depS + 0.031); B.planA.setDepth(depS + 0.032); B.body.setDepth(depS + 0.034); B.ball.setDepth(depS + 0.035);
+    B.dust.setDepth(depS + 0.036); B.fx.setDepth(depS + 0.037); B.txt.setDepth(depS + 0.038); B.lamps.setDepth(depS + 0.021);
+    if (PT.ready) {
+      try { PT.tex = BC.tex(this, PT.name, PT.hero.kit, PT.you, PT.hero.tone); } catch (e) { PT.tex = null; V.errs.length < 8 && V.errs.push("tex: " + e.message); }
+      try { PT.parts = BC.parts(PT.name, PT.seed, PT.calm); } catch (e) { PT.parts = []; }
+      try { PT.plan = BC.plan({ you: PT.you, tok: PT.tok, kind: PT.stockKind, cols: PT.pal.hex.concat(["#ffffff", "#ffd76f"]), calm: PT.calm }); PT.plan.gy = 24; PT.plan.hy = -24; } catch (e) { PT.plan = null; }
+    }
+    // HIS equipped v177 I body (the moonwalk, the griddy …) plays on the board as it does on the field
+    PT.b177 = PT.you && BC && BC.body177 ? BC.body177() : null;
+    if (PT.b177) {
+      try { PT.tex = BC.tex177(this, PT.b177, PT.hero.kit, PT.hero.tone); PT.total = BC.total177(PT.b177, PT.calm); PT.end = PT.total + TU("partyTailMsV177C", 450); PT.name = PT.b177; PT.ready = true; if (V.last) V.last.body = PT.b177; }
+      catch (e) { PT.b177 = null; V.errs.length < 8 && V.errs.push("b177: " + e.message); }
+    }
+    // the badge gives the panel over: its timer would hand the screen back mid-party, and the lock keeps the toasts off it
+    /* the screen's message timer is the party's now: while it runs, `stadiumModeV92` (the whistle's replay, the snap's live)
+     * only remembers the mode it is asked for — the feed camera would paint over the panel — and it hands the screen back
+     * by itself if the party is never ended */
+    try { if (ST._msgTimerV164F) clearTimeout(ST._msgTimerV164F); } catch (e) {}
+    ST._msgTimerV164F = setTimeout(() => { ST._msgTimerV164F = null; try { this.jumboClearV164F(); } catch (e) {} }, PT.end + 800);
+    if (ST.mode !== "msg") { ST._modeBeforeMsgV164F = ST.mode === "replay" ? "replay" : "live"; ST.mode = "msg"; }
+    for (const o of [ST.msgImg, ST.msgT, ST.msgS, ST.still]) { try { if (o && o.scene) o.setVisible(false); } catch (e) {} }
+    try { if (ST.msgBg && ST.msgBg.scene) ST.msgBg.setPosition(R.x + R.w / 2, R.y + R.h / 2).setSize(R.w, R.h).setDepth(depS + 0.025).setVisible(true); } catch (e) {}
+    try { ST.tag && ST.tag.setText("🎉 " + PT.kind.toUpperCase()).setColor("#ffd76a"); } catch (e) {}
+    this._artLockV175 = { kind: PT.kind, until: Date.now() + PT.end + 400 };
+    // the caption, fitted to the floor band
+    // drawn at TU partyCapResV177C times the size and scaled down, so the pan's zoom does not blur it
+    const RES = Math.max(1, TU("partyCapResV177C", 4)), px0 = Math.max(6, R.h * TU("partyCapHV177C", 0.13) * RES); B.txt.setText(PT.caption).setFontSize(px0).setScale(1);
+    for (let i = 0; i < 8 && B.txt.width > R.w * 0.9 * RES; i++) B.txt.setFontSize(Math.max(6, parseFloat(B.txt.style.fontSize) * 0.86));
+    B.txt._resV177C = RES;
+    try { B.txt.setStroke("#" + (PT.pal.c1 & 0xffffff).toString(16).padStart(6, "0"), Math.max(2, Math.round(R.h * 0.03 * RES))); } catch (e) {}
+    for (const o of B.all) o.setVisible(true);
+    B.body.setVisible(!!PT.tex); B.ball.setVisible(false);
+    this.fireworksStartV177C(PT);
+    V.started++; if (V.last) V.last.startedAt = Date.now();
+    return true;
+  }
+  partyEndV177C(why) {
+    const PT = this._partyV177C, V = this.partyHookV177C(), B = this._pbV177C, ST = this.stadium;
+    if (!PT) return;
+    this._partyV177C = null;
+    if (PT.pinned && why === "snap") { this._partyV177C = PT; return; }   // a party on demand (`__V177C.play`) outlives the live loop's snaps
+    if (PT.state === "armed") { V.cancelled++; return; }
+    if (PT.state !== "board") return;
+    if (B) for (const o of B.all || []) { try { if (o && o.scene) o.setVisible(false); } catch (e) {} }
+    if (this._fwV177C && why !== "done") this._fwV177C.sched.length = 0;   // cut off (the snap): the sky burns out what is already up; a party that ran its course lets the finale go
+    V.ended++; if (V.last) { V.last.ended = why || "done"; V.last.ms = Math.round(performance.now() - (PT.at || performance.now())); }
+    if (this._artLockV175 && this._artLockV175.kind === PT.kind) this._artLockV175 = null;
+    try { if (ST && ST._msgTimerV164F) { clearTimeout(ST._msgTimerV164F); ST._msgTimerV164F = null; } if (ST && ST.mode === "msg") this.jumboClearV164F(); } catch (e) {}
+  }
+  // every frame (from updateStadiumV92): start the party when the camera is there, draw the board and the sky
+  partyTickV177C(delta) {
+    const now = performance.now(), dt = Math.max(0, Math.min(250, this._partyWallV177C ? now - this._partyWallV177C : (delta || 16)));   // wall time: the scene's delta runs at the play's rate
+    this._partyWallV177C = now;
+    const PT = this._partyV177C;
+    if (PT && PT.state === "armed") {
+      const PN = this._panV175;
+      if (!PN) { if (performance.now() - PT.armedAt > 1500) this.partyEndV177C("no pan"); }
+      else {
+        const V5 = window.__V175 || {}, at = TU("partyAtMsV177C", 1700);
+        if (PN.t >= at && (V5.inFrame || PN.t >= TU("partyLateMsV177C", 2600))) this.partyStartV177C();
+      }
+    }
+    if (this._partyV177C && this._partyV177C.state === "board") {
+      const P2 = this._partyV177C; P2.t = performance.now() - P2.at;
+      if (P2.t >= P2.end) this.partyEndV177C("done");
+      else { this.partyDrawV177C(P2); const V = window.__V177C; if (V) V.frames++; }
+    }
+    this.fireworksTickV177C(dt);
+  }
+  partyDrawV177C(PT) {
+    const ST = this.stadium, R = ST && ST.rect, B = this._pbV177C; if (!R || !B || !B.bg.scene) return;
+    const BC = window.RIB_COSMETICS && window.RIB_COSMETICS.boardCel, t = PT.t, calm = PT.calm, pal = PT.pal;
+    const shade = (c, k) => (Math.round(((c >> 16) & 255) * k) << 16) | (Math.round(((c >> 8) & 255) * k) << 8) | Math.round((c & 255) * k);
+    const stand = BC && PT.ready ? BC.stand() : 44, u = R.h * TU("partyBodyHV177C", 0.66) / stand;
+    // his pose; the board's "camera" rides up with a flip so he stays in the panel
+    const o = PT.ready && PT.tex ? (PT.b177 ? BC.pose177(PT.name, Math.min(t, PT.total - 1), calm) : BC.pose(PT.name, Math.min(t, PT.total - 1), calm)) : null;
+    // (a v177 I routine travels along the floor: the board's camera pans with him, `partyTrackXV177C`)
+    const lift = o ? o.lift : 0, gx = R.x + R.w / 2 - (o && PT.b177 ? PT.mir * (o.x || 0) * u * TU("partyTrackXV177C", 0.85) : 0), gy0 = R.y + R.h * TU("partyFloorV177C", 0.84), gy = gy0 + lift * u * TU("partyTrackV177C", 0.8);
+    const cy = gy - stand * u * 0.55 - lift * u * (1 - TU("partyTrackV177C", 0.8));
+    // the panel: the team's colour, a sunburst turning behind him, a spot on him, the floor
+    const g = B.bg; g.clear();
+    g.fillStyle(shade(pal.c1, 0.34), 1); g.fillRect(R.x, R.y, R.w, R.h);
+    const NR = 14, rot = calm ? 0 : t * TU("partySpinV177C", 0.00045), rr = R.w * 0.8;
+    for (let i = 0; i < NR; i++) {
+      const a0 = rot + (i / NR) * Math.PI * 2, a1 = a0 + Math.PI / NR;
+      g.fillStyle(i % 2 ? pal.c2 : shade(pal.c1, 1.0) | 0, i % 2 ? 0.1 : 0.22);
+      g.fillTriangle(gx, cy, gx + Math.cos(a0) * rr, cy + Math.sin(a0) * rr, gx + Math.cos(a1) * rr, cy + Math.sin(a1) * rr);
+    }
+    g.fillStyle(0xffffff, 0.09); g.fillEllipse(gx, cy, R.h * 1.2, R.h * 1.05);
+    g.fillStyle(0xffffff, 0.08); g.fillEllipse(gx, cy, R.h * 0.7, R.h * 0.62);
+    g.fillStyle(shade(pal.c1, 0.16), 1); g.fillRect(R.x, gy, R.w, Math.max(0, R.y + R.h - gy));
+    g.lineStyle(Math.max(1, R.h * 0.018), pal.c2, 0.9); g.lineBetween(R.x, gy, R.x + R.w, gy);
+    g.fillStyle(0x000000, 0.25); g.fillEllipse(gx, gy + 1, stand * u * 0.55 * (o ? o.sh : 1), stand * u * 0.12);
+    // the equipped (or stock) plan, round him
+    B.planN.clear(); B.planA.clear();
+    if (PT.plan && BC) { try { BC.drawPlan(PT.plan, B.planN, B.planA, gx, gy - 24 * u * TU("partyPlanKV177C", 0.75), u * TU("partyPlanKV177C", 0.75), t); } catch (e) {} }
+    // the body
+    if (o && PT.tex && PT.b177) {
+      // a v177 I body: foot-anchored, its own travel along the floor, its props drawn by the cosmetics' painter
+      const fr = BC.frame177(PT.name, o.k), sc = PT.tex.scale || 2, ks = 1 / sc, mir = PT.mir, key = PT.tex.keys[o.k];
+      if (fr && this.textures.exists(key)) {
+        const r = sc === 2 ? fr.r2 : fr.r, an = sc === 2 ? fr.a2 : [fr.ax, fr.ay];
+        if (B.body.texture.key !== key) B.body.setTexture(key);
+        B.body.setOrigin(an[0] / r[2], an[1] / r[3]).setPosition(gx + mir * (o.x || 0) * u, gy - o.lift * u);
+        B.body.setScale(mir * ks * u * o.sx, ks * u * o.sy).setRotation(mir * o.rot * Math.PI / 180).setVisible(true).setAlpha(1);
+      }
+      B.dust.clear(); B.ball.setVisible(false);
+      const X = (x) => gx + mir * x * u, Y = (y) => gy + y * u, G = (add) => add ? B.planA : B.dust;
+      const D = {
+        line: (x1, y1, x2, y2, w, c, a, add) => { const q = G(add); q.lineStyle(Math.max(0.5, w * u), c, a); q.lineBetween(X(x1), Y(y1), X(x2), Y(y2)); },
+        circ: (x, y, rr2, c, a, add) => { const q = G(add); q.fillStyle(c, a); q.fillCircle(X(x), Y(y), Math.max(0.4, rr2 * u)); },
+        ell: (x, y, rx, ry, w, c, a, add) => { const q = G(add); if (w > 0) { q.lineStyle(Math.max(0.5, w * u), c, a); q.strokeEllipse(X(x), Y(y), rx * 2 * u, ry * 2 * u, 24); } else { q.fillStyle(c, a); q.fillEllipse(X(x), Y(y), rx * 2 * u, ry * 2 * u, 24); } },
+        poly: (pp, c, a, add) => { const q = G(add); q.fillStyle(c, a); q.beginPath(); q.moveTo(X(pp[0]), Y(pp[1])); for (let i = 2; i < pp.length; i += 2) q.lineTo(X(pp[i]), Y(pp[i + 1])); q.closePath(); q.fillPath(); },
+        rect: (x, y, w, h, c, a, add) => { const q = G(add); q.fillStyle(c, a); q.fillRect(X(x) - (mir < 0 ? w * u : 0), Y(y), w * u, h * u); },
+        img: (key2, x, y, rot, a) => { if (this.textures.exists(PT.tex.ball)) B.ball.setTexture(PT.tex.ball).setVisible(a > 0.01).setPosition(X(x), Y(y)).setScale(u * ks).setRotation(mir * rot).setAlpha(a); } };
+      try { BC.props177(PT.name, Math.min(t, PT.total - 1), o, D, calm); } catch (e) {}
+    } else if (o && PT.tex) {
+      const fr = BC.frame(PT.name, o.k), sc = PT.tex.scale || 2, ks = 1 / sc, r = sc === 2 ? fr.r2 : fr.r, an = sc === 2 ? fr.a2 : [fr.ax, fr.ay, fr.cx, fr.cy], mir = PT.mir;
+      const key = PT.tex.keys[o.k];
+      if (this.textures.exists(key)) {
+        if (B.body.texture.key !== key) B.body.setTexture(key);
+        if (o.pivot === "com") { B.body.setOrigin(an[2] / r[2], an[3] / r[3]); B.body.setPosition(gx + mir * o.cx * u, gy + o.cy * u - o.lift * u); }
+        else { B.body.setOrigin(an[0] / r[2], an[1] / r[3]); B.body.setPosition(gx, gy - o.lift * u); }
+        B.body.setScale(mir * ks * u * o.sx, ks * u * o.sy).setRotation(mir * o.rot * Math.PI / 180).setVisible(true).setAlpha(1);
+      }
+      // the loose ball, his dust
+      const b = BC.ball(PT.name, Math.min(t, PT.total - 1), calm);
+      if (b && b.a > 0.01 && this.textures.exists(PT.tex.ball)) B.ball.setTexture(PT.tex.ball).setVisible(true).setPosition(gx + mir * b.x * u, gy + b.y * u).setScale(u * ks).setRotation(mir * b.rot).setAlpha(b.a);
+      else B.ball.setVisible(false);
+      B.dust.clear();
+      const D = {
+        circ: (x, y, rr2, c, a) => { if (a > 0.01) { B.dust.fillStyle(c, Math.min(1, a)); B.dust.fillCircle(gx + mir * x * u, gy + y * u, Math.max(0.4, rr2 * u)); } },
+        rect: (x, y, w, h, c, a) => { if (a > 0.01) { B.dust.fillStyle(c, Math.min(1, a)); B.dust.fillRect(gx + mir * x * u - (mir < 0 ? w * u : 0), gy + y * u, Math.max(0.6, w * u), Math.max(0.6, h * u)); } },
+        ell: (x, y, rx, ry, w, c, a) => { if (a > 0.01) { B.dust.lineStyle(Math.max(0.5, w * u), c, Math.min(1, a)); B.dust.strokeEllipse(gx + mir * x * u, gy + y * u, rx * 2 * u, ry * 2 * u, 24); } } };
+      try { BC.drawParts(PT.parts || [], t, D); } catch (e) {}
+    } else { B.body.setVisible(false); B.ball.setVisible(false); B.dust.clear(); }
+    // the caption pops in, the LED grid, the cut-in flash
+    const pop = calm ? 1 : t < 260 ? 1.45 - 0.45 * Math.sin((t / 260) * Math.PI / 2) : 1 + 0.03 * Math.sin(t / 140);
+    B.txt.setPosition(R.x + R.w / 2, R.y + R.h * 0.925).setScale(pop / (B.txt._resV177C || 1)).setAlpha(Math.min(1, t / 160));
+    const fx = B.fx; fx.clear();
+    const pitch = Math.max(2, R.h / TU("partyLedRowsV177C", 30)); fx.fillStyle(0x000000, TU("partyLedAV177C", 0.18));
+    for (let y = R.y + pitch - 1; y < R.y + R.h; y += pitch) fx.fillRect(R.x, y, R.w, Math.max(0.6, pitch * 0.28));
+    if (!calm && t < 240) { fx.fillStyle(0xffffff, 0.85 * (1 - t / 240)); fx.fillRect(R.x, R.y, R.w, R.h); }
+    // the bezel's lamps chase in the team's colours (outside the panel: no mask)
+    const BZ = ST.bezelV177C, L = B.lamps; L.clear();
+    if (BZ) {
+      const step = Math.max(5, BZ.w / 34), ph = calm ? 0 : Math.floor(t / 85), lr = Math.max(1, 1.3 * BZ.ks);
+      for (let i = 0, x = BZ.x + step / 2; x < BZ.x + BZ.w; i++, x += step) {
+        const lit = calm ? i % 2 === 0 : (i + ph) % 3 === 0, c = (i % 2 ? pal.sky[1] : pal.sky[0]);
+        L.fillStyle(lit ? c : 0x2a313b, lit ? 1 : 0.9); L.fillCircle(x, BZ.y + lr + 0.5, lr); L.fillCircle(x, BZ.y + BZ.h - lr - 0.5, lr);
+      }
+    }
+  }
+  /* ---- the sky: rockets, bursts, crackle; the pyro beside the board ---- */
+  fireworksStartV177C(PT) {
+    const ST = this.stadium, R = ST && ST.rect, BZ = ST && ST.bezelV177C; if (!R) return;
+    const F = this._fwV177C || (this._fwV177C = { rockets: [], sparks: [], flames: [], booms: [], smoke: [], flashes: [], sched: [], t: 0 });
+    if (!F.gN || !F.gN.scene) {
+      F.gN = this.add.graphics(); F.gA = this.add.graphics(); F.pN = this.add.graphics(); F.pA = this.add.graphics();
+      try { F.gA.setBlendMode(1); F.pA.setBlendMode(1); } catch (e) {}
+      try { ST.cam && ST.cam.ignore([F.gN, F.gA, F.pN, F.pA]); } catch (e) {}
+    }
+    const depS = ST.frame.depth, dSky = TU("crowdDepth", 3.45) - TU("fwDepthV177C", 0.27);
+    F.gN.setDepth(dSky).setVisible(true); F.gA.setDepth(dSky + 0.001).setVisible(true);
+    F.pN.setDepth(depS - 0.006).setVisible(true); F.pA.setDepth(depS - 0.005).setVisible(true);   // the pyro: behind the screen's frame, in front of the masts
+    const ks = BZ ? BZ.ks : Math.max(0.3, R.w / 280);
+    const r = this.rndV177C(PT.seed ^ 0x177c), calm = PT.calm;
+    F.r = r; F.ks = ks; F.calm = calm; F.cols = PT.pal.sky; F.t = 0; F.top = ST.top; F.R = { x: R.x, y: R.y, w: R.w, h: R.h }; F.BZ = BZ ? Object.assign({}, BZ) : { x: R.x, y: R.y, w: R.w, h: R.h, ks };
+    F.sched.length = 0;
+    const TYPES = ["peony", "ring", "willow", "crossette", "palm", "crackle"];
+    if (calm) { for (const at of [250, 1250, 2300]) F.sched.push({ at, kind: "rocket", type: "peony" }); }
+    else {
+      const ms = TU("fwMsV177C", 3300), gap = TU("fwGapMsV177C", 230);
+      for (let at = 120; at < ms; at += gap * (0.7 + r() * 0.7)) F.sched.push({ at, kind: "rocket", type: TYPES[Math.floor(r() * TYPES.length) % TYPES.length] });
+      for (let i = 0; i < TU("fwFinaleV177C", 5); i++) F.sched.push({ at: ms + 60 + i * 90 + r() * 60, kind: "rocket", type: i % 2 ? "crackle" : "peony", finale: true });
+      for (const at of TU("fwJetsAtV177C", [0, 1350, 2700])) F.sched.push({ at, kind: "jets" });
+      for (const at of TU("fwBoomsAtV177C", [90, 1500])) F.sched.push({ at, kind: "booms" });
+    }
+    F.sched.sort((a, b) => a.at - b.at);
+  }
+  fireworksTickV177C(dt) {
+    const F = this._fwV177C; if (!F || !F.gN || !F.gN.scene) return;
+    const live = F.sched.length || F.rockets.length || F.sparks.length || F.flames.length || F.booms.length || F.smoke.length || F.flashes.length;
+    if (!live) { if (F.drawn) { F.gN.clear(); F.gA.clear(); F.pN.clear(); F.pA.clear(); F.drawn = false; } return; }
+    const V = this.partyHookV177C().fw, s = dt / 1000, ks = F.ks, r = F.r, R = F.R, BZ = F.BZ, calm = F.calm, cap = TU("fwCapV177C", 720);
+    F.t += dt;
+    const col = () => F.cols[Math.floor(r() * F.cols.length) % F.cols.length];
+    const spark = (o) => { if (F.sparks.length < cap) { F.sparks.push(o); V.sparks++; } };
+    // what is due
+    while (F.sched.length && F.sched[0].at <= F.t) {
+      const ev = F.sched.shift();
+      if (ev.kind === "rocket") {
+        const x = R.x + R.w / 2 + (r() * 2 - 1) * R.w * TU("fwSpreadV177C", 1.3) * (ev.finale ? 0.8 : 1);
+        const y0 = F.top + 6 * ks, apex = R.y - R.h * (0.5 + r() * (calm ? 1.2 : 2.1)), h = Math.max(30 * ks, y0 - apex), g = 230 * ks;
+        F.rockets.push({ x, y: y0, vx: (r() * 2 - 1) * 14 * ks, vy: -Math.sqrt(2 * g * h), g, type: ev.type, c: col(), c2: col(), trail: [], age: 0 });
+        V.rockets++;
+      } else if (ev.kind === "jets") {
+        for (const sd of [-1, 1]) F.flames.push({ x: sd < 0 ? BZ.x + 5 * ks : BZ.x + BZ.w - 5 * ks, y: BZ.y, age: 0, life: 0.8, h: R.h * (1.4 + r() * 0.4), w: 7 * ks, seed: r() * 100 });
+        V.jets++;
+      } else if (ev.kind === "booms") {
+        for (const sd of [-1, 1]) {
+          const bx = sd < 0 ? BZ.x - 10 * ks : BZ.x + BZ.w + 10 * ks, by = BZ.y + BZ.h * (0.35 + r() * 0.3);
+          F.booms.push({ x: bx, y: by, age: 0, life: 0.55, r: 22 * ks });
+          F.flashes.push({ x: bx, y: by, age: 0, life: 0.14, r: 16 * ks, c: 0xfff4d0 });
+          for (let i = 0; i < 14; i++) { const a = r() * Math.PI * 2, v = (40 + r() * 70) * ks;
+            spark({ x: bx, y: by, vx: Math.cos(a) * v + sd * 25 * ks, vy: Math.sin(a) * v - 30 * ks, age: 0, life: 0.6 + r() * 0.5, c: r() < 0.5 ? 0xffb02e : 0xff6a1a, sz: 0.9, drag: 1.6, g: 120 * ks, kind: "ember" }); }
+          for (let i = 0; i < 4; i++) F.smoke.push({ x: bx + (r() * 2 - 1) * 8 * ks, y: by - r() * 10 * ks, r: (8 + r() * 6) * ks, vy: -(10 + r() * 10) * ks, age: 0, life: 1.4 + r() * 0.8 });
+        }
+        V.booms++;
+      }
+    }
+    // the rockets climb on their trails and burst at the top
+    for (let i = F.rockets.length - 1; i >= 0; i--) {
+      const k = F.rockets[i]; k.age += s; k.vy += k.g * s; k.x += k.vx * s; k.y += k.vy * s;
+      k.trail.push({ x: k.x, y: k.y }); if (k.trail.length > 10) k.trail.shift();
+      if (!calm && r() < 0.5) spark({ x: k.x, y: k.y, vx: (r() * 2 - 1) * 8 * ks, vy: (r() * 10) * ks, age: 0, life: 0.3 + r() * 0.25, c: 0xffd79a, sz: 0.5, drag: 2, g: 40 * ks, kind: "trail" });
+      if (k.vy >= -12 * ks) { F.rockets.splice(i, 1); this.fireworksBurstV177C(F, k); V.bursts++; }
+    }
+    // the sparks: drag, gravity, the crossette's split, the crackle's pops
+    for (let i = F.sparks.length - 1; i >= 0; i--) {
+      const p = F.sparks[i]; p.age += s;
+      const dk = Math.exp(-(p.drag || 1) * s); p.vx *= dk; p.vy = p.vy * dk + (p.g || 50 * ks) * s; p.x += p.vx * s; p.y += p.vy * s;
+      if (p.kind === "cross" && !p.split && p.age > p.life * 0.5) { p.split = true;
+        for (let j = 0; j < 4; j++) { const a = j * Math.PI / 2 + Math.PI / 4, v = 34 * ks; spark({ x: p.x, y: p.y, vx: Math.cos(a) * v + p.vx * 0.3, vy: Math.sin(a) * v + p.vy * 0.3, age: 0, life: 0.5 + r() * 0.3, c: p.c, sz: 0.7, drag: 1.8, g: 50 * ks, kind: "star" }); } }
+      if (p.age >= p.life) {
+        if (p.kind === "crackle" && !calm) { for (let j = 0; j < 2; j++) F.flashes.push({ x: p.x + (r() * 2 - 1) * 4 * ks, y: p.y + (r() * 2 - 1) * 4 * ks, age: -r() * 0.12, life: 0.09 + r() * 0.06, r: (1.6 + r() * 1.6) * ks, c: 0xffffff }); V.crackles++; }
+        F.sparks.splice(i, 1);
+      }
+    }
+    for (let i = F.flames.length - 1; i >= 0; i--) { const f = F.flames[i]; f.age += s; if (f.age >= f.life) { F.flames.splice(i, 1); for (let j = 0; j < 2; j++) F.smoke.push({ x: f.x, y: f.y - f.h * 0.7, r: 9 * ks, vy: -14 * ks, age: 0, life: 1.2 }); } }
+    for (let i = F.booms.length - 1; i >= 0; i--) { const b = F.booms[i]; b.age += s; if (b.age >= b.life) F.booms.splice(i, 1); }
+    for (let i = F.smoke.length - 1; i >= 0; i--) { const m = F.smoke[i]; m.age += s; m.y += m.vy * s; if (m.age >= m.life) F.smoke.splice(i, 1); }
+    for (let i = F.flashes.length - 1; i >= 0; i--) { const f = F.flashes[i]; f.age += s; if (f.age >= f.life) F.flashes.splice(i, 1); }
+    V.maxSparks = Math.max(V.maxSparks, F.sparks.length); V.frames++;
+    // ---- draw: the sky layers (behind the screen), then the pyro (beside it)
+    const gN = F.gN, gA = F.gA, pN = F.pN, pA = F.pA; gN.clear(); gA.clear(); pN.clear(); pA.clear(); F.drawn = true;
+    for (const f of F.flashes) if (f.age >= 0) { const q = f.age / f.life;
+      if (f.sky) { for (const k2 of [1, 0.62, 0.32]) { gA.fillStyle(f.c, (f.a / 3) * (1 - q)); gA.fillCircle(f.x, f.y, f.r * k2); } }   // a soft falloff, not a disc
+      else { gA.fillStyle(f.c, 0.9 * (1 - q)); gA.fillCircle(f.x, f.y, f.r * (1 + q)); } }
+    for (const k of F.rockets) {
+      const T = k.trail; for (let j = 1; j < T.length; j++) { const a = j / T.length; gA.lineStyle(1.3 * ks * a + 0.3, 0xffcf8a, 0.7 * a); gA.lineBetween(T[j - 1].x, T[j - 1].y, T[j].x, T[j].y); }
+      gA.fillStyle(0xfff3d6, 1); gA.fillCircle(k.x, k.y, 1.5 * ks); gA.fillStyle(0xffc070, 0.35); gA.fillCircle(k.x, k.y, 3.6 * ks);
+    }
+    for (const p of F.sparks) {
+      const q = p.age / p.life, a = Math.pow(1 - q, p.kind === "willow" ? 0.8 : 1.3) * (p.kind === "crackle" && q > 0.6 && !calm ? (Math.sin(p.age * 70 + p.x) > 0 ? 1 : 0.35) : 1);
+      if (a < 0.02) continue;
+      const tl = p.kind === "willow" || p.kind === "palm" ? 0.11 : p.kind === "trail" || p.kind === "ember" ? 0.03 : 0.05;
+      const w = Math.max(0.5, 1.6 * ks * (p.sz || 1));
+      gN.lineStyle(w, p.c, a); gN.lineBetween(p.x - p.vx * tl, p.y - p.vy * tl, p.x, p.y);
+      gA.fillStyle(p.c, a * 0.35); gA.fillCircle(p.x, p.y, w * 1.7);
+      if (q < 0.35 && p.kind !== "trail" && p.kind !== "ember") { gA.fillStyle(0xffffff, a * 0.6); gA.fillCircle(p.x, p.y, w * 0.6); }
+    }
+    for (const m of F.smoke) { const q = m.age / m.life; pN.fillStyle(0x2a2f38, 0.45 * (1 - q)); pN.fillCircle(m.x, m.y, m.r * (1 + q * 1.4)); }
+    for (const f of F.flames) {
+      /* a flame jet off the bezel's corner: three tongues of fire (red-orange round orange round a white-hot core), each a
+       * polygon whose sides lick in and out on their own phase, the column swelling up and dying back */
+      const q = f.age / f.life, env = Math.sin(Math.min(1, q * 1.15) * Math.PI), H = f.h * env, NP = 9;
+      if (H < 1) continue;
+      for (const [k2, c, a] of [[1, 0xe0461a, 0.55], [0.72, 0xff9a26, 0.75], [0.42, 0xfff0b0, 0.9]]) {
+        const left = [], right = [], hh = H * (0.55 + 0.45 * k2), ww = f.w * (0.55 + 0.6 * k2);
+        for (let j = 0; j <= NP; j++) {
+          const v = j / NP, sway = Math.sin(f.seed + f.age * 26 + v * 5) * f.w * 0.5 * v, bulge = Math.sin(Math.PI * Math.min(1, v * 1.25 + 0.08)) * (1 - v * 0.55);
+          const flick = 1 + 0.22 * Math.sin(f.seed * 2 + f.age * 61 + j * 2.3);
+          const hw = ww * bulge * flick, y = f.y - hh * v;
+          left.push({ x: f.x + sway - hw, y }); right.push({ x: f.x + sway + hw, y });
+        }
+        const tip = { x: f.x + Math.sin(f.seed + f.age * 26 + 5) * f.w * 0.5, y: f.y - hh * 1.06 };
+        pA.fillStyle(c, a * env); pA.fillPoints(left.concat([tip], right.reverse()), true);
+      }
+      for (const k2 of [1, 0.55]) { pA.fillStyle(0xffb050, 0.07 * env); pA.fillCircle(f.x, f.y - H * 0.35, f.w * 2.4 * k2); }   // the glow it throws, soft
+    }
+    for (const b of F.booms) {
+      // a fireball beside the board: lumps of fire round a white core going orange to red to smoke, a shock ring running out
+      const q = b.age / b.life, rr = b.r * EASE_OUT_V177C(q), sd = (b.x * 7 + b.y * 3) % 6.283;
+      for (let j = 0; j < 7; j++) {
+        const a = sd + j * 0.9, d = rr * (0.35 + 0.25 * Math.sin(sd * 3 + j)), lr = rr * (0.55 - 0.05 * (j % 3));
+        pA.fillStyle(q < 0.4 ? 0xffa23a : 0xd9481c, 0.7 * (1 - q)); pA.fillCircle(b.x + Math.cos(a) * d, b.y + Math.sin(a) * d * 0.8 - q * rr * 0.4, lr);
+      }
+      pA.fillStyle(0xffe6a0, 0.9 * (1 - q) * (1 - q)); pA.fillCircle(b.x, b.y - q * rr * 0.3, rr * 0.5);
+      pN.lineStyle(Math.max(0.6, 1.2 * F.ks * (1 - q)), 0xfff0d8, 0.35 * (1 - q)); pN.strokeEllipse(b.x, b.y, b.r * 3.6 * EASE_OUT_V177C(q), b.r * 2.6 * EASE_OUT_V177C(q), 32);
+    }
+    // reduced motion: a warm glow at the board's sides instead of the pyro
+    if (calm && this._partyV177C && this._partyV177C.state === "board") {
+      const gl = 0.12 + 0.06 * Math.sin(F.t / 600);
+      for (const x of [BZ.x - 6 * ks, BZ.x + BZ.w + 6 * ks]) { pA.fillStyle(0xffb04a, gl); pA.fillCircle(x, BZ.y + BZ.h * 0.5, 16 * ks); }
+    }
+  }
+  fireworksBurstV177C(F, k) {
+    const r = F.r, ks = F.ks, calm = F.calm, V = this.partyHookV177C().fw, cap = TU("fwCapV177C", 720);
+    const spark = (o) => { if (F.sparks.length < cap) { F.sparks.push(o); V.sparks++; } };
+    const type = k.type, n0 = calm ? 30 : TU("fwSparksV177C", 64), vs = (calm ? 60 : 92 + r() * 40) * ks;
+    if (type === "ring") {
+      const n = n0, tilt = 0.35 + r() * 0.3, sp = r() * 6.28;
+      for (let i = 0; i < n; i++) { const a = sp + (i / n) * Math.PI * 2; spark({ x: k.x, y: k.y, vx: Math.cos(a) * vs, vy: Math.sin(a) * vs * tilt, age: 0, life: 1.0 + r() * 0.3, c: i % 2 ? k.c : k.c2, sz: 1, drag: 1.4, g: 30 * ks, kind: "star" }); }
+    } else if (type === "willow") {
+      for (let i = 0; i < n0; i++) { const a = r() * Math.PI * 2, v = vs * (0.5 + r() * 0.6); spark({ x: k.x, y: k.y, vx: Math.cos(a) * v, vy: Math.sin(a) * v, age: 0, life: 2.0 + r() * 0.6, c: 0xffcf6a, sz: 0.8, drag: 2.2, g: 70 * ks, kind: "willow" }); }
+    } else if (type === "palm") {
+      for (let i = 0; i < 7; i++) { const a = -Math.PI / 2 + (i - 3) * 0.42 + (r() - 0.5) * 0.2, v = vs * 1.25; spark({ x: k.x, y: k.y, vx: Math.cos(a) * v, vy: Math.sin(a) * v, age: 0, life: 1.4 + r() * 0.4, c: k.c, sz: 1.6, drag: 1.3, g: 85 * ks, kind: "palm" }); }
+      for (let i = 0; i < 12; i++) { const a = r() * Math.PI * 2, v = vs * 0.35; spark({ x: k.x, y: k.y, vx: Math.cos(a) * v, vy: Math.sin(a) * v, age: 0, life: 0.7, c: 0xffffff, sz: 0.6, drag: 2, g: 40 * ks, kind: "star" }); }
+    } else if (type === "crossette") {
+      for (let i = 0; i < 9; i++) { const a = (i / 9) * Math.PI * 2 + r() * 0.3; spark({ x: k.x, y: k.y, vx: Math.cos(a) * vs * 0.8, vy: Math.sin(a) * vs * 0.8, age: 0, life: 0.9 + r() * 0.2, c: k.c, sz: 1.1, drag: 1.2, g: 40 * ks, kind: "cross" }); }
+    } else if (type === "crackle") {
+      for (let i = 0; i < n0; i++) { const a = r() * Math.PI * 2, v = vs * (0.4 + r() * 0.7); spark({ x: k.x, y: k.y, vx: Math.cos(a) * v, vy: Math.sin(a) * v, age: 0, life: 0.8 + r() * 0.6, c: 0xffd76f, sz: 0.8, drag: 1.7, g: 55 * ks, kind: "crackle" }); }
+    } else {   // peony: a sphere of stars in two colours
+      for (let i = 0; i < n0; i++) { const a = r() * Math.PI * 2, v = vs * Math.sqrt(0.25 + 0.75 * r()); spark({ x: k.x, y: k.y, vx: Math.cos(a) * v, vy: Math.sin(a) * v, age: 0, life: 1.0 + r() * 0.5, c: r() < 0.5 ? k.c : k.c2, sz: 1, drag: 1.5, g: 45 * ks, kind: "star" }); }
+    }
+    // the burst lights the sky round it (never under reduced motion)
+    F.flashes.push({ x: k.x, y: k.y, age: 0, life: 0.18, r: 7 * ks, c: 0xffffff });
+    if (!calm) { F.flashes.push({ x: k.x, y: k.y, age: 0, life: 0.4, r: F.R.w * 0.42, c: k.c, a: TU("fwSkyAV177C", 0.11), sky: true }); V.flashes++; }
   }
   /* ===== v172 THE BIG BOARD =====
    * The owner: "Have the jumbotron nearly always visible in the background. Please reimplement the turnover, big
@@ -8653,6 +9190,7 @@ class Ot extends mt.Scene {
   }
   updateStadiumV92(delta) {
     try { this.bigBoardV172(delta); } catch (e) {}   // v172: the hung board (hidden with the stadium)
+    try { this.partyTickV177C(delta); } catch (e) { const V7 = window.__V177C; if (V7 && V7.errs.length < 8) V7.errs.push(String((e && e.message) || e)); }   // v177 C: the board's party and the fireworks behind it
     const ST = this.stadium; if (!ST || !ST.on) return;
     try {
       // the lamps breathe: each tower walks its face's six frames on its own phase
@@ -8715,6 +9253,7 @@ class Ot extends mt.Scene {
     if (C.voices) { for (const v of C.voices) { try { v.box.destroy() } catch (e) {} } C.voices.length = 0; }
     if (C.emojis) { for (const v of C.emojis) { try { v.tx.destroy() } catch (e) {} } C.emojis.length = 0; }
     if (C.trimG) { try { C.trimG.destroy() } catch (e) {} C.trimG = null; }   // v112: the bowl's band and its entrance
+    if (C.rimG) { try { C.rimG.destroy() } catch (e) {} C.rimG = null; }   // v177 D: the rim
     for (const s of C.secs) for (const pose of ["idle", "cheer"]) {
       try { s.spr[pose].destroy(); } catch (e) {}
       try { this.textures.remove("crowd_" + C.secs.indexOf(s) + "_" + pose); } catch (e) {}
@@ -8811,7 +9350,7 @@ class Ot extends mt.Scene {
     // below the ground shadows (3.5) and the players (4+), so a man ON the field
     // always draws in front of the furniture behind him. Ordered by screen y, so
     // the near end of a lane covers the far end of it.
-    return TU("crowdDepth", 3.45) + .01 + Math.max(0, Math.min(1, py / WORLD_H)) * .03;
+    return TU("crowdDepth", 3.45) + .01 + Math.max(0, Math.min(1, py / WORLD_H0)) * .03;
   }
   // The static half of the lighting: the v29 depth falloff the players get, the
   // aerial fade the stands get, and the crowd's bank shade. The ball spotlight is
@@ -9630,6 +10169,10 @@ class Ot extends mt.Scene {
       if (!fimg || !P) return;
       const CW = 1200, CH = WORLD_H, AW = FW * PERSP_OA;
       if (!this._warpCv) { this._warpCv = document.createElement("canvas"); this._warpCv.width = CW; this._warpCv.height = CH; }
+      else if (this._warpCv.height < CH) {   // v177 E: the world grew: a taller canvas (grow-only — rows past WORLD_H are under the camera's bound), so a new texture
+        this._warpCv.height = CH;
+        try { if (this.textures.exists("rib_field_warp")) this.textures.remove("rib_field_warp"); } catch (e) {}
+      }
       const ctx = this._warpCv.getContext("2d");
       // Everything above the far end line is BEYOND the stadium, not more turf. It
       // used to be filled by stretching the art's topmost row across it, which was
@@ -9762,7 +10305,7 @@ class Ot extends mt.Scene {
       this.lightFieldV98(ctx, CW, CH);   // v98: the lamps' wash, their pools and the edge falloff, baked on the turf
       if (this.textures.exists("rib_field_warp")) this.textures.get("rib_field_warp").refresh();
       else this.textures.addCanvas("rib_field_warp", this._warpCv);
-      if (this.fieldSpr) this.fieldSpr.setTexture("rib_field_warp").setPosition(FW / 2, CH / 2).setScale(1).setVisible(true);
+      if (this.fieldSpr) this.fieldSpr.setTexture("rib_field_warp").setOrigin(0.5, 0).setPosition(FW / 2, 0).setScale(1).setVisible(true);   // v177 E: hung from the top (the canvas may be taller than this world)
     } catch (e) { console.warn("[v27 warpField]", e); }
   }
   /* ===== v112 THE SKY HAS STARS =====
@@ -9821,7 +10364,8 @@ class Ot extends mt.Scene {
   lightFieldV98(ctx, CW, CH) {
     if (!TU("fieldLightV98", 1)) return;
     try {
-      const x0 = (CW - FW) / 2, H = CH - NSTOP, LM = this.bakedMulV100() * this.dayMulV144();   // v100: the dial, softened at the top. v144: and all but gone by day
+      const x0 = (CW - FW) / 2, H = WORLD_H0 - NSTOP, LM = this.bakedMulV100() * this.dayMulV144();   // v177 E: tuned on the WORLD_H0 canvas, whatever its height now
+      const HF = CH - NSTOP;   // v177 E: the fills reach the bottom of a grown canvas   // v100: the dial, softened at the top. v144: and all but gone by day
       ctx.save();
       ctx.globalCompositeOperation = "lighter";
       /* v144 H: by day the light does not come from four masts — it comes from everywhere. The
@@ -9830,7 +10374,7 @@ class Ot extends mt.Scene {
        * across the whole playing surface instead, still riding the player's own brightness dial. */
       if (this.wxV144().day) {
         ctx.fillStyle = "rgba(255,250,230," + (TU("daySunA", 0.22) * this.lightMulV100()).toFixed(3) + ")";
-        ctx.fillRect(0, NSTOP, CW, H);
+        ctx.fillRect(0, NSTOP, CW, HF);
       }
       // the wash: warm at the far end, gone by mid-field
       const wash = ctx.createLinearGradient(0, NSTOP, 0, NSTOP + H * TU("fieldWashReach", 0.48));
@@ -9857,7 +10401,7 @@ class Ot extends mt.Scene {
       const va = TU("fieldVignA", 0.34) * Math.max(0.35, Math.min(1.5, 2 - LM)) * (this.wxV144().day ? TU("dayVignKV144", 0.3) : 1), vc = { x: CW / 2, y: NSTOP + H * 0.42 };
       const v = ctx.createRadialGradient(vc.x, vc.y, CW * 0.38, vc.x, vc.y, CW * 1.05);
       v.addColorStop(0, "rgba(3,6,14,0)"); v.addColorStop(1, "rgba(3,6,14," + va.toFixed(3) + ")");
-      ctx.fillStyle = v; ctx.fillRect(0, NSTOP, CW, H);
+      ctx.fillStyle = v; ctx.fillRect(0, NSTOP, CW, HF);
       ctx.restore();
     } catch (e) {}
   }
@@ -9876,6 +10420,7 @@ class Ot extends mt.Scene {
     // and the WHOLE scene (art + sprites + lines) recedes with one consistent curve.
     { const lxw = fx(losYd), losU = VDIR > 0 ? lxw : FW - lxw; ANCHOR_U = losU - PERSP_AB; }
     buildPersp();
+    try { const cm = this.cameras && this.cameras.main, b = cm && cm._bounds; if (b && b.height !== WORLD_H) cm.setBounds(b.x, 0, b.width, WORLD_H); } catch (e) {}   // v177 E: the camera may go where the world now reaches
     const key162 = this.fieldKeyV162A(losYd), V162 = window.__V162A;
     if (key162 && key162 === this._fieldKeyV162A) V162.skips++;   // v162 A: the same bake is already on screen
     else {
@@ -9940,7 +10485,7 @@ class Ot extends mt.Scene {
     this.ftext = [];
   }
   drawLegend() {
-    const LEGY = WORLD_H + 120;          // parked far below the field so the main camera can never see it
+    const LEGY = WORLD_HMAX_V177E + 120;   // parked far below the field so the main camera can never see it (v177 E: below the largest world)
     const y = LEGY + LEG / 2, g = this.add.graphics().setDepth(2);
     g.fillStyle(0x0b1119, 1).fillRect(0, LEGY, FW, LEG);
     g.lineStyle(1, 0xffffff, 0.12).lineBetween(0, LEGY, FW, LEGY);

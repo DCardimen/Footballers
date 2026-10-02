@@ -877,7 +877,8 @@
     "v164 G",
     "v164 H",
     "v95",
-    "v175"
+    "v175",
+    "v177 C"
    ],
    "files": [
     "public/badges/**",
@@ -888,7 +889,8 @@
     "v164Fcheck",
     "badgecheck",
     "v86check",
-    "screenpancheck"
+    "screenpancheck",
+    "jumboPartycheck"
    ],
    "steps": [
     "`node scripts/build-badge-art.mjs` (if a badge changed)"
@@ -1309,7 +1311,8 @@
    "anchors": [
     "v57",
     "v78",
-    "SIDELINE"
+    "SIDELINE",
+    "v177 D"
    ],
    "files": [
     "public/rib_crowd*",
@@ -1319,7 +1322,8 @@
     "crowdcheck",
     "sidelinecheck",
     "refcheck",
-    "v162Acheck"
+    "v162Acheck",
+    "rimcheck"
    ]
   },
   "declare": {
@@ -1439,7 +1443,8 @@
    "anchors": [
     "v148",
     "rowRefYdV148",
-    "rowKeepYdV148"
+    "rowKeepYdV148",
+    "v177 E"
    ],
    "files": [],
    "checks": [
@@ -1453,7 +1458,8 @@
     "v112Echeck",
     "v86check",
     "sidelinecheck",
-    "renderpathcheck"
+    "renderpathcheck",
+    "perspcheck"
    ],
    "variants": [
     "`KILL=1` for `v148check` shows the old failures"
@@ -4644,6 +4650,46 @@
    "pureNode": false,
    "flaky": [],
    "loadSensitive": true
+  },
+  "jumboPartycheck": {
+   "file": "scripts/jumboPartycheck.mjs",
+   "desc": "v177 C THE BOARD THROWS A PARTY — on a live game: with every play panning to the screen and the party allowed on a plain pan, a whistle arms it and it starts only once the camera is on the screen after the badge's beat; the celebrating body is drawn inside the panel (masked), the badge gives way, the feed is off; rockets, bursts, flame jets and fireballs fire; the sky layer is behind the screen and the bowl; it ends and puts its layers away; HIS touchdown plays his equipped celebration (its callout the caption); another man's SACK a stock body with his name; calm (reduced motion): one pose, no pyro or flashes, three bursts; TU v177Cparty 0: pans, no party. No page errors.",
+   "areas": [
+    "badges",
+    "lights"
+   ],
+   "runtimeSec": 120,
+   "slow": false,
+   "needsServer": true,
+   "pureNode": false,
+   "flaky": [],
+   "loadSensitive": true
+  },
+  "rimcheck": {
+   "file": "scripts/rimcheck.mjs",
+   "desc": "v177 D THE RIM IS A CLEAN LINE — at three lines of scrimmage: one parapet chain round the whole bowl with no gap, its top edge turning smoothly (no step or notch), its slope wandering a fraction of the raw crowd skyline's, the crowd sections' own topmost pixels lying inside the band (the jag is under it), drawn over the crowd and under the base band; TU v177Drim 0 draws nothing. No page errors.",
+   "areas": [
+    "crowd",
+    "lights"
+   ],
+   "runtimeSec": 60,
+   "slow": false,
+   "needsServer": true,
+   "pureNode": false,
+   "flaky": []
+  },
+  "perspcheck": {
+   "file": "scripts/perspcheck.mjs",
+   "desc": "v177 E THE FAR END HOLDS ITS SHAPE — the field re-laid with the LOS from the own 10 to the opponent's 1, a wide frame on the line and 20/40/60 yards behind it: no taper anywhere, the world (bounds, warp canvas) holds the field, the bottom/middle width and ten-yard ratios match the own-30 reference within 3% at every line, the LOS row unchanged (and identical to TU v177E 0 on the line); TU v177E 0 shows the old pinch (bottom 0.69 of the middle's width 40 yards back on the opponent 10). No page errors.",
+   "areas": [
+    "rows",
+    "camera"
+   ],
+   "runtimeSec": 90,
+   "slow": false,
+   "needsServer": true,
+   "pureNode": false,
+   "flaky": []
   }
  }
 }

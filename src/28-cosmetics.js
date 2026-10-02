@@ -7769,6 +7769,53 @@
     } catch (e) { return null; }
   }
 
+  /* ===== v177 C THE BOARD THROWS A PARTY (cosmetics) =====
+   * What the renderer's jumbotron party (src/05 `v177 C`) borrows from this file: the three drawn bodies (v161 A — their
+   * frames in a kit, the pose at t, the loose ball, the dust) and the equipped celebration's plan (v159 C — the item's
+   * kind, colours and callout, drawn through the same closed-form painter at any position and scale). HIS moment gets his
+   * kit, his helmet and his equipped celebration; anyone else's gets that man's kit with no helmet dressing and a stock
+   * plan in the team's colours. Looks only — nothing here reads or writes a sim value, and the seeds are this file's PRNG. */
+  var BOARD_V177C = {
+    ready: function () { return readyV161A(); },
+    load: function () { try { return loadV161A(); } catch (e) { errV161A(e); return false; } },
+    anims: function () { return ANIMS_V161A.slice(); },
+    pick: function (tok) { return pickV161A(tok); },
+    stand: function () { return standV161A(); },
+    total: function (name, calm) { return tlV161A(name, !!calm).total; },
+    frame: function (name, k) { var M = DATA_V161A.M, A = M && M.anims[name]; return A ? A.frames[k] : null; },
+    pose: function (name, t, calm) { return poseV161A(name, t, !!calm); },
+    ball: function (name, t, calm) { return ballV161A(name, t, !!calm); },
+    parts: function (name, seed, calm) { return partsV161A(name, seed >>> 0, !!calm); },
+    drawParts: function (P, t, D) { return drawPartsV161A(P, t, D); },
+    // the frames in a kit: HIS (helmet and all), or another man's kit with no helmet of his
+    tex: function (scene, name, kitKey, you, tone) {
+      var kit = kitV161A(kitKey || "you", tone);
+      if (!you) kit = { p1: kit.p1, p2: kit.p2, H: null, tone: kit.tone, key: kit.p1 + kit.p2 + "|-|" + kit.tone };
+      return texV161A(scene, name, kit, TUv("v161Ahd", 1) ? 2 : 1);
+    },
+    // the equipped celebration (his moments only): what the board plays round him
+    item: function () { var it = item("celebration"); if (!it) return null; return { id: it.id, name: it.name, kind: celKindV159C(it), cols: celColsV159C(it), say: it.c && it.c.say ? String(it.c.say).toUpperCase().slice(0, 18) : "" }; },
+    // a plan: the equipped item's, or a stock kind in the given colours
+    plan: function (o) {
+      o = o || {}; var it = o.you ? item("celebration") : null, seed = strHashV159C("v177C|" + String(o.tok || "") + "|" + (it ? it.id : o.kind || "stock")) >>> 0;
+      var S = it ? planV159C(it, seed, !!o.calm) : buildV159C(o.kind || "confetti", (o.cols && o.cols.length ? o.cols : ["#ffffff"]), seed, !!o.calm);
+      if (!it) S.say = "";
+      return S;
+    },
+    // one frame of a plan, centred on (x, y) at u px per plan unit, into a normal and an additive Graphics
+    drawPlan: function (S, gN, gA, x, y, u, t) { var V = viewV159C(phaserPainterV159C(gN, gA), x, y, u, u); return drawV159C(S, V, t); },
+    rnd: function (seed) { return prng(seed >>> 0); },
+    hash: function (s) { return strHashV159C(s); },
+    /* v177 I's drawn bodies (moonwalk, the worm, griddy …): HIS equipped one plays on the board too — its frames in his kit,
+     * its pose (foot-anchored, with its own travel), its props (the blade, the bow, the phone …) */
+    body177: function () { try { if (!onV177I()) return null; var b = bodyOfV177I(item("celebration")); if (!b) return null; if (!readyV177I()) { loadV177I(); return null; } return b; } catch (e) { return null; } },
+    total177: function (name, calm) { return tlV177I(name, !!calm).total; },
+    pose177: function (name, t, calm) { return poseV177I(name, t, !!calm); },
+    frame177: function (name, k) { var A = DATA_V177I.M && DATA_V177I.M.anims[name]; return A ? A.frames[k] : null; },
+    tex177: function (scene, name, kitKey, tone) { return texV177I(scene, name, kitV161A(kitKey || "you", tone), TUv("v161Ahd", 1) ? 2 : 1); },
+    props177: function (name, t, o, D, calm) { var A = DATA_V177I.M && DATA_V177I.M.anims[name]; if (!A) return 0; return propsV177I(name, t, o, A.frames[o.k], D, !!calm, colsV177I(item("celebration"), name)); }
+  };
+
   var API = {
     version: "v151b", slots: SLOTS.slice(), cats: CATS, achievements: ACH.map(function (a) { return { id: a.id, name: a.name, desc: a.desc }; }),
     member: memberV156C, grandfathered: function (id) { return gfV156C(id); }, superItems: function () { return SUPER_IDS_V156C.slice(); },   // v156 C
@@ -7785,6 +7832,7 @@
     celebratePlay: V159C.play, shelfAlive: shelfV159C,   // v159 C
     numInk: numInkV159A, uniColour: uniColV159A, setUniColour: setUniColV159A,   // v159 A
     celebrateBody: function (scene, cm, opts) { return fieldBodyV161A(scene, cm, opts); },   // v161 A
+    boardCel: BOARD_V177C,   // v177 C
     _reset: function () { mem = null; try { localStorage.removeItem(KEY); } catch (e) {} fire({ reset: 1 }); }
   };
   window.RIB_COSMETICS = API;

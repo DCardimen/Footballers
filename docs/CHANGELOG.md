@@ -10,6 +10,28 @@ Names in older entries are the career app's pre-v149 C minified names (`q`, `ms`
 `index.html` + `src/` (`docs/LAYOUT.md`).
 
 <!-- new entries go here, newest first -->
+- **v177 C/D/E — the board throws a party, the rim is a clean line, the far end holds its shape.**
+  (`src/05-field-renderer.js`, `src/28-cosmetics.js`, `scripts/jumboPartycheck.mjs`, `scripts/rimcheck.mjs`,
+  `scripts/perspcheck.mjs`.) **C** — the owner: "Add TD celebrations after a key play (defense) or touchdown. Have it play
+  on the jumbotron, when it zooms in on it after the graphic. Add explosives and fireworks behind it." When v175's pan goes
+  to the screen for a touchdown, a turnover, a pick, a sack or a big hit, the post holds a little longer and, once the
+  camera has landed and the badge has had its beat, the panel throws a party: the man who made the play (the scorer, the
+  man with the pick or the recovery, the sacker, the hitter) does one of the three drawn celebrations ON the board in his
+  kit — HIS moments use his kit, his helmet and his equipped celebration (its routine — a v177 I body like the moonwalk —
+  its effect round him, its callout as the caption), anyone else's a stock routine in his team's colours — with a turning sunburst, the floor, his dust and the
+  loose ball, an LED grid, the bezel's lamps chasing; and behind the screen the sky goes up: rockets on sparkling trails
+  bursting in the team's colours (peony, ring, willow, crossette, palm, crackle that dies in white pops), a finale, flame
+  jets off the board's top corners and fireballs beside it. Reduced motion: one calm pose, three slow bursts, no pyro.
+  Kill switch `v177Cparty`. **D** — "make the top of the stadium not look jagged": the stands' skyline was the crowd
+  strip's ragged top rows sheared slice by slice — a sawtooth up the sidelines, notches across the far bowl. One parapet
+  now caps the whole bowl (a fascia band with a lit coping and a ribbon, one chain round both sidelines and the far end),
+  anti-aliased, covering the ragged rows. Kill switch `v177Drim`. **E** — "make sure the bottom of the field is always
+  adequate perspective. It usually distorts the higher north you go on the field": v148 fitted the warp canvas by making
+  the ground far behind the line RECEDE toward the viewer, which only bit once the drive was past midfield and then got
+  worse every yard — a frame looking back down the field (a return, a wide shot) had the touchlines pinching in at the
+  bottom (on the opponent's 10, 40 yards back: the bottom of the frame 0.69 of the middle's width, ten yards 0.47 of the
+  height). The world now grows instead (up to 5,100 rows on the goal line), so the perspective is the same at every line
+  of scrimmage and nothing in front of the line moved. Kill switch `v177E`.
 
 - **v177 F/G/H — ten new footsteps, ten new wings, every hat floats.** (`src/28-cosmetics.js`, `scripts/v177FGHcheck.mjs`.)
   The owner loved the Afterimage and asked for ten more footsteps with that kind of ingenuity, ten more wings at super
