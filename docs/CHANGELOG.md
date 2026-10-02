@@ -10,6 +10,19 @@ Names in older entries are the career app's pre-v149 C minified names (`q`, `ms`
 `index.html` + `src/` (`docs/LAYOUT.md`).
 
 <!-- new entries go here, newest first -->
+- **v173 — the pile is the button.** (`public/rib-vault.js`, `public/rib-vault-audio.js`, `public/rib-vault.css`,
+  `scripts/v173check.mjs` new, `scripts/v173shot.mjs` new.) Spending in the Prestige Vault felt like pressing and holding
+  a box: the press was gated by a rectangle around the hoard, the funding card sat on top of the money, and a tap got
+  one coin flying off to the core. Now you tap the PILE: its own shape is the target (never under 220 × 160 px on a
+  phone, an empty corner of the old box no longer counts), the funding card hangs under the core, and the pile answers —
+  it breathes with light while an upgrade waits, lights up under a mouse, a keyboard focus or the finger (a hot spot,
+  a ring of light, glints), and every tap knocks 3–5 real coins of the hoard into the air that come back down,
+  bounce and clink as they land (without starting an avalanche). A two-strike clink climbs with quick taps, "+N PP"
+  pops off the finger, a chime and a small shake of the room mark 25 / 50 / 75 % of the price, a bigger one the
+  unlock. Holding is still the pour (and keeps the coins jumping); the pile is a focusable button (Enter / Space tap,
+  held = hold). Reduced motion keeps the light and the numbers, drops the thrown coins and the shake. **The money is
+  identical** — a tap is the same 2 % chunk, the hold the same stages, one purchase per upgrade (`v173check`). Kill
+  switch `RIB_TUNE.v173pile = 0` (v137's box, exactly).
 - **v170 — the spray menu: hold, slide, slide.** (`src/34-spray.js` new, `src/22-hub-sections.js`, `src/25-shell.js`,
   `scripts/spraycheck.mjs`, `scripts/v146Echeck.mjs`, `scripts/phonecheck.mjs`.) Pages were split in half on a phone,
   each half scrolling on its own (training had four scroll boxes). Now holding any button on the bottom bar sprays its

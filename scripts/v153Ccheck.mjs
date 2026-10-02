@@ -313,7 +313,9 @@ let tinyPlan
   ok((await pay(page)) === null, 'RIB_TUNE.v153C = 0 turns the sequence off')
   await E(page, () => { window.__RIB_VAULT.close('test'); delete window.RIB_TUNE.v153C })
   const src = fs.readFileSync(new URL('../public/rib-vault.js', import.meta.url), 'utf8')
-  const blk = src.slice(src.indexOf('/* ===== v153 C PAYDAY')).replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/gm, '')
+  // the payday block runs to the next banner (v173's pile block follows it, and is not the payday)
+  const b0 = src.indexOf('/* ===== v153 C PAYDAY'), b1 = src.indexOf('/* ===== ', b0 + 10)
+  const blk = src.slice(b0, b1 > b0 ? b1 : undefined).replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/gm, '')
   ok(blk.length > 1000 && !/Math\.random/.test(blk), 'the payday block never draws on Math.random (a local PRNG)')
 }
 

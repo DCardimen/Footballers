@@ -432,10 +432,11 @@
    ]
   },
   "vault": {
-   "desc": "v137 — the Prestige Vault: hoard, spend, door, payout, sprites; v153 C — the payday (the reward sequence)",
+   "desc": "v137 — the Prestige Vault: hoard, spend, door, payout, sprites; v153 C — the payday (the reward sequence); v173 — the pile is the button (tap the pile: light, kicked coins, clink, pops, milestones)",
    "anchors": [
     "v137",
-    "v153 C"
+    "v153 C",
+    "v173"
    ],
    "files": [
     "public/rib-vault*",
@@ -446,6 +447,7 @@
    "checks": [
     "vaultcheck",
     "v153Ccheck",
+    "v173check",
     "honorcheck",
     "v134check",
     "coachcheck",
@@ -460,7 +462,8 @@
    ],
    "look": [
     "`vaultshot.mjs` / `WIDE=1 vaultshot.mjs` / `vaultspend.mjs` / `vaultdoor.mjs` / `vaultphys.mjs`",
-    "`v153Cshot.mjs` (the payday; `GAINS=12,1284,250000`, `RECORD=1`, `REDUCED=1`)"
+    "`v153Cshot.mjs` (the payday; `GAINS=12,1284,250000`, `RECORD=1`, `REDUCED=1`)",
+    "`v173shot.mjs` (a tap frozen mid-air, a hold at x4; `OFF=1` for v137's box, `WIDE=1`, `PP=`, `KEY=`)"
    ]
   },
   "tackle": {
@@ -4488,6 +4491,19 @@
    "slow": false,
    "needsServer": true,
    "pureNode": false,
+   "flaky": []
+  },
+  "v173check": {
+   "file": "scripts/v173check.mjs",
+   "desc": "v173 — the pile is the button: the vault's tap target is the pile's own shape (the centre on, the core and an empty corner of the old box off, never under 220x160 px on a 400x860 phone, a small hoard too), the funding card hangs under the core off the money; a real mouse tap on the pile reserves exactly v137's chunk (2% of 300 = 6), kicks >= 3 real coins into the air that land again (and ring), clinks, pops \"+6 PP\", lights the pile, debits nothing; a press off the pile reserves nothing; hover lights it with a pointer cursor; a hold still climbs the stages, pours and keeps kicking; 8 taps fund the 8 PP node with ONE debit and ONE level, 3 milestone chimes, shakes and UNLOCKED; the pile button: Enter and Space are one chunk each, holding Enter is the hold; reduced motion throws no coins; RIB_TUNE.v173pile = 0 is v137's box exactly; no page errors.",
+   "areas": [
+    "vault"
+   ],
+   "runtimeSec": 90,
+   "slow": false,
+   "needsServer": true,
+   "pureNode": false,
+   "loadSensitive": true,
    "flaky": []
   }
  }

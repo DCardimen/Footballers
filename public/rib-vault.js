@@ -1481,6 +1481,9 @@
       if (!self.scene) return false;
       var b = self.cv.getBoundingClientRect();
       var x = e.clientX - b.left, y = e.clientY - b.top;
+      // v173: the PILE's own shape decides (null when v173 is off: the box below, as it was)
+      var hit = self.pileHitV173 ? self.pileHitV173(x, y) : null;
+      if (hit != null) return hit;
       var h = self.scene.hoardBox();
       return x >= h.x0 - 24 && x <= h.x1 + 24 && y >= h.y0 - 16 && y <= h.y1 + 16;
     }
@@ -3543,4 +3546,498 @@
   D.forgetPayday = function () { V._lastPayday = null; };
   D.reserve = function () { var s = V.scene; return s ? { level: s._resLv || 0, pp: s.pp } : null; };
   window.__V153C = { plan: paydayPlan, reserveLevel: reserveLevel, MAX_LIVE: MAX_LIVE, MAX_PARTS: MAX_PARTS };
+})();
+
+/* ===== v173 THE PILE IS THE BUTTON — tap the money; it lights, it jumps, it rings =====
+ *
+ * "Instead of clicking and holding a box, can you click on the pile itself, which lights up,
+ * coins fall and clink." The press used to be gated by a RECTANGLE (`hoardBox` plus a margin)
+ * with the funding card parked on top of the money, and nothing on the pile answered a tap
+ * but one coin flying off to the core — so it read as pressing and holding a box. Now:
+ *
+ *   THE TARGET   is the pile's own shape: an ellipse fitted to the drawn hoard (never smaller
+ *                than 220 x 160 px, so a small hoard is still a thumb-sized target on a 400px
+ *                phone) plus any coin actually drawn outside it. The funding card moves off
+ *                the money to hang under the core it fills; the x2..x16 badge sits on the core.
+ *   IT LIGHTS    a warm light over the hoard — breathing gently while an upgrade is waiting to
+ *                be funded, brighter under a mouse or keyboard focus, brightest under the
+ *                finger, with a hot spot and a ring at the touch and glints across the top.
+ *   COINS FALL   every tap knocks 3-5 REAL surface coins of the hoard into the air (the top
+ *                coin off a column, a loose coin whole). They are v137 B's bodies: they fly up,
+ *                fall back onto the heap under its gravity, bounce by their weight and ring
+ *                as they land (`landed` -> the audio's `land`). A hold keeps knocking them.
+ *   AND CLINK    a two-strike clink per tap, pitched up a little by every quick tap after it;
+ *                a chime at each quarter of the price; "+N PP" pops off the finger; the room
+ *                gives a small shake at 25 / 50 / 75% and a bigger one when the upgrade lands.
+ *   KEYBOARD     the pile is a real (transparent) button over the hoard: Tab to it, Enter or
+ *                Space is a tap, holding the key is the hold. It never takes a pointer event.
+ *
+ *   MONEY        UNCHANGED, to the point. A tap is still `press` -> `pour(tapChunk)`, a hold is
+ *                still v137's STAGES, the commit is still ONE `onCommit` call. Everything this
+ *                block adds is drawn, heard or felt; none of it reads or writes a balance.
+ *   REDUCED      prefers-reduced-motion: the light and the pops (as fades) stay; no coins are
+ *                knocked loose, no rings, no glints, no shake.
+ *   KILL SWITCH  `RIB_TUNE.v173pile = 0` (read at each open) restores v137's box exactly.
+ *
+ * Hooks: `__RIB_VAULT_DEV.v173()`, `__RIB_VAULT_DEV.pileHit(x, y)`, `window.__V173`. Check:
+ * `v173check`. `docs/PRESTIGE-VAULT.md` — "v173 · the pile is the button". */
+(function () {
+  'use strict';
+  var M = window.__RIB_VAULT_MODEL, S = window.__RIB_VAULT_SCENE, C = window.__RIB_VAULT_CTRL;
+  if (!M || !S || !C || !window.__RIB_VAULT_DEV) return;
+  var Scene = S.Scene, PILE = S.PILE, Vault = C.Vault, V = window.__RIB_VAULT_DEV.v;
+  var TAU = Math.PI * 2;
+
+  function on() { try { return !(window.RIB_TUNE && window.RIB_TUNE.v173pile === 0); } catch (e) { return true; } }
+  function audio() { return window.__RIB_VAULT_AUDIO || null; }
+
+  var MIN_RX = 110, MIN_RY = 80;    // the smallest pile target, half-axes in CSS px
+  var PAD = 18;                     // how far past the drawn hoard a press still counts
+  var COMBO_MS = 480;               // taps closer than this build the combo
+  var MILESTONES = [0.25, 0.5, 0.75];
+
+  /* ---------- 1. the target: the pile's own shape ---------- */
+  Scene.prototype.pileShapeV173 = function () {
+    var h = this.hoardBox();
+    var cx = (h.x0 + h.x1) / 2, cy = (h.y0 + h.y1) / 2;
+    return { cx: cx, cy: cy, h: h,
+      rx: Math.max(MIN_RX, (h.x1 - h.x0) / 2 + PAD), ry: Math.max(MIN_RY, (h.y1 - h.y0) / 2 + PAD) };
+  };
+  Scene.prototype.onPileV173 = function (x, y) {
+    var e = this.pileShapeV173(), dx = (x - e.cx) / e.rx, dy = (y - e.cy) / e.ry;
+    if (dx * dx + dy * dy <= 1) return true;
+    var h = e.h;                    // the spill at the foot's corners: a coin you can see is a coin you can tap
+    if (x < h.x0 - PAD || x > h.x1 + PAD || y < h.y0 - PAD || y > h.y1 + PAD) return false;
+    return !!this.pickSurface(x, y).hit;
+  };
+  Vault.prototype.pileHitV173 = function (x, y) {
+    if (!this.v173 || !this.scene) return null;
+    return this.scene.onPileV173(x, y);
+  };
+
+  /* ---------- 2. coins fall: knock real surface coins into the air ---------- */
+  Scene.prototype.kickV173 = function (px, py, count, power) {
+    if (this.reduced || count <= 0) return 0;
+    var n = M.slotsFor(this.slots, Math.round(this.nShown));
+    if (n <= 0) return 0;
+    /* WHAT JUMPS IS WHAT YOU CAN SEE UNDER THE FINGER. `pickSurface` is v137 F's "whatever
+     * you touch": jittered round the tap it names the coins actually drawn there, nearest the
+     * camera first. Only the live surface band can move (a coin in the baked deep layer would
+     * cost a re-bake per kick), and if the hand is over too few of those the nearest live
+     * coins make up the count. */
+    var deep = this.deepSlots || 0, reach = Math.max(46, this.cw * 0.13), b = this.bodies();
+    var cand = [], seen = {}, i, tries = count * 3;
+    for (i = 0; i < tries && cand.length < count * 2; i++) {
+      var a = Math.random() * TAU, rr = Math.sqrt(Math.random()) * reach;
+      var pk = this.pickSurface(px + Math.cos(a) * rr, py + Math.sin(a) * rr * 0.6);
+      if (!pk.hit || pk.i < deep || seen[pk.i]) continue;
+      seen[pk.i] = 1; cand.push(pk.i);
+    }
+    if (cand.length < count) {
+      var s = this.slots.slot, p = {}, more = [], r2 = reach * reach;
+      for (i = Math.max(deep, 0); i < n; i++) {
+        if (seen[i]) continue;
+        this.cam.project(s[i].x * PILE.dx, s[i].y * PILE.dy, PILE.z + s[i].z * PILE.dz, p);
+        var d2 = (p.x - px) * (p.x - px) + (p.y - py) * (p.y - py);
+        if (d2 <= r2) more.push({ i: i, d2: d2 });
+      }
+      more.sort(function (u, v) { return u.d2 - v.d2; });
+      for (i = 0; i < more.length && cand.length < count * 2; i++) cand.push(more[i].i);
+    }
+    /* loose coins first: a tap that always took the top off a column would whittle every
+     * stack in the hoard down to the floor over the forty taps an upgrade can take */
+    var sl0 = this.slots.slot;
+    cand.sort(function (u, v) {
+      var cu = b[u] ? b[u].cnt : sl0[u].cnt, cv = b[v] ? b[v].cnt : sl0[v].cnt;
+      return (cu > 1 ? 1 : 0) - (cv > 1 ? 1 : 0);
+    });
+    var g = this.groundAt(px, py), kicked = 0;
+    for (var k = 0; k < cand.length && kicked < count; k++) {
+      if (b[cand[k]] && (b[cand[k]].held || b[cand[k]].homing)) continue;
+      var o = this.wake(cand[k]);
+      if (!o) break;                               // the body budget is spent
+      if (o.cnt > 1 && !o.shard) { o = this.shed(o); if (!o) continue; }
+      o.kickV173 = 2;                              // its next two landings are a kick's (see `landed`)
+      o.sleep = false; o.still = 0; o.held = false; o.energy = 0;
+      if (!o.shakenV137) { o.shakenV137 = 1; o.hx = o.gx; o.hz = o.gz; this.grantSlide(o); }
+      var away = o.gx - g.gx, m = Math.sqrt(o.m || 1);
+      // as hard as v137 B's ceiling (MAX_VY 0.006) allows: on a phone a hop of 40-70px, clear of the coins around it
+      o.vy = Math.min(0.0059, power * (0.0047 + Math.random() * 0.0012) / Math.sqrt(m));
+      o.vx = (away >= 0 ? 1 : -1) * (0.0001 + Math.random() * 0.0004) * power / m;   // it comes down near where it went up
+      o.vz = (Math.random() - 0.5) * 0.0003 * power / m;
+      o.vs = (Math.random() - 0.5) * 0.05;
+      kicked++;
+    }
+    return kicked;
+  };
+
+  /* A KICKED COIN LANDS WITHOUT AN AVALANCHE. v137 B's `landed` shakes the coins a landing
+   * comes down among by up to 0.75 — right for a coin you hurled, far too much for one that
+   * hopped a hand's height: measured, seven taps' worth of landings (even at a quarter of that
+   * stir) slid and shed every column in a 2,500 PP hoard flat. A kick's first two landings
+   * ring and spark exactly as any landing does, and leave the heap where it is. */
+  var LAND_MIN = 0.00035 * 6;       // v137 B's own gate: SLEEP_V * 6, a real impact
+  var baseLanded = Scene.prototype.landed;
+  Scene.prototype.landed = function (o, hit) {
+    if (!o.kickV173) return baseLanded.call(this, o, hit);
+    if (hit < LAND_MIN) return;
+    var now = performance.now();
+    if (now - (o.lastHit || 0) < 90) return;
+    o.lastHit = now;
+    o.kickV173--;
+    var den = M.denOf(this.slots.slot[o.i], this.mix);
+    var A = audio(); if (A) A.land(den, Math.min(1, hit / 0.005), o.m);
+    if (!this.reduced) { var p = this.cam.project(o.gx, o.gy, PILE.z + o.gz, {}); this.burst(p.x, p.y, den); }
+    this.kickLandsV173 = (this.kickLandsV173 || 0) + 1;
+  };
+
+  /* ---------- 3. it lights up ---------- */
+  /* The two soft lights are drawn ONCE into small canvases and blitted, scaled, every frame:
+   * a gradient built and filled per frame is the expensive way to draw the same picture, and
+   * the idle breathing light is on screen whenever an upgrade is waiting to be funded. */
+  var LIGHTS = null;
+  function softLight(r, stops) {
+    var c = document.createElement('canvas'); c.width = c.height = r * 2;
+    var x = c.getContext('2d'), g = x.createRadialGradient(r, r, 0, r, r, r);
+    for (var i = 0; i < stops.length; i++) g.addColorStop(stops[i][0], stops[i][1]);
+    x.fillStyle = g; x.fillRect(0, 0, r * 2, r * 2);
+    return c;
+  }
+  function lights() {
+    return LIGHTS || (LIGHTS = {
+      mound: softLight(96, [[0, 'rgba(255,206,120,1)'], [0.55, 'rgba(240,170,70,.55)'], [1, 'rgba(240,160,60,0)']]),
+      spot: softLight(48, [[0, 'rgba(255,236,180,1)'], [1, 'rgba(255,200,110,0)']])
+    });
+  }
+  function Glow() { this.k = 0; this.pulse = 0; this.hx = 0; this.hy = 0; this.rings = []; this.glints = []; this.glintAt = 0; }
+  Scene.prototype.drawGlowV173 = function (x, now) {
+    var G = this.glowV173;
+    if (!G || (G.k < 0.01 && G.pulse < 0.01 && !G.rings.length && !G.glints.length)) return;
+    var e = this.pileShapeV173(), h = e.h, w = Math.max(60, h.x1 - h.x0), hh = Math.max(40, h.y1 - h.y0);
+    var cx = e.cx, cy = h.y0 + hh * 0.62, i;
+    x.save();
+    x.globalCompositeOperation = 'lighter';
+    var L = lights();
+    // the hoard's own light: an ellipse the shape of the mound
+    var a = Math.min(0.5, 0.26 * G.k + 0.22 * G.pulse);
+    if (a > 0.004) {
+      x.globalAlpha = a;
+      x.drawImage(L.mound, cx - w * 0.56, cy - hh * 0.62, w * 1.12, hh * 1.24);
+    }
+    // the hot spot under the finger
+    if (G.pulse > 0.01) {
+      var hr = Math.max(40, w * 0.20);
+      x.globalAlpha = Math.min(1, 0.34 * G.pulse);
+      x.drawImage(L.spot, G.hx - hr, G.hy - hr, hr * 2, hr * 2);
+    }
+    x.globalAlpha = 1;
+    // a ring of light running out across the heap from the tap
+    for (i = G.rings.length - 1; i >= 0; i--) {
+      var r = G.rings[i], t = (now - r.t0) / 520;
+      if (t >= 1) { G.rings.splice(i, 1); continue; }
+      var rr = 8 + t * w * 0.34;
+      x.strokeStyle = 'rgba(255,224,150,' + (0.55 * (1 - t) * (1 - t)).toFixed(3) + ')';
+      x.lineWidth = 2.5 * (1 - t) + 0.8;
+      x.beginPath(); x.ellipse(r.x, r.y, rr, rr * 0.42, 0, 0, TAU); x.stroke();
+    }
+    // glints: a coin on the top catches the light
+    for (i = G.glints.length - 1; i >= 0; i--) {
+      var q = G.glints[i], u = (now - q.t0) / 420;
+      if (u >= 1) { G.glints.splice(i, 1); continue; }
+      var sz = q.s * Math.sin(u * Math.PI), al = Math.sin(u * Math.PI) * 0.9;
+      x.strokeStyle = 'rgba(255,248,220,' + al.toFixed(3) + ')';
+      x.lineWidth = 1.4;
+      x.beginPath(); x.moveTo(q.x - sz, q.y); x.lineTo(q.x + sz, q.y); x.moveTo(q.x, q.y - sz); x.lineTo(q.x, q.y + sz); x.stroke();
+      x.fillStyle = 'rgba(255,250,230,' + (al * 0.8).toFixed(3) + ')';
+      x.beginPath(); x.arc(q.x, q.y, Math.max(0.8, sz * 0.16), 0, TAU); x.fill();
+    }
+    x.restore();
+  };
+  Scene.prototype.glintV173 = function (now) {
+    var G = this.glowV173; if (!G || this.reduced) return;
+    var n = M.slotsFor(this.slots, Math.round(this.nShown));
+    if (n <= 0 || G.glints.length > 10) return;
+    var lo = Math.max(0, n - Math.max(12, Math.round(n * 0.25)));
+    var i = lo + Math.floor(Math.random() * (n - lo)), sl = this.slots.slot[i], p = {};
+    this.cam.project(sl.x * PILE.dx, sl.y * PILE.dy, PILE.z + sl.z * PILE.dz, p);
+    var size = p.s * sl.size, rise = sl.cnt > 1 ? (sl.cnt - 1) * size * S.STACK_RISE : 0;
+    G.glints.push({ x: p.x + (Math.random() - 0.5) * size * 0.5, y: p.y - rise - size * 0.12, s: size * (0.30 + Math.random() * 0.25), t0: now });
+  };
+  var baseHoard = Scene.prototype.drawHoard;
+  Scene.prototype.drawHoard = function (x) {
+    baseHoard.call(this, x);
+    if (this.glowV173) this.drawGlowV173(x, performance.now());
+  };
+
+  /* ---------- 4. the interface: the pile button, the pops, the layout ---------- */
+  var baseBuild = Vault.prototype.build;
+  Vault.prototype.build = function () {
+    if (this.built) return;
+    baseBuild.call(this);
+    var self = this, r = this.root, ui = r.querySelector('.rv-ui');
+    var pb = document.createElement('button');
+    pb.type = 'button'; pb.className = 'rv-pile'; pb.hidden = true;
+    pb.setAttribute('aria-label', 'The pile');
+    ui.insertBefore(pb, this.elHint);
+    this.elPile = pb;
+    var pops = document.createElement('div'); pops.className = 'rv-pops'; pops.setAttribute('aria-hidden', 'true');
+    r.insertBefore(pops, r.querySelector('.rv-panel'));
+    this.elPops = pops;
+    /* the keyboard: Enter / Space is a tap, holding it is the hold. preventDefault keeps the
+     * button's own synthetic click from turning one keypress into two taps. */
+    var isKey = function (e) { return e.key === 'Enter' || e.key === ' ' || e.key === 'Spacebar'; };
+    pb.addEventListener('keydown', function (e) {
+      if (!isKey(e)) return;
+      e.preventDefault();
+      if (e.repeat || self.keyHeldV173) return;
+      self.keyHeldV173 = true; self.focusV173 = true;
+      var c = self.pileCentreV173();
+      self.press(c.x, c.y);
+    });
+    pb.addEventListener('keyup', function (e) {
+      if (!isKey(e)) return;
+      e.preventDefault();
+      if (!self.keyHeldV173) return;
+      self.keyHeldV173 = false; self.release();
+    });
+    // a screen reader's activation is a click with no key behind it: one tap
+    pb.addEventListener('click', function (e) {
+      e.preventDefault();
+      if (self.keyHeldV173) return;
+      var c = self.pileCentreV173(); self.press(c.x, c.y); self.release();
+    });
+    pb.addEventListener('focus', function () { self.focusV173 = true; });
+    pb.addEventListener('blur', function () { self.focusV173 = false; if (self.keyHeldV173) { self.keyHeldV173 = false; self.release(); } });
+    /* the pointer: the light follows a mouse over the money (touch has no hover — its press
+     * lights it instead), and the cursor says it is a thing you can press */
+    this.cv.addEventListener('pointermove', function (e) {
+      if (!self.v173 || !self.scene || e.pointerType === 'touch') return;
+      var now = performance.now();
+      if (now - (self._hovAt || 0) < 45) return;
+      self._hovAt = now;
+      var b = self.cv.getBoundingClientRect(), x = e.clientX - b.left, y = e.clientY - b.top;
+      var hv = self.scene.onPileV173(x, y);
+      self.hoverV173 = hv;
+      if (hv && !self.holding) { var G = self.scene.glowV173; if (G) { G.hx = x; G.hy = y; } }
+      self.cv.style.cursor = hv ? 'pointer' : '';
+    });
+    this.cv.addEventListener('pointerleave', function () { self.hoverV173 = false; self.cv.style.cursor = ''; });
+    window.addEventListener('resize', function () { self._layKey = ''; });
+  };
+
+  Vault.prototype.pileCentreV173 = function () {
+    var s = this.scene; if (!s) return { x: 0, y: 0 };
+    var h = s.hoardBox();
+    return { x: (h.x0 + h.x1) / 2, y: h.y0 + (h.y1 - h.y0) * 0.55 };
+  };
+
+  /* the funding card hangs under the core it fills; the multiplier sits on the core; the
+   * keyboard's button covers the pile. Re-run whenever the pile or the viewport changes. */
+  Vault.prototype.layoutV173 = function () {
+    if (!this.built) return;
+    var t = this.elTgt, m = this.elMult, pb = this.elPile;
+    if (!this.v173 || !this.scene) {
+      t.style.top = ''; m.style.top = '';
+      if (pb) pb.hidden = true;
+      this._layKey = '';
+      return;
+    }
+    var s = this.scene, c = s.corePoint(), h = s.hoardBox();
+    var key = [s.cw, s.ch, Math.round(h.x0), Math.round(h.y0), Math.round(h.x1), Math.round(h.y1)].join(',');
+    if (key === this._layKey) return;
+    this._layKey = key;
+    t.style.top = Math.round(c.y + c.r * 1.16 + 6) + 'px';
+    m.style.top = Math.round(c.y - 24) + 'px';
+    if (pb) {
+      var e = s.pileShapeV173();
+      var x0 = Math.max(0, e.cx - e.rx), x1 = Math.min(s.cw, e.cx + e.rx);
+      var y0 = Math.max(0, e.cy - e.ry), y1 = Math.min(s.ch, e.cy + e.ry);
+      pb.style.left = Math.round(x0) + 'px'; pb.style.top = Math.round(y0) + 'px';
+      pb.style.width = Math.round(x1 - x0) + 'px'; pb.style.height = Math.round(y1 - y0) + 'px';
+      pb.hidden = false;
+    }
+  };
+
+  /* a number off the finger. Pooled: eight at most, the oldest is reused */
+  Vault.prototype.popV173 = function (x, y, html, cls) {
+    var box = this.elPops; if (!box) return;
+    var el = box.children.length >= 8 ? box.firstElementChild : document.createElement('div');
+    el.className = 'rv-pop' + (cls ? ' ' + cls : '');
+    el.innerHTML = html;
+    el.style.left = Math.round(x) + 'px'; el.style.top = Math.round(y) + 'px';
+    box.appendChild(el);
+    void el.offsetWidth; el.classList.add('go');   // a reused node restarts its animation
+    var self = this;
+    clearTimeout(el._t); el._t = setTimeout(function () { if (el.parentNode === self.elPops) el.remove(); }, 1100);
+    this.v173stats.pops++;
+    this.v173stats.popLog.push(el.textContent); if (this.v173stats.popLog.length > 8) this.v173stats.popLog.shift();
+  };
+
+  Vault.prototype.shakeV173 = function (amp) {
+    if (!this.scene || this.scene.reduced) return;
+    this.shakeAmpV173 = Math.max(this.shakeAmpV173 || 0, amp);
+    this.v173stats.shakes++;
+  };
+
+  /* ---------- 5. the tap: the same money, and now the pile answers ---------- */
+  var basePress = Vault.prototype.press;
+  Vault.prototype.press = function (x, y) {
+    var P = this.payday, paying = !!(P && !P.done);   // a tap on the payday is the payday's
+    var before = this.pending, wasCommitted = this.committed;
+    basePress.call(this, x, y);
+    if (!this.v173 || !this.scene || paying) return;
+    var s = this.scene, now = performance.now();
+    var invested = this.committed && !wasCommitted ? this.target.cost - before : this.pending - before;
+    this.comboV173 = now - (this._tapAt || 0) < COMBO_MS ? Math.min(8, (this.comboV173 || 0) + 1) : 0;
+    this._tapAt = now;
+    var G = s.glowV173;
+    if (G) {
+      G.pulse = 1; G.hx = x; G.hy = y;
+      if (!s.reduced) { G.rings.push({ x: x, y: y, t0: now }); if (G.rings.length > 6) G.rings.shift(); }
+      for (var i = 0; i < 2; i++) s.glintV173(now);
+    }
+    var kicked = s.kickV173(x, y, 3 + Math.min(2, this.comboV173 >> 1), 1);
+    this.v173stats.taps++; this.v173stats.kicked += kicked; this.v173stats.lastKick = kicked;
+    var pick = s.pickSurface(x, y);
+    var den = pick.i >= 0 ? M.denOf(s.slots.slot[pick.i], s.mix) : 'gold';
+    var A = audio(); if (A && A.tapV173) A.tapV173(den, this.comboV173);
+    if (invested > 0) this.popV173(x, y - 30, '+' + M.commas(invested) + '<small>PP</small>', this.comboV173 >= 4 ? 'hot' : '');
+  };
+
+  var basePour = Vault.prototype.pour;
+  Vault.prototype.pour = function (n, tap) {
+    var cost = this.target ? this.target.cost : 0, before = this.pending, was = this.committed;
+    var got = basePour.call(this, n, tap);
+    if (!this.v173 || !got || !cost) return got;
+    if (!tap) this.popAccV173 = (this.popAccV173 || 0) + got;
+    if (this.committed && !was) return got;         // the commit has its own moment
+    for (var i = 0; i < MILESTONES.length; i++) {
+      var q = MILESTONES[i];
+      if (before / cost < q && this.pending / cost >= q) this.milestoneV173(i + 1);
+    }
+    return got;
+  };
+  Vault.prototype.milestoneV173 = function (step) {
+    this.v173stats.milestones++;
+    var A = audio(); if (A && A.milestoneV173) A.milestoneV173(step);
+    this.shakeV173(2.5 + step * 1.2);
+    this.haptic([6, 24, 6 + step * 3]);
+    var c = this.scene.corePoint();
+    this.popV173(c.x, c.y - c.r * 1.45, (step * 25) + '%', 'mile');
+    if (this.scene.glowV173) this.scene.glowV173.pulse = Math.max(this.scene.glowV173.pulse, 0.7);
+    this.scene.corePulse = Math.min(1.3, this.scene.corePulse + 0.5);
+  };
+
+  var baseCommit = Vault.prototype.commit;
+  Vault.prototype.commit = function () {
+    var was = this.committed;
+    baseCommit.call(this);
+    if (this.v173 && !was && this.committed && this.scene) {
+      this.shakeV173(9);
+      var c = this.scene.corePoint();
+      this.popV173(c.x, c.y - c.r * 1.45, 'UNLOCKED', 'mile big');
+      if (this.scene.glowV173) this.scene.glowV173.pulse = 1;
+    }
+  };
+
+  /* ---------- 6. every frame ---------- */
+  var SHAKE_TAU = 95;
+  var baseTick = Vault.prototype.tick;
+  Vault.prototype.tick = function (now, dt) {
+    baseTick.call(this, now, dt);
+    if (!this.v173 || !this.scene) return;
+    var s = this.scene, G = s.glowV173;
+    var P = this.payday, paying = P && !P.done;
+    if (G) {
+      var want = 0;
+      if (!paying) {
+        if (this.holding && !this.dragging) want = 0.62 + 0.09 * (this.stage || 0);
+        else if (this.hoverV173 || this.focusV173) want = 0.5;
+        else if (this.target && !this.committed && this.spendable() > 0)
+          want = 0.12 + 0.07 * (0.5 + 0.5 * Math.sin(now / 620));    // waiting for you: it breathes
+      }
+      G.k += (want - G.k) * Math.min(1, dt / 120);
+      G.pulse *= Math.exp(-dt / 260);
+      if (this.holding && this.touch && !this.dragging) { G.hx = this.touch.x; G.hy = this.touch.y; G.pulse = Math.max(G.pulse, 0.35 + 0.1 * (this.stage || 0)); }
+      if (G.k > 0.3 && now - G.glintAt > (this.holding ? 70 : 150)) { G.glintAt = now; s.glintV173(now); }
+    }
+    // a hold keeps knocking coins loose, faster as the pour climbs
+    if (this.holding && !this.dragging && !paying && this.touch && this.target && !this.committed && (this.stage || 0) >= 1) {
+      if (now - (this._kickAt || 0) > 210 - this.stage * 28) {
+        this._kickAt = now;
+        var k = s.kickV173(this.touch.x + (Math.random() - 0.5) * 30, this.touch.y + (Math.random() - 0.5) * 16, 1 + (this.stage >= 3 ? 1 : 0), 0.8 + this.stage * 0.08);
+        this.v173stats.kicked += k;
+      }
+    }
+    // the pour's number, a few times a second rather than per coin
+    if (this.popAccV173 > 0 && now - (this._popAt || 0) > 260) {
+      this._popAt = now;
+      var t = this.touch || this.pileCentreV173();
+      this.popV173(t.x + (Math.random() - 0.5) * 24, t.y - 22, '+' + M.commas(this.popAccV173) + '<small>PP</small>', this.stage >= 3 ? 'hot' : '');
+      this.popAccV173 = 0;
+    }
+    // the room shakes; the interface over it does not
+    var a = this.shakeAmpV173 || 0;
+    if (a > 0.15) {
+      this.cv.style.transform = 'translate(' + ((Math.random() - 0.5) * 2 * a).toFixed(1) + 'px,' +
+        ((Math.random() - 0.5) * 1.2 * a).toFixed(1) + 'px) scale(1.025)';
+      this.shakeAmpV173 = a * Math.exp(-dt / SHAKE_TAU);
+      this._shook = true;
+    } else if (this._shook) { this.cv.style.transform = ''; this._shook = false; this.shakeAmpV173 = 0; }
+    this.layoutV173();
+  };
+
+  /* ---------- 7. open, paint, close ---------- */
+  var baseOpen = Vault.prototype.open;
+  Vault.prototype.open = function (opts) {
+    this.v173 = on();
+    this.v173stats = { taps: 0, kicked: 0, lastKick: 0, pops: 0, popLog: [], milestones: 0, shakes: 0 };
+    this.comboV173 = 0; this.popAccV173 = 0; this.shakeAmpV173 = 0; this.hoverV173 = false; this.keyHeldV173 = false;
+    this._layKey = '';
+    var self = this;
+    return baseOpen.call(this, opts).then(function (v) {
+      if (!self.root) return v;
+      self.root.classList.toggle('rv-v173', !!self.v173);
+      if (self.scene) self.scene.glowV173 = self.v173 ? new Glow() : null;
+      if (self.elPops) self.elPops.innerHTML = '';
+      self.cv.style.transform = ''; self.cv.style.cursor = '';
+      self.layoutV173(); self.paint();
+      return v;
+    });
+  };
+  var basePaint = Vault.prototype.paint;
+  Vault.prototype.paint = function () {
+    basePaint.call(this);
+    var pb = this.elPile;
+    if (!pb || !this.v173) return;
+    var t = this.target;
+    pb.setAttribute('aria-label', !t ? 'The pile of coins: tap to shake it'
+      : this.committed ? t.name + ' purchased'
+        : 'Tap the pile to invest in ' + t.name + ', ' + M.commas(this.pending) + ' of ' + M.commas(t.cost) + ' PP. Hold to pour.');
+  };
+  var baseClose = Vault.prototype.close;
+  Vault.prototype.close = function (why) {
+    this.keyHeldV173 = false; this.hoverV173 = false; this.focusV173 = false;
+    if (this.cv) { this.cv.style.transform = ''; this.cv.style.cursor = ''; }
+    if (this.elPops) this.elPops.innerHTML = '';
+    return baseClose.call(this, why);
+  };
+
+  /* ---------- 8. the hooks ---------- */
+  var D = window.__RIB_VAULT_DEV;
+  D.v173 = function () {
+    var s = V.scene, G = s && s.glowV173, st = V.v173stats || {};
+    var b = s ? s.bodies() : {}, air = 0;
+    for (var k in b) { var o = b[k]; if (!o.sleep && o.gy > s.surfaceAt(o.gx, o.gz) + 0.02) air++; }
+    return { on: !!V.v173, taps: st.taps || 0, kicked: st.kicked || 0, lastKick: st.lastKick || 0,
+      pops: st.pops || 0, popLog: (st.popLog || []).slice(), milestones: st.milestones || 0, shakes: st.shakes || 0, combo: V.comboV173 || 0,
+      airborne: air, landed: s ? s.kickLandsV173 || 0 : 0, glow: G ? +G.k.toFixed(3) : 0, pulse: G ? +G.pulse.toFixed(3) : 0,
+      livePops: V.elPops ? V.elPops.children.length : 0,
+      shape: s ? s.pileShapeV173() : null,
+      rootClass: V.root ? V.root.classList.contains('rv-v173') : false,
+      pileBtn: V.elPile ? { hidden: V.elPile.hidden, label: V.elPile.getAttribute('aria-label') } : null,
+      audio: window.__RIB_VAULT_AUDIO && window.__RIB_VAULT_AUDIO.tapStatsV173 ? window.__RIB_VAULT_AUDIO.tapStatsV173() : null };
+  };
+  D.pileHit = function (x, y) { return V.scene ? V.scene.onPileV173(x, y) : false; };
+  window.__V173 = { on: on, MIN_RX: MIN_RX, MIN_RY: MIN_RY, PAD: PAD, MILESTONES: MILESTONES };
 })();

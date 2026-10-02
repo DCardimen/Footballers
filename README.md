@@ -51,6 +51,9 @@ Every gameplay dial reads through `TU(key, default)`, so values can be retuned l
 
 The full history, newest first, is [`docs/CHANGELOG.md`](docs/CHANGELOG.md) — add new entries there.
 
+- **v173 — the pile is the button.** In the Prestige Vault you tap the pile itself: it lights up, real coins jump off
+  it and clink back down, "+N PP" pops, the quarter marks chime and shake the room; holding is still the pour, and the
+  money is exactly what it was. `public/rib-vault*`; `v173check`.
 - **v170 — the spray menu.** Hold any bottom-bar button and its pages spray out; slide onto one, slide onto its page,
   let go — 43 destinations two slides away. On a phone every page is one page with one scroll, with a section bar you
   can tap or swipe. `src/34-spray.js`; `spraycheck`.
