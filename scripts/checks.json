@@ -876,7 +876,8 @@
     "v164 F",
     "v164 G",
     "v164 H",
-    "v95"
+    "v95",
+    "v175"
    ],
    "files": [
     "public/badges/**",
@@ -886,7 +887,8 @@
     "jumbocheck",
     "v164Fcheck",
     "badgecheck",
-    "v86check"
+    "v86check",
+    "screenpancheck"
    ],
    "steps": [
     "`node scripts/build-badge-art.mjs` (if a badge changed)"
@@ -944,7 +946,8 @@
     "crowdcheck",
     "postgamecheck",
     "v112Bcheck",
-    "menu-integration-check"
+    "menu-integration-check",
+    "screenpancheck"
    ],
    "steps": [
     "`scripts/build-stadium-art.*` (if the stadium art changed)"
@@ -4573,6 +4576,20 @@
    "pureNode": false,
    "loadSensitive": true,
    "flaky": []
+  },
+  "screenpancheck": {
+   "file": "scripts/screenpancheck.mjs",
+   "desc": "v175 — the stadium screen in its own spot (v172's hung board off by default); with the pan chance forced, the camera pans onto the screen at a whistle, holds it in frame, and the next snap takes it back; a TOUCHDOWN on the screen is the drawn badge with its sub-line and wants a pan, a SACK does not; TU v175pan 0: no pans. No page errors.",
+   "areas": [
+    "badges",
+    "lights"
+   ],
+   "runtimeSec": 90,
+   "slow": false,
+   "needsServer": true,
+   "pureNode": false,
+   "flaky": [],
+   "loadSensitive": true
   }
  }
 }

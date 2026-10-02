@@ -10,6 +10,13 @@ Names in older entries are the career app's pre-v149 C minified names (`q`, `ms`
 `index.html` + `src/` (`docs/LAYOUT.md`).
 
 <!-- new entries go here, newest first -->
+- **v175 — the camera finds the screen.** (`src/05-field-renderer.js`, `scripts/screenpancheck.mjs`,
+  `scripts/jumbocheck.mjs`.) The owner wanted the stadium screen left in its own spot, not hung over the broadcast: v172's
+  board is off by default (TU `v172jumbo` 1 brings it back). The drawn badges (TOUCHDOWN, TURNOVER, INTERCEPTED, FUMBLE,
+  BIG PLAY, BREAKAWAY, SACK, BIG HIT, FIELD GOAL …) now play ON that screen as their art, with the yards under them. And
+  the camera goes to the screen: after a big moment (and now and then to show the scoreboard), while the men settle at
+  the whistle, it eases slowly up onto the screen, holds it through the gather, and the next snap brings it home gently.
+  Kill switches `v175pan`, `v175art`.
 - **v174 — the palette: every look in one place.** (`src/28-cosmetics.js`, `scripts/palettecheck.mjs`.) The owner
   asked for the custom celebration, the banner and the rest in the colour palette beside the uniform and colour
   choice. The look lived in three places — the Team Creator's colours and crest (the top bar's 🎨), the Locker's STYLE

@@ -51,6 +51,9 @@ Every gameplay dial reads through `TU(key, default)`, so values can be retuned l
 
 The full history, newest first, is [`docs/CHANGELOG.md`](docs/CHANGELOG.md) — add new entries there.
 
+- **v175 — the camera finds the screen.** The stadium screen stays in its spot; the badge art (TOUCHDOWN, TURNOVER,
+  BIG PLAY …) plays on it, and after a big moment the camera slowly pans up to it while the players settle, then back
+  for the snap. `screenpancheck`.
 - **v174 — the palette.** Every look in one place: the Locker's STYLE tab (and the top bar's 🎨) is one page with
   the live card on top and a row for the uniform, the team colours and crest, the helmet, the celebration, the banner
   and every other look — each showing what he wears; open one, tap a look to wear it. `src/28-cosmetics.js`; `palettecheck`.

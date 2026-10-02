@@ -24,7 +24,7 @@ const page = await browser.newPage({ viewport: { width: 400, height: 860 } })
 const errs = []
 page.on('pageerror', e => errs.push('PAGEERROR: ' + e.message)); page.on('console', m => { if (m.type() === 'error' && !/Failed to load resource|net::ERR/.test(m.text())) errs.push('CONSOLE: ' + m.text().slice(0, 200)) })
 await page.addInitScript(() => {
-  window.RIB_TUNE = Object.assign(window.RIB_TUNE || {}, { dayNightV144: 0, wxV144: 0, speedGateV151A: 0 })
+  window.RIB_TUNE = Object.assign(window.RIB_TUNE || {}, { dayNightV144: 0, wxV144: 0, speedGateV151A: 0, v172jumbo: 1 })   // v175: the hung board is off by default — this check measures it switched on
   // the onboarding card and the season-commitment gate would stand over the field: clear them
   setInterval(() => { document.querySelector('.onboard')?.remove(); const g = document.getElementById('gv42go'); if (g) g.click() }, 250)
 })
@@ -166,7 +166,7 @@ const kill = await page.evaluate(async () => { const sc = window.__gridironScene
   for (let t0 = Date.now(), f0 = sc.game.loop.frame; Date.now() - t0 < 5000 && (sc.game.loop.frame - f0 < 4 || window.__V172.state().visible);) await new Promise(r => setTimeout(r, 50))
   const s = window.__V172.state(), ST = sc.stadium
   const r = sc.jumboSayV164F('OLD WAY', { kind: 'result', ms: 400 }); const old = { mode: ST.mode, last: window.__V164F.last }
-  await new Promise(r => setTimeout(r, 200)); delete window.RIB_TUNE.v172jumbo
+  await new Promise(r => setTimeout(r, 200)); window.RIB_TUNE.v172jumbo = 1
   for (let t0 = Date.now(), f0 = sc.game.loop.frame; Date.now() - t0 < 5000 && (sc.game.loop.frame - f0 < 4 || window.__V172.state().bowl.frame);) await new Promise(r => setTimeout(r, 50))
   const back = window.__V172.state()
   return { up: s.up, visible: s.visible, frame: s.bowl.frame, hung: s.bowl.hung, r, old: { mode: old.mode, board: !!(old.last && old.last.board), text: old.last && old.last.text }, back: { visible: back.visible, frame: back.bowl.frame } } })

@@ -2075,6 +2075,7 @@ class Ot extends mt.Scene {
   }
   // the whistle: wide, on the ball, for as long as the post phase runs
   camPostV109(P, delta) {
+    try { if (this.screenPanTickV175(delta)) return; } catch (e) {}   // v175: a pan to the screen owns the frame once it starts
     if (this.camOffV112() || !P.post || !P.post.camWide) return;
     try { const cam = this.cameras.main, W = P.post.camWide, sp = PJ(P.post.spot.x, P.post.spot.y);
       const hw = FW / (2 * cam.zoom), hh = FVH / (2 * cam.zoom);
@@ -2273,7 +2274,8 @@ class Ot extends mt.Scene {
       this.drawWearV86(et);   // v86: the turf remembers the game so far
       this.drawGoalpostsV87();   // v87: uprights at both ends
       this.stadiumLiveV92();     // v92: the big screen goes back to the feed
-      try { this.bigBoardSnapV172(et); } catch (e) {}   // v172: a big moment stays on the hung board into this snap
+      try { this.bigBoardSnapV172(et); } catch (e) {}
+      try { this.screenPanSnapV175(); this.badgeLoadAllV175(); } catch (e) {}   // v175: the snap takes the camera back (and the badge art is loaded before the first moment)   // v172: a big moment stays on the hung board into this snap
       this.resetCamera();   // v23: re-center on THIS play's line of scrimmage (focusPt was just refreshed by drawField)
       this.clearAlerts();   // v23: reset any scramble-warning ❗ from the previous play
       // build or GLIDE markers to the new formation (no teleporting between plays)
@@ -2363,7 +2365,7 @@ class Ot extends mt.Scene {
        * user can select, so switching speed mid-play cannot truncate it either.
        * `TU("watchdogSlackMs")` is the headroom for slow-mo and hit-stop. */
       const wdRate144 = Math.max(.05, Math.min(TU("watchdogSlowestSpeed", .5), slowFloorV164F()) * TU("basePlayRate", 0.7));   // v164 F: budgeted at the slow dial's floor
-      const wdSpan144 = script.duration + ((this.play && this.play.delay) || 0) + TU("postPlayMs", 1450);
+      const wdSpan144 = script.duration + ((this.play && this.play.delay) || 0) + TU("postPlayMs", 1450) + (TU("v175pan", 1) ? TU("screenPanHoldMsV175", 1700) + TU("screenPanDelayMsV175", 350) : 0);   // v175: a pan to the screen holds the post longer
       const wdMs144 = wdSpan144 / wdRate144 + TU("watchdogSlackMs", 6000);
       try { (window.__V144 = window.__V144 || {}).watchdog = { ms: Math.round(wdMs144), span: Math.round(wdSpan144), rate: +wdRate144.toFixed(3), dur: Math.round(script.duration), delay: Math.round((this.play && this.play.delay) || 0) }; } catch (e) {}
       this.time.delayedCall(wdMs144, () => { try { (window.__V144 = window.__V144 || {}).watchdogFired = (window.__V144.watchdogFired || 0) + 1; } catch (e) {} this.complete(); });
@@ -2384,8 +2386,8 @@ class Ot extends mt.Scene {
      * exact frame the whistle caught them. Then the next play's glide started and they all
      * sprinted off together. They breathe and shuffle through the gap now, so the restart is a
      * continuation rather than a cut. */
-    if (!P) { this.idleBetweenV144(delta); return; }
-    if (P.done) { if (P.post) this.updatePostV86(P, delta); return; }   // v86: the whistle is not the end of the picture
+    if (!P) { this.idleBetweenV144(delta); try { this.screenPanTickV175(delta); } catch (e) {} return; }   // v175: the camera stays on the screen through the gap
+    if (P.done) { if (P.post) this.updatePostV86(P, delta); else { try { this.screenPanTickV175(delta); } catch (e) {} } return; }   // v86: the whistle is not the end of the picture
     if (this.hitStop > 0) { this.hitStop -= delta; return; }   // freeze-frame on big moments
     // v24: base movement runs 30% slower for everyone — a more deliberate, readable
     // pace where cuts, jukes and pursuit angles land as real moves instead of a blur.
@@ -2535,7 +2537,7 @@ class Ot extends mt.Scene {
           const bs = air147 && this.ballSpr ? this.ballSpr : { x: fx, y: fy }, ax = Math.max(Math.abs(fx - cam.midPoint.x), Math.abs(bs.x - cam.midPoint.x)), ay = Math.max(Math.abs(fy - cam.midPoint.y), Math.abs(bs.y - cam.midPoint.y));
           if (ax > 1) pre147.z = Math.min(pre147.z, FW * edge / (2 * ax));
           if (ay > 1) pre147.z = Math.min(pre147.z, FVH * edge / (2 * ay)); }
-        this.camSpringV109(cam, pre147.x, pre147.y, this.camZoomFitV112(pre147.z), delta, (FC ? TU("flagCamStiffK", 2.2) : (1 + cut * TU("camCutStiffK", 1.6)) * MD.stiff) * this.camStiffRateV147(r147, fol147 && !air147), pre147);
+        this.camSpringV109(cam, pre147.x, pre147.y, this.camZoomFitV112(pre147.z), delta, this.screenPanBackKV175() * (FC ? TU("flagCamStiffK", 2.2) : (1 + cut * TU("camCutStiffK", 1.6)) * MD.stiff) * this.camStiffRateV147(r147, fol147 && !air147), pre147);
         if (P._camCut && P._camCut.t <= delta) this.v109E().cam.cuts++;
       }
     } catch (e) {}
@@ -2927,9 +2929,10 @@ class Ot extends mt.Scene {
       if (P.payload.penalty) rt = "FLAG ON THE PLAY · " + (Number(P.payload.yards ?? 0) < 0 ? "OFFENSE" : "DEFENSE");
       else if (P.fdConverted && !P.payload.scored) rt += " · FIRST DOWN";
       if (!this.badgesWhistleV95(P) && !this.jumboSayV164F(rt, { kind: "result", ms: TU("jumboResultMsV164F", 1400) })) this.ribbon(rt, 900);   // v95: the wall tells the result when it has a badge for it (v164 F: on the jumbotron)
+      try { this.screenPanArmV175(P); } catch (e) {}   // v175: the camera may go to the screen while they settle
       const postMs = this.postPlayMsV86(P);
-      if (postMs > 0) this.startPostV86(P, postMs);
-      else this.time.delayedCall(P.payload.scored ? 430 : 260, () => { this.resetCamera(); this.complete(); });
+      if (postMs > 0) this.startPostV86(P, postMs + this.screenPanHoldMsV175());
+      else this.time.delayedCall((P.payload.scored ? 430 : 260) + (this._panV175 ? TU("screenPanDelayMsV175", 350) + TU("screenPanHoldMsV175", 1700) : 0), () => { if (!this._panV175) this.resetCamera(); this.complete(); });   // v175: a pan is not snapped off the screen
     }
   }
   /* ===== v86 BETWEEN THE WHISTLES — seven animations, no new art =====
@@ -7864,6 +7867,8 @@ class Ot extends mt.Scene {
     let on = false;
     try { const cm = this.cameras.main, wv = cm.worldView; on = R.x + R.w > wv.x && R.x < wv.x + wv.width && R.y + R.h > wv.y && R.y < wv.y + wv.height && R.w * cm.zoom >= TU("jumboMinPxV164F", 60); } catch (e) {}
     F.last = { text: String(text), sub: o.sub || "", kind: o.kind || "", on, at: Date.now() }; F.log.push(F.last); if (F.log.length > 40) F.log.shift();
+    const art175 = this.badgeTexV175(o.kind);   // v175: the drawn badge, when this moment has one
+    if (art175 && this.screenPanWantV175(o.kind)) on = true;   // v175: the camera is coming to the screen — the badge waits there, not on a ribbon
     if (!on) { F.fell++; try { this.ribbon(String(text) + (o.sub ? "  " + o.sub : ""), o.ms || TU("jumboMsV164F", 1500)); } catch (e) {} return true; }
     F.said++;
     const depS = ST.frame ? ST.frame.depth : TU("crowdDepth", 3.45) - 0.15, col = o.color || (o.kind && JUMBO_COL_V164F[o.kind]) || "#fff2c4";
@@ -7873,6 +7878,7 @@ class Ot extends mt.Scene {
       ST.msgBg = this.add.rectangle(0, 0, 10, 10, 0x05070c, 1);
       try { ST.cam && ST.cam.ignore([ST.msgT, ST.msgS, ST.msgBg]); } catch (e) {}
     }
+    if (ST.msgImg && ST.msgImg.scene) ST.msgImg.setVisible(false);
     const sub = o.sub ? String(o.sub) : "";
     ST.msgBg.setPosition(R.x + R.w / 2, R.y + R.h / 2).setSize(R.w, R.h).setDepth(depS + 0.025).setVisible(true);
     // the title fills the panel: a fraction of its height, shrunk until it fits its width
@@ -7882,6 +7888,7 @@ class Ot extends mt.Scene {
     ST.msgT.setColor(col).setPosition(R.x + R.w / 2, R.y + R.h * (sub ? 0.38 : 0.5)).setDepth(depS + 0.03).setVisible(true);
     if (sub) { fit(ST.msgS, sub.toUpperCase(), TU("jumboSubHV164F", 0.24), R.w * 0.9); ST.msgS.setPosition(R.x + R.w / 2, R.y + R.h * 0.76).setDepth(depS + 0.03).setVisible(true); }
     else ST.msgS.setVisible(false);
+    if (art175) this.badgeOnScreenV175(art175, o.kind, sub, depS);   // v175: the art IS the title
     if (ST.still && ST.still.scene) ST.still.setVisible(false);
     if (ST.mode !== "msg") ST._modeBeforeMsgV164F = ST.mode;
     ST.mode = "msg";
@@ -7893,8 +7900,112 @@ class Ot extends mt.Scene {
   }
   jumboClearV164F() {
     const ST = this.stadium; if (!ST) return;
-    try { ST.msgT && ST.msgT.setVisible(false); ST.msgS && ST.msgS.setVisible(false); ST.msgBg && ST.msgBg.setVisible(false); } catch (e) {}
+    try { ST.msgT && ST.msgT.setVisible(false); ST.msgS && ST.msgS.setVisible(false); ST.msgBg && ST.msgBg.setVisible(false); ST.msgImg && ST.msgImg.setVisible(false); } catch (e) {}
     if (ST.mode === "msg") this.stadiumModeV92(ST._modeBeforeMsgV164F === "replay" && ST.still && ST.still.scene ? "replay" : "live");
+  }
+  /* ===== v175 THE CAMERA FINDS THE SCREEN =====
+   * The owner, on v172's hung board: "keep it in the same spot but have the camera pan to the scoreboard occasionally
+   * (slowly, while players are post-snap settling) and show the graphics I uploaded … screen doesn't need to be huge."
+   * So the bowl's screen is back where it was (v172's board is off: TU "v172jumbo" 0 by default), and:
+   *   - THE GRAPHICS: a moment that has a drawn badge (the v95 art — TOUCHDOWN, TURNOVER, INTERCEPTED, FUMBLE, BIG PLAY,
+   *     BREAKAWAY, SACK, BIG HIT, FIRST DOWN, FIELD GOAL …, `public/badges/<kind>.webp`) is shown ON the screen as that
+   *     art (`badgeOnScreenV175`: contained in the panel, a pop and a glow behind it, the sub-line on a band under it),
+   *     not as Oswald text. The textures load once from the same files the callout wall uses (`badgeTexV175`).
+   *   - THE PAN: at the whistle (`screenPanArmV175`) the camera is armed to go to the screen when a BIG moment
+   *     (`screenPanKindsV175`: touchdown, turnover, game changer, field goal, interception, fumble, big play, breakaway)
+   *     was said on it this play, and otherwise now and then (`screenPanChanceV175` 0.18, never within
+   *     `screenPanGapV175` 5 plays of the last) to show the board. After `screenPanDelayMsV175` of settling it eases up
+   *     onto the screen on a soft spring (`screenPanStiffV175` 0.22 — slow), sized so the screen is
+   *     `screenPanFracV175` of the frame, holds there through the gather (the post phase is `screenPanHoldMsV175`
+   *     longer for that play; a scoring play's hand-off waits the same) and the gap, and the next snap's glide brings
+   *     it home gently (`screenPanBackKV175` on the glide's stiffness for `screenPanBackMsV175`).
+   * Never on a fixed camera mode, with reduced motion, or while v172's board hangs. Kill switch TU "v175pan" 0 (the
+   * art stays; no pans). `window.__V175` (`pans`, `frames`, `art`, `last`, `log`); `screenpancheck.mjs`. ===== */
+  badgeTexV175(kind) {
+    if (!kind || !RIB_BADGES_V95[kind] || !TU("v175art", 1) || !this.textures) return null;
+    const key = "rib_badge_v175_" + kind;
+    if (this.textures.exists(key)) return key;
+    const L = (this._badgeLoadV175 = this._badgeLoadV175 || {});
+    if (!L[kind]) { L[kind] = 1; this.badgeLoadAllV175(); }
+    return null;
+  }
+  badgeLoadAllV175() {
+    const L = (this._badgeLoadV175 = this._badgeLoadV175 || {});
+    if (L._all) return; L._all = 1;
+    let base = "badges/"; try { base = window.__RIB_BADGES_V95_URL || window.__RIB_ASSET("badges/"); } catch (e) {}
+    for (const k in RIB_BADGES_V95) {
+      const key = "rib_badge_v175_" + k; if (this.textures.exists(key)) continue;
+      const im = new Image(); im.decoding = "async";
+      im.onload = () => { try { if (this.textures && !this.textures.exists(key)) this.textures.addImage(key, im); } catch (e) {} };
+      im.src = base + k + ".webp";
+    }
+  }
+  badgeOnScreenV175(key, kind, sub, depS) {
+    const ST = this.stadium, R = ST.rect, V = (window.__V175 = window.__V175 || { pans: 0, frames: 0, art: 0, last: null, log: [] });
+    if (!ST.msgImg || !ST.msgImg.scene) {
+      ST.msgImg = this.add.image(0, 0, key).setOrigin(0.5);
+      try { ST.cam && ST.cam.ignore(ST.msgImg); } catch (e) {}
+    }
+    const img = ST.msgImg; img.setTexture(key);
+    const tw = img.frame.width || 1, th = img.frame.height || 1, boxH = R.h * (sub ? 0.74 : 0.94), k = Math.min((R.w * 0.94) / tw, boxH / th);
+    const cy = R.y + (sub ? R.h * 0.4 : R.h / 2);
+    img.setPosition(R.x + R.w / 2, cy).setDepth(depS + 0.03).setVisible(true).setAlpha(1);
+    if (ST.msgT) ST.msgT.setVisible(false);
+    if (sub && ST.msgS) { ST.msgS.setFontSize(Math.max(6, R.h * 0.17)); ST.msgS.setPosition(R.x + R.w / 2, R.y + R.h * 0.87); }
+    try {
+      this.tweens.killTweensOf(img);
+      if (REDUCED_MOTION) img.setScale(k);
+      else { img.setScale(k * 0.55); this.tweens.add({ targets: img, scale: k, duration: 380, ease: "Back.easeOut" }); }
+    } catch (e) { img.setScale(k); }
+    V.art++; V.lastArt = { kind, key, at: Date.now() };
+  }
+  screenPanOnV175() {
+    if (!TU("v175pan", 1) || REDUCED_MOTION) return false;
+    try { if (this.camOffV112()) return false; } catch (e) {}
+    if (this.bigBoardUpV172()) return false;
+    const ST = this.stadium; return !!(ST && ST.on && ST.rect);
+  }
+  // a badge moment wants the camera: remembered until the whistle arms (or drops) the pan
+  screenPanWantV175(kind) {
+    if (!this.screenPanOnV175()) return false;
+    if (TU("screenPanKindsV175", ["touchdown", "turnover", "gamechanger", "fieldgoal", "intercepted", "fumble", "bigplay", "breakaway"]).indexOf(kind) < 0) return false;
+    this._panWantV175 = { kind, at: Date.now() };
+    return true;
+  }
+  screenPanArmV175(P) {
+    this._panV175 = null;
+    const V = (window.__V175 = window.__V175 || { pans: 0, frames: 0, art: 0, last: null, log: [] });
+    this._panPlaysV175 = (this._panPlaysV175 || 0) + 1;
+    const W = this._panWantV175; this._panWantV175 = null;
+    if (!this.screenPanOnV175()) return null;
+    let why = null;
+    if (W && Date.now() - W.at < TU("screenPanWantMsV175", 6000)) why = W.kind;
+    else if (this._panPlaysV175 >= TU("screenPanGapV175", 5) && Math.random() < TU("screenPanChanceV175", 0.18)) why = "scoreboard";
+    if (!why) return null;
+    this._panPlaysV175 = 0;
+    this._panV175 = { why, t: 0, wall: performance.now(), scored: !!(P && P.payload && P.payload.scored) };
+    V.pans++; V.last = { why, at: Date.now(), scored: this._panV175.scored }; V.log.push(V.last); if (V.log.length > 40) V.log.shift();
+    return this._panV175;
+  }
+  // the camera's target while a pan is up: the screen, a little of the stands under it, the screen at a fraction of the frame
+  screenPanTickV175(delta) {
+    const PN = this._panV175; if (!PN) return false;
+    const ST = this.stadium, R = ST && ST.rect;
+    if (!R || !this.screenPanOnV175()) { this._panV175 = null; return false; }
+    PN.t += delta;
+    if (PN.t < TU("screenPanDelayMsV175", 350)) return false;   // the men start to settle first; the whistle's frame holds
+    const cam = this.cameras.main, V = window.__V175;
+    const want = TU("screenPanFracV175", 0.42) * FW / Math.max(1, R.w);
+    const tz = this.camZoomFitV112(Math.min(want, cam.zoom * TU("screenPanZoomInMaxV175", 1.25)));
+    this.camSpringV109(cam, R.x + R.w / 2, R.y + R.h * TU("screenPanLowV175", 1.1), tz, delta, TU("screenPanStiffV175", 0.22));
+    if (V) { V.frames++; try { const wv = cam.worldView; V.inFrame = R.x >= wv.x - 1 && R.x + R.w <= wv.x + wv.width + 1 && R.y >= wv.y - 1 && R.y + R.h <= wv.y + wv.height + 1; if (V.inFrame) V.inFrameFrames = (V.inFrameFrames || 0) + 1; } catch (e) {} }
+    return true;
+  }
+  screenPanHoldMsV175() { return this._panV175 ? TU("screenPanHoldMsV175", 1700) : 0; }
+  // the glide home is gentle for a moment after a pan
+  screenPanBackKV175() { return this._panBackV175 && performance.now() < this._panBackV175 ? TU("screenPanBackKV175", 0.45) : 1; }
+  screenPanSnapV175() {
+    if (this._panV175) { this._panBackV175 = performance.now() + TU("screenPanBackMsV175", 1400); this._panV175 = null; }
   }
   /* ===== v172 THE BIG BOARD =====
    * The owner: "Have the jumbotron nearly always visible in the background. Please reimplement the turnover, big
@@ -7918,10 +8029,11 @@ class Ot extends mt.Scene {
    * `bigBoardEventMsV172` of wall time AND at least `bigBoardIntoSnapMsV172` into the next snap (`bigBoardSnapV172`
    * from `animatePlay`), so it is still up when the next play starts. A stronger moment replaces a weaker one (the v95
    * promotions: INTERCEPTED → TURNOVER "INTERCEPTION" → TOUCHDOWN "PICK SIX"); a weaker one goes to the ticker.
-   * Kill switch TU "v172jumbo" 0: the v164 F bowl screen (and its ribbon fallback) exactly as before.
+   * Kill switch TU "v172jumbo" 0: the v164 F bowl screen (and its ribbon fallback) exactly as before — the DEFAULT since
+   * v175 (the owner wanted the screen in its own spot and the camera to go to it); TU "v172jumbo" 1 hangs the board.
    * `window.__V172` (`state()`, `events`, `msgs`, `ticks`, `log`); `jumbocheck`. ===== */
   bigBoardUpV172() {
-    if (!TU("v172jumbo", 1)) return false;
+    if (!TU("v172jumbo", 0)) return false;
     const ST = this.stadium;
     return !!(ST && ST.on && this.add && this.cameras && this.cameras.main);
   }
