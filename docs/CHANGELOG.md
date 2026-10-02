@@ -10,6 +10,22 @@ Names in older entries are the career app's pre-v149 C minified names (`q`, `ms`
 `index.html` + `src/` (`docs/LAYOUT.md`).
 
 <!-- new entries go here, newest first -->
+
+- **v177 F/G/H — ten new footsteps, ten new wings, every hat floats.** (`src/28-cosmetics.js`, `scripts/v177FGHcheck.mjs`.)
+  The owner loved the Afterimage and asked for ten more footsteps with that kind of ingenuity, ten more wings at super
+  status, and every hat hovering like the halo. FOOTSTEPS (v177 F): Datamosh (RGB-split tear bars that jump, a smeared
+  block), Sumi Ink (a pressure brushstroke that bleeds, splatter, a red seal), Frostbite (prints freeze, cracks race out),
+  Film Reel (a strip unspools with a tiny runner in each frame), Wildbloom (a vine grows, flowers open and drop petals),
+  Gravity Well (each print collapses into a black hole that bends the turf's grid), Paper Cranes (a square folds into a
+  crane and flies off), Sands of Time (sand piles that blow away, a flipping hourglass), Constellation (stars at his steps,
+  the lines drawing between them) and Liquid Chrome (mercury beads that splash, wobble and bridge). WINGS (v177 G): Koi
+  Pond (two koi swim a loop), Aurora Veil, Peacock Train, Art Deco Sunburst, Neon Sign (it buzzes, a tube flickers),
+  Thousand Blades, Autumn Maple (a leaf falls), Quetzal, Magma Glass (lava pulses through the cracks) and Bass Drop (an
+  equalizer that bounces). All twenty are mythic SUPER looks: ten new super challenges (200 TDs in a career, 5 League
+  MVPs, 5 Interstellar titles, 10 UFF Hall careers, 100 season challenges, the 8th generation, 40 titles, 150 awards,
+  Legacy medal 400, 30 careers) each pay a wing and a footprint — nothing sold, nothing that was free changes. HATS
+  (v177 H): every crown hovers over the helmet with a bob, a soft shadow and a glow under it, on the card, the growth
+  screen, the Locker and the field (his plumbob rises over it). Kill switches TU `v177Ftrail`, `v177Gwings`, `v177Hfloat`.
 - **v177 I/J/K — ten new celebrations, ten new uniforms, ten new banners, all super.** (`src/28-cosmetics.js`,
   `scripts/build-celebration-moves.py`, `public/celebrations/cel_v177i*`, `scripts/v177IJKcheck.mjs`.)
   *I — celebrations* (`v177 I TEN NEW CELEBRATIONS`): Moonwalk, The Worm, Crowd Leap, Earthquake Spike, Griddy, Bow &

@@ -1533,7 +1533,10 @@
     "v162 B",
     "v177 I",
     "v177 J",
-    "v177 K"
+    "v177 K",
+    "v177 F",
+    "v177 G",
+    "v177 H"
    ],
    "files": [
     "src/28-cosmetics.js",
@@ -1568,7 +1571,8 @@
     "v159Dcheck",
     "v159Acheck",
     "palettecheck",
-    "numsewcheck"
+    "numsewcheck",
+    "v177FGHcheck"
    ]
   },
   "audio": {
@@ -4620,6 +4624,19 @@
    "areas": [
     "cosmetics",
     "live"
+   ],
+   "runtimeSec": 240,
+   "slow": true,
+   "needsServer": true,
+   "pureNode": false,
+   "flaky": [],
+   "loadSensitive": true
+  },
+  "v177FGHcheck": {
+   "file": "scripts/v177FGHcheck.mjs",
+   "desc": "v177 F / G / H — ten new footsteps, ten new wings, every hat floats: 10 new footprints and 10 new wings, all mythic SUPER looks (locked, listed \"Super challenge\", an earned / pass grant refused), each its own fx / kind; every footprint draws its own picture and animates (TU v177Ftrail 0 → its base kind); every wing is inked, unique among catalogue wings, animates through its frames (TU v177Gwings 0 → frame 0); ten new super challenges join v156 C's five, each paying a wing + a footprint once (Thirty Careers granted at 30, outside the save); the Locker lists them with previews; every catalogue crown hovers above the helmet (opaque ink ends over the helmet top), bobs, a shadow / glow under it, still under reduced motion, seated again with TU v177Hfloat 0; the profile card draws it; on the live field every new footprint draws behind him, every new wing is worn, the crown hovers with its shadow and the plumbob above it; no Math.random from src/28; seeded games identical; no page errors.",
+   "areas": [
+    "cosmetics"
    ],
    "runtimeSec": 240,
    "slow": true,

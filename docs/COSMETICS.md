@@ -273,3 +273,30 @@ the live career, monotonic):
 - **Banners** — `b158` is a v177 K painter (`coderain`, `floodlights`, `hyperspace`, `finale`, `sakura`, `eclipse`,
   `circuit`, `abyss`, `comets`, `prism`), `bg` the still fallback.
 
+## v177 F/G/H — ten new footsteps, ten new wings, every hat floats
+
+All twenty new looks are **super** (mythic): only a super challenge grants one (`grant(id, "super")`); they are listed
+"Super challenge: …" while locked, never sold, never member. Each of the ten new super challenges (`SUPER_V177F`, on
+v156 C's list and its SEASON-tab section) pays one wing and one footprint:
+
+| super challenge | goal (TU) | wings (kind) | footprints (fx) |
+|---|---|---|---|
+| Two Hundred | 200 TDs in one career (`superTdsV177F`) | wings_koi "Koi Pond" | trail_ink "Sumi Ink" |
+| Five-Time MVP | 5 League MVPs (`superMvpsV177F`) | wings_aurora "Aurora Veil" | trail_constellation "Constellation" |
+| Interstellar Dynasty | 5 Interstellar titles (`superIslV177F`) | wings_peacock "Peacock Train" | trail_bloom "Wildbloom" |
+| Hall of Ten | 10 UFF Hall careers (`superHofV177F`) | wings_sunburst "Art Deco Sunburst" | trail_film "Film Reel" |
+| Hundred Challenges | 100 season challenges (`superChalV177F`) | wings_neon "Neon Sign" | trail_datamosh "Datamosh" |
+| Eighth Generation | generation 8 (`superGenV177F`) | wings_blades "Thousand Blades" | trail_cranes "Paper Cranes" |
+| Forty Titles | 40 titles at any level (`superTitlesV177F`) | wings_maple "Autumn Maple" | trail_frostbite "Frostbite" |
+| Trophy Room | 150 awards (`superAwardsV177F`) | wings_quetzal "Quetzal" | trail_sands "Sands of Time" |
+| Forged in Legacy | Legacy medal 400 (`superLegacyV177F`) | wings_magma "Magma Glass" | trail_chrome "Liquid Chrome" |
+| Thirty Careers | 30 finished careers (`superCareersV177F`) | wings_bass "Bass Drop" | trail_gravity "Gravity Well" |
+
+- **Footprints** (`FX_V177F` → v157 B's `TFX_V157B`, drawn `k`× bigger so they read at broadcast size, TU
+  `v177FtrailScale`): v157 B's painter, its newest-first cap (TU `v157BtrailCap`), its animated Locker preview. TU
+  `v177Ftrail` 0: each draws its base v153 G `kind`.
+- **Wings** (`WINGS_V177G` → v157 A's `WINGS_V157A`, families in v159 D's `FAM_V159D`): up to six frames each through
+  `wingFrameV157A`. TU `v177Gwings` 0: frame 0.
+- **Every hat floats** (v177 H): every crown's baseline sits `hatLiftPxV177H` (3.2) sprite px over the helmet top and
+  bobs (`hatBobPxV177H`, `hatBobMsV177H`), with a soft shadow and a glow of its colour on the helmet; the field's plumbob
+  rises over it (`hatPlumbV177H`). TU `v177Hfloat` 0: v153 G's seating. `scripts/v177FGHcheck.mjs`.
