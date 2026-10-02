@@ -10,6 +10,12 @@ Names in older entries are the career app's pre-v149 C minified names (`q`, `ms`
 `index.html` + `src/` (`docs/LAYOUT.md`).
 
 <!-- new entries go here, newest first -->
+- **v175 B — you see the screen.** (`src/05-field-renderer.js`, `scripts/screenpancheck.mjs`.) The owner had not seen a
+  graphic on the stadium screen. In a real game most moments landed while the screen was out of the frame (they fell to
+  the slim ribbon), only rare moments panned, and a mid-play moment's art was gone — replaced by a toast or the result,
+  or expired — before the slow pan landed. Now a sack and a big hit pan too (two plays apart; a touchdown, turnover,
+  field goal or game changer always), the arm puts the moment's art back up for the whole pan and locks the screen to it,
+  reduced motion keeps the pan, and the slim top ribbon is gone (every line goes on the screen).
 - **v175 — the camera finds the screen.** (`src/05-field-renderer.js`, `scripts/screenpancheck.mjs`,
   `scripts/jumbocheck.mjs`.) The owner wanted the stadium screen left in its own spot, not hung over the broadcast: v172's
   board is off by default (TU `v172jumbo` 1 brings it back). The drawn badges (TOUCHDOWN, TURNOVER, INTERCEPTED, FUMBLE,

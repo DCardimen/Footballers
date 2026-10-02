@@ -3,7 +3,7 @@
 //   v95 art) plays on that screen; at the whistle the camera pans up onto the screen (slowly, while the men settle),
 //   holds it, and the next snap takes the camera back. With the chance forced to every play: a pan happens within a few
 //   plays, the screen is in the frame while it holds, and the snap releases it. A forced TOUCHDOWN on the screen is the
-//   badge art (not Oswald text) and wants a pan; a SACK shows its art but does not. TU v175pan 0: no pans even at
+//   badge art (not Oswald text) and wants a pan; a FLAG shows its art but does not, and no ribbon is drawn. TU v175pan 0: no pans even at
 //   chance 1. No page errors.  GAME_URL=http://localhost:5173/ node scripts/screenpancheck.mjs
 import { gameUrl, launch } from './lib/env.mjs'
 const url = gameUrl('index.html')
@@ -51,24 +51,26 @@ const open = async (tune, tag) => {
   ok(!!held, 'with the chance at every play, the camera pans to the screen and holds it', held)
   ok(held && held.inFrame, 'while it holds, the whole screen is in the frame', held)
   ok(released, 'and the next snap takes the camera back')
-  // a touchdown on the screen: the drawn badge, and it wants a pan; a sack shows its art but does not
+  // a touchdown on the screen: the drawn badge, and it wants a pan; a flag shows its art but does not
   await p.waitForTimeout(400)
   const TD = await p.evaluate(async () => {
     const sc = window.__gridironScene; sc.badgeLoadAllV175()
-    await new Promise((r) => { const t0 = Date.now(); const w = () => (sc.textures.exists('rib_badge_v175_touchdown') && sc.textures.exists('rib_badge_v175_sack')) || Date.now() - t0 > 8000 ? r() : setTimeout(w, 100); w() })
+    await new Promise((r) => { const t0 = Date.now(); const w = () => (sc.textures.exists('rib_badge_v175_touchdown') && sc.textures.exists('rib_badge_v175_flag')) || Date.now() - t0 > 8000 ? r() : setTimeout(w, 100); w() })
     sc._panWantV175 = null
     sc.jumboSayV164F('TOUCHDOWN!', { kind: 'touchdown', sub: '42 YARDS', ms: 3000 })
     const ST = sc.stadium, img = ST.msgImg
     const td = { img: !!(img && img.visible), key: img && img.texture && img.texture.key, text: !!(ST.msgT && ST.msgT.visible), sub: ST.msgS && ST.msgS.visible ? ST.msgS.text : null, want: !!sc._panWantV175 }
-    sc._panWantV175 = null
-    sc.jumboSayV164F('SACK!', { kind: 'sack', sub: '-7', ms: 1500 })
+    sc._panWantV175 = null; sc._artLockV175 = null
+    const ribbons0 = sc.children.list.filter((o) => o.depth === 24 && o.type === 'Rectangle').length
+    sc.jumboSayV164F('FLAG!', { kind: 'flag', sub: 'HOLDING', ms: 1500 })
     const onScreen = !!(window.__V164F && window.__V164F.last && window.__V164F.last.on)   // out of the frame a non-panning line takes the ribbon
-    const sk = { onScreen, key: ST.msgImg && ST.msgImg.visible ? ST.msgImg.texture.key : null, want: !!sc._panWantV175 }
+    const sk = { onScreen, key: ST.msgImg && ST.msgImg.visible ? ST.msgImg.texture.key : null, want: !!sc._panWantV175, ribbons: sc.children.list.filter((o) => o.depth === 24 && o.type === 'Rectangle').length - ribbons0 }
     return { td, sk, art: (window.__V175 || {}).art }
   })
   ok(TD.td.img && TD.td.key === 'rib_badge_v175_touchdown' && !TD.td.text && /42 YARDS/.test(TD.td.sub || ''), 'a TOUCHDOWN on the screen is the drawn badge (not text), with its sub-line under it', TD.td)
   ok(TD.td.want, '…and a touchdown wants the camera on the screen', TD.td)
-  ok(!TD.sk.want && (!TD.sk.onScreen || TD.sk.key === 'rib_badge_v175_sack'), 'a SACK does not pan (its own art when the screen is in the frame, the ribbon when not)', TD.sk)
+  ok(!TD.sk.want && TD.sk.key === 'rib_badge_v175_flag', 'a FLAG shows its own art on the screen (in the frame or not) and does not pan', TD.sk)
+  ok(TD.sk.ribbons === 0, 'no slim ribbon is drawn over the picture any more', TD.sk)
   await ctx.close()
 }
 

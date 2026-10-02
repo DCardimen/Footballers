@@ -5045,6 +5045,7 @@ class Ot extends mt.Scene {
     return (yd >= 0 ? "GAIN OF " + yd : "LOSS OF " + Math.abs(yd));
   }
   ribbon(txt, hold) {
+    if (TU("v175noRibbon", 1)) return;   // v175 B: the owner — "remove the crappy half drawn ribbon"; every line is on the stadium screen
     let rx = FW / 2, ry = 34;
     try { const c = this.cameras.main; rx = c.midPoint.x; ry = c.scrollY + 40 / c.zoom; } catch (e) {}
     const bg = this.trackFx(this.add.rectangle(rx, ry, 320, 30, 0x0b1119, 0.88)
@@ -7867,9 +7868,20 @@ class Ot extends mt.Scene {
     let on = false;
     try { const cm = this.cameras.main, wv = cm.worldView; on = R.x + R.w > wv.x && R.x < wv.x + wv.width && R.y + R.h > wv.y && R.y < wv.y + wv.height && R.w * cm.zoom >= TU("jumboMinPxV164F", 60); } catch (e) {}
     F.last = { text: String(text), sub: o.sub || "", kind: o.kind || "", on, at: Date.now() }; F.log.push(F.last); if (F.log.length > 40) F.log.shift();
+    /* v175 B: the whistle's result line does not wipe a moment's art that the camera is on its way to see */
+    if (o.kind === "result" && this._panWantV175 && ST.mode === "msg" && ST.msgImg && ST.msgImg.visible) return true;
+    /* v175 B: while the camera is on its way to a moment's art (and holding it), the art owns the screen — the app's
+     * toasts, the result and the next snap's pre-snap lines used to replace it, and their short timers cleared it before
+     * the camera landed. A stronger moment with art of its own still takes over. */
+    if (!o.noWantV175 && this._artLockV175 && Date.now() < this._artLockV175.until) {
+      const cur = BADGE_BOOK_V95[this._artLockV175.kind] || {}, nx = BADGE_BOOK_V95[o.kind];
+      if (!nx || !this.badgeTexV175(o.kind) || (nx.prio || 0) <= (cur.prio || 0)) return true;
+    }
     const art175 = this.badgeTexV175(o.kind);   // v175: the drawn badge, when this moment has one
-    if (art175 && this.screenPanWantV175(o.kind)) on = true;   // v175: the camera is coming to the screen — the badge waits there, not on a ribbon
-    if (!on) { F.fell++; try { this.ribbon(String(text) + (o.sub ? "  " + o.sub : ""), o.ms || TU("jumboMsV164F", 1500)); } catch (e) {} return true; }
+    if (art175 && !o.noWantV175 && this.screenPanWantV175(o.kind, text, o.sub)) on = true;   // v175: the camera is coming to the screen — the badge waits there, not on a ribbon
+    if (!on) { F.fell++;
+      if (!TU("v175noRibbon", 1)) { try { this.ribbon(String(text) + (o.sub ? "  " + o.sub : ""), o.ms || TU("jumboMsV164F", 1500)); } catch (e) {} return true; }
+      /* v175 B: no ribbon — the line goes on the screen even out of the frame (the camera's pan, or the next wide shot, finds it) */ }
     F.said++;
     const depS = ST.frame ? ST.frame.depth : TU("crowdDepth", 3.45) - 0.15, col = o.color || (o.kind && JUMBO_COL_V164F[o.kind]) || "#fff2c4";
     if (!ST.msgT || !ST.msgT.scene) {
@@ -7919,8 +7931,13 @@ class Ot extends mt.Scene {
    *     `screenPanFracV175` of the frame, holds there through the gather (the post phase is `screenPanHoldMsV175`
    *     longer for that play; a scoring play's hand-off waits the same) and the gap, and the next snap's glide brings
    *     it home gently (`screenPanBackKV175` on the glide's stiffness for `screenPanBackMsV175`).
-   * Never on a fixed camera mode, with reduced motion, or while v172's board hangs. Kill switch TU "v175pan" 0 (the
-   * art stays; no pans). `window.__V175` (`pans`, `frames`, `art`, `last`, `log`); `screenpancheck.mjs`. ===== */
+   * Never on a fixed camera mode or while v172's board hangs. Kill switch TU "v175pan" 0 (the art stays; no pans).
+   * v175 B (the owner had not seen a graphic on the screen): a sack and a big hit pan too (`screenPanMinGapV175` 2 plays
+   * apart; a tier-1 moment always); the strongest moment of a play wins; the arm puts the moment's art back up for the
+   * whole pan (`screenPanMsgMsV175` 4400) and LOCKS the screen to it (`_artLockV175` — the toasts, the result and the
+   * next snap's pre-snap lines used to replace it and clear it before the camera landed); reduced motion keeps the slow
+   * pan (`screenPanRMV175`); and the slim top RIBBON is gone (`v175noRibbon`, the owner: "remove the crappy half drawn
+   * ribbon") — a line said while the screen is out of the frame goes on the screen anyway. `window.__V175` (`pans`, `frames`, `art`, `last`, `log`); `screenpancheck.mjs`. ===== */
   badgeTexV175(kind) {
     if (!kind || !RIB_BADGES_V95[kind] || !TU("v175art", 1) || !this.textures) return null;
     const key = "rib_badge_v175_" + kind;
@@ -7960,16 +7977,21 @@ class Ot extends mt.Scene {
     V.art++; V.lastArt = { kind, key, at: Date.now() };
   }
   screenPanOnV175() {
-    if (!TU("v175pan", 1) || REDUCED_MOTION) return false;
+    if (!TU("v175pan", 1) || (REDUCED_MOTION && !TU("screenPanRMV175", 1))) return false;   // v175 B: a slow move, not a flash — reduced motion keeps it
     try { if (this.camOffV112()) return false; } catch (e) {}
     if (this.bigBoardUpV172()) return false;
     const ST = this.stadium; return !!(ST && ST.on && ST.rect);
   }
   // a badge moment wants the camera: remembered until the whistle arms (or drops) the pan
-  screenPanWantV175(kind) {
+  screenPanWantV175(kind, text, sub) {
     if (!this.screenPanOnV175()) return false;
-    if (TU("screenPanKindsV175", ["touchdown", "turnover", "gamechanger", "fieldgoal", "intercepted", "fumble", "bigplay", "breakaway"]).indexOf(kind) < 0) return false;
-    this._panWantV175 = { kind, at: Date.now() };
+    if (TU("screenPanKindsV175", ["touchdown", "turnover", "gamechanger", "fieldgoal", "intercepted", "fumble", "bigplay", "breakaway", "sack", "bighit"]).indexOf(kind) < 0) return false;
+    /* v175 B: a tier-1 moment always goes to the screen; a lesser one (a sack, a big hit) only when the last pan is
+     * `screenPanMinGapV175` plays back — and the strongest moment of the play wins the want */
+    const c = BADGE_BOOK_V95[kind] || {}, W = this._panWantV175;
+    if (c.tier !== 1 && (this._panPlaysV175 || 0) < TU("screenPanMinGapV175", 2)) return false;
+    if (W && Date.now() - W.at < 6000 && (BADGE_BOOK_V95[W.kind] || {}).prio > (c.prio || 0)) return true;
+    this._panWantV175 = { kind, at: Date.now(), text: text || "", sub: sub || "" };
     return true;
   }
   screenPanArmV175(P) {
@@ -7984,6 +8006,12 @@ class Ot extends mt.Scene {
     if (!why) return null;
     this._panPlaysV175 = 0;
     this._panV175 = { why, t: 0, wall: performance.now(), scored: !!(P && P.payload && P.payload.scored) };
+    /* v175 B: the camera arrives on the moment's art — a mid-play sack's line (~1 s) was gone by the whistle, so the art
+     * is put back up (or kept up) for the whole pan */
+    if (why !== "scoreboard" && W) {
+      try { this.jumboSayV164F(W.text || JUMBO_LABEL_V164F[W.kind] || String(W.kind).toUpperCase(), { kind: W.kind, sub: W.sub, ms: TU("screenPanMsgMsV175", 4400), noWantV175: true }); } catch (e) {}
+      this._artLockV175 = { kind: W.kind, until: Date.now() + TU("screenPanMsgMsV175", 4400) };
+    }
     V.pans++; V.last = { why, at: Date.now(), scored: this._panV175.scored }; V.log.push(V.last); if (V.log.length > 40) V.log.shift();
     return this._panV175;
   }

@@ -3,7 +3,7 @@
 //   F: `jumboSayV164F` prints the line (and a sub-line) on the stadium's big screen (mode "msg", the feed camera
 //      hidden, the tag 📣), and hands the screen back after its time; a v95 badge (SACK, TOUCHDOWN…) is said there
 //      instead of drawn over the field (no `.rib-badge-v95` node, the badge log marks it `jumbo`); a toast on the live
-//      view goes there too; with the screen out of frame the line falls back to the slim top ribbon; Settings › LIVE
+//      view goes there too; with the screen out of frame the line still goes on the screen (v175 B: the ribbon is gone); Settings › LIVE
 //      GAME › "Messages on the jumbotron" OFF draws the badges over the field again; the 🐢 slider is in the speed row,
 //      `setSlowV164F(30)` runs the loop at 0.30× (frames keep coming), the clock floor is `slowMinV164F`; TU v164Fslow 0
 //      hides the dial
@@ -39,7 +39,7 @@ await page.waitForFunction(() => window.__V92 && window.__V92.on && window.__gri
 // ---- F: the screen says it
 const say = await page.evaluate(async () => { const sc = window.__gridironScene, ST = sc.stadium
   const before = { mode: ST.mode, cam: ST.cam && ST.cam.visible }
-  const r = sc.jumboSayV164F('HELLO STADIUM', { sub: 'a sub-line', kind: 'sack', ms: 700 })
+  const r = sc.jumboSayV164F('HELLO STADIUM', { sub: 'a sub-line', kind: 'result', ms: 700 })   // v175: a kind with no drawn badge (a sack's line is its art now — screenpancheck)
   const up = { r, mode: ST.mode, t: ST.msgT && ST.msgT.visible && ST.msgT.text, s: ST.msgS && ST.msgS.visible && ST.msgS.text, cam: ST.cam && ST.cam.visible, tag: ST.tag && ST.tag.text, inRect: ST.msgT && ST.msgT.x > ST.rect.x && ST.msgT.x < ST.rect.x + ST.rect.w && ST.msgT.y > ST.rect.y && ST.msgT.y < ST.rect.y + ST.rect.h, fits: ST.msgT && ST.msgT.width <= ST.rect.w, col: ST.msgT && ST.msgT.style.color }
   await new Promise(r => setTimeout(r, 200)); const mid = { cam: ST.cam && ST.cam.visible, mode: ST.mode }
   await new Promise(r => setTimeout(r, 900)); const after = { mode: ST.mode, t: ST.msgT && ST.msgT.visible, tag: ST.tag && ST.tag.text, F: window.__V164F && { said: window.__V164F.said, fell: window.__V164F.fell } }
@@ -64,9 +64,9 @@ ok(toast.n >= 1 && /LIVE TOAST/.test(toast.last || ''), 'a toast on the live vie
 // the screen out of frame: the slim ribbon
 const fell = await page.evaluate(async () => { const sc = window.__gridironScene, c = sc.cameras.main, F = window.__V164F; const x0 = c.scrollX, y0 = c.scrollY, z0 = c.zoom
   c.setZoom(3); c.centerOn(360, 1900); await new Promise(r => setTimeout(r, 60)); const f0 = F.fell, s0 = F.said
-  const r = sc.jumboSayV164F('FAR AWAY', { ms: 300 }); const out = { r, fell: F.fell - f0, said: F.said - s0, ribbon: sc.children.list.filter(o => o.type === 'Text' && o.text === 'FAR AWAY').length }
+  const r = sc.jumboSayV164F('FAR AWAY', { ms: 300 }); const out = { r, fell: F.fell - f0, said: F.said - s0, ribbon: sc.children.list.filter(o => o.type === 'Text' && o.text === 'FAR AWAY' && o.depth === 25).length, onScreen: !!(sc.stadium.msgT && sc.stadium.msgT.visible && sc.stadium.msgT.text === 'FAR AWAY') }
   c.setZoom(z0); c.setScroll(x0, y0); return out })
-ok(fell.r && fell.fell === 1 && fell.said === 0 && fell.ribbon >= 1, 'with the screen out of frame the line falls back to the slim top ribbon', fell)
+ok(fell.r && fell.fell === 1 && fell.ribbon === 0 && fell.onScreen, 'with the screen out of frame the line still goes on the screen — no slim ribbon over the picture (v175 B)', fell)
 // the setting OFF: the badge is drawn over the field again
 const off = await page.evaluate(async () => { const st = window.__getGridironState(); st.settings.jumboMsgV164F = false; const sc = window.__gridironScene, B = window.__BADGE_V95
   const on = sc.jumboOnV164F(); B.show('sack', { sub: '-3 YDS', x: 300, y: 220, scene: sc, token: 'chk2:' + Date.now(), force: true }); await new Promise(r => setTimeout(r, 700))
