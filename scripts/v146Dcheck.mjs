@@ -1,7 +1,7 @@
 // Dev check: v146 D — THE PLAN IS YOURS, AND THE NUMBERS SAY WHAT IT COSTS. Drives a real career to
 // the pregame at PHONE size (400x860) for each position in POS and proves three things:
 //   * THE PLAN IS CHOSEN — page 5 is the board (no wheel), one tile per plan the staff offered, each
-//     carrying its variance; tapping a tile makes it the held plan, the pregame's pending plan and the
+//     carrying its own rating and swing (v171); tapping a tile makes it the held plan, the pregame's pending plan and the
 //     player's remembered pick; decidePlan with a pick returns THAT plan for every plan on the board
 //     (no draw decides it) and re-pricing never re-rolls the week's dice; and CONTINUE books exactly
 //     the tapped plan (week.planV11 / week.planRollV146), once. `planWheelV146` 1 brings the wheel back.
@@ -95,15 +95,17 @@ for (const pos of POSS) {
     return { tiles, plans: h ? h.plans.map(p => p.id) : [], held: h && h.d.win.id, wheel: !!document.querySelector('#v135Wheel #growthV42') || !!document.getElementById('growthV42'),
       card: T(document.getElementById('v146Card')), strip: T(document.getElementById('v146Proj')), kick: T(document.getElementById('v112Kick')),
       fits: wiz ? { sh: wiz.scrollHeight, ch: wiz.clientHeight } : null, next: T(document.getElementById('v112Next')),
-      scrollW: document.documentElement.scrollWidth, clientW: document.documentElement.clientWidth }
+      scrollW: document.documentElement.scrollWidth, clientW: document.documentElement.clientWidth, matchup: !!document.getElementById('v171Board') }
   }, { visSrc: vis })
   ok(/GAME PLAN/.test(B.kick) && !B.wheel, `${pos}: page 5 is THE GAME PLAN board, and no wheel spins on it`, B.kick)
   ok(B.tiles.length === B.plans.length && B.tiles.length >= 5 && B.tiles.every(t => t.vis), `${pos}: one tile for every plan the staff offered`, `${B.tiles.length} tiles / ${B.plans.length} plans`)
-  ok(B.tiles.every(t => /±\d+%/.test(t.txt)), `${pos}: every tile carries its variance`, B.tiles.map(t => t.id + ' ' + (t.txt.match(/±\d+%/) || ['?'])[0]).join(', '))
+  // v171 A: a tile names THIS plan's own game rating and its swing (the engine's variance was the same number on every tile; it lives on the card and the strip)
+  ok(B.tiles.every(t => /[+−±]\d+\.\d/.test(t.txt) && /swing ±\d/.test(t.txt)), `${pos}: every tile carries its plan's rating and swing`, B.tiles.map(t => t.id + ' ' + ((t.txt.match(/[+−±]\d+\.\d/) || ['?'])[0]) + ' ' + ((t.txt.match(/swing ±[\d.]+/) || ['?'])[0])).join(', '))
   ok(B.tiles.filter(t => t.on).length === 1 && B.tiles.find(t => t.on).id === B.held, `${pos}: the lit tile is the held plan (the default: last pick, else the scout's)`, B.held)
   ok(/Game rating/.test(B.card) && /The roll/.test(B.card) && /Fate roll/.test(B.card) && /Form swing/.test(B.card) && /Body/.test(B.card) && /VARIANCE ±\d+%/.test(B.card), `${pos}: the card details the plan — rating, roll, fate, swing, body, variance`, B.card.slice(0, 150))
   ok(/PROJECTED/.test(B.strip) && /VARIANCE ±\d+%/.test(B.strip), `${pos}: the projection strip is on the page with its variance`, B.strip.slice(0, 120))
-  ok(B.fits && B.fits.sh <= B.fits.ch + 2 && B.scrollW <= B.clientW, `${pos}: page 5 fits a 400x860 phone with no scroll`, JSON.stringify(B.fits))
+  // v171 A: the matchup call sits above the board, so page 5 is one page with one scroll now — never a sideways one
+  ok(B.fits && B.scrollW <= B.clientW && (B.fits.sh <= B.fits.ch + 2 || B.matchup), `${pos}: page 5 is one page on a 400x860 phone (one scroll with the matchup call above the board), nothing sideways`, JSON.stringify(B.fits))
   await page.screenshot({ path: `${SHOT}/v146D_${pos}_plan.png` })
   // tap a different plan — as a thumb would
   const target = B.plans.find(id => id !== B.held && id !== 'recovery') || B.plans[1]
