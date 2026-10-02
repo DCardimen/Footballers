@@ -1504,7 +1504,7 @@
    ]
   },
   "cosmetics": {
-   "desc": "v151 B — cosmetics and the profile: RIB_COSMETICS, the kit / helmet / celebration / stadium / vault hooks, the Locker's STYLE tab, the PROFILE view, the Team Creator's gated crests and colours (src/28-cosmetics.js)",
+   "desc": "v151 B — cosmetics and the profile: RIB_COSMETICS, the kit / helmet / celebration / stadium / vault hooks, the Locker's STYLE tab (v174: the palette), the PROFILE view, the Team Creator's gated crests and colours (src/28-cosmetics.js)",
    "anchors": [
     "v151 B",
     "RIB_COSMETICS",
@@ -1519,7 +1519,8 @@
     "v159 A",
     "v160 A",
     "v161 A",
-    "v162 B"
+    "v162 B",
+    "v174"
    ],
    "files": [
     "src/28-cosmetics.js",
@@ -1528,6 +1529,7 @@
     "public/celebrations/cel_v161a.json"
    ],
    "checks": [
+    "palettecheck",
     "v162Bcheck",
     "v161Acheck",
     "v160Acheck",
@@ -4488,6 +4490,21 @@
    "slow": false,
    "needsServer": true,
    "pureNode": false,
+   "flaky": []
+  },
+  "palettecheck": {
+   "file": "scripts/palettecheck.mjs",
+   "desc": "v174 — the palette: the Locker's STYLE tab is one page with the live card on top and a row for every cosmetic category (the eighteen slots) plus TEAM COLOURS and TEAM CREST, grouped on the field / his card / his world; every category opens on its own (its grid exactly its listed looks, previews drawn, the row's preview drawn in view, the row brought into view under the sticky bar); a tap equips in every category (row, EQUIPPED, the live card redraws banner and frame); locked looks stay locked and with monetization OFF no shop look is listed; a team palette / crest goes through the Team Creator's gate (free pick spent, \"Not now\" changes nothing, a crest keeps the colours); the old doors (cosOpenStyleV151B(sec), the profile's button, the top bar's 🎨 with a player, the Team Creator's link); no text under 12px and no horizontal scroll at 400x860, one scroll box on the desktop; TU v174palette 0 restores the tabbed panel and the Team Creator's 🎨; no Math.random from src/28; no page errors.",
+   "areas": [
+    "cosmetics",
+    "profile",
+    "phone"
+   ],
+   "runtimeSec": 90,
+   "slow": false,
+   "needsServer": true,
+   "pureNode": false,
+   "loadSensitive": true,
    "flaky": []
   }
  }

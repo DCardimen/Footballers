@@ -236,3 +236,15 @@ hash of its index), no sim value.
   (`chestNumV159A` / `printV159A`); the team face picks its ink from the kit (`inkForV159A`). On the field every man's
   number (`numPlaceV104` → `RIB_COSMETICS.numInk`) takes the kit's contrast, a jersey-shadow outline, alpha TU
   `v159AnumA` and a quarter-view turn; side views still hide it. TU `v159Anum` 0: the old sticker. `v159Acheck`.
+
+## v174 — the palette: every look in one place
+
+The Locker's STYLE tab is **the palette** (`stylePanel` → `paletteHTMLV174`): the live card on top, then one row per
+section in three groups — ON THE FIELD (uniform, TEAM COLOURS, TEAM CREST, helmet, celebration, number font, footprints,
+aura, wings, crown), HIS CARD (banner, frame, title, badge, nameplate, profile icon, trophy shelf), HIS WORLD (stadium,
+recap, vault). A row shows the equipped look's own preview, its name and owned/listed; one section is open at a time and
+its grid is v151 B's (`.cos-item-v151b`, tap to equip). TEAM COLOURS holds v159 A's uniform-colour choice and every team
+palette, TEAM CREST every emblem — a tap there is the Team Creator's save through its gate (`teamStyle`, above), the
+other half kept as he wears it. Doors: `cosOpenStyleV151B(sec)` (the profile's "🎨 The Palette", the spray's STYLE),
+`cosCatV151B(c)`, the top bar's 🎨 on the career screens (at TEAM COLOURS), a link in the Team Creator. Entitlements
+are untouched. TU `v174palette` 0: the tabbed panel and the 🎨 Team Creator. `palettecheck`.

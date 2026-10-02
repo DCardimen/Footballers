@@ -51,6 +51,9 @@ Every gameplay dial reads through `TU(key, default)`, so values can be retuned l
 
 The full history, newest first, is [`docs/CHANGELOG.md`](docs/CHANGELOG.md) — add new entries there.
 
+- **v174 — the palette.** Every look in one place: the Locker's STYLE tab (and the top bar's 🎨) is one page with
+  the live card on top and a row for the uniform, the team colours and crest, the helmet, the celebration, the banner
+  and every other look — each showing what he wears; open one, tap a look to wear it. `src/28-cosmetics.js`; `palettecheck`.
 - **v170 — the spray menu.** Hold any bottom-bar button and its pages spray out; slide onto one, slide onto its page,
   let go — 43 destinations two slides away. On a phone every page is one page with one scroll, with a section bar you
   can tap or swipe. `src/34-spray.js`; `spraycheck`.

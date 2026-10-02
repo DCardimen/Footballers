@@ -10,6 +10,20 @@ Names in older entries are the career app's pre-v149 C minified names (`q`, `ms`
 `index.html` + `src/` (`docs/LAYOUT.md`).
 
 <!-- new entries go here, newest first -->
+- **v174 — the palette: every look in one place.** (`src/28-cosmetics.js`, `scripts/palettecheck.mjs`.) The owner
+  asked for the custom celebration, the banner and the rest in the colour palette beside the uniform and colour
+  choice. The look lived in three places — the Team Creator's colours and crest (the top bar's 🎨), the Locker's STYLE
+  tab (one category at a time behind a strip of eighteen tabs) and the profile's "Change Style" door into it. Now the
+  STYLE tab is THE PALETTE: the live card on top (redrawn on every pick), then a row per section — ON THE FIELD
+  (uniform, team colours, team crest, helmet, celebration, number font, footprints, aura, wings, crown), HIS CARD
+  (banner, frame, title, badge, nameplate, profile icon, trophy shelf), HIS WORLD (stadium, recap, vault). Each row
+  shows the look he wears (its own animated preview), its name and how many he has; a tap opens the section's grid,
+  a tap on a look wears it. Team colours and crests are picked here through the Team Creator's own gate (free picks,
+  then PP — nothing new is sold or freed); locked looks stay locked (🔒 Membership), shop looks stay unlisted with the
+  store OFF. The old doors land on it: the profile's button ("🎨 The Palette"), the spray's STYLE, the top bar's 🎨
+  (at TEAM COLOURS, on the career screens) and a link in the Team Creator. On a phone it is one page with one scroll,
+  nothing under 12px (rows 15px, names 13px); on the desktop the palette is the one scroll box. Kill switch
+  `v174palette` (0 = the tabbed panel, the 🎨 the Team Creator).
 - **v170 — the spray menu: hold, slide, slide.** (`src/34-spray.js` new, `src/22-hub-sections.js`, `src/25-shell.js`,
   `scripts/spraycheck.mjs`, `scripts/v146Echeck.mjs`, `scripts/phonecheck.mjs`.) Pages were split in half on a phone,
   each half scrolling on its own (training had four scroll boxes). Now holding any button on the bottom bar sprays its
