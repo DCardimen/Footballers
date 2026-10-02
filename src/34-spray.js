@@ -237,6 +237,10 @@
   function secbar() {
     var scr = document.getElementById("screen"); if (!scr) return;
     var tabsEl = scr.querySelector(":scope > .hubv75-tabs"), bar = scr.querySelector(":scope > .secbar-v170");
+    /* v171 B: ONE bar, ever. A layer that re-parents #screen's children (the sectioner adopting strays, a
+     * re-split) used to carry the bar into a section, the query above stopped seeing it and a new one went
+     * in on every pass — the tree grew a column of NODES bars. Every bar that is not the direct child goes. */
+    [].slice.call(document.querySelectorAll(".secbar-v170")).forEach(function (b) { if (b !== bar) b.remove() });
     if (!classes() || !tabsEl) { if (bar) bar.remove(); return }
     var all = [].slice.call(tabsEl.querySelectorAll(".hubv75-tab")), on = tabsEl.querySelector(".hubv75-tab.on") || all[0];
     if (!on) return;

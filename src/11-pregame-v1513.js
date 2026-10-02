@@ -303,8 +303,15 @@ function v111LedgerHTML(pl,wk,key){
     +`<div class="v111-row"><span>Games out</span><b>${(Math.round(miss*10)/10).toFixed(1)}</b></div>`
     +(Math.abs(cut)>=.05?`<div class="v111-row"><span>Next game</span><b style="color:${cut<0?"#e8938b":"#8fe0a0"}">${v111Sig(cut)}</b></div>`:``)
     +fatigueRowsV120(f);
-  return `<div class="v111-col buy"><h4>WHAT IT BUYS</h4>${buy}</div><div class="v111-col cost"><h4>WHAT IT COSTS</h4>${cost}</div>`;
+  return `<div class="v111-col buy"><h4>WHAT IT BUYS</h4>${buy}</div><div class="v111-col cost"><h4>WHAT IT COSTS</h4>${cost}</div>${v171HardHTML(pl,wk)}`;
 }
+/* v171 D: the rung is also how hard he plays — and an aggressive man gets more out of going hard */
+function v171HardHTML(pl,wk){const M=window.__V111;if(!M||typeof M.intensity!=="function")return"";let I=null;try{I=M.intensity(pl,wk)}catch(e){}if(!I)return"";
+  const tag=I.pct>0?"RECKLESS":I.pct<0?"PLAYING IT SAFE":"STEADY",col=I.pct>0?"#ff9b5a":I.pct<0?"#8ec3ee":"var(--chalk)",a=Math.abs(I.pct),c=Math.round(a*8)/10;
+  const line=I.pct>0?`<b style="color:#8fe0a0">+${a}%</b> strength, speed, burst, tackling, blocking, grit · <b style="color:#e8938b">−${c}%</b> discipline, −${Math.round(a*5)/10}% ball security`
+    :I.pct<0?`<b style="color:#e8938b">−${a}%</b> to the hard-play stats · <b style="color:#8fe0a0">+${c}%</b> discipline, +${Math.round(a*5)/10}% ball security`:"Your ordinary game — nothing extra, nothing held back.";
+  const ag=I.mult>1.02?`🔥 Your aggression turns going hard into ×${I.mult.toFixed(2)}`:I.mult<0.98?`🧊 Composed: going hard only pays ×${I.mult.toFixed(2)}`:"";
+  return`<div class="v171-hard"><h4>HOW HARD YOU PLAY · <b style="color:${col}">${tag}</b></h4><div class="v171-hl">${line}</div>${ag?`<div class="v171-ag">${ag}</div>`:""}</div>`}
 /* v120: what the fatigue does to him — before this game and after it, and what that many points of
  * fatigue take off (or add to) every attribute, read off the same slope the sim plays on */
 function fatigueRowsV120(f){
@@ -330,7 +337,7 @@ function v111StepsHTML(key){
 function v111FocusHTML(pl,wk){
   const sel=wk&&wk.focusV111||null;
   return v111FocusListV111(pl&&pl.pos).map(f=>`<button class="gs-card-v23 v111-focus${f.key===sel?' gs-sel':''}" data-key="${esc(f.key)}" id="v111Focus_${esc(f.key)}" onclick="__v111PickFocusV111('${esc(f.key)}')">
-    <div class="gs-card-top"><span class="gs-ico">${f.icon||'🎯'}</span><b>${esc(f.name||f.key)}</b><span class="v111-mul">×${(Math.round((Number(f.mul)||1.2)*100)/100).toFixed(1)} ${esc(((window.__statLabelV25&&window.__statLabelV25(f.stat))||f.stat||'').toUpperCase())}</span></div>
+    <div class="gs-card-top"><span class="gs-ico">${f.icon||'🎯'}</span><b>${esc(f.name||f.key)}</b><span class="v111-mul${f.tier?' t-'+esc(f.tier.toLowerCase()):''}">×${(Math.round((Number(f.mul)||1.2)*100)/100).toFixed(2)} ${esc(((window.__statLabelV25&&window.__statLabelV25(f.stat))||f.stat||'').toUpperCase())}${f.tier==='HOT'?' 🔥':f.tier==='OFF'?' ⚠️':''}</span></div>
     <div class="gs-why">${esc(f.desc||'')}</div></button>`).join('');
 }
 function v111PlanHTML(){
@@ -395,6 +402,10 @@ function gsSectionV23(oursR,theirsR,pl,wk){
     .v111-step.on b{color:var(--gold)}
     .v111-desc{font:400 11px system-ui;color:var(--chalk-dim);line-height:1.3;margin-bottom:8px}
     .v111-ledger{display:flex;gap:7px;flex-wrap:wrap}
+    .v171-hard{flex:1 1 100%;border:1px solid rgba(255,155,90,.35);border-radius:8px;padding:6px 9px;background:rgba(255,155,90,.06)}
+    .v171-hard h4{margin:0 0 3px;font:700 11px Oswald,sans-serif;letter-spacing:1.2px;color:var(--chalk-dim)}
+    .v171-hl{font:600 12.5px Barlow Condensed,sans-serif;color:var(--chalk);line-height:1.35}
+    .v171-ag{margin-top:3px;font:600 12px Barlow Condensed,sans-serif;color:#ffd66b}
     .v111-col{flex:1 1 132px;min-width:0;border:1px solid rgba(255,255,255,.1);border-radius:8px;padding:6px 8px;background:rgba(20,30,48,.55)}
     .v111-col h4{margin:0 0 4px;font:800 8.5px Oswald,sans-serif;letter-spacing:1px}
     .v111-col.buy h4{color:#8fe0a0}
@@ -411,6 +422,7 @@ function gsSectionV23(oursR,theirsR,pl,wk){
     .v111-focus-wrap{border-color:rgba(107,191,89,.3);background:rgba(107,191,89,.05)}
     .v111-focus-wrap .gs-head{color:#8fe0a0}
     .v111-mul{margin-left:auto;font:800 9px Oswald;letter-spacing:.5px;color:#0b1119;background:#8fe0a0;border-radius:10px;padding:2px 6px;white-space:nowrap}
+    .v111-mul.t-hot{background:linear-gradient(90deg,#ffd66b,#ff9b5a)}.v111-mul.t-flat{background:#9aa6b2}.v111-mul.t-off{background:#e8938b}
     .gs-card-v23.v111-focus .gs-card-top b{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
     .gs-card-v23.v111-focus:hover{border-color:rgba(143,224,160,.55)}
     .gs-card-v23.v111-focus.gs-sel{border-color:#8fe0a0;background:rgba(107,191,89,.16);box-shadow:0 0 0 1px #8fe0a0 inset}
@@ -495,14 +507,14 @@ window.__V111_UI={KEYS:V111_KEYS.slice(),STEP:V111_STEP,
  * man on his tenth season is one tap from the field. ===== */
 const V112_PAGES_D=[
   {id:"v112Page1",kick:"YOUR INVOLVEMENT",title:"How much of this game is yours?",sub:"Five steps, from spot snaps to every snap. Pick one."},
-  {id:"v112Page2",kick:"YOUR FOCUS",title:"Sharpen one thing",sub:"One stat at ×1.2, this game only. Pick one, or none."},
+  {id:"v112Page2",kick:"YOUR FOCUS",title:"Sharpen one thing",sub:"One stat, this game only — how much each card sharpens rolls fresh every week, and sometimes the drill goes sideways. Pick one, or none."},
   {id:"v112Page3",kick:"THE SCOUT & THE PLAN",title:"Who you are playing",sub:"The read on them, and the mix your coordinator has settled on. Nothing here needs an answer."},
   {id:"v112Page4",kick:"THE IMPACT",title:"What you take onto the field",sub:"Your involvement, your focus, the body and the bill — all of it, applied."},
   /* v135: the wheel's own page. See `v135MountD` — the plan was rolled and held the moment the
    * staff's deck appeared; this page only spins it, and then names the final stat. */
   /* v146 D: in choice mode (the default) it is the plan BOARD — the player picks; the wheel copy stays for `planWheelV146` 1 */
   {id:"v112Page5",get kick(){return v146OnD()?"THE GAME PLAN":"THE WHEEL"},title:"How are you playing this one?",
-    get sub(){return v146OnD()?"Pick the plan you run. The card says what it does, what it costs and how wide it swings — the roll on it comes up at kickoff.":"The staff drew up the plans. The wheel picks the one you run — your instincts load it — and the roll says whether it comes off."}},
+    get sub(){return v146OnD()?"Make the call against this team, then pick how you play it. Every card says what it does, what it risks and what it pays.":"The staff drew up the plans. The wheel picks the one you run — your instincts load it — and the roll says whether it comes off."}},
   /* v136 A: a rivalry game gets one more spin — the approach to the rival, off the wheel, on its own
    * page after the plan (`when` keeps it off every other week) — and the sheet is the LAST page. */
   {id:"v112Page6",kick:"RIVALRY WEEK",title:"How do you play the rival?",sub:"Five approaches. The wheel picks yours — your personality loads it, and a locked one is off the wheel. It counts from this game on.",when:()=>{try{return rivalPageV136()}catch(e){return!1}}},
@@ -547,7 +559,7 @@ function v112ImpactHTMLD(){
   const swing=body?body.pct:null;
   return `<div class="v112-imp" id="v112ImpD"><h4>📈 THE IMPACT ON NEXT GAME</h4>`
     +row("Involvement",`${esc(u.label||V111_STEP[key].n)} · ${v111Pct(u.share)} snaps · ×${(Math.round((Number(u.touchMul)||1)*100)/100).toFixed(2)} ball`)
-    +row("Game focus",foc?`${esc(foc.name||foc.key)} · ×${(Math.round((Number(foc.mul)||1.2)*100)/100).toFixed(1)} ${esc(lab(foc.stat))}`:"None — nothing sharpened",foc?"#8fe0a0":"var(--chalk-dim)")
+    +row("Game focus",foc?`${esc(foc.name||foc.key)} · ×${(Math.round((Number(foc.mul)||1.2)*100)/100).toFixed(2)} ${esc(lab(foc.stat))}`:"None — nothing sharpened",foc?"#8fe0a0":"var(--chalk-dim)")
     +(swing!=null?row("Body",`${swing>0?"+"+swing:swing||0}% to every attribute`,swing>0?"#8fe0a0":swing<0?"#e8938b":"var(--chalk)"):"")
     +(ling.length?row("Lingering",ling.map(b=>`${esc(lab(b.stat))} ${b.mul!=null?"×"+(Math.round(Number(b.mul)*100)/100).toFixed(2):v111Sig(b.amt)} (${b.games|0}g)`).join(", "),"#e8938b"):"")
     +row("Wear this game",v111Sig(wear),wear>.05?"#e8938b":wear<-.05?"#8fe0a0":"var(--chalk)")
@@ -636,7 +648,7 @@ function v112ShellD(a){
     <div class="v112-page" id="v112Page2" hidden>${gsFocusBlockV23()}</div>
     <div class="v112-page" id="v112Page3" hidden>${a.scout}${gsPlanBlockV23()}</div>
     <div class="v112-page" id="v112Page4" hidden><div id="v112Impact"></div><div id="v146Full"></div></div>
-    <div class="v112-page" id="v112Page5" hidden><div id="v135Wheel"></div><div id="v135Final"></div></div>
+    <div class="v112-page" id="v112Page5" hidden><div id="v171Calls"></div><div id="v135Wheel"></div><div id="v135Final"></div></div>
     <div class="v112-page" id="v112Page6" hidden><div id="v136Rival"></div><div id="v136RivalOut"></div></div>
     <div class="v112-page" id="v112Page7" hidden><div id="v136Summary"></div><div class="v112-flush">${a.temp?`<details class="v112-fold v146-temp"><summary>⚡ ACTIVE / TEMPORARY STATS</summary>${a.temp}</details>`:""}${a.stats}</div></div>
     <div class="v146-proj" id="v146Proj"></div>
@@ -805,13 +817,16 @@ function v146FullD(){const el=document.getElementById("v146Full");if(!el)return;
     ${H&&H.pct!=null?row("Variance",`±${H.pct}% <small class="v146-rg">engine ±${H.sim}% · plan ±${H.plan}%</small>`,v146VarColD(H.pct)):""}
     <div class="v112-imp-note">${V146_VAR_LINE} Projected if he stays on the field — an injury in this game books it as a DNP. (${P.n} games of this week, run in the real engine.)</div></div>`}
 /* page 5: the board */
-function v146TileD(id,on,f,b,P){const H=P&&P.head;return`<button class="v146-tile${on?" on":""}" data-plan="${esc(id)}" onclick="__v146PickD('${esc(id)}')"><i>${esc(f.icon||"📋")}</i><b>${esc(f.name)}</b><em style="color:${v146VarColD(H&&H.pct)}">${H&&H.pct!=null?"±"+H.pct+"%":"±…"}</em><u>${H&&H.plan!=null?"plan ±"+H.plan+"%":""}</u>${b&&b.scout?`<s>SCOUT</s>`:""}</button>`}
+/* v171 A: a tile says what THIS plan does — its game rating and its own swing — not the engine's variance, which is the same number on every tile */
+function v146TileD(id,on,f,b,P){const rs=f&&f.ratingShift!=null?f.ratingShift:null,sw=f&&f.formPts!=null?f.formPts:null,col=rs==null?"var(--chalk-dim)":rs>0.05?"#8fe0a0":rs<-0.05?"#e8938b":"var(--chalk)";
+  return`<button class="v146-tile${on?" on":""}" data-plan="${esc(id)}" onclick="__v146PickD('${esc(id)}')"><i>${esc(f.icon||"📋")}</i><b>${esc(f.name)}</b><em style="color:${col}">${rs==null?"—":(rs>0?"+":rs<0?"−":"±")+Math.abs(Math.round(rs*10)/10).toFixed(1)}</em><u>${sw!=null?"swing ±"+(Math.round(sw*10)/10).toFixed(1):""}</u>${b&&b.scout?`<s>SCOUT</s>`:""}</button>`}
 function v146CardD(id){const X=window.__V146,f=X&&X.facts(null,id),V=window.__PREGAME_V51,b=V&&V.band?V.band(id):null;if(!f)return"";
   const P=v146ProjectD(id),H=P&&P.head,lab=k=>(window.__statLabelV25&&window.__statLabelV25(k))||k,sg=(v,d)=>(v>0?"+":v<0?"−":"±")+Math.abs(Math.round(v*(d||1))/(d||1));
   const row=(k,v,c)=>`<div class="v146-r"><span>${k}</span><b${c?` style="color:${c}"`:""}>${v}</b></div>`;
   const mt=f.counter?`counters them ${sg(f.match)}`:f.trap?`they punish it ${sg(f.match)}`:f.match?`${sg(f.match)}`:"neutral";
   let h=`<div class="v146-hd"><span>${esc(f.icon||"📋")}</span><div><b>${esc(f.name)}${b&&b.scout?` <s>SCOUT PICK</s>`:""}</b><small>${esc(f.desc)}</small></div></div><div class="v146-g">`;
   h+=row("Game rating",`${sg(f.ratingShift,10)} <small>plan ${sg(f.perf)}, matchup: ${esc(mt)}${f.rep>=2?` · ${f.rep} wks running`:""}</small>`,f.ratingShift>0?"#8fe0a0":f.ratingShift<0?"#e8938b":"");
+  {const tl=v171TeamLiftD(f);if(tl!=null)h+=row("Team",`${tl>0?"+":tl<0?"−":"±"}${Math.abs(tl).toFixed(1)}% <small>to every teammate's ratings in this game</small>`,tl>0?"#8fe0a0":tl<0?"#e8938b":"")}   // v171 A: the rating reaches the team
   if(b){h+=row("The roll",`<span style="color:#8fe0a0">${Math.round(b.g*100)}% clicks</span> · <span style="color:#e8938b">${Math.round(b.r*100)}% backfires</span>`);
     h+=row("Clicks / backfires",`+3–5 ${b.statsG.map(k=>esc(lab(k))).join(", ")} · −3–4 ${b.statsR.map(k=>esc(lab(k))).join(", ")}`)}
   h+=row("Fate roll",f.fate?`${Math.round(f.fate.odds*100)}% for +${f.fate.amount} ${esc(f.fate.name)}${f.fate.hedge?` (miss: +${f.fate.hedge})`:""}`:"none on this plan",f.fate?"":"var(--chalk-dim)");
@@ -820,18 +835,50 @@ function v146CardD(id){const X=window.__V146,f=X&&X.facts(null,id),V=window.__PR
   h+=row("After the game",[f.trust&&`trust ${sg(f.trust)}`,f.comp&&`composure ${sg(f.comp)}`,f.mom&&`momentum ${sg(f.mom)}`,f.snap&&`snaps ${sg(f.snap*100)}%`].filter(Boolean).join(" · ")||"nothing carries");
   h+=`</div><div class="v146-var"><b style="color:${v146VarColD(H&&H.pct)}">VARIANCE ${H&&H.pct!=null?"±"+H.pct+"%":"…"}</b><span>${H&&H.pct!=null?`engine ±${H.sim}% · this plan ±${H.plan}%. `:""}How far above or below the projection this game can land.</span></div>`;
   return h}
-function v146BoardD(){const host=document.getElementById("v135Wheel"),fin=document.getElementById("v135Final");if(!host)return;const h=v146HeldD();
+function v146BoardD(){v171CallsD();const host=document.getElementById("v135Wheel"),fin=document.getElementById("v135Final");if(!host)return;const h=v146HeldD();
   if(!h||!h.plans){host.innerHTML=`<div class="v135-none">The plan is set — the scout's pick.</div>`;if(fin)fin.innerHTML="";return}
   const id=v146PlanIdD(),X=window.__V146,V=window.__PREGAME_V51;
-  host.innerHTML=`<div class="v146-board" id="v146Plan"><div class="v146-tiles">${h.plans.map(p=>{const f=X&&X.facts(null,p.id)||{icon:p.icon,name:p.name};return v146TileD(p.id,p.id===id,f,V&&V.band?V.band(p.id):null,v146ProjectD(p.id))}).join("")}</div></div>`;
+  host.innerHTML=`<div class="v146-board" id="v146Plan"><div class="v171-sub">📋 YOUR GAME PLAN <small>how you play it</small></div><div class="v146-tiles">${h.plans.map(p=>{const f=X&&X.facts(null,p.id)||{icon:p.icon,name:p.name};return v146TileD(p.id,p.id===id,f,V&&V.band?V.band(p.id):null,v146ProjectD(p.id))}).join("")}</div></div>`;
   if(fin)fin.innerHTML=`<div class="v146-card" id="v146Card">${v146CardD(id)}</div>`}
 window.__v146PickD=function(id){const V=window.__PREGAME_V51;if(!V||!V.pick)return;if(!V.pick(id))return;v146BoardD();v146ProjD()};
 function v146RenderAllD(){if(!document.getElementById("pregameV1513"))return;v146ProjD();v146FullD();if(v146OnD()&&document.getElementById("v146Plan")){
-  document.querySelectorAll(".v146-tile").forEach(t=>{const P=v146ProjectD(t.getAttribute("data-plan")),H=P&&P.head,em=t.querySelector("em"),u=t.querySelector("u");if(em){em.textContent=H&&H.pct!=null?"±"+H.pct+"%":"±…";em.style.color=v146VarColD(H&&H.pct)}if(u)u.textContent=H&&H.plan!=null?"plan ±"+H.plan+"%":""});
+  v171CallsD(true);
   const c=document.getElementById("v146Card");if(c)c.innerHTML=v146CardD(v146PlanIdD())}}
 try{window.__V146&&window.__V146.onSample(()=>v146RenderAllD())}catch(e){}
 (function(){const U=window.__v111PickUsageV111,Fo=window.__v111PickFocusV111;
   window.__v111PickUsageV111=function(k){U&&U(k);v146RenderAllD()};window.__v111PickFocusV111=function(k){Fo&&Fo(k);v146RenderAllD()}})();
+/* ===== v171 A THE MATCHUP CALL (the page) =====
+ * Page 5 opens on the opponent's face — their star, their weak link, the unit to fear and the one to attack —
+ * and the calls the staff will let him make against it (`__V171.offer`): how many are open is his SAY (coach
+ * trust, chemistry, Field General — the meter says so), the rest show locked. Every card says what it does, the
+ * risk, how far it swings the game, the units it lifts, the line it is judged on and what it pays or costs; once
+ * the projection has played this week with the call, how often it came off. A tap is the call (`__V171.pick`);
+ * "Coach's script" is no call. The plan board sits under it as before, its tiles now naming each plan's own
+ * rating and swing. */
+function v171OfferD(){try{return window.__V171?window.__V171.offer():null}catch(e){return null}}
+function v171TeamLiftD(f){if(!f||!window.__V171)return null;const K=(window.RIB_TUNE&&window.RIB_TUNE.planTeamKV171!=null)?window.RIB_TUNE.planTeamKV171:.004;if(window.RIB_TUNE&&window.RIB_TUNE.v171===0)return null;
+  return Math.max(-4,Math.min(5,((f.perf||0)+(f.match||0))*K*100))}
+const V171_RISK=["","LOW RISK","MEDIUM RISK","HIGH RISK"];
+function v171ProjD(id){try{const S=window.__V146&&window.__V146.samples?window.__V146.samples():[];const c=S.filter(x=>x&&x.call&&x.call.id===id);if(!c.length)return"";
+  const ok=c.filter(x=>x.call.ok).length;return`<div class="v171-proj">📊 In the projection it came off in <b>${ok} of ${c.length}</b> games</div>`}catch(e){return""}}
+function v171CardD(c,on){const sg=v=>(v>0?"+":v<0?"−":"±")+Math.abs(v);
+  return`<button type="button" class="v171-c r${c.risk}${on?" on":""}${c.locked?" locked":""}" data-call="${esc(c.id)}"${c.locked?" disabled":""} onclick="__v171PickD('${esc(c.id)}')">
+    <i>${c.locked?"🔒":esc(c.icon)}</i><div class="v171-cb"><b>${esc(c.name)} <s>${c.side==="D"?"DEFENSE":"OFFENSE"}</s></b>
+    ${c.locked?`<small>Locked — earn more say with the coach and the locker room.</small>`:`<small>${esc(c.pitch)}</small>
+    <div class="v171-tags"><span class="rk">${V171_RISK[c.risk]}</span><span>SWING ×${c.varMult.toFixed(2)}</span>${c.edgePct>0?`<span class="up">+${c.edgePct}% ${esc(c.edge.join(" & "))}</span>`:""}</div>
+    <div class="v171-goal"><b>WIN IF</b> ${esc(c.goal)}</div>
+    <div class="v171-pay"><span class="ok">✓ trust ${sg(c.ok.trust)} · hype ${sg(c.ok.hype)} · chem ${sg(c.ok.chem)}</span><span class="no">✗ trust ${sg(c.no.trust)}${c.no.hype?` · hype ${sg(c.no.hype)}`:""}${c.no.chem?` · chem ${sg(c.no.chem)}`:""}</span></div>${on?v171ProjD(c.id):""}`}</div></button>`}
+function v171CallsD(soft){const el=document.getElementById("v171Calls");if(!el)return;const O=v171OfferD();if(!O){el.innerHTML="";return}
+  if(soft){const on=el.querySelector(".v171-c.on");if(on){const pj=on.querySelector(".v171-proj"),h=v171ProjD(O.chosen);if(pj)pj.outerHTML=h||"";else if(h)on.querySelector(".v171-cb").insertAdjacentHTML("beforeend",h)}return}
+  const I=O.I,unit={OL:"offensive line",DL:"defensive line",LB:"linebackers",SEC:"secondary",REC:"receivers",RB:"backfield",QB:"quarterback"},open=O.calls.filter(c=>!c.locked),locked=O.calls.length-open.length;
+  el.innerHTML=`<div class="v171-mc" id="v171Board"><div class="v171-sub">🧠 THE MATCHUP CALL <small>${open.length} of ${O.calls.length} open${locked?` · ${locked} locked`:""}</small></div>
+    <div class="v171-face"><span class="st">⭐ ${esc(I.star.tier)} ${esc(I.star.pos)} <b>#${I.star.num} ${esc(I.star.name)}</b></span><span class="wk">🎯 WEAK ${esc(I.weak.pos)} <b>#${I.weak.num} ${esc(I.weak.name)}</b></span><span class="sg">💪 ${esc(unit[I.strong.unit])} +${Math.round(I.strong.pct*100)}%</span><span class="sf">🩹 ${esc(unit[I.soft.unit])} −${Math.round(I.soft.pct*100)}%</span></div>
+    <div class="v171-say"><span>YOUR SAY</span><div><i style="width:${Math.round(O.say*100)}%"></i></div><b>${Math.round(O.say*100)}%</b></div>
+    <div class="v171-saynote">Coach trust, team chemistry and Field General decide how many calls you get and how hard the staff runs them (×${O.str.toFixed(2)}).</div>
+    <div class="v171-list">${O.calls.filter(c=>!c.locked).map(c=>v171CardD(c,c.id===O.chosen)).join("")}
+    <button type="button" class="v171-c coach${!O.chosen?" on":""}" data-call="" onclick="__v171PickD('')"><i>📋</i><div class="v171-cb"><b>Coach's script</b><small>No call — the staff plays it straight. Nothing riding on it either way.</small></div></button>
+    ${O.calls.filter(c=>c.locked).map(c=>v171CardD(c,false)).join("")}</div></div>`}
+window.__v171PickD=function(id){if(!window.__V171||!window.__V171.pick(id||null))return;v171CallsD();try{v146ProjD();v146FullD()}catch(e){}};
 function v146StyleD(){if(document.getElementById("v146StyleEl"))return;document.head.insertAdjacentHTML("beforeend",`<style id="v146StyleEl">
   .v146-proj{margin-top:10px;padding:8px 10px;border:1px solid rgba(143,224,160,.3);border-radius:10px;background:rgba(143,224,160,.05)}
   .v146-proj:empty{display:none}
@@ -845,12 +892,45 @@ function v146StyleD(){if(document.getElementById("v146StyleEl"))return;document.
   .v146-pr small{display:block;font:600 9.5px Barlow Condensed,sans-serif;color:var(--chalk-dim);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   .v146-pr i{display:block;font:600 9.5px Barlow Condensed,sans-serif;font-style:normal;color:#8fe0a0;opacity:.85}
   .v146-rg{font:600 10.5px Barlow Condensed,sans-serif;color:var(--chalk-dim);margin-left:4px}
-  .v146-tiles{display:grid;grid-template-columns:repeat(5,1fr);gap:5px}
+  .v146-tiles{display:grid;grid-template-columns:repeat(auto-fill,minmax(104px,1fr));gap:6px}
+  .v171-sub{display:flex;align-items:baseline;gap:8px;margin:2px 0 6px;font:700 12px Oswald,sans-serif;letter-spacing:1.4px;color:var(--gold)}
+  .v171-sub small{font:600 12px Barlow Condensed,sans-serif;letter-spacing:.3px;color:var(--chalk-dim)}
+  .v171-mc{margin-bottom:12px}
+  .v171-face{display:grid;grid-template-columns:1fr 1fr;gap:5px;margin-bottom:7px}
+  .v171-face span{padding:5px 7px;border-radius:8px;background:rgba(255,255,255,.04);border:1px solid var(--line);font:600 12px Barlow Condensed,sans-serif;color:var(--chalk-dim);line-height:1.25;min-width:0}
+  .v171-face span b{display:block;color:var(--chalk);font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .v171-face .st{border-color:rgba(240,187,69,.5)}.v171-face .wk{border-color:rgba(143,224,160,.4)}
+  .v171-face .sg{color:#e8938b}.v171-face .sf{color:#8fe0a0}
+  .v171-say{display:flex;align-items:center;gap:8px;font:700 11px Oswald,sans-serif;letter-spacing:1px;color:var(--chalk-dim)}
+  .v171-say div{flex:1;height:7px;border-radius:5px;background:rgba(255,255,255,.1);overflow:hidden}
+  .v171-say i{display:block;height:100%;background:linear-gradient(90deg,#8ec3ee,var(--gold))}
+  .v171-say b{color:var(--gold);font-size:13px}
+  .v171-saynote{font:400 12px system-ui;color:var(--chalk-dim);margin:3px 0 7px;line-height:1.3}
+  .v171-list{display:flex;flex-direction:column;gap:6px}
+  .v171-c{display:flex;gap:9px;align-items:flex-start;text-align:left;width:100%;padding:8px 10px;border-radius:11px;border:1px solid var(--line);background:rgba(255,255,255,.035);color:var(--chalk);cursor:pointer}
+  .v171-c>i{font-style:normal;font-size:22px;line-height:1.1;flex:0 0 26px;text-align:center}
+  .v171-cb{flex:1;min-width:0}
+  .v171-cb>b{display:block;font:700 15px Oswald,sans-serif;letter-spacing:.3px}
+  .v171-cb>b s{text-decoration:none;font:700 10px Oswald,sans-serif;letter-spacing:1px;color:var(--chalk-dim);margin-left:4px}
+  .v171-cb>small{display:block;font:400 12.5px system-ui;color:var(--chalk-dim);line-height:1.3;margin-top:2px}
+  .v171-tags{display:flex;flex-wrap:wrap;gap:4px;margin-top:5px}
+  .v171-tags span{font:700 11px Barlow Condensed,sans-serif;letter-spacing:.4px;padding:1px 6px;border-radius:6px;background:rgba(255,255,255,.07);color:var(--chalk)}
+  .v171-c.r1 .rk{background:rgba(143,224,160,.18);color:#8fe0a0}.v171-c.r2 .rk{background:rgba(240,187,69,.18);color:var(--gold)}.v171-c.r3 .rk{background:rgba(232,147,139,.2);color:#e8938b}
+  .v171-tags .up{color:#8ec3ee}
+  .v171-goal{margin-top:5px;font:600 13px Barlow Condensed,sans-serif;color:var(--chalk)}
+  .v171-goal b{color:var(--gold);letter-spacing:.8px;margin-right:3px}
+  .v171-pay{display:flex;flex-wrap:wrap;gap:3px 10px;margin-top:3px;font:600 12px Barlow Condensed,sans-serif}
+  .v171-pay .ok{color:#8fe0a0}.v171-pay .no{color:#e8938b}
+  .v171-proj{margin-top:5px;font:600 12px Barlow Condensed,sans-serif;color:#8ec3ee}
+  .v171-c.on{border-color:var(--gold);background:rgba(240,187,69,.12);box-shadow:0 0 0 1px var(--gold) inset}
+  .v171-c.coach{padding:7px 10px}
+  .v171-c.locked{opacity:.45;cursor:default}
+  body:has(#pregameV1513) .mz158-chip{top:env(safe-area-inset-top,0px)!important;left:50%!important;right:auto!important;transform:translateX(-50%);font-size:8px!important;padding:2px 7px 3px!important;border-radius:0 0 8px 8px!important}
   .v146-tile{position:relative;min-width:0;padding:6px 2px 5px;border:1px solid var(--line);border-radius:10px;background:rgba(255,255,255,.04);color:var(--chalk);cursor:pointer;text-align:center}
   .v146-tile i{display:block;font-style:normal;font-size:19px;line-height:1.1}
-  .v146-tile b{display:block;font:700 9.5px Barlow Condensed,sans-serif;line-height:1.1;height:21px;overflow:hidden;margin-top:2px}
-  .v146-tile em{display:block;font:700 10.5px Oswald,sans-serif;font-style:normal;margin-top:2px}
-  .v146-tile u{display:block;text-decoration:none;font:600 8.5px Barlow Condensed,sans-serif;color:var(--chalk-dim);height:10px;line-height:10px}
+  .v146-tile b{display:flex;align-items:center;justify-content:center;font:700 12.5px Barlow Condensed,sans-serif;line-height:1.1;min-height:28px;margin-top:2px;padding:0 3px}
+  .v146-tile em{display:block;font:700 14px Oswald,sans-serif;font-style:normal;margin-top:2px}
+  .v146-tile u{display:block;text-decoration:none;font:600 11px Barlow Condensed,sans-serif;color:var(--chalk-dim);line-height:13px}
   .v146-tile s{position:absolute;top:-6px;left:50%;transform:translateX(-50%);text-decoration:none;font:700 7.5px Oswald,sans-serif;letter-spacing:.8px;background:var(--gold);color:#111;border-radius:6px;padding:0 4px}
   .v146-tile.on{border-color:var(--gold);background:rgba(240,187,69,.14);box-shadow:0 0 0 1px var(--gold) inset}
   .v146-card{margin-top:8px;padding:9px 10px;border:1px solid rgba(240,187,69,.34);border-radius:10px;background:rgba(240,187,69,.05)}

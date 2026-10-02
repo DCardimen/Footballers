@@ -930,7 +930,7 @@
       (Object.keys(lv).length ? Object.keys(lv).map(function (k) { return '<span class="press-chip">' + escHtml(k) + " ×" + (lv[k] | 0) + "</span>"; }).join("") : '<span class="small">No titles yet — go win one.</span>') + "</div>" +
       '<div class="h2" style="margin-top:10px">Achievements</div><div class="prof-chips-v151b">' + ACH.map(function (a) { var on = d.achievements.indexOf(a.id) >= 0; return '<span class="press-chip' + (on ? " hot" : "") + '" title="' + escHtml(a.desc) + '">' + (on ? "✓ " : "🔒 ") + escHtml(a.name) + "</span>"; }).join("") + "</div></div>";
     renderCard(d, sc.querySelector(".pcard-host-v151b"));
-    if (dock) dock.innerHTML = '<button class="btn" onclick="cosOpenStyleV151B()">🎨 Change Style</button><div class="btn-row"><button class="btn ghost" onclick="go(\'hof\')">🏛️ Hall of Fame</button><button class="btn secondary" onclick="go(S.player&&S.player.pos?\'hub\':\'menu\')">Back</button></div>';
+    if (dock) dock.innerHTML = '<button class="btn" onclick="cosOpenStyleV151B()">🎨 ' + (onV174() ? "The Palette" : "Change Style") /* v174 */ + '</button><div class="btn-row"><button class="btn ghost" onclick="go(\'hof\')">🏛️ Hall of Fame</button><button class="btn secondary" onclick="go(S.player&&S.player.pos?\'hub\':\'menu\')">Back</button></div>';
     V.profileShown = (V.profileShown || 0) + 1;
   }
   window.__profileRenderV151B = screenProfile;
@@ -6804,6 +6804,360 @@
     x.restore();
     return o.sh;
   }
+
+  /* ===== v174 THE PALETTE =====
+   * The owner: "implement all options from the custom celebration, banner, etc into the color palette with the
+   * uniform and color choice". The look lived in three places: the Team Creator's colours and crest (the 🎨 in the
+   * top bar), the Locker's STYLE tab (one category at a time behind a strip of eighteen tabs) and the profile's
+   * "Change Style" door into that tab. Now the STYLE tab IS the palette — one page, every section a row you can see:
+   *   ON THE FIELD  uniform · team colours · team crest · helmet · celebration · number font · footprints · aura · wings · crown
+   *   HIS CARD      banner · frame · title · badge · nameplate · profile icon · trophy shelf
+   *   HIS WORLD     stadium · recap · vault
+   * Each row shows what he wears now (that item's own preview painter, live) and how many of the section he has; a
+   * tap opens it (one at a time, so the grid of 13-85 drawn previews stays one section's worth) and a tap on a look
+   * wears it. The card at the top (`renderCard`, compact) is the live preview of the whole look and redraws on a pick.
+   *   - team colours / crest are picked HERE too, through the Team Creator's own save and gate (`saveTeamCreatorV153`
+   *     → `teamStyleNeedV151B`: the five free picks, then PP) — nothing new is sold, nothing is freed
+   *   - entitlements are the module's as they were (`listed` / `owned` / `howTo`): member looks show 🔒 Membership,
+   *     shop looks are not listed while monetization is OFF; nothing here calls the store
+   *   - the old doors: `cosOpenStyleV151B(sec)` opens the palette at a section (the profile's button, the spray's
+   *     STYLE); `cosCatV151B(c)` opens and scrolls to c; the top bar's 🎨 opens it at TEAM COLOURS on the career
+   *     screens (elsewhere — a live game, the pregame — it is still the Team Creator); the Team Creator links to it
+   * Draws no Math.random, changes no sim number. Kill switch TU `v174palette` 0: v151 B's tabbed panel, the 🎨 the
+   * Team Creator, no link. `window.__V174`; `palettecheck`. */
+  function onV174() { return !!TUv("v174palette", 1); }
+  var V174 = { renders: 0, swaps: 0, team: [], jumps: 0, btn: 0, errs: 0 };
+  var stylePanelOldV174 = stylePanel;   // v151 B's tabbed panel: what TU v174palette 0 draws
+  var TEAM_SECS_V174 = { colours: { name: "TEAM COLOURS", icon: "🎨" }, crest: { name: "TEAM CREST", icon: "🛡️" } };
+  var GROUPS_V174 = [
+    { k: "field", name: "ON THE FIELD", note: "what he wears", secs: ["uniform", "colours", "crest", "helmet", "celebration", "numfont", "trail", "aura", "wings", "crown"] },
+    { k: "card", name: "HIS CARD", note: "what the league sees", secs: ["banner", "frame", "title", "badge", "nameplate", "icon", "shelf"] },
+    { k: "world", name: "HIS WORLD", note: "where he plays", secs: ["stadium", "recap", "vault"] }
+  ];
+  /* the views the top bar's 🎨 may leave for the palette (anywhere else it keeps opening the Team Creator) */
+  var PAL_VIEWS_V174 = { hub: 1, menu: 1, locker: 1, profile: 1, stats: 1, hof: 1, legacy: 1, leaderboard: 1, seasons: 1, settings: 1, challenges: 1, upgrade: 1, shop: 1, life: 1, roster: 1, dynasty: 1 };
+  function groupsV174() {
+    var seen = {}, out = GROUPS_V174.map(function (g) { g.secs.forEach(function (s) { seen[s] = 1; }); return { k: g.k, name: g.name, note: g.note, secs: g.secs.slice() }; });
+    SLOTS.forEach(function (s) { if (!seen[s]) out[out.length - 1].secs.push(s); });   // a slot added later still gets its row
+    return out;
+  }
+  function secsV174() { var a = []; groupsV174().forEach(function (g) { a = a.concat(g.secs); }); return a; }
+  function isSecV174(k) { return !!(k && (CATS[k] || TEAM_SECS_V174[k])); }
+  function teamNowV174() { var c = window.__GRIDIRON_TEAM_CUSTOM__ || {}; return { pal: c.palette != null ? c.palette | 0 : null, logo: c.logo != null ? c.logo | 0 : null }; }
+  function teamPalsV174() { return Array.isArray(window.TEAM_PALETTES) ? window.TEAM_PALETTES : []; }
+  function emblemsV174() { var E = window.TEAM_LOGOS_V44; return E && E.db && E.db.length ? E : null; }
+  function pairV174(a, b) { return "background:linear-gradient(135deg," + (hexOk(a) || "#1f4fd0") + " 0 50%," + (hexOk(b) || "#e8c86a") + " 50% 100%)"; }
+  function viewOkV174() { var st = gstate(); return !!(st && st.player && PAL_VIEWS_V174[st.view]); }
+
+  /* ---- the rows ---- */
+  var cntV174 = null;   // one pass over the catalogue per full render (eighteen filters of 540 looked slow under load)
+  function countsV174(only) {
+    var c = {};
+    ITEMS.forEach(function (it) { if (only && it.cat !== only) return; if (!listed(it)) return; var o = c[it.cat] || (c[it.cat] = { n: 0, have: 0 }); o.n++; if (owned(it.id)) o.have++; });
+    return c;
+  }
+  function secHeadV174(k) {
+    var meta = TEAM_SECS_V174[k] || CATS[k], pv = "", sub = "", n = "";
+    if (k === "colours") {
+      var I = teamStyle.info();
+      pv = '<span class="pal-sw2-v174" style="' + pairV174(teamCol(0), teamCol(1)) + '"></span>';
+      sub = uniColV159A() === "team" ? "Uniforms wear the team palette" : "Uniforms wear their own colours";
+      n = I.all ? "ALL" : I.pals + "/" + teamPalsV174().length;
+    } else if (k === "crest") {
+      var E = emblemsV174(), lg = teamNowV174().logo, I2 = teamStyle.info();
+      pv = '<span class="pal-crhd-v174">' + (E && lg != null ? '<i class="emblem-v44" style="' + escHtml(E.cssFull(lg)) + '"></i>' : "🛡️") + "</span>";
+      sub = E && lg != null ? E.name(lg) || "Crest " + (lg + 1) : "Your school's crest";
+      n = I2.all ? "ALL" : I2.logos + "/" + (E ? E.db.length : 90);
+    } else {
+      var eq = equipped(k), it = findItem(eq), c = (cntV174 || countsV174(k))[k] || { n: 0, have: 0 };
+      pv = '<span class="cos-pvbox-v151b pal-hdpv-v174" data-pv174="' + escHtml(eq || "") + '"></span>';
+      sub = it ? it.name : "—";
+      n = c.have + "/" + c.n;
+    }
+    var open = SEL.cat === k;
+    return '<button type="button" class="cos-cat-v151b pal-hd-v174" aria-expanded="' + open + '" onclick="palSecV174(\'' + k + '\')">' + pv +
+      '<span class="pal-hdtx-v174"><b><i>' + meta.icon + "</i>" + meta.name + "</b><small>" + escHtml(sub) + "</small></span>" +
+      '<em class="pal-hdn-v174">' + n + '</em><span class="pal-chev-v174" aria-hidden="true"></span></button>';
+  }
+  function itemHTMLV174(it, k, eq) {
+    var own = owned(it.id), on = it.id === eq;
+    return '<div class="cos-item-v151b r-' + it.rarity + (own ? "" : " locked") + (on ? " on" : "") + '" data-cos="' + escHtml(it.id) + '"' + (own && !on ? ' onclick="cosEquipV151B(\'' + k + "','" + escHtml(it.id) + '\')"' : "") + ">" +
+      '<div class="cos-pvbox-v151b" data-pv="' + escHtml(it.id) + '"></div><div class="cos-nm-v151b">' + escHtml(it.name) + "</div>" +
+      '<div class="cos-src-v151b">' + (on ? "✓ EQUIPPED" : own ? "TAP TO EQUIP" : "🔒 " + escHtml(howTo(it))) + "</div></div>";
+  }
+  function creatorBtnV174() { return '<button type="button" class="btn ghost pal-tc-v174" onclick="palCreatorV174()">✏️ School &amp; team name — the Team Creator</button>'; }
+  function coloursBodyV174() {
+    var now = teamNowV174();
+    return '<div class="pal-sub-v174">Uniform colours<small>The uniform you wear, in its own colours or your school\'s.</small></div>' + uniColRowV159A() +
+      '<div class="pal-sub-v174">Team palette<small>Your school\'s two colours: the scoreboard, the end zones, and the kit in "Team palette".</small></div>' +
+      ((function () { try { var st = gstate(); return st && st.player && st.player.clubV146B; } catch (e) { return false; } })() ? '<div class="cos-note-v161a">Your UFF club wears its own colours while you play for it; a pick here is your school\'s.</div>' : "") +
+      teamStyle.barHTML() +
+      '<div class="pal-tpg-v174" role="group" aria-label="Team palettes">' + teamPalsV174().map(function (p, i) {
+        var on = i === now.pal, own = teamStyle.owned("pal", i);
+        return '<button type="button" class="pal-tp-v174' + (on ? " on" : "") + (own ? "" : " locked") + '" data-i="' + i + '" aria-pressed="' + on + '" title="Palette ' + (i + 1) + (own ? "" : " (locked: a free pick or PP)") + '" onclick="palTeamV174(\'pal\',' + i + ')" style="' + pairV174(p[0], p[1]) + '"><small>' + (on ? "✓" : own ? i + 1 : "🔒") + "</small></button>";
+      }).join("") + "</div>" + creatorBtnV174();
+  }
+  function crestBodyV174() {
+    var E = emblemsV174(), now = teamNowV174();
+    if (!E) return '<div class="cos-note-v161a">The crests are still loading.</div>';
+    var h = "";
+    for (var i = 0; i < E.db.length; i++) {
+      var on = i === now.logo, own = teamStyle.owned("logo", i);
+      h += '<button type="button" class="pal-cr-v174' + (on ? " on" : "") + (own ? "" : " locked") + '" data-i="' + i + '" aria-pressed="' + on + '" title="' + escHtml(E.name(i) || "Crest " + (i + 1)) + (own ? "" : " (locked)") + '" onclick="palTeamV174(\'logo\',' + i + ')"><i class="emblem-v44" style="' + escHtml(E.cssFull(i)) + '"></i>' + (on ? "<small>✓</small>" : own ? "" : "<small>🔒</small>") + "</button>";
+    }
+    return '<div class="pal-sub-v174">Team crest<small>On the helmet, the card and the scoreboard. Picking one keeps your colours.</small></div>' + teamStyle.barHTML() + '<div class="pal-crg-v174" role="group" aria-label="Team crests">' + h + "</div>" + creatorBtnV174();
+  }
+  function secBodyV174(k) {
+    if (k === "colours") return coloursBodyV174();
+    if (k === "crest") return crestBodyV174();
+    var eq = equipped(k), list = ITEMS.filter(function (it) { return it.cat === k && listed(it); });
+    return (k === "uniform" ? uniColRowV159A() : "") +   // v159 A: the uniform's own colours or the team palette, beside the uniforms as before
+      (k === "celebration" && onV161A() ? '<div class="cos-note-v161a">🎲 On every touchdown he picks one of three moves at random — the flex, the backflip or the ball spike. The effect you equip plays around him.</div>' : "") +
+      '<div class="cos-grid-v151b">' + list.map(function (it) { return itemHTMLV174(it, k, eq); }).join("") + "</div>";
+  }
+  function secHTMLV174(k) {
+    var open = SEL.cat === k;
+    return '<section class="pal-sec-v174' + (open ? " on" : "") + '" data-pal-sec="' + k + '">' + secHeadV174(k) + (open ? '<div class="pal-body-v174">' + secBodyV174(k) + "</div>" : "") + "</section>";
+  }
+  function paletteHTMLV174() {
+    V174.renders++;
+    if (SEL.cat && !isSecV174(SEL.cat)) SEL.cat = "uniform";
+    cntV174 = countsV174();
+    try { return paletteInnerV174(); } finally { cntV174 = null; }
+  }
+  function paletteInnerV174() {
+    return '<div class="cos-style-v151b pal-v174" data-cat="' + (SEL.cat || "") + '">' +
+      '<div class="h2 cos-h-v151b pal-h-v174">🎨 The Palette <span>looks only · never changes a number</span></div>' +
+      '<div class="pal-lede-v174">Uniform, colours, celebration, banner — everything he wears, in one place. Open a section, tap a look to wear it.</div>' +
+      '<div class="pal-live-v174" aria-label="Your look"></div>' +
+      groupsV174().map(function (g) { return '<div class="pal-grp-v174" data-grp="' + g.k + '"><div class="pal-gh-v174">' + g.name + "<span>" + g.note + "</span></div>" + g.secs.map(secHTMLV174).join("") + "</div>"; }).join("") +
+      "</div>";
+  }
+  /* the Locker's STYLE tab (07's cosStyleBlockV151B → API.stylePanel) and every re-render below come through here */
+  stylePanel = function () {
+    if (!onV174()) { if (!CATS[SEL.cat]) SEL.cat = "uniform"; return stylePanelOldV174(); }
+    return paletteHTMLV174();
+  };
+
+  /* ---- drawing what the markup cannot: the row previews and the live card ----
+   * Nothing is drawn while the palette is hidden (the Locker's GEAR tab) or before the v75 sectioner has split the
+   * screen (it waits for 90 ms without a mutation — painting first held the tab strip back a second). The card first,
+   * then each row's preview as it scrolls into view (an IntersectionObserver): a celebration's mini-stage, an aura,
+   * a banner painter are paid for when he can see them, not all eighteen on the way in. */
+  var IO_V174 = null;
+  function rowPaintV174(b) { if (!b || b.__pv) return; b.__pv = 1; try { var it = findItem(b.getAttribute("data-pv174")); if (it) previewInto(b, it); V174.rowPv = (V174.rowPv || 0) + 1; } catch (e) { V174.errs++; } }
+  function ioV174() {
+    if (IO_V174 || typeof IntersectionObserver !== "function") return IO_V174;
+    IO_V174 = new IntersectionObserver(function (es) { es.forEach(function (e) { if (e.isIntersecting) { IO_V174.unobserve(e.target); rowPaintV174(e.target); } }); }, { rootMargin: "160px 0px" });
+    return IO_V174;
+  }
+  function settledV174(root) {
+    if (!root.getClientRects().length) return false;   // a hidden tab: nothing to draw
+    var sc = document.getElementById("screen"), H = window.__HUB_V75, st = gstate(), v = st && st.view;
+    if (!sc || !sc.contains(root) || !H || !H.views || !H.views[v] || sc.querySelector(":scope > .hubv75-tabs")) return true;
+    if (!root.__seen) root.__seen = Date.now();
+    return Date.now() - root.__seen > 900;   // a screen the sectioner never splits still gets drawn
+  }
+  function paintV174(root) {
+    root = root || document.querySelector(".pal-v174"); if (!root || !settledV174(root)) return;
+    try {
+      var live = root.querySelector(".pal-live-v174");
+      if (live && !live.__drawn) { live.__drawn = 1; renderCard(null, { el: live, compact: true }); }
+      if (TUv("v174rowPv", 1)) {
+        var io = ioV174();
+        root.querySelectorAll("[data-pv174]").forEach(function (b) { if (b.__pv || b.__io) return; if (io) { b.__io = 1; io.observe(b); } else rowPaintV174(b); });
+      }
+      paintPreviews(root);
+      var P = V174.pend;
+      if (P) { if (jumpV174(P.k)) P.n++; if (P.n >= 2 || Date.now() - P.t > 5000) V174.pend = null; }
+    } catch (e) { V174.errs++; }
+  }
+  setInterval(function () { if (document.querySelector(".pal-v174")) paintV174(); }, 300);
+  function scrollerV174(el) {
+    for (var p = el && el.parentElement; p && p !== document.body; p = p.parentElement) {
+      var oy = getComputedStyle(p).overflowY; if ((oy === "auto" || oy === "scroll") && p.scrollHeight > p.clientHeight + 2) return p;
+    }
+    return document.scrollingElement || document.documentElement;
+  }
+  /* bring a section's row to the top of whatever scrolls it (never scrollIntoView: it would scroll the shell's frame too) */
+  function jumpV174(k) {
+    var h = document.querySelector('.pal-v174 [data-pal-sec="' + k + '"]'); if (!h || !h.getClientRects().length) return false;
+    var sc = scrollerV174(h), top = h.getBoundingClientRect().top - (sc === document.scrollingElement ? 0 : sc.getBoundingClientRect().top), pad = 6;
+    [].forEach.call(sc.children || [], function (c) {   // a sticky bar riding the scroller's top (v170's section bar, the v75 tab strip) covers what sits under it
+      var cs = getComputedStyle(c); if (cs.position === "sticky" && c.getClientRects().length) pad = Math.max(pad, c.offsetHeight + (parseFloat(cs.top) || 0) + 6);
+    });
+    sc.scrollTop = Math.max(0, sc.scrollTop + top - pad); V174.jumps++; return true;
+  }
+  function keepScrollV174(y) {
+    [0, 160, 520].forEach(function (ms) { setTimeout(function () { var r = document.querySelector(".pal-v174"); if (!r) return; var sc = scrollerV174(r); if (sc && Math.abs(sc.scrollTop - y) > 2) sc.scrollTop = y; }, ms); });
+  }
+  function swapSecV174(k) {
+    var n = document.querySelector('.pal-v174 [data-pal-sec="' + k + '"]'); if (!n) return;
+    if (IO_V174) n.querySelectorAll("[data-pv174]").forEach(function (b) { IO_V174.unobserve(b); });
+    n.outerHTML = secHTMLV174(k);
+  }
+  function liveV174() { var l = document.querySelector(".pal-v174 .pal-live-v174"); if (l) l.__drawn = 0; paintV174(); }
+  function redrawV174(y) {
+    var el = document.querySelector(".cos-style-v151b"); if (!el) return false;
+    el.outerHTML = stylePanel(); paintV174();
+    if (y != null) keepScrollV174(y);
+    return true;
+  }
+  function openSecV174(k, jump) {
+    var prev = SEL.cat; SEL.cat = k;
+    if (!document.querySelector(".pal-v174")) { if (!redrawV174()) return false; }
+    else { if (prev && prev !== k) swapSecV174(prev); if (k) swapSecV174(k); }
+    var root = document.querySelector(".pal-v174"); root.setAttribute("data-cat", k || "");
+    if (k && jump) {   // asked for a section while the Locker shows GEAR: show the palette's tab first (the sectioner's own tap)
+      var sec = root.closest ? root.closest(".hubv75-sec") : null, tab = sec && !sec.classList.contains("on") ? document.querySelector('.hubv75-tab[data-sec="' + sec.dataset.sec + '"]') : null;
+      if (tab) { tab.click(); V174.reveals = (V174.reveals || 0) + 1; }
+      try { var H = window.__HUB_V75, st = gstate(); if (H && H.tabs && st && st.view === "locker") H.tabs.locker = "style"; } catch (e) {}   // a screen not split yet opens on it
+    }
+    V174.swaps++; paintV174(root);
+    if (k && jump) jumpV174(k);
+    return true;
+  }
+
+  /* ---- the taps ---- */
+  window.palSecV174 = function (k) { if (!isSecV174(k)) return null; openSecV174(SEL.cat === k ? null : k, SEL.cat !== k); return SEL.cat; };
+  window.palCreatorV174 = function () { try { window.openTeamCreatorV153 && window.openTeamCreatorV153(); } catch (e) {} };
+  /* a team palette / crest: the Team Creator's save with the other half kept as he wears it — its gate asks for the
+   * free pick or the PP exactly as Save Team does, and a "Not now" changes nothing */
+  window.palTeamV174 = function (kind, i) {
+    i = i | 0;
+    var now = teamNowV174(), save = window.saveTeamCreatorV153;
+    if ((kind === "logo" ? now.logo : now.pal) === i) return Promise.resolve(true);
+    if (typeof save !== "function") return Promise.resolve(false);
+    var root = document.querySelector(".pal-v174"), sc = root ? scrollerV174(root) : null, y = sc ? sc.scrollTop : null;
+    window.__tempPaletteV153 = kind === "pal" ? i : now.pal;
+    window.__tempLogoV153 = kind === "logo" ? i : now.logo;
+    var done = function (ok) {
+      window.__tempPaletteV153 = null; window.__tempLogoV153 = null;
+      V174.team.push({ kind: kind, i: i, ok: !!ok });
+      redrawV174(y);
+      return !!ok;
+    };
+    var r; try { r = save(); } catch (e) { return Promise.resolve(done(false)); }
+    return Promise.resolve(r).then(done, function () { return done(false); });
+  };
+  var catOldV174 = window.cosCatV151B;
+  window.cosCatV151B = function (c) {
+    if (!onV174()) { if (!CATS[SEL.cat]) SEL.cat = "uniform"; return catOldV174(c); }
+    if (!isSecV174(c)) return;
+    openSecV174(c, true);
+  };
+  var equipOldV174 = window.cosEquipV151B;
+  window.cosEquipV151B = function (slot, id) {
+    if (!onV174() || !document.querySelector(".pal-v174")) return equipOldV174(slot, id);
+    if (!equip(slot, id)) return false;
+    swapSecV174(slot);
+    if (slot === "uniform") swapSecV174("helmet"); else if (slot === "helmet") swapSecV174("uniform");   // each one's previews wear the other
+    liveV174();
+    var it = findItem(id); toast("Equipped: " + (it ? it.name : id)); return true;
+  };
+  var uniColOldV174 = window.cosUniColV159A;
+  window.cosUniColV159A = function (mode) {
+    if (!onV174() || !document.querySelector(".pal-v174")) return uniColOldV174(mode);
+    var changed = setUniColV159A(mode);
+    ["uniform", "colours", "helmet"].forEach(swapSecV174); liveV174();
+    if (changed) toast(mode === "team" ? "Uniforms wear the team palette" : "Uniforms wear their own colours");
+    return uniColV159A();
+  };
+  var openStyleOldV174 = window.cosOpenStyleV151B;
+  window.cosOpenStyleV151B = function (sec) {
+    var at = onV174() && isSecV174(sec) ? sec : null;
+    if (at) SEL.cat = at;
+    openStyleOldV174();
+    if (at) V174.pend = { k: at, t: Date.now(), n: 0 };   // jumped to by the paint tick once the screen is split and drawn (and once more after the shell's "open at the top")
+  };
+  /* the top bar's 🎨 — the colour palette — opens THE palette on the career screens */
+  document.addEventListener("click", function (e) {
+    try {
+      if (!onV174()) return;
+      var b = e.target && e.target.closest ? e.target.closest("#teamCreatorBtnV153") : null;
+      if (!b || !viewOkV174()) return;
+      e.preventDefault(); e.stopPropagation(); V174.btn++;
+      window.cosOpenStyleV151B("colours");
+    } catch (x) { V174.errs++; }
+  }, true);
+  /* the Team Creator links to the palette (a pick not yet saved goes through Save Team first) */
+  window.palFromCreatorV174 = function () {
+    var dirty = window.__tempPaletteV153 != null || window.__tempLogoV153 != null;
+    ["schoolNameV153", "teamNameV153"].forEach(function (id) { var el = document.getElementById(id); if (el && el.value !== el.defaultValue) dirty = true; });
+    var go = function (ok) { if (ok === false) return false; try { window.closeTeamCreatorV153 && window.closeTeamCreatorV153(); } catch (e) {} window.cosOpenStyleV151B("uniform"); return true; };
+    if (dirty && typeof window.saveTeamCreatorV153 === "function") return Promise.resolve(window.saveTeamCreatorV153()).then(go);
+    return Promise.resolve(go(true));
+  };
+  function creatorLinkV174() {
+    try {
+      if (!onV174() || !viewOkV174()) return;
+      var p = document.querySelector("#teamModalV153 .team-panel-v153"); if (!p || p.querySelector(".pal-link-v174")) return;
+      var b = document.createElement("button"); b.type = "button"; b.className = "btn ghost pal-link-v174";
+      b.innerHTML = "🎨 Uniform, helmet, celebration, banner &amp; more — <b>The Palette</b>";
+      b.onclick = function () { window.palFromCreatorV174(); };
+      p.appendChild(b);
+    } catch (e) { V174.errs++; }
+  }
+  try { new MutationObserver(creatorLinkV174).observe(document.body, { childList: true }); } catch (e) {}
+
+  (function () {
+    if (document.getElementById("cosV174css")) return;
+    var st = document.createElement("style"); st.id = "cosV174css";
+    var S = "html.shell-v146 #screen ";
+    st.textContent = [
+      ".pal-v174{max-width:820px;margin:0 auto;padding:0 0 12px}",
+      ".pal-v174 .pal-h-v174{display:flex;align-items:baseline;flex-wrap:wrap;gap:2px 8px;margin:4px 2px 2px}",
+      ".pal-v174 .cos-h-v151b span," + S + ".pal-v174 .cos-h-v151b span{font-size:12px!important;margin-left:0;text-transform:uppercase}",
+      ".pal-lede-v174{margin:0 2px 8px;font-size:13px;line-height:1.4;color:#b8c4d4}",
+      ".pal-live-v174{min-height:120px}.pal-live-v174 .pcard-v151b{margin:2px auto 4px}",
+      ".pal-gh-v174{display:flex;align-items:baseline;flex-wrap:wrap;gap:2px 8px;margin:14px 4px 6px;font:700 13px Oswald,sans-serif;letter-spacing:2px;color:#ffd76f}",
+      ".pal-gh-v174 span{font:400 12px Oswald,sans-serif;letter-spacing:1px;color:#8fa2bb;text-transform:uppercase}",
+      ".pal-sec-v174{margin:0 0 6px;border-radius:14px;border:1px solid rgba(255,255,255,.09);background:linear-gradient(180deg,#0f1722,#0a1018);overflow:hidden}",
+      ".pal-sec-v174.on{border-color:rgba(240,187,69,.55);box-shadow:0 0 0 1px rgba(240,187,69,.16) inset}",
+      ".pal-v174 .cos-cat-v151b.pal-hd-v174," + S + ".pal-v174 .cos-cat-v151b.pal-hd-v174{display:flex;width:100%;align-items:center;gap:10px;min-height:62px!important;padding:6px 12px 6px 6px;border:0;border-radius:0;background:transparent;color:#eef2f7;text-align:left;font:700 15px Oswald,sans-serif;font-size:15px!important;letter-spacing:0;cursor:pointer}",
+      ".pal-v174 .pal-hd-v174:focus-visible{outline:2px solid #ffd76f;outline-offset:-2px}",
+      ".pal-v174 .pal-hdpv-v174{flex:none;width:60px;height:50px;border-radius:10px;background:radial-gradient(ellipse at 50% 80%,rgba(255,255,255,.1),rgba(255,255,255,.02) 70%),#121a26;display:grid;place-items:center;overflow:hidden}",
+      ".pal-v174 .pal-hdpv-v174>*{transform:scale(.78);transform-origin:50% 50%}",
+      ".pal-sw2-v174{flex:none;width:60px;height:50px;border-radius:10px;box-shadow:0 0 0 1px rgba(255,255,255,.2) inset}",
+      ".pal-crhd-v174{flex:none;width:60px;height:50px;border-radius:10px;background:#121a26;display:grid;place-items:center;font-size:24px}",
+      ".pal-crhd-v174 i.emblem-v44{display:block;width:44px;height:44px}",
+      ".pal-hdtx-v174{flex:1;min-width:0;display:flex;flex-direction:column;gap:3px}",
+      ".pal-hdtx-v174 b{font:700 15px/1.15 Oswald,sans-serif;letter-spacing:1px;color:#eef2f7;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}",
+      ".pal-hdtx-v174 b i{font-style:normal;margin-right:6px}",
+      ".pal-hdtx-v174 small{font:400 13px/1.2 Oswald,sans-serif;letter-spacing:.3px;color:#a9b7c9;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}",
+      ".pal-sec-v174.on .pal-hdtx-v174 b{color:#ffd76f}",
+      ".pal-hdn-v174{flex:none;font:600 12px Oswald,sans-serif;font-style:normal;color:#8fa2bb;letter-spacing:.5px}",
+      ".pal-chev-v174{flex:none;width:9px;height:9px;margin:0 2px 4px 2px;border-right:2px solid #8fa2bb;border-bottom:2px solid #8fa2bb;transform:rotate(45deg);transition:transform .15s}",
+      ".pal-sec-v174.on .pal-chev-v174{transform:rotate(-135deg);margin:4px 2px 0 2px;border-color:#ffd76f}",
+      ".pal-body-v174{padding:2px 8px 10px}",
+      ".pal-v174 .cos-grid-v151b{grid-template-columns:repeat(auto-fill,minmax(100px,1fr));gap:8px}",
+      /* the desktop shell squeezes the first list it finds into a scroll box (v146 E fit); in the palette the page
+       * itself scrolls, never a section's grid inside it — so the fit moves on to the palette */
+      ".pal-v174 .cos-grid-v151b.fill-v146{max-height:none!important;overflow:visible!important}",
+      ".pal-v174 .cos-item-v151b{padding:6px 5px 8px}",
+      ".pal-v174 .cos-nm-v151b{font-size:13px;margin-top:5px}",
+      ".pal-v174 .cos-src-v151b," + S + ".pal-v174 .cos-src-v151b{font-size:12px!important;letter-spacing:.3px!important;line-height:1.25;min-height:30px}",
+      ".pal-v174 .cos-unicol-v159a{font-size:13px;margin:4px 0 10px}",
+      ".pal-v174 .cos-note-v161a{font-size:13px}",
+      ".pal-v174 .ts-bar-v151b{font-size:13px}",
+      ".pal-sub-v174{margin:8px 2px 6px;font:700 13px Oswald,sans-serif;letter-spacing:1px;color:#e3e9f1;text-transform:uppercase}",
+      ".pal-sub-v174 small{display:block;margin-top:2px;font:400 13px/1.35 Oswald,sans-serif;letter-spacing:.2px;color:#9fb0c6;text-transform:none}",
+      ".pal-tpg-v174{display:grid;grid-template-columns:repeat(auto-fill,minmax(46px,1fr));gap:6px;margin:8px 0 10px}",
+      ".pal-tp-v174{position:relative;height:46px;min-width:0;padding:0;border-radius:10px;border:2px solid rgba(255,255,255,.14);cursor:pointer}",
+      ".pal-tp-v174 small{position:absolute;right:2px;bottom:2px;min-width:18px;padding:0 3px;border-radius:6px;background:rgba(0,0,0,.62);color:#fff;font:700 12px/16px Oswald,sans-serif;text-align:center}",
+      ".pal-tp-v174.on{border-color:#f0bb45;box-shadow:0 0 0 2px rgba(240,187,69,.35)}.pal-tp-v174.on small{background:#f0bb45;color:#1b1406}",
+      ".pal-tp-v174.locked{opacity:.8}",
+      ".pal-crg-v174{display:grid;grid-template-columns:repeat(auto-fill,minmax(58px,1fr));gap:6px;margin:8px 0 10px}",
+      ".pal-cr-v174{position:relative;height:60px;min-width:0;padding:0;border-radius:10px;border:2px solid rgba(255,255,255,.1);background:#121a26;display:grid;place-items:center;cursor:pointer}",
+      ".pal-cr-v174 i.emblem-v44{display:block;width:46px;height:46px}",
+      ".pal-cr-v174 small{position:absolute;right:3px;bottom:1px;font-size:12px;color:#ffd76f}",
+      ".pal-cr-v174.on{border-color:#f0bb45;background:#221d10}.pal-cr-v174.locked i{opacity:.5}",
+      ".pal-tc-v174,.pal-link-v174{width:100%;margin-top:6px}",
+      "@media(prefers-reduced-motion:reduce){.pal-chev-v174{transition:none}}"
+    ].join("");
+    (document.head || document.documentElement).appendChild(st);
+  })();
+  window.__V174 = { on: onV174, stats: V174, groups: groupsV174, sections: secsV174, open: function () { return SEL.cat; }, openSec: function (k) { return isSecV174(k) || k === null ? openSecV174(k, true) : false; }, jump: jumpV174, team: function (kind, i) { return window.palTeamV174(kind, i); } };
 
   /* ---------------- the API ---------------- */
   var API = {

@@ -51,6 +51,20 @@ Every gameplay dial reads through `TU(key, default)`, so values can be retuned l
 
 The full history, newest first, is [`docs/CHANGELOG.md`](docs/CHANGELOG.md) — add new entries there.
 
+- **v174 — the palette.** Every look in one place: the Locker's STYLE tab (and the top bar's 🎨) is one page with
+  the live card on top and a row for the uniform, the team colours and crest, the helmet, the celebration, the banner
+  and every other look — each showing what he wears; open one, tap a look to wear it. `src/28-cosmetics.js`; `palettecheck`.
+- **v173 — the pile is the button.** In the Prestige Vault you tap the pile itself: it lights up, real coins jump off
+  it and clink back down, "+N PP" pops, the quarter marks chime and shake the room; holding is still the pour, and the
+  money is exactly what it was. `public/rib-vault*`; `v173check`.
+- **v172 — the big board.** The stadium's screen hangs at the top of the broadcast on every snap, behind the players:
+  the scoreboard between plays, and a touchdown, turnover or big play takes it over in the team's colours (the man, the
+  yards) and stays up into the next snap. `src/05-field-renderer.js`; `jumbocheck`.
+- **v171 — the matchup call.** Every opponent has a face (a named star, a weak link, a unit to fear and one to
+  attack) and the pregame's plan page opens on the calls against it — shut down their star, load the box, send the
+  house, pick on their weak corner — each with real engine effects, its own line to beat, risk, reward and swing. Your
+  say (trust, chemistry, Field General) opens 2-5 of them; the plan's rating lifts the whole team. Focus cards roll
+  every week, the involvement rung sets how hard you play, specialization is gone. `matchupcheck`.
 - **v170 — the spray menu.** Hold any bottom-bar button and its pages spray out; slide onto one, slide onto its page,
   let go — 43 destinations two slides away. On a phone every page is one page with one scroll, with a section bar you
   can tap or swipe. `src/34-spray.js`; `spraycheck`.

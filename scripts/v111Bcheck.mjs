@@ -199,16 +199,17 @@ const modelFocus = await page.evaluate(p => window.__V111_UI.focusFor(p), V.pos)
 await goPage(1)                                   // v112 D: the focus is page 2's decision
 const VF = await readUI()
 ok(VF.focus.length === 3 && VF.focus.every(f => f.vis), 'exactly three focus cards, all of them on screen', VF.focus.map(f => f.name).join(' | '))
-ok(VF.focus.every(f => /×1\.2/.test(f.mul || '')), 'each shows the stat and the multiplier', VF.focus.map(f => f.mul).join(' | '))
+ok(VF.focus.every(f => /×1\.\d\d/.test(f.mul || '')), 'each shows the stat and the multiplier', VF.focus.map(f => f.mul).join(' | '))
 const want = POS_STATS[V.pos] || []
-ok(!want.length || modelFocus.every(f => want.indexOf(f.stat) >= 0), `they are ${V.pos}-appropriate`, modelFocus.map(f => f.stat).join('/') + ' vs ' + want.join('/'))
+// v171 C: a card whose drill went sideways this week (`off`) trains a stat the position barely uses — the card's own stat is `baseStat`
+ok(!want.length || modelFocus.every(f => want.indexOf(f.off ? f.baseStat : f.stat) >= 0), `they are ${V.pos}-appropriate (a sideways drill named as such)`, modelFocus.map(f => (f.off ? f.baseStat + '→' : '') + f.stat).join('/') + ' vs ' + want.join('/'))
 await tapFocus(VF.focus[0].key)
 const F1 = await readUI()
 ok(F1.focusV111 === VF.focus[0].key, 'picking one writes week.focusV111', 'week.focusV111=' + F1.focusV111)
 ok(F1.focus.filter(f => f.on).length === 1 && F1.focus[0].on, 'and it is the only one lit')
 await goPage(await page.evaluate(() => window.__V136_PAGES.active().length - 1))   // v112 D / v136: the stat sheet is the LAST page
 const FS = await readUI()
-ok(!!FS.sheetFocus && /×1\.2/.test(FS.sheetFocus) && FS.sheetVis, 'the stat sheet names it, visibly', FS.sheetFocus)
+ok(!!FS.sheetFocus && /×1\.\d/.test(FS.sheetFocus) && FS.sheetVis, 'the stat sheet names it, visibly', FS.sheetFocus)
 await tapFocus(VF.focus[2].key)
 const F2 = await readUI()
 ok(F2.focusV111 === VF.focus[2].key, 'picking another REPLACES it', 'week.focusV111=' + F2.focusV111)

@@ -11888,26 +11888,99 @@
     "discipline",
     "ballControl"
   ];
-  function focusForV111(pos) {
+  /* ===== v171 C THE FOCUS IS A ROLL =====
+   * A focus was ×1.2 every week, so the pick was the same three-way choice forever. Now each card rolls its own
+   * multiplier for THIS week (seeded on the season, the level, the week and the opponent, so the card and the game
+   * agree and a re-open never re-rolls): mostly ×1.04–1.25, sometimes up to ×1.50 (HOT) — and one time in five
+   * (`focusOffPV171`) the drill goes sideways and the card sharpens a stat his position barely uses (`OFF_STAT_V171`:
+   * a back's throwing, a lineman's catching) at a big number that does him almost no good. The ceiling the sim
+   * clamps a focus to follows (`focusMulCeil` 1.5). Kill switch `v171Cfocus` 0 = ×1.2 on the named stat. */
+  const OFF_STAT_V171 = {
+    QB: ["tackling", "blocking"],
+    RB: ["throwing", "tackling"],
+    WR: ["tackling", "blocking"],
+    TE: ["throwing", "tackling"],
+    OL: ["catching", "throwing"],
+    DL: ["catching", "throwing"],
+    LB: ["throwing", "catching"],
+    CB: ["blocking", "throwing"],
+    S: ["blocking", "throwing"],
+    K: ["tackling", "catching"],
+    ATH: ["throwing", "blocking"]
+  };
+  function focusForV111(pos, wk) {
     const L = FOCUS_V111[pos] || FOCUS_V111.ATH,
-      mul = clamp99(TU("focusMul", 1.2), 1, TU("focusMulCeil", 1.35));
-    return L.map(r => ({
-      key: r[0],
-      name: r[1],
-      icon: r[2],
-      stat: r[3],
-      statName: (ATTR_INFO[r[3]] && ATTR_INFO[r[3]].name) || r[3],
-      mul,
-      desc: r[4],
-      also: r[5] || []
-    }));
+      mul = clamp99(TU("focusMul", 1.2), 1, TU("focusMulCeil", 1.35)),
+      pl = typeof state < "u" && state ? state.player : null,
+      W = wk === undefined ? curWeekV111(pl) : wk,
+      roll = !!(TU("v171Cfocus", 1) && pl && W);
+    return L.map(r => {
+      const out = {
+        key: r[0],
+        name: r[1],
+        icon: r[2],
+        stat: r[3],
+        statName: (ATTR_INFO[r[3]] && ATTR_INFO[r[3]].name) || r[3],
+        mul,
+        desc: r[4],
+        also: r[5] || []
+      };
+      if (roll) {
+        const rnd = seededRng(pl.seasonSeed, pl.level, W.week || 0, W.opp, pos, r[0], "focusV171");
+        if (rnd() < TU("focusOffPV171", 0.2)) {
+          const O = OFF_STAT_V171[pos] || OFF_STAT_V171.ATH,
+            st = O[Math.floor(rnd() * O.length)];
+          out.baseStat = out.stat; /* what the card trains on any other week */
+          out.stat = st;
+          out.statName = (ATTR_INFO[st] && ATTR_INFO[st].name) || st;
+          out.also = [];
+          out.mul = Math.round((1.25 + rnd() * 0.25) * 100) / 100;
+          out.off = true;
+          out.desc = `The drill went sideways this week — it sharpens ${out.statName} instead, and a ${pos} has little use for that.`;
+        } else out.mul = Math.round((1.04 + Math.pow(rnd(), 1.6) * 0.46) * 100) / 100;
+        out.tier = out.off ? "OFF" : out.mul >= 1.35 ? "HOT" : out.mul < 1.12 ? "FLAT" : "";
+      }
+      return out;
+    });
   }
   function buffForV111(wk) {
     const pl = typeof state < "u" && state ? state.player : null;
     wk = wk === undefined ? curWeekV111(pl) : wk;
     if (!wk || !wk.focusV111) return null;
-    const hit = focusForV111((pl && pl.pos) || "ATH").find(x => x.key === wk.focusV111);
+    const hit = focusForV111((pl && pl.pos) || "ATH", wk).find(x => x.key === wk.focusV111);
     return hit ? { key: hit.key, stat: hit.stat, mul: hit.mul, name: hit.name, icon: hit.icon, also: hit.also } : null;
+  }
+  /* ===== v171 D HOW HARD HE PLAYS =====
+   * The involvement ladder bought snaps and the ball and billed the body — and he played every rung the same way.
+   * Now the rung is also his INTENSITY: LIMITED / REDUCED play it safe (−3% / −1.5% to the hard-play keys,
+   * steadier hands and head), HEAVY / EVERY SNAP play it reckless (+4.5% / +9% to strength, speed, burst,
+   * acceleration, tackling, blocking and grit — and the bill in discipline, ball security and awareness). An
+   * AGGRESSIVE man gets more out of going hard: the boost is × (1 + 0.6 × his Aggression lean, + 0.3 × his
+   * Confidence lean), up to ×1.9; a composed one gets less. `intensityV171(pl, wk)` → {key, pct, mult, buffs};
+   * the entries ride `ownBuffsV111` (the sheet and `_raw` both read them). Kill switch `v171Dhard` 0. */
+  const INTENSITY_V171 = { limited: -0.03, reduced: -0.015, normal: 0, heavy: 0.045, everysnap: 0.09 },
+    HARD_KEYS_V171 = ["strength", "speed", "acceleration", "burst", "tackling", "blocking", "grit"],
+    CARE_KEYS_V171 = { discipline: 0.8, ballControl: 0.5, awareness: 0.3 };
+  function aggrMultV171(pl) {
+    const P = (pl && pl.personaV13) || {},
+      a = P.aggression != null ? (Number(P.aggression) - 5) / 5 : 0,
+      c = P.confidence != null ? (Number(P.confidence) - 5) / 5 : 0;
+    return Math.round(clamp99(1 + TU("hardAggrKV171", 0.6) * a + TU("hardConfKV171", 0.3) * c, 0.4, 1.9) * 100) / 100;
+  }
+  function intensityV171(pl, wk) {
+    pl = pl || (typeof state < "u" && state ? state.player : null);
+    wk = wk === undefined ? curWeekV111(pl) : wk;
+    const key = useKeyV111(wk && wk.usageV111),
+      base = TU("v171Dhard", 1) && pl ? TU("hardPctV171", INTENSITY_V171)[key] || 0 : 0,
+      mult = aggrMultV171(pl),
+      pct = base > 0 ? base * mult : base,
+      buffs = [];
+    if (pct)
+      HARD_KEYS_V171.forEach(k => buffs.push({ stat: k, mul: Math.round((1 + pct) * 1000) / 1000, v111: "intensity" })),
+        Object.keys(CARE_KEYS_V171).forEach(k =>
+          buffs.push({ stat: k, mul: Math.round((1 - pct * CARE_KEYS_V171[k]) * 1000) / 1000, v111: "intensity" })
+        );
+    return { key, pct: Math.round(pct * 1000) / 10, mult, reckless: pct > 0, buffs };
   }
   /* the v111 entries ALONE — a lingering cut and this game's focus — in _tempStatBuffsV25's own
    * shape. Kept separate from the roster's list so nothing the game already does is disturbed. */
@@ -11925,6 +11998,10 @@
       out.push({ stat: fb.stat, mul: fb.mul, v111: "focus" });
       (fb.also || []).forEach(k => out.push({ stat: k, mul: fb.mul, v111: "focusAlso" }));
     }
+    if (pl === (typeof state < "u" && state ? state.player : null))
+      try {
+        intensityV171(pl).buffs.forEach(b => out.push(b)); /* v171 D: how hard he plays this one */
+      } catch (_) {}
     return out;
   }
   /* everything the attribute sheet and the engine should see this game */
@@ -11936,7 +12013,7 @@
     usage: (pl, wk) => usageV111(pl, wk),
     forecast: (pl, wk, k) => forecastV111(pl, wk, k),
     charge: (pl, wk, played) => chargeV111(pl, wk, played),
-    focusFor: pos => focusForV111(pos),
+    focusFor: (pos, wk) => focusForV111(pos, wk),
     buffFor: wk => buffForV111(wk),
     buffs: pl => wearBuffsV111(pl || (typeof state < "u" && state ? state.player : null)),
     ownBuffs: pl => ownBuffsV111(pl || (typeof state < "u" && state ? state.player : null)),
@@ -11948,7 +12025,9 @@
     stakes: (pl, wk) => stakesV111(pl, wk),
     SIM_KEYS: SIM_KEYS_V111,
     USE: USE_V111,
-    FOCUS: FOCUS_V111
+    FOCUS: FOCUS_V111,
+    intensity: (pl, wk) => intensityV171(pl || (typeof state < "u" && state ? state.player : null), wk),
+    aggr: pl => aggrMultV171(pl || (typeof state < "u" && state ? state.player : null))
   };
   /* ===== v111 THE SEASON IS ON HIM — wear and tear in the body card =====
    * The v73 ledger answers one question and answers it well: what is this body
@@ -14653,7 +14732,7 @@
         : "") /* v131: the price of starting over belongs where you read the sheet it changed */ +
       bodyBadgeV85(pl) +
       (FOC
-        ? `<div id="preFocusV111" style="display:flex;align-items:center;gap:6px;margin:0 0 7px;font:600 11px Barlow Condensed,sans-serif;color:#8fe0a0"><span>🎯 GAME FOCUS · ${FOC.name || FOC.key}</span><b style="font:700 11px Oswald,sans-serif">×${(Math.round((Number(FOC.mul) || 1.2) * 100) / 100).toFixed(1)} ${(ATTR_INFO[FOC.stat] && ATTR_INFO[FOC.stat].name) || FOC.stat}</b><span style="color:var(--chalk-dim);font-weight:400">this game only</span></div>`
+        ? `<div id="preFocusV111" style="display:flex;align-items:center;gap:6px;margin:0 0 7px;font:600 11px Barlow Condensed,sans-serif;color:#8fe0a0"><span>🎯 GAME FOCUS · ${FOC.name || FOC.key}</span><b style="font:700 11px Oswald,sans-serif">×${(Math.round((Number(FOC.mul) || 1.2) * 100) / 100).toFixed(2)} ${(ATTR_INFO[FOC.stat] && ATTR_INFO[FOC.stat].name) || FOC.stat}</b><span style="color:var(--chalk-dim);font-weight:400">this game only</span></div>`
         : ``) +
       list.map(row).join("") +
       `</div>`
@@ -14702,7 +14781,7 @@
     });
     ATTR_KEYS.forEach(k => {
       const a = e.attrs[k] || 0,
-        mu = out.muls[k] ? clamp99(out.muls[k], TU("focusMulFloor", 0.6), TU("focusMulCeil", 1.35)) : 1,
+        mu = out.muls[k] ? clamp99(out.muls[k], TU("focusMulFloor", 0.6), TU("focusMulCeil", TU("v171Cfocus", 1) ? 1.5 : 1.35)) : 1,
         v = Math.max(
           1,
           Math.round((Math.round(a * mult) + (out.buffs[k] || 0)) * mu) + (out.gear[k] = gearAttrV147(k))
@@ -16571,6 +16650,17 @@
         delete w._wearV30;
       }
     });
+    /* v171 A: the opponent's face and the matchup call, on the men themselves (one multiplier each, read by _raw) */
+    const mu171 = v171On() && window.__matchupV171 ? window.__matchupV171 : null,
+      K171 = mu171 && mu171.K ? mu171.K : null;
+    try {
+      applyMatchupV171(c, mu171);
+    } catch (_) {}
+    window.__V171.last = mu171;
+    /* v171 A: their star's REAL line. The roster's AI stat lines are pre-rolled at the build and never credited from
+     * the plays, so a call judged on the star is judged on this ledger, credited from the resolved actors below. */
+    const st171 = { rec: 0, rush: 0, pass: 0, imp: 0, tgt: 0 },
+      isSt171 = pl => !!(pl && pl._starV171);
     let h = 0,
       p = 0;
     // clear stale FieldSim choreography logs (e.g. from a skipped previous game)
@@ -16650,12 +16740,15 @@
                 else _v += _tb[_bi].max ? 10 : _tb[_bi].amt;
               }
             }
-          if (_mu !== 1) _v *= clamp99(_mu, TU("focusMulFloor", 0.6), TU("focusMulCeil", 1.35));
+          if (_mu !== 1) _v *= clamp99(_mu, TU("focusMulFloor", 0.6), TU("focusMulCeil", TU("v171Cfocus", 1) ? 1.5 : 1.35)); /* v171 C: a hot focus reaches ×1.5 */
           /* v111: the focus is a multiplier, and it lands AFTER the body's swing */ _v +=
             (treeFx("perfFlat") || 0) +
             ((window.__youPersonaFxV20 && window.__youPersonaFxV20.perfFlat) || 0) +
             gearAttrV147(k); /* v147 C: the gear on him */
         }
+        /* v171 A: their face, the call's cuts and lifts, the plan's team lift — as rating POINTS (the fraction × `mulPtsV171`),
+         * so a +20% star is the same edge at Pee Wee as in the UFF: as a multiplier it was +5 on a 25 sheet and +16 on an 80 */
+        if (w && w._mulV171) _v += (w._mulV171 - 1) * TU("mulPtsV171", 45);
         return _v;
       },
       // league-normalized attribute accessor: every league plays real football —
@@ -17218,6 +17311,16 @@
               : concept === "shot"
                 ? Y(k.off, ["WR", "WR", "TE"])
                 : Y(k.off, ["WR", "WR", "TE", "RB"]);
+          /* v171 A: their star receiver is THEIR first look — and a Shut Down call takes him away */
+          const st171 = !w && mu171 && mu171.I && concept !== "screen" ? k.off.find(z => z._starV171 && (z.pos === "WR" || z.pos === "TE")) : null;
+          if (st171 && st171 !== g0) {
+            const fp = TU("starFeatureV171", 0.22) * (K171 && K171.keyStar ? Math.max(0, 1 - TU("shutTgtCutV171", 1.2) * K171.keyStar) : 1);
+            if (fp > 0 && Math.random() < fp) return st171;
+          } else if (st171 && K171 && K171.keyStar && Math.random() < K171.keyStar * TU("shutAwayV171", 1.2)) {
+            /* bracketed: the read comes off him to whoever else is out there */
+            const alt = k.off.filter(z => z !== st171 && (z.pos === "WR" || z.pos === "TE" || z.pos === "RB"));
+            if (alt.length) return alt[Math.floor(Math.random() * alt.length)];
+          }
           const yu = k.off.find(z => z.you);
           if (yu && yu !== g0) {
             const tp = clamp99(
@@ -18456,6 +18559,7 @@
       if (usDrive && window.__gameScriptBiasV23 != null) {
         passP = passP * 0.45 + window.__gameScriptBiasV23 * 0.55;
       }
+      if (usDrive && K171) passP += K171.passAdd; /* v171 A: the call bends the mix after the script */
       passP = clamp99(passP, 0.05, 0.97);
       const isPassCall = Math.random() < passP,
         { O: Ok, D: Dk } = ie(usDrive),
@@ -18465,15 +18569,18 @@
       let concept;
       const ocV166H = ocReadV166H(usDrive ? "us" : "them"),
         ocBlitz = ocV166H.iq * clamp99((ocV166H.blitz - 0.18) * TU("ocBlitzKV166H", 1.5), 0, 0.3),
-        ocShot = ocV166H.iq * clamp99((ocV166H.man - 0.4) * TU("ocManShotKV166H", 0.3), -0.06, 0.12);
+        ocShot =
+          ocV166H.iq * clamp99((ocV166H.man - 0.4) * TU("ocManShotKV166H", 0.3), -0.06, 0.12) +
+          (usDrive && K171 ? K171.shotAdd : 0) /* v171 A */,
+        qk171 = usDrive && K171 ? K171.quickAdd : 0;
       if (isPassCall) {
         const goalToGo = pos >= 90;
         if (goalToGo) concept = "fade";
-        else if (down >= 3 && toGo >= 8 && Math.random() < 0.28 + ocBlitz) concept = "screen";
+        else if (down >= 3 && toGo >= 8 && Math.random() < 0.28 + ocBlitz + qk171 * 0.5) concept = "screen";
         else if (margin <= -9 && quarter >= 4) concept = "shot";
         else if (down <= 2 && toGo <= 4 && Math.random() < 0.16 + ocShot) concept = "shot";
-        else if (toGo <= 4 || hurry) concept = Math.random() < 0.5 + ocBlitz ? "quick" : "dropback";
-        else { const r9 = Math.random(); concept = r9 < 0.12 + ocShot ? "shot" : r9 > 1 - ocBlitz ? "quick" : "dropback"; }   // v166 H: against the blitz the ball comes out quick
+        else if (toGo <= 4 || hurry) concept = Math.random() < 0.5 + ocBlitz + qk171 ? "quick" : "dropback";
+        else { const r9 = Math.random(); concept = r9 < 0.12 + ocShot ? "shot" : r9 > 1 - ocBlitz - qk171 ? "quick" : "dropback"; }   // v166 H: against the blitz the ball comes out quick
       } else {
         if (pos >= 97 || toGo <= 1) concept = "power";
         else if (down >= 3 && toGo >= 7 && Math.random() < 0.4 + ocV166H.iq * Math.max(0, -ocV166H.runKey) * TU("ocDrawKV166H", 0.5)) concept = "draw";
@@ -18502,11 +18609,21 @@
       if (dcOnV165D) {
         /* v165 D: the coordinator's call, made blind to the offense's */
         dcSnapV165D = dcPlanV165D(usDrive ? "them" : "us", down, toGo, _(qb2, "awareness"));
+        if (!usDrive && K171) {
+          /* v171 A: our defense runs the matchup call — the key, the pressure, the bracket on their star */
+          dcSnapV165D.runKey = clamp99(dcSnapV165D.runKey + K171.runKey, -1, 1);
+          dcSnapV165D.blitzP = clamp99(dcSnapV165D.blitzP * K171.blitzMul, 0.02, 0.75);
+          dcSnapV165D.keyStar = K171.keyStar;
+        }
         dcSnapV165D.blitz = Math.random() < dcSnapV165D.blitzP;
         /* v165 J: the shell behind it — man under a blitz and on short yardage, more zone on third-and-long; one draw */
         if (TU("v165Jshell", 1)) {
-          const wMan = dcSnapV165D.blitz ? 0.7 : toGo <= 3 ? 0.55 : down >= 3 && toGo >= 7 ? 0.25 : 0.4,
-            wC2 = (1 - wMan) * (down >= 3 && toGo >= 7 ? 0.45 : 0.5),
+          const wMan = clamp99(
+              (dcSnapV165D.blitz ? 0.7 : toGo <= 3 ? 0.55 : down >= 3 && toGo >= 7 ? 0.25 : 0.4) + (!usDrive && K171 ? K171.manAdd : 0),
+              0.05,
+              0.92
+            ) /* v171 A */,
+            wC2 = (1 - wMan) * (down >= 3 && toGo >= 7 ? 0.45 : 0.5) * (!usDrive && K171 ? 1 - K171.c3 : 1),
             rs = Math.random();
           dcSnapV165D.shell = rs < wMan ? "man" : rs < wMan + wC2 ? "cover2" : "cover3";
         }
@@ -18654,6 +18771,7 @@
             usDrive && t === "QB" && (me = !0);
           }
           !usDrive ? v.sacks++ : j.sacks++;
+          usDrive && isSt171(skr) && (st171.imp += 2); /* v171 A */
           pos = clamp99(pos + de, 1, 99);
           endB = pos;
           usDrive ? ((v.pass += de), (v.yds += de)) : ((j.pass += de), (j.yds += de));
@@ -18673,6 +18791,7 @@
           pos = clamp99(pos + de, 1, 99);
           endB = _e ? 100 : pos;
           usDrive ? ((v.rush += de), (v.yds += de)) : ((j.rush += de), (j.yds += de));
+          !usDrive && isSt171(qb2) && (st171.rush += de); /* v171 A */
           me = usDrive && t === "QB";
           me && ((P.rush += Math.max(0, de)), _e && P.td++);
           ue = _e
@@ -18811,6 +18930,7 @@
               (me = !0),
               (ue = `🪖 SACK — YOU get home and ${nm(qb2)} has nowhere to go: loss of ${-de}!`));
             usDrive && t === "QB" && (me = !0);
+            usDrive && isSt171(skr) && (st171.imp += 2); /* v171 A */
             !usDrive ? v.sacks++ : j.sacks++;
             pos = clamp99(pos + de, 1, 99);
             endB = pos;
@@ -18830,6 +18950,7 @@
             pos = clamp99(pos + de, 1, 99);
             endB = _e ? 100 : pos;
             usDrive ? ((v.rush += de), (v.yds += de)) : ((j.rush += de), (j.yds += de));
+            !usDrive && isSt171(qb2) && (st171.rush += de); /* v171 A */
             me = usDrive && t === "QB";
             me && ((P.rush += Math.max(0, de)), _e && P.td++);
             ue = _e
@@ -18871,6 +18992,9 @@
             usDrive
               ? ((v.pass += de), (v.yds += de), (v.air += airY), (v.yac += yacY))
               : ((j.pass += de), (j.yds += de), (j.air += airY), (j.yac += yacY));
+            /* v171 A: the star's line, from the resolved actors */
+            !usDrive && (isSt171(X.rec) && (st171.rec += de), isSt171(X.qb) && (st171.pass += de));
+            usDrive && (isSt171(X.tackler) && (st171.imp += 1), isSt171(X.assist) && (st171.imp += 0.5));
             {
               const _r = Math.random();
               oobSim = simOobV109(_q0);
@@ -19119,6 +19243,8 @@
           endB = _e ? 100 : pos;
           Pt = !!X.breakaway;
           usDrive ? ((v.rush += de), (v.yds += de)) : ((j.rush += de), (j.yds += de));
+          !usDrive && isSt171(X.carrier) && (st171.rush += de); /* v171 A */
+          usDrive && (isSt171(X.tackler) && (st171.imp += de <= 0 ? 2 : 1), isSt171(X.assist) && (st171.imp += 0.5));
           {
             const _r = Math.random();
             oobSim = simOobV109(_q0);
@@ -19551,6 +19677,22 @@
       oppTeam: ua,
       roster: c,
       focusV111: _fx111,
+      callV171: (() => {
+        try {
+          return evalCallV171(mu171, { team: xt, oppTeam: ua, roster: c, themScore: p, usScore: h, starV171: st171 });
+        } catch (_e) {
+          return null;
+        }
+      })() /* v171 A: did the matchup call come off */,
+      boxV171: (() => {
+        try {
+          return boxV171({ team: xt, oppTeam: ua, roster: c, themScore: p, usScore: h, starV171: st171 });
+        } catch (_e) {
+          return null;
+        }
+      })() /* v171 A: the team's own line, the baseline next week's offensive calls are judged on */,
+      idV171: mu171 && mu171.I ? { star: mu171.I.star.name, weak: mu171.I.weak.name } : null,
+      starV171: mu171 && mu171.I ? st171 : null,
       /* v111: what he ACTUALLY did, which is what the body is billed from */
       snapsV111: {
         on: _slot111 ? _snapOn111 : null,
@@ -19600,8 +19742,18 @@
       window.__oppMulV22 = __oppMulForV22(_wk && _wk.opp);
       const c = buildGameRosters(pos || e.pos, seed / 100, {}, { sacks: 0 }, {}, e.level, playerOvr(e));
       window.__oppMulV22 = _prev;
+      try {
+        applyMatchupV171(c, _wk ? ctxV171(e, _wk, 0) : null); /* v171 A: the star and the weak link, by name */
+      } catch (_) {}
       const roster = t =>
-        [...t.off, ...t.def].map(x => ({ name: x.name, pos: x.pos, ovr: Math.round(x.ovr || 0), you: !!x.you }));
+        [...t.off, ...t.def].map(x => ({
+          name: x.name,
+          pos: x.pos,
+          ovr: Math.round((x.ovr || 0) * (x._starV171 || x._weakV171 ? x._mulV171 || 1 : 1)),
+          you: !!x.you,
+          star: !!x._starV171,
+          weak: !!x._weakV171
+        }));
       return { seed, us: { ovr: c.us.ovr, players: roster(c.us) }, opp: { ovr: c.opp.ovr, players: roster(c.opp) } };
     } catch (err) {
       return null;
@@ -19653,12 +19805,14 @@
       window.__youStatBoostPctV20 = _sb;
       window.__youTempBuffsV25 = wearBuffsV111(e).concat(_fm146.buffs);
       window.__gameScriptBiasV23 = _gsB;
+      window.__matchupV171 = opts.mu171 || null;
       /* v146 D: the watched game is played with THESE inputs (lt reads the stash), so the game you see is the game that was projected */
       e._simInV146 = {
         wk: (e.weekResults || []).indexOf(curWeekV111(e)),
         seed,
         buffs: window.__youTempBuffsV25.slice(),
-        gs: _gsB
+        gs: _gsB,
+        mu: opts.mu171 || null
       };
       g = window.__simGameV2(seed, e.pos);
     } catch (_) {
@@ -19668,6 +19822,7 @@
       window.__youTempBuffsV25 = null;
       decayWearV111(e);
       window.__gameScriptBiasV23 = null;
+      window.__matchupV171 = null;
     }
     const etRoll = rollGamePerf(e, opts.perfSeed || 0, opts),
       injRoll = etRoll.injured;
@@ -19713,7 +19868,9 @@
       gameGrade: grade.grade,
       snaps,
       snapsV111: g.snapsV111 || null,
-      formV146: _fm146.pts
+      formV146: _fm146.pts,
+      callV171: g.callV171 || null,
+      boxV171: g.boxV171 || null
     };
   }
   /* v20 PREGAME ODDS — a real win probability computed from the SAME inputs the
@@ -21112,9 +21269,11 @@
           ? t._gameScriptV23.gsPass
           : null;
       t._gameScriptV23 = null;
+      window.__matchupV171 = _in146 && _in146.mu !== undefined ? _in146.mu : ctxV171(t, s, 0); /* v171 A */
       try {
         state._liveGame = simGameV2(_in146 ? _in146.seed : s.perf, t.pos);
       } finally {
+        window.__matchupV171 = null;
         window.__youStatBoostPctV20 = 0;
         window.__youTempBuffsV25 = null;
         decayWearV111(t);
@@ -24976,6 +25135,9 @@
   function processWeek95(e, t) {
     if (!e || e._pulse95) return;
     e._pulse95 = !0;
+    try {
+      payCallV171(e, t); /* v171 A: the matchup call's reward or its bill, once */
+    } catch (_) {}
     const a = hypeState(),
       s = Number(e.perf) || 50,
       n = clamp99(Math.round((s - 58) / 8), -6, 7),
@@ -27210,6 +27372,554 @@
   function gamePlanById(e) {
     return GAME_PLANS.find(t => t.id === e) || GAME_PLANS[0];
   }
+  /* ===== v171 A THE MATCHUP CALL =====
+   * Every opponent has a face now, and the week has a decision that is about THEM. `oppIdentityV171` reads the
+   * scouting profile (`createOpponentProfile`, seeded, so the scout card and the game agree) and gives the club:
+   *   - a STRONG unit and a SOFT unit (their strength / weakness lines → OL, DL, LB, SEC, REC, RB; ±6–12% to every
+   *     attribute of the men in it),
+   *   - a STAR (a named man at WR / RB / QB / TE / DL / LB / CB, +14–24%) and a WEAK LINK (CB / S / LB / OL, −10–16%).
+   * Deterministic per season, level and opponent (cached on the week as `idV171`), and applied to the rosters of
+   * every career game — the pregame preview, the projection, the sim and the watched game — by
+   * `applyMatchupV171`, through one per-man multiplier (`_mulV171`) the engine's accessor (`_raw`) reads.
+   * The CALLS are built from that face (`CALLS_V171`): "Shut Down" the star receiver (a bracket over him in FieldSim,
+   * `dcV165D.keyStar`), "Load the Box" against a power front (the defense's run key), "Send the House" against a soft
+   * line (the blitz rate ×2.4), "Keep It In Front" against a dangerous passing game, "Run Right At Them", "Take the
+   * Top Off", "Pick On" their weak corner, "Get It Out Quick" against a pass rush… Each moves real engine knobs, has
+   * its own success METRIC with a threshold priced off the level's tables (`BASE_V171`), its own RISK (1–3 — the
+   * reward and the bill scale with it, `PAY_V171`) and its own VARIANCE (multiplies the plan's swing).
+   * SAY: how much of the game the staff lets him call — coach trust, the locker room's chemistry and Field General
+   * (`sayV171`). It decides how many calls are on the table (2–5; the rest show locked) and how hard each is run
+   * (`str` 0.55–1 scales every knob). The call also lifts the units that run it (`callEdgeV171`, up to +6%), and the
+   * personal plan's game rating now reaches the whole team (`planTeamKV171`: +0.4% to every teammate per point).
+   * Results: `g.callV171` {ok, actual, thr}, booked on the week (`callResV171`) by the sim and the watched game, paid
+   * once in processWeek95 (trust, hype, chemistry). Kill switch `v171` 0 (no identity, no calls, no team lift).
+   * `window.__V171`; `matchupcheck.mjs`. */
+  const UNITS_V171 = { OL: ["OL"], DL: ["DL"], LB: ["LB"], SEC: ["CB", "S"], REC: ["WR", "TE"], RB: ["RB"], QB: ["QB"] },
+    UNIT_NAME_V171 = { OL: "offensive line", DL: "defensive line", LB: "linebackers", SEC: "secondary", REC: "receivers", RB: "backfield", QB: "quarterback" },
+    STRONG_UNIT_V171 = {
+      "Relentless pass rush": "DL",
+      "Fast, physical secondary": "SEC",
+      "Elite run fits": "LB",
+      "Aggressive blitz package": "LB",
+      "Ball-hawking defense": "SEC",
+      "High-tempo offense": "REC",
+      "Power rushing attack": "OL",
+      "Disciplined coverage unit": "SEC"
+    },
+    SOFT_UNIT_V171 = {
+      "Slow linebackers in space": "LB",
+      "Thin defensive rotation": "DL",
+      "Undersized secondary": "SEC",
+      "Overaggressive pursuit": "LB",
+      "Poor tackling after contact": "SEC",
+      "Communication breakdowns": "SEC",
+      "Vulnerable to explosive plays": "SEC",
+      "Weak interior protection": "OL"
+    },
+    STAR_POS_V171 = [["WR", 4], ["RB", 3], ["QB", 3], ["TE", 1.5], ["DL", 2.5], ["LB", 1.5], ["CB", 1.5]],
+    WEAK_POS_V171 = [["CB", 3], ["S", 1.5], ["LB", 1.5], ["OL", 2]],
+    NUMS_V171 = { QB: [1, 19], RB: [20, 49], WR: [10, 19], TE: [80, 89], OL: [50, 79], DL: [90, 99], LB: [40, 59], CB: [20, 39], S: [20, 39] },
+    OFF_POS_V171 = ["QB", "RB", "WR", "TE", "OL"];
+  function v171On() {
+    return !!TU("v171", 1);
+  }
+  function pickWV171(list, rnd, boost) {
+    const w = list.map(([k, n]) => n * (boost ? boost(k) : 1)),
+      tot = w.reduce((a, b) => a + b, 0);
+    let r = rnd() * tot;
+    for (let i = 0; i < list.length; i++) if ((r -= w[i]) <= 0) return list[i][0];
+    return list[list.length - 1][0];
+  }
+  function lastNameV171(n) {
+    const p = String(n || "").split(" ");
+    return p[p.length - 1] || String(n || "");
+  }
+  function oppIdentityV171(pl, w) {
+    if (!v171On() || !pl || !w || !w.opp) return null;
+    if (w.idV171 && w.idV171.opp === w.opp && w.idV171.lv === (pl.level | 0) && w.idV171.v === 2) return w.idV171;
+    const prof =
+        w.opponentV11 ||
+        createOpponentProfile(w.opp, pl.level, w.week || 1, pl.seasonSeed, w.playoff ? w.roundIdx : void 0),
+      rnd = seededRng(pl.seasonSeed, pl.level, w.opp, w.week || 0, "identityV171");
+    let strong = STRONG_UNIT_V171[prof.strength] || pickWV171([["OL", 1], ["DL", 1], ["SEC", 1], ["REC", 1], ["LB", 1]], rnd),
+      soft = SOFT_UNIT_V171[prof.weakness] || "SEC";
+    if (soft === strong || rnd() < 0.3)
+      soft = pickWV171(["OL", "DL", "LB", "SEC", "REC", "RB"].filter(k => k !== strong).map(k => [k, 1]), rnd);
+    const starPos = pickWV171(
+        STAR_POS_V171,
+        rnd,
+        p => (UNITS_V171[strong].includes(p) ? 2.2 : 1) * (UNITS_V171[soft].includes(p) ? 0.3 : 1)
+      ),
+      weakPos = pickWV171(
+        WEAK_POS_V171.filter(([p]) => p !== starPos),
+        rnd,
+        p => (UNITS_V171[soft].includes(p) ? 2.5 : UNITS_V171[strong].includes(p) ? 0.3 : 1)
+      ),
+      num = p => {
+        const r = NUMS_V171[p] || [1, 99];
+        return r[0] + Math.floor(rnd() * (r[1] - r[0] + 1));
+      },
+      star = { pos: starPos, name: randNameV153B(rnd), num: num(starPos), bump: Math.round((TU("starBumpV171", 0.08) + rnd() * 0.07) * 100) / 100 },
+      weak = { pos: weakPos, name: randNameV153B(rnd), num: num(weakPos), drop: Math.round((0.1 + rnd() * 0.06) * 100) / 100 };
+    star.tier = star.bump >= 0.13 ? "ELITE" : "STAR";
+    if (weak.name === star.name) weak.name = randNameV153B(rnd);
+    return (w.idV171 = {
+      v: 2,
+      opp: w.opp,
+      lv: pl.level | 0,
+      strong: { unit: strong, pct: Math.round((0.07 + rnd() * 0.05) * 100) / 100, why: prof.strength },
+      soft: { unit: soft, pct: Math.round((0.06 + rnd() * 0.04) * 100) / 100, why: prof.weakness },
+      star,
+      weak
+    });
+  }
+  /* SAY: 0.12 .. 1 — trust 50 / chemistry 50 / no Field General is 0.30 (two calls on the table) */
+  function sayV171(pl) {
+    if (!pl) return 0.3;
+    const trust = pl.coachTrust != null ? Number(pl.coachTrust) : 50,
+      chem = (pl.worldState && pl.worldState.teamChemistry) != null ? Number(pl.worldState.teamChemistry) : 50,
+      fg = (state.tree && state.tree.fieldGeneral) || 0;
+    return clamp99(
+      TU("sayBaseV171", 0.3) + (trust - 50) / TU("sayTrustSpanV171", 90) + (chem - 50) / TU("sayChemSpanV171", 180) + fg * 0.12,
+      0.12,
+      1
+    );
+  }
+  function sayCountV171(say) {
+    return 2 + (say >= 0.35 ? 1 : 0) + (say >= 0.55 ? 1 : 0) + (say >= 0.75 ? 1 : 0);
+  }
+  /* the level's no-call means, measured in the engine with every opponent's face on (`matchupcheck --calib`) */
+  const BASE_V171 = {
+      star: {
+        WR: [35, 60, 85, 85, 95, 115, 130, 130, 110],
+        TE: [40, 60, 60, 60, 90, 100, 100, 90, 85],
+        RB: [85, 90, 115, 120, 150, 150, 155, 145, 110],
+        QB: [105, 120, 130, 145, 175, 190, 240, 255, 205],
+        DL: [1, 1, 1, 1, 1.6, 2.4, 3.5, 4.5, 2.6],
+        LB: [8, 8, 9, 9, 12, 14, 15, 15, 13],
+        CB: [3, 3, 3, 3, 3.8, 4, 5, 4.5, 4.5]
+      },
+      oppRush: [107, 109, 124, 142, 168, 164, 178, 156, 139],
+      oppPts: [14, 15, 20, 20, 25, 25, 26, 25, 22],
+      pressure: [1.2, 1.5, 1.4, 1.9, 1.7, 2.7, 3.7, 4, 2.1],
+      usRush: [120, 102, 97, 93, 80, 74, 62, 55, 120],
+      usPass: [89, 116, 150, 165, 196, 218, 268, 233, 153],
+      sacked: [0.8, 1, 1.3, 1.7, 1.9, 2.9, 3.6, 4.3, 1.6]
+    },
+    METRIC_V171 = {
+      star: { lab: (I) => `${lastNameV171(I.star.name)}'s ${["DL", "LB", "CB"].includes(I.star.pos) ? "impact plays" : I.star.pos === "QB" ? "passing yards" : "yards"}`, unit: (I) => (["DL", "LB", "CB"].includes(I.star.pos) ? "" : " yds") },
+      oppRush: { lab: () => "their rushing yards", unit: () => " yds" },
+      oppPts: { lab: () => "their points", unit: () => " pts" },
+      pressure: { lab: () => "sacks + takeaways", unit: () => "" },
+      usRush: { lab: () => "your team's rushing yards", unit: () => " yds" },
+      usPass: { lab: () => "your team's passing yards", unit: () => " yds" },
+      sacked: { lab: () => "sacks allowed", unit: () => "" }
+    },
+    PAY_V171 = {
+      1: { ok: { trust: 2, hype: 1, chem: 1 }, no: { trust: -1, hype: 0, chem: 0 } },
+      2: { ok: { trust: 4, hype: 3, chem: 2 }, no: { trust: -2, hype: -1, chem: -1 } },
+      3: { ok: { trust: 7, hype: 5, chem: 3 }, no: { trust: -4, hype: -3, chem: -2 } }
+    };
+  /* the calls. `fit(I)` > 0 puts it on the board (the top `sayCountV171` are open); `knobs` are at full say (str 1) */
+  const CALLS_V171 = [
+    {
+      id: "shut", side: "D", icon: "🛑", risk: 2, varMult: 1.15,
+      name: I => `Shut Down ${lastNameV171(I.star.name)}`,
+      pitch: I => `Bracket #${I.star.num} ${I.star.name} every snap — a safety over the top, a corner in his face. The run fits get thinner for it.`,
+      fit: I => (I.star.pos === "WR" || I.star.pos === "TE" ? 1.2 : 0),
+      knobs: { keyStar: 0.45, starCut: 0.2, runKey: -0.25 }, edge: ["SEC"],
+      metric: { key: "star", dir: "le", k: 0.45 }
+    },
+    {
+      id: "spy", side: "D", icon: "🎯", risk: 2, varMult: 1.15,
+      name: I => `Spy ${lastNameV171(I.star.name)}`,
+      pitch: I => `A linebacker on #${I.star.num} ${I.star.name} wherever he lines up and the box keyed to him. Play action will bite.`,
+      fit: I => (I.star.pos === "RB" ? 1.2 : 0),
+      knobs: { runKey: 0.9, starCut: 0.22, blitzMul: 0.8 }, edge: ["LB"],
+      metric: { key: "star", dir: "le", k: 0.45 }
+    },
+    {
+      id: "rattle", side: "D", icon: "💥", risk: 3, varMult: 1.35,
+      name: I => `Rattle ${lastNameV171(I.star.name)}`,
+      pitch: I => `Hit #${I.star.num} ${I.star.name} early and often — pressure from everywhere, man behind it. If he beats it, it goes the distance.`,
+      fit: I => (I.star.pos === "QB" ? 1.2 : 0),
+      knobs: { blitzMul: 1.9, starCut: 0.18, manAdd: 0.15 }, edge: ["DL"],
+      metric: { key: "star", dir: "le", k: 0.78 }
+    },
+    {
+      id: "chip", side: "O", icon: "🧲", risk: 1, varMult: 0.9,
+      name: I => `Chip ${lastNameV171(I.star.name)}`,
+      pitch: I => `A tight end and a back on #${I.star.num} ${I.star.name} every snap, the ball out before he gets home. Fewer men in the pattern.`,
+      fit: I => (I.star.pos === "DL" || I.star.pos === "LB" ? 1.2 : 0),
+      knobs: { quickAdd: 0.25, starCut: 0.2, passAdd: -0.05 }, edge: ["OL"],
+      metric: { key: "star", dir: "le", k: 1 }
+    },
+    {
+      id: "avoid", side: "O", icon: "↔️", risk: 1, varMult: 0.9,
+      name: I => `Throw Away From ${lastNameV171(I.star.name)}`,
+      pitch: I => `Formations that put #${I.star.num} ${I.star.name} on the side the ball isn't going. Half the field, all game.`,
+      fit: I => (I.star.pos === "CB" ? 1.2 : 0),
+      knobs: { starCut: 0.22, passAdd: -0.04 }, edge: ["REC"],
+      metric: { key: "star", dir: "le", k: 1 }
+    },
+    {
+      id: "box", side: "D", icon: "🧱", risk: 2, varMult: 1.1,
+      name: () => "Load the Box",
+      pitch: I => `Eight men up against ${I.strong.unit === "OL" ? "that power line" : "their run game"}. Their passing game gets single coverage all day.`,
+      fit: I => (I.strong.unit === "OL" ? 1 : I.strong.unit === "RB" || I.star.pos === "RB" ? 0.8 : I.soft.unit === "REC" ? 0.65 : 0.35),
+      knobs: { runKey: 0.8, manAdd: 0.1 }, edge: ["DL", "LB"],
+      metric: { key: "oppRush", dir: "le", k: 0.65 }
+    },
+    {
+      id: "blitz", side: "D", icon: "🔥", risk: 3, varMult: 1.4,
+      name: () => "Send the House",
+      pitch: I => `Blitz on every down that matters${I.soft.unit === "OL" ? " — their line can't hold it" : ""}. Sacks and turnovers, or a long touchdown behind it.`,
+      fit: I => (I.soft.unit === "OL" ? 1 : I.weak.pos === "OL" ? 0.8 : I.star.pos === "QB" ? 0.2 : 0.4),
+      knobs: { blitzMul: 2.4, manAdd: 0.2 }, edge: ["DL", "LB"], edgeMul: 2.5,
+      metric: { key: "pressure", dir: "ge", add: 1 }
+    },
+    {
+      id: "front", side: "D", icon: "🛡️", risk: 1, varMult: 0.8,
+      name: () => "Keep It In Front",
+      pitch: () => "Soft zone, two deep, no blitzes. They'll move the ball in chunks, but nothing over the top.",
+      fit: I => (I.strong.unit === "REC" ? 1 : I.star.pos === "WR" || I.star.pos === "QB" ? 0.75 : 0.4),
+      knobs: { blitzMul: 0.4, manAdd: -0.25, c3: 0.6 }, edge: ["SEC"],
+      metric: { key: "oppPts", dir: "le", k: 0.95 }
+    },
+    {
+      id: "ground", side: "O", icon: "🐂", risk: 1, varMult: 0.85,
+      name: () => "Run Right At Them",
+      pitch: I => `Run the ball${I.soft.unit === "DL" || I.soft.unit === "LB" ? ` at that ${UNIT_NAME_V171[I.soft.unit]}` : ""} until they stop it. Shorten the game, keep their offense on the bench.`,
+      fit: I => (I.soft.unit === "DL" || I.soft.unit === "LB" ? 1 : I.strong.unit === "SEC" ? 0.8 : 0.45),
+      knobs: { passAdd: -0.2 }, edge: ["OL", "RB"],
+      metric: { key: "usRush", dir: "ge", k: 1.15 }
+    },
+    {
+      id: "air", side: "O", icon: "🚀", risk: 3, varMult: 1.35,
+      name: () => "Take the Top Off",
+      pitch: I => `Shots down the field${I.soft.unit === "SEC" ? " at that secondary" : ""}. Big plays, or three-and-outs and a quarterback on his back.`,
+      fit: I => (I.soft.unit === "SEC" ? 1 : I.strong.unit === "DL" || I.strong.unit === "LB" ? 0.7 : 0.45),
+      knobs: { passAdd: 0.16, shotAdd: 0.14 }, edge: ["QB", "REC"],
+      metric: { key: "usPass", dir: "ge", k: 1.45 }
+    },
+    {
+      id: "pickon", side: "O", icon: "🎯", risk: 2, varMult: 1.15,
+      name: I => `Pick On ${lastNameV171(I.weak.name)}`,
+      pitch: I => `#${I.weak.num} ${I.weak.name} is their weak ${I.weak.pos === "S" ? "safety" : I.weak.pos === "LB" ? "linebacker" : "corner"}. Every route goes at him until they take him off.`,
+      fit: I => (I.weak.pos === "CB" || I.weak.pos === "S" || I.weak.pos === "LB" ? 0.95 : 0),
+      knobs: { passAdd: 0.1, weakCut: 0.25 }, edge: ["REC"],
+      metric: { key: "usPass", dir: "ge", k: 1.35 }
+    },
+    {
+      id: "attack", side: "D", icon: "⚔️", risk: 2, varMult: 1.15,
+      name: I => `Attack ${lastNameV171(I.weak.name)}`,
+      pitch: I => `#${I.weak.num} ${I.weak.name} is the weak spot on their line. Stunts and overloads at him all night.`,
+      fit: I => (I.weak.pos === "OL" ? 0.95 : 0),
+      knobs: { blitzMul: 1.5, weakCut: 0.14 }, edge: ["DL"], edgeMul: 2,
+      metric: { key: "pressure", dir: "ge", add: 0.8 }
+    },
+    {
+      id: "quick", side: "O", icon: "⏱️", risk: 1, varMult: 0.85,
+      name: () => "Get It Out Quick",
+      pitch: I => `Three-step drops and screens${I.strong.unit === "DL" ? " — that pass rush never gets there" : ""}. Safe, short, and nothing deep.`,
+      fit: I => (I.strong.unit === "DL" ? 1 : I.strong.unit === "LB" ? 0.8 : I.star.pos === "DL" ? 0.6 : 0.35),
+      knobs: { quickAdd: 0.45, shotAdd: -0.06 }, edge: ["OL", "QB"],
+      metric: { key: "sacked", dir: "le", k: 0.8 }
+    }
+  ];
+  function callByIdV171(id) {
+    return CALLS_V171.find(c => c.id === id) || null;
+  }
+  /* the threshold the call is judged against, on this level, against this club */
+  function thrV171(pl, w, call, I) {
+    const lv = clamp99(pl.level | 0, 0, 8),
+      m = call.metric,
+      tab = m.key === "star" ? BASE_V171.star[I.star.pos] || BASE_V171.star.WR : BASE_V171[m.key],
+      om = clamp99(__oppMulForV22(w.opp) / 1.04, 0.85, 1.15),
+      oppSide = m.key === "star" || m.key === "oppRush" || m.key === "oppPts",
+      hist = ((pl.weekResults || []).filter(x => x && x.played && x.boxV171 && x.boxV171[m.key] != null) || []).slice(-4),
+      own = !oppSide && hist.length >= TU("callHistMinV171", 2) ? hist.reduce((t, x) => t + x.boxV171[m.key], 0) / hist.length : null,
+      table = (tab[lv] != null ? tab[lv] : tab[tab.length - 1]) * (oppSide ? om : m.key === "pressure" || m.key === "sacked" ? 1 : 1 / om),
+      /* our side of the ball is judged against what THIS team has been doing (its last four games), not the league */
+      base = own != null ? (own * hist.length + table) / (hist.length + 1) : table;
+    let thr = m.add != null ? base + m.add : base * m.k;
+    thr = m.dir === "le" ? Math.max(m.key === "sacked" ? 0 : 1, Math.floor(thr)) : Math.ceil(thr);
+    return thr;
+  }
+  /* the board for this week: every call that fits, scored, the top `n` open */
+  function offerV171(pl, w) {
+    const I = oppIdentityV171(pl, w);
+    if (!I) return null;
+    const say = sayV171(pl),
+      n = sayCountV171(say),
+      rnd = seededRng(pl.seasonSeed, w.opp, w.week || 0, "callsV171"),
+      list = CALLS_V171.map(c => ({ c, fit: c.fit(I), tie: rnd() }))
+        .filter(x => x.fit > 0)
+        .sort((a, b) => b.fit + b.tie * 0.3 - (a.fit + a.tie * 0.3));
+    /* at least one call on each side of the ball among the open ones */
+    const open = list.slice(0, n);
+    ["O", "D"].forEach(side => {
+      if (n >= 2 && !open.some(x => x.c.side === side)) {
+        const alt = list.find(x => x.c.side === side && open.indexOf(x) < 0);
+        if (alt) open[open.length - 1] = alt;
+      }
+    });
+    const str = strV171(say);
+    return {
+      I,
+      say,
+      n,
+      str,
+      chosen: w.callV171 || null,
+      calls: list.map(x => {
+        const c = x.c,
+          pay = PAY_V171[c.risk],
+          thr = thrV171(pl, w, c, I),
+          M = METRIC_V171[c.metric.key];
+        return {
+          id: c.id,
+          side: c.side,
+          icon: c.icon,
+          name: c.name(I),
+          pitch: c.pitch(I),
+          risk: c.risk,
+          varMult: c.varMult,
+          fit: x.fit,
+          edgePct: Math.round(TU("callEdgeV171", 0.06) * (c.edgeMul || 1) * str * Math.min(1, x.fit) * 1000) / 10,
+          edge: c.edge.map(u => UNIT_NAME_V171[u]),
+          metric: c.metric.key,
+          dir: c.metric.dir,
+          thr,
+          goal: `${M.lab(I)} ${c.metric.dir === "le" ? "≤" : "≥"} ${thr}${M.unit(I)}`,
+          ok: pay.ok,
+          no: pay.no,
+          locked: open.indexOf(x) < 0
+        };
+      })
+    };
+  }
+  function strV171(say) {
+    return Math.round((0.55 + 0.45 * say) * 100) / 100;
+  }
+  function pickCallV171(pl, w, id) {
+    if (!pl || !w) return false;
+    if (!id) {
+      w.callV171 = null;
+      return true;
+    }
+    const O = offerV171(pl, w),
+      x = O && O.calls.find(c => c.id === id);
+    if (!x || x.locked) return false;
+    w.callV171 = id;
+    return true;
+  }
+  /* what one game is played with: the face, the call (if one is open and picked) and the plan's team lift */
+  function ctxV171(pl, w, planPts) {
+    if (!v171On() || !pl || !w) return null;
+    const I = oppIdentityV171(pl, w);
+    if (!I) return null;
+    const say = sayV171(pl),
+      str = strV171(say);
+    let call = null,
+      K = null,
+      thr = null;
+    const c = w.callV171 ? callByIdV171(w.callV171) : null;
+    if (c && c.fit(I) > 0) {
+      const k = c.knobs,
+        fit = c.fit(I);
+      call = c.id;
+      thr = thrV171(pl, w, c, I);
+      K = {
+        runKey: (k.runKey || 0) * str,
+        blitzMul: 1 + ((k.blitzMul || 1) - 1) * str,
+        manAdd: (k.manAdd || 0) * str,
+        c3: (k.c3 || 0) * str,
+        keyStar: (k.keyStar || 0) * str,
+        starCut: (k.starCut || 0) * str,
+        weakCut: (k.weakCut || 0) * str,
+        passAdd: (k.passAdd || 0) * str,
+        shotAdd: (k.shotAdd || 0) * str,
+        quickAdd: (k.quickAdd || 0) * str,
+        edge: TU("callEdgeV171", 0.06) * (c.edgeMul || 1) * str * Math.min(1, fit),
+        edgeUnits: c.edge.slice()
+      };
+    }
+    const teamMul = 1 + clamp99((Number(planPts) || 0) * TU("planTeamKV171", 0.004), -0.04, 0.05);
+    return { I, call, K, thr, say, str, teamMul };
+  }
+  /* inside simGameV2, right after the rosters: the face, the call's cuts and lifts, the plan's lift */
+  function applyMatchupV171(c, mu) {
+    if (!mu || !c) return;
+    const I = mu.I,
+      K = mu.K,
+      mul = (pl, f) => {
+        if (pl) pl._mulV171 = (pl._mulV171 || 1) * f;
+      },
+      oppAll = [...c.opp.off, ...c.opp.def],
+      usAll = [...c.us.off, ...c.us.def];
+    if (I) {
+      oppAll.forEach(pl => {
+        if (UNITS_V171[I.strong.unit].includes(pl.pos)) mul(pl, 1 + I.strong.pct);
+        if (UNITS_V171[I.soft.unit].includes(pl.pos)) mul(pl, 1 - I.soft.pct);
+      });
+      const at = p => (OFF_POS_V171.includes(p) ? c.opp.off : c.opp.def).filter(x => x.pos === p),
+        star = at(I.star.pos).sort((a, b) => (b.ovr || 0) - (a.ovr || 0))[0],
+        weak = at(I.weak.pos).filter(x => x !== star).sort((a, b) => (a.ovr || 0) - (b.ovr || 0))[0],
+        names = new Set([...oppAll, ...usAll].map(x => x.name));
+      const rename = (pl, who) => {
+        if (!pl) return;
+        names.delete(pl.name);
+        const clash = [...oppAll, ...usAll].find(x => x !== pl && x.name === who.name);
+        if (clash && !clash.you) clash.name = randName();
+        pl.name = who.name;
+        pl.num = who.num;
+      };
+      if (star) {
+        rename(star, I.star);
+        star._starV171 = 1;
+        mul(star, 1 + I.star.bump);
+      }
+      if (weak) {
+        rename(weak, I.weak);
+        weak._weakV171 = 1;
+        mul(weak, 1 - I.weak.drop);
+      }
+      if (K) {
+        if (K.starCut && star) mul(star, 1 - K.starCut);
+        if (K.weakCut && weak) mul(weak, 1 - K.weakCut);
+        if (K.edge) usAll.forEach(pl => K.edgeUnits.some(u => UNITS_V171[u].includes(pl.pos)) && mul(pl, 1 + K.edge));
+      }
+    }
+    if (mu.teamMul && mu.teamMul !== 1) usAll.forEach(pl => mul(pl, mu.teamMul));
+  }
+  function metricV171(key, g) {
+    const T = g.team || {},
+      O = g.oppTeam || {},
+      R = g.roster;
+    if (key === "star") {
+      const s = R && [...R.opp.off, ...R.opp.def].find(x => x._starV171);
+      if (!s) return null;
+      const t = g.starV171 || {}; /* the ledger the game credited — never the roster's pre-rolled line */
+      return s.pos === "QB"
+        ? t.pass || 0
+        : s.pos === "RB"
+          ? (t.rush || 0) + (t.rec || 0)
+          : s.pos === "WR" || s.pos === "TE"
+            ? t.rec || 0
+            : t.imp || 0;
+    }
+    if (key === "oppRush") return O.rush || 0;
+    if (key === "oppPts") return g.themScore || 0;
+    if (key === "pressure") return (T.sacks || 0) + (O.turn || 0);
+    if (key === "usRush") return T.rush || 0;
+    if (key === "usPass") return T.pass || 0;
+    if (key === "sacked") return O.sacks || 0;
+    return null;
+  }
+  function boxV171(g) {
+    const o = {};
+    ["oppRush", "oppPts", "pressure", "usRush", "usPass", "sacked"].forEach(k => (o[k] = Math.round(metricV171(k, g) || 0)));
+    return o;
+  }
+  function evalCallV171(mu, g) {
+    if (!mu || !mu.call) return null;
+    const c = callByIdV171(mu.call),
+      actual = metricV171(c.metric.key, g);
+    if (actual == null) return null;
+    const ok = c.metric.dir === "le" ? actual <= mu.thr : actual >= mu.thr;
+    const M = METRIC_V171[c.metric.key];
+    return { id: c.id, name: c.name(mu.I), icon: c.icon, risk: c.risk, metric: c.metric.key, dir: c.metric.dir, thr: mu.thr, actual: Math.round(actual), ok, lab: M.lab(mu.I), unit: M.unit(mu.I) };
+  }
+  /* the watched game re-books the call; if the week already paid the simmed result, the bill follows the game */
+  function rebookCallV171(row, pl, R) {
+    const old = row.callResV171;
+    row.callResV171 = R;
+    if (!old || !old.paid || !R) return;
+    if (old.ok === R.ok) {
+      R.paid = old.paid;
+      return;
+    }
+    const H = hypeState();
+    pl.coachTrust = clamp99((pl.coachTrust != null ? pl.coachTrust : 50) - old.paid.trust, 0, 100);
+    H.coach = clamp99((H.coach || 50) - old.paid.trust, 0, 100);
+    H.hype = clamp99((H.hype || 0) - old.paid.hype, 0, 100);
+    if (pl.worldState && old.paid.chem) pl.worldState.teamChemistry = clamp99((pl.worldState.teamChemistry || 50) - old.paid.chem, 0, 100);
+    payCallV171(row, pl);
+  }
+  /* once a week, from processWeek95: the call's bill or its reward */
+  function payCallV171(row, pl) {
+    const R = row && row.callResV171;
+    if (!R || R.paid || !pl) return null;
+    const P = (PAY_V171[R.risk] || PAY_V171[1])[R.ok ? "ok" : "no"],
+      H = hypeState();
+    pl.coachTrust = clamp99((pl.coachTrust != null ? pl.coachTrust : 50) + P.trust, 0, 100);
+    H.coach = clamp99((H.coach || 50) + P.trust, 0, 100);
+    H.hype = clamp99((H.hype || 0) + P.hype, 0, 100);
+    if (P.chem)
+      try {
+        teamOnV153B()
+          ? chemMoveV153B(pl, P.chem, R.ok ? "the call worked" : "the call backfired")
+          : ((pl.worldState = pl.worldState || { teamChemistry: 50, programMomentum: 50, mediaHeat: 20 }),
+            (pl.worldState.teamChemistry = clamp99((pl.worldState.teamChemistry || 50) + P.chem, 0, 100)));
+      } catch (_) {}
+    R.paid = { trust: P.trust, hype: P.hype, chem: P.chem };
+    try {
+      pushStory(
+        R.ok ? "🧠" : "🧯",
+        R.ok ? `${R.name}: the call worked` : `${R.name}: the call backfired`,
+        `${R.actual} against a line of ${R.dir === "le" ? "≤" : "≥"}${R.thr}. Coach trust ${P.trust > 0 ? "+" : ""}${P.trust}.`
+      );
+      if (R.ok && R.risk >= 3) setTimeout(() => bigMoment("THE CALL WORKED", `${R.name} · coach trust +${P.trust}`, "good"), 900);
+    } catch (_) {}
+    return R.paid;
+  }
+  /* the post-game line: the call, the number it was judged on, and what it paid */
+  function callLineV171(row, g) {
+    const R = (g && g.callV171) || (row && row.callResV171);
+    if (!R || !TU("v171", 1)) return "";
+    const P = (PAY_V171[R.risk] || PAY_V171[1])[R.ok ? "ok" : "no"],
+      M = METRIC_V171[R.metric],
+      sg = v => (v > 0 ? "+" : v < 0 ? "−" : "±") + Math.abs(v),
+      col = R.ok ? "#8fe0a0" : "#e8938b";
+    return (
+      `<div class="call-line-v171" style="display:flex;align-items:center;gap:9px;margin:8px 0 4px;padding:8px 11px;border-radius:11px;background:#00000040;border:1px solid ${col}55">` +
+      `<span style="font-size:22px">${R.icon}</span><div style="flex:1;min-width:0"><div style="font:700 11px Oswald,sans-serif;letter-spacing:1.4px;color:var(--chalk-dim)">THE MATCHUP CALL · ${escHtml(R.name)}</div>` +
+      `<div style="font:600 13px Barlow Condensed,sans-serif;color:var(--chalk)">${escHtml(R.lab || (M ? "the number" : ""))}: <b>${R.actual}${escHtml(R.unit || "")}</b> · needed ${R.dir === "le" ? "≤" : "≥"}${R.thr} · trust ${sg(P.trust)} · hype ${sg(P.hype)}</div></div>` +
+      `<b style="font:700 13px Oswald,sans-serif;letter-spacing:1px;color:${col}">${R.ok ? "IT WORKED" : "IT BACKFIRED"}</b></div>`
+    );
+  }
+  window.__V171 = {
+    identity: (w, pl) => oppIdentityV171(pl || state.player, w || curWeekV111(state.player)),
+    offer: (w, pl) => offerV171(pl || state.player, w || curWeekV111(state.player)),
+    pick: (id, w, pl) => {
+      pl = pl || state.player;
+      w = w || curWeekV111(pl);
+      const ok = pickCallV171(pl, w, id);
+      if (ok) {
+        try {
+          window.__V146 && window.__V146.reset();
+          window.__V146 && document.getElementById("pregameV1513") && window.__V146.start();
+        } catch (_) {}
+      }
+      return ok;
+    },
+    say: pl => sayV171(pl || state.player),
+    payRow: (row, pl) => payCallV171(row, pl || state.player),
+    line: (row, g) => callLineV171(row, g),
+    ctx: (w, pl, pts) => ctxV171(pl || state.player, w || curWeekV111(state.player), pts),
+    calls: CALLS_V171,
+    base: BASE_V171,
+    pay: PAY_V171,
+    metric: metricV171,
+    thr: (id, w, pl) => {
+      pl = pl || state.player;
+      w = w || curWeekV111(pl);
+      const c = callByIdV171(id),
+        I = oppIdentityV171(pl, w);
+      return c && I ? thrV171(pl, w, c, I) : null;
+    },
+    last: null
+  };
   function weeklyLoopCard(e) {
     ensureWeekly103(e);
     const t = e.weeklyPlan103 ? gamePlanById(e.weeklyPlan103) : null;
@@ -27512,6 +28222,14 @@
           `<button class="origin-choice-v11" onclick="chooseOriginV11('${a.id}')"><span class="origin-icon-v11">${a.icon}</span><b>${escHtml(a.name)}</b><small>${escHtml(a.description)}</small><em>▲ ${escHtml(a.strength)}</em><em class="bad">▼ ${escHtml(a.weakness)}</em>${originSayV131(a)}</button>`
       )
       .join("")}</div></div>`;
+  }
+  /* ===== v171 B NO MORE SPECIALIZATION =====
+   * The prestige specialization (Tactician / Ironman / Competitor / Showtime / Architect) is gone: the card is no
+   * longer drawn on the tree and every system that read it (scouting, matchup counters, high-leverage moments,
+   * rival weeks, recovery, story choices) now reads `specV171()`, which is null — the neutral path each of them
+   * already had. The saved pick stays in the save, untouched. Kill switch `v171Bspec` 0 brings it all back. */
+  function specV171() {
+    return TU("v171Bspec", 1) ? null : state.specializationV11;
   }
   function chooseSpecializationV11(e) {
     SPECIALIZATIONS.some(t => t.id === e) &&
@@ -27867,9 +28585,9 @@
       n =
         t.opponentV11 ||
         createOpponentProfile(t.opp, e.level, t.week || 1, e.seasonSeed, t.playoff ? t.roundIdx : void 0);
-    ((t.opponentV11 = n), n.scouted || scoutOpponent(n, e, state.specializationV11));
+    ((t.opponentV11 = n), n.scouted || scoutOpponent(n, e, specV171()));
     const i = planStreak(e, a),
-      r = matchupPlanModifier(n, a, i, state.specializationV11),
+      r = matchupPlanModifier(n, a, i, specV171()),
       l = conditionModifiers(e),
       d =
         e.level >= 7
@@ -27877,6 +28595,8 @@
           : { weeklyCost: 0, recovery: 0, perf: 0, injuryRisk: 0, recurrence: 0, fulfillment: 0, media: 0, fatigue: 0 },
       c = rollGamePerf(e, (s.perf || 0) + (r.perf || 0) + (l.perf || 0) + (d.perf || 0), { playoff: !!t.playoff }),
       __omSet = (window.__oppMulV22 = __oppMulForV22(t.opp || (n && n.name))),
+      mu171 = ctxV171(e, t, (s.perf || 0) + (r.perf || 0)) /* v171 A: their face, the call, the plan's team lift */,
+      cv171 = (mu171 && mu171.call && callByIdV171(mu171.call) && callByIdV171(mu171.call).varMult) || 1,
       _evP =
         ((e.eventChoice && e.eventChoice.perf) || 0) +
         (e.eventBenchV128 ||
@@ -27884,7 +28604,9 @@
       _g17 = __aiSeasonGame(e, {
         varMult:
           (s.varMult || 1) *
-          ((e.eventChoice && e.eventChoice.varMult) || 1) /* v146 D: the plan's variance reaches the box score */,
+          ((e.eventChoice && e.eventChoice.varMult) || 1) *
+          cv171 /* v146 D: the plan's variance reaches the box score · v171 A: and the call's */,
+        mu171,
         perfSeed: (s.perf || 0) + (r.perf || 0) + (l.perf || 0) + (d.perf || 0) + _evP,
         playoff: !!t.playoff,
         oppRating: n.rating,
@@ -27892,7 +28614,7 @@
         load: loadOfV111(e) /* v111: what he is already carrying is a term in this game's injury roll */
       }),
       __omClr = (window.__oppMulV22 = null),
-      h = randRange(-6, 6) * (s.varMult || 1),
+      h = randRange(-6, 6) * (s.varMult || 1) * cv171,
       p = ((e.composure103 || 50) - 50) * 0.06,
       m = ((e.momentum103 || 50) - 50) * 0.045;
     ((t.perf = Math.round(clamp99(_g17.perf + h + p + m, 1, 100))),
@@ -27904,6 +28626,8 @@
       })(),
       (t.statLine = _g17.statLine),
       (t.formV146 = _g17.formV146 || 0),
+      (t.callResV171 = _g17.callV171 || null),
+      (t.boxV171 = _g17.boxV171 || null),
       _g17.statLine && _g17.statLine.pick6 && (e.pick6Career = (e.pick6Career || 0) + _g17.statLine.pick6),
       (t.snapShare = Math.round(clamp99((e.snapShare || 0.12) * l.snapMultiplier, 0.04, 0.98) * 100) / 100),
       (t.snaps = Math.max(3, Math.round((e.level >= 5 ? 68 : 52) * t.snapShare * randRange(0.88, 1.12)))));
@@ -27954,7 +28678,7 @@
   function scoutCard(e, t) {
     const a = e.opponentV11;
     if (!a) return "";
-    const s = a.scouted || scoutOpponent(a, t, state.specializationV11),
+    const s = a.scouted || scoutOpponent(a, t, specV171()),
       n = gamePlanById(s.recommendedPlan);
     return `<div class="scout-card-v11"><div class="scout-head-v11"><div><span>${a.rivalry ? "🔥 RIVALRY" : "🔭 SCOUTING REPORT"}</span><b>${escHtml(a.name)}</b></div><div class="scout-confidence-v11">${s.confidence}%<small>CONFIDENCE</small></div></div><div class="scout-tags-v11"><span>${escHtml(s.matchupLabel)}</span><span>${escHtml(a.importance.toUpperCase())}</span><span>${a.rating} OPP RATING</span></div><div class="scout-facts-v11">${s.reveals.map(i => `<div>• ${escHtml(i)}</div>`).join("")}${s.hiddenCount ? `<div class="hidden-fact-v11">• ${s.hiddenCount} detail${s.hiddenCount > 1 ? "s" : ""} unresolved</div>` : ""}</div><div class="scout-rec-v11">Suggested counter: <b>${n.icon} ${escHtml(n.name)}</b>${s.confidence < 50 ? " <small>Low-confidence report</small>" : ""}</div></div>`;
   }
@@ -27972,7 +28696,7 @@
             t.seasonSeed,
             s.playoff ? s.roundIdx : void 0
           )),
-        scoutOpponent(s.opponentV11, t, state.specializationV11),
+        scoutOpponent(s.opponentV11, t, specV171()),
         `<div class="gameplan-overlay"><div class="gameplan-panel impact-plan v11-plan-panel"><div class="plan-hero"><div class="decision-kicker">WEEK ${s.week || a + 1} · NOTHING HAS BEEN ROLLED YET</div><div class="decision-title">Scout. Prepare. Then Play.</div><div class="decision-copy">Your choice now generates the game. Future games remain unresolved until their week.</div></div>${scoutCard(s, t)}<div class="plan-deck">${GAME_PLANS.map(
           n => {
             const i = yn(n),
@@ -28033,7 +28757,7 @@
     const t = state.player,
       a = t.weekResults[t.currentWeek],
       s = a.momentsV11[a.momentIndexV11],
-      n = resolveHighLeverageMoment(t, a, s, e, state.specializationV11);
+      n = resolveHighLeverageMoment(t, a, s, e, specV171());
     ((t.highLeverageStatsV11 = t.highLeverageStatsV11 || { attempts: 0, successes: 0 }),
       t.highLeverageStatsV11.attempts++,
       n.success && t.highLeverageStatsV11.successes++,
@@ -28127,12 +28851,12 @@
   processWeek95 = function (e, t) {
     if (!e || e._v11Processed) return;
     ((e._v11Processed = !0), ensureV11(t), processWeek95Core(e, t), co(t));
-    const a = resolveRivalWeek(t, e, LEVELS[t.level].need, state.specializationV11);
+    const a = resolveRivalWeek(t, e, LEVELS[t.level].need, specV171());
     ((e.rivalResultV11 = a),
       (t.depthRole = Gc(t.snapShare || 0.1)),
       (t.snapShare || 0) >= 0.65 && (t.depthStarts = (t.depthStarts || 0) + 1),
       (t.roleBattle103 = Math.round(clamp99((t.snapShare || 0.1) * 100, 0, 100))));
-    const s = updateConditionAfterGame(t, e, e.planV11 || "disciplined", state.specializationV11);
+    const s = updateConditionAfterGame(t, e, e.planV11 || "disciplined", specV171());
     ((e.conditionResultV11 = { fatigue: Math.round(s.condition.fatigue), injury: s.condition.injury?.name || null }),
       t.recentlyRecoveredV11 &&
         e.perf >= 80 &&
@@ -28313,7 +29037,7 @@
   }
   function resolveStoryChoiceV11(e) {
     const t = state.player,
-      a = resolveStoryChoice(t, state, e, state.specializationV11);
+      a = resolveStoryChoice(t, state, e, specV171());
     if (!a) return;
     const s = document.querySelector(".story-overlay-v11");
     (s && s.remove(),
@@ -28339,7 +29063,7 @@
         e.seasonSeed,
         t.playoff ? t.roundIdx : void 0
       ));
-    const a = t.opponentV11.scouted || scoutOpponent(t.opponentV11, e, state.specializationV11),
+    const a = t.opponentV11.scouted || scoutOpponent(t.opponentV11, e, specV171()),
       s = String(t.opponentV11.importance || "routine").toUpperCase();
     return `<div class="card opponent-card-v11" style="border-color:${["playoff", "championship"].includes(t.opponentV11.importance) ? "var(--gold)" : t.opponentV11.importance === "evaluation" ? "var(--blood)" : "var(--cyan)"}"><div class="impact-head">${TU("v168season", 1) ? crestV168(String(t.opp).replace(/^.*'s /, ""), 48) : ""}<div><div class="impact-kicker">NEXT OPPONENT · ${s}</div><div class="h2" style="margin:2px 0 0">${escHtml(t.opp)}</div>${leagueLineV167(e, t)}</div><div class="scout-confidence-v11">${a.confidence}<small>SCOUT CONF.</small></div></div><div class="matchup-badge-v11">${escHtml(a.matchupLabel)} matchup · ${a.hiddenCount} detail${a.hiddenCount === 1 ? "" : "s"} hidden</div>${(() => {
       /* v126: who they actually are. The RECOMMENDED COUNTER used to sit here — a game plan the player has not chosen himself since the pregame wizard took the call, so the one concrete line on the card was the one thing it could not act on. */
@@ -28521,7 +29245,7 @@
           (a - 50) / 600 +
           (s - 50) / 750 +
           (n - 20) / 900 +
-          (state.specializationV11 === "architect" ? 0.08 : 0),
+          (specV171() === "architect" ? 0.08 : 0),
         0.12,
         0.94
       ),
@@ -28624,7 +29348,7 @@
     }
     if (state.view === "shop") {
       const n = t.querySelector(".pts-banner");
-      (t.querySelector(".specialization-card-v11") || insertAfter(n, jc()),
+      (TU("v171Bspec", 1) || t.querySelector(".specialization-card-v11") || insertAfter(n, jc()) /* v171 B: no specialization card */,
         t.querySelector(".legacy-rewards-v11") || insertAfter(t.querySelector(".specialization-card-v11") || n, nd()));
     }
     if (state.view === "result" && !t.querySelector(".legacy-progress-v11")) {
@@ -28757,6 +29481,8 @@
       );
       w.statLine = g.stat;
       w.gameGrade = gl.grade;
+      if (g.callV171 !== undefined) rebookCallV171(w, e, g.callV171 || null); /* v171 A: the watched game decides the call */
+      if (g.boxV171) w.boxV171 = g.boxV171;
       w.snaps = snaps;
       w.liveBookedV85 = !0;
     } catch (_) {}
@@ -29005,7 +29731,7 @@
     if (!r) return {};
     const d = {};
     [r.stat].concat(r.also || []).forEach(k => {
-      d[k] = (Math.min(r.mul, TU("focusMulCeil", 1.35)) - 1) * agentV146(e, k);
+      d[k] = (Math.min(r.mul, TU("focusMulCeil", TU("v171Cfocus", 1) ? 1.5 : 1.35)) - 1) * agentV146(e, k);
     });
     return d;
   }
@@ -29018,7 +29744,8 @@
       e.level | 0,
       e.totalSeasons | 0,
       (e.weekResults || []).indexOf(w),
-      (e.weekResults || []).filter(x => x && x.played).length
+      (e.weekResults || []).filter(x => x && x.played).length,
+      (w && w.callV171) || "" /* v171 A: a new call is a new projection */
     ].join("|");
   };
   function projSampleV146(e) {
@@ -29040,13 +29767,15 @@
       tb: window.__youTempBuffsV25,
       gs: window.__gameScriptBiasV23,
       sb: window.__youStatBoostPctV20,
-      fb: state._fateBoost
+      fb: state._fateBoost,
+      mu: window.__matchupV171
     };
     let g = null;
     try {
       state._fateBoost = 0;
+      window.__matchupV171 = ctxV171(e, w, 0); /* v171 A: the projection plays the face and the call */
       window.__oppMulV22 = __oppMulForV22(w.opp || (I.n && I.n.name));
-      window.__youTempBuffsV25 = (base || []).concat(ownBuffsV111(e));
+      window.__youTempBuffsV25 = (base || []).concat(ownBuffsV111(e).filter(b => b.v111 !== "intensity")); /* v171 D: samples are normalised by usage — the rung's intensity is not in them */
       window.__gameScriptBiasV23 = e._gameScriptV23 && e._gameScriptV23.gsPass != null ? e._gameScriptV23.gsPass : null;
       window.__youStatBoostPctV20 = 0;
       g = simGameV2(seed, e.pos);
@@ -29060,6 +29789,7 @@
       window.__gameScriptBiasV23 = sv.gs;
       window.__youStatBoostPctV20 = sv.sb;
       state._fateBoost = sv.fb;
+      window.__matchupV171 = sv.mu;
     }
     if (!g || !g.stat) return null;
     /* the rating exactly as __aiSeasonGame builds it from this box score, before ca()'s plan terms */
@@ -29081,7 +29811,7 @@
       1,
       100
     );
-    return { stat: g.stat, key: u.key, sr: shareRelV146(e, u.key), touch: u.touchMul, focus: fb ? fb.key : null, perf };
+    return { stat: g.stat, key: u.key, sr: shareRelV146(e, u.key), touch: u.touchMul, focus: fb ? fb.key : null, perf, call: g.callV171 || null };
   }
   /* a projection must not touch the career: et()'s wrappers roll a luck line and move coach trust, so
    * every top-level key of the player (and of the state) that a sample changed is put back as it was */
@@ -29210,7 +29940,7 @@
     const I = projWeekInV146(e, w),
       gm = Math.max(1, LEVELS[e.level].games);
     const r = I.n
-        ? matchupPlanModifier(I.n, id, planStreak(e, id), state.specializationV11)
+        ? matchupPlanModifier(I.n, id, planStreak(e, id), specV171())
         : { perf: 0, trust: 0, injuryRisk: 0, note: "" },
       rep = planStreak(e, id);
     const F = (window.__FATE_PLANS || {})[id];
@@ -29446,7 +30176,7 @@
       const st = e.storyDecisionQueueV11[0],
         pick = pickStoryChoiceV90(st);
       if (!pick) break;
-      const r = resolveStoryChoice(e, state, pick.id, state.specializationV11);
+      const r = resolveStoryChoice(e, state, pick.id, specV171());
       if (!r) break;
       const rec = {
         arc: st.arcTitle || "",
@@ -29918,7 +30648,7 @@
             t.seasonSeed,
             s.playoff ? s.roundIdx : void 0
           )),
-        scoutOpponent(s.opponentV11, t, state.specializationV11),
+        scoutOpponent(s.opponentV11, t, specV171()),
         `<div class="gameplan-overlay"><div class="gameplan-panel impact-plan v11-plan-panel"><div class="plan-hero"><div class="decision-kicker">WEEK ${s.week || a + 1} · NOTHING HAS BEEN ROLLED YET</div><div class="decision-title">Scout. Prepare. Then Play.</div><div class="decision-copy">Projected fatigue and injury risk include age, health, and the selected workload.</div></div>${scoutCard(s, t)}<div class="plan-deck">${GAME_PLANS.map(
           n => {
             const i = yn(n),
@@ -32676,6 +33406,7 @@
           (TU("v168season", 1) ? crestV168(opp.replace(/^.*'s /, ""), 34) : "") +
           "</div>" +
           postGameSeasonV168(p, wr, us, them) /* v168: what this game did to the season */ +
+          callLineV171(wr, state._liveGame) /* v171 A: did the matchup call come off */ +
           '<div style="display:flex;align-items:center;gap:8px;margin:8px 0 4px;padding:9px 11px;border-radius:11px;background:#00000040;border:1px solid rgba(255,255,255,.07);font-family:Oswald">' +
           '<span style="font-size:10px;letter-spacing:1.5px;color:var(--chalk-dim)">NATIONAL RANK</span>' +
           '<b style="font-size:20px;color:var(--gold)">#' +

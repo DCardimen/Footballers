@@ -70,6 +70,8 @@
     /* 2. the chrome */
     "html.short-v169.shell-v146 #tickV146{display:none!important}",
     "html.phone-v169.shell-v146 .dock{padding:5px 8px!important;gap:5px!important}",
+    /* v171 B: the experience-preview chip (27, preview builds only) sat on the section bar's › and the pregame's subtitle — on a phone it hangs from the top edge as a small tab */
+    "html.phone-v169 .mz158-chip{top:env(safe-area-inset-top,0px)!important;left:50%!important;right:auto!important;transform:translateX(-50%);font-size:8px!important;padding:2px 7px 3px!important;border-radius:0 0 8px 8px!important;opacity:.82!important;box-shadow:0 2px 8px rgba(0,0,0,.4)!important}",
     /* 3. the controls */
     /* the section tabs: the icon over the label, so five fit a phone without running together */
     "html.phone-v169.shell-v146 .hubv75-tabs{min-height:52px;padding:0 2px!important;gap:0!important}",

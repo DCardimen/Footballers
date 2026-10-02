@@ -10,6 +10,61 @@ Names in older entries are the career app's pre-v149 C minified names (`q`, `ms`
 `index.html` + `src/` (`docs/LAYOUT.md`).
 
 <!-- new entries go here, newest first -->
+- **v174 — the palette: every look in one place.** (`src/28-cosmetics.js`, `scripts/palettecheck.mjs`.) The owner
+  asked for the custom celebration, the banner and the rest in the colour palette beside the uniform and colour
+  choice. The look lived in three places — the Team Creator's colours and crest (the top bar's 🎨), the Locker's STYLE
+  tab (one category at a time behind a strip of eighteen tabs) and the profile's "Change Style" door into it. Now the
+  STYLE tab is THE PALETTE: the live card on top (redrawn on every pick), then a row per section — ON THE FIELD
+  (uniform, team colours, team crest, helmet, celebration, number font, footprints, aura, wings, crown), HIS CARD
+  (banner, frame, title, badge, nameplate, profile icon, trophy shelf), HIS WORLD (stadium, recap, vault). Each row
+  shows the look he wears (its own animated preview), its name and how many he has; a tap opens the section's grid,
+  a tap on a look wears it. Team colours and crests are picked here through the Team Creator's own gate (free picks,
+  then PP — nothing new is sold or freed); locked looks stay locked (🔒 Membership), shop looks stay unlisted with the
+  store OFF. The old doors land on it: the profile's button ("🎨 The Palette"), the spray's STYLE, the top bar's 🎨
+  (at TEAM COLOURS, on the career screens) and a link in the Team Creator. On a phone it is one page with one scroll,
+  nothing under 12px (rows 15px, names 13px); on the desktop the palette is the one scroll box. Kill switch
+  `v174palette` (0 = the tabbed panel, the 🎨 the Team Creator).
+- **v173 — the pile is the button.** (`public/rib-vault.js`, `public/rib-vault-audio.js`, `public/rib-vault.css`,
+  `scripts/v173check.mjs` new, `scripts/v173shot.mjs` new.) Spending in the Prestige Vault felt like pressing and holding
+  a box: the press was gated by a rectangle around the hoard, the funding card sat on top of the money, and a tap got
+  one coin flying off to the core. Now you tap the PILE: its own shape is the target (never under 220 × 160 px on a
+  phone, an empty corner of the old box no longer counts), the funding card hangs under the core, and the pile answers —
+  it breathes with light while an upgrade waits, lights up under a mouse, a keyboard focus or the finger (a hot spot,
+  a ring of light, glints), and every tap knocks 3–5 real coins of the hoard into the air that come back down,
+  bounce and clink as they land (without starting an avalanche). A two-strike clink climbs with quick taps, "+N PP"
+  pops off the finger, a chime and a small shake of the room mark 25 / 50 / 75 % of the price, a bigger one the
+  unlock. Holding is still the pour (and keeps the coins jumping); the pile is a focusable button (Enter / Space tap,
+  held = hold). Reduced motion keeps the light and the numbers, drops the thrown coins and the shake. **The money is
+  identical** — a tap is the same 2 % chunk, the hold the same stages, one purchase per upgrade (`v173check`). Kill
+  switch `RIB_TUNE.v173pile = 0` (v137's box, exactly).
+- **v172 — the big board.** (`src/05-field-renderer.js`, `scripts/jumbocheck.mjs`, `scripts/v164Fcheck.mjs`, `scripts/v92check.mjs`,
+  `scripts/badgecheck.mjs`.)
+  "Have the jumbotron nearly always visible in the background … so you dont miss action." v164 F put the callouts on the stadium's screen, but that
+  screen stands above the far stands: the follow camera left it at or past the top of the picture on most snaps (0 of 20 samples fully in frame on a
+  phone), and on a phone its panel was ~55x18 px, so most lines fell back to a slim ribbon and a 1.4 s message was gone before you looked up. Now the
+  screen is a center-hung board pinned to the top centre of the broadcast, hanging from the roof on two cables, behind the players (a deep route runs
+  in front of it), at a readable size on a phone and a desktop. Between plays it is the scoreboard — both teams in their kit colours, the score, the
+  quarter and clock, the down and distance, and a ticker with the last result. A touchdown, a turnover (interception, fumble, on downs), a big play,
+  a breakaway, a field goal or a game changer takes it over: the panel flashes in the team's colours, the title pops and pulses, lamps chase round the
+  bezel, the man's name and the yards sit under it, the team and the score on the strip, and the board grows — for 4.5 s and at least 3 s into the next
+  snap. A smaller moment never cuts a bigger one (it rides the ticker); INTERCEPTED then a TOUCHDOWN on the return reads PICK SIX. Kill switch
+  `v172jumbo` (the v164 F screen). `badgecheck` now pins `v164Fjumbo` 0: it measures the DOM wall (the path with the
+  jumbotron messages OFF), which it could not reach since v164 F (16 of its 43 assertions failed on main).
+- **v171 — the matchup call.** (`src/07-career-app.js`, `src/04-engine.js`, `src/11-pregame-v1513.js`,
+  `src/34-spray.js`, `src/22-hub-sections.js`, `src/33-phone.js`, `scripts/matchupcheck.mjs`.) Every opponent has a face
+  now — a named star (+14–24%), a weak link, a unit to fear and a unit to attack, from the scouting report — and page 5
+  of the pregame opens on it with THE MATCHUP CALL: Shut Down their star receiver (a bracket and fewer looks), Spy their
+  back, Rattle their quarterback, Chip their pass rusher, Load the Box against a power line, Send the House against a
+  soft one, Keep It In Front, Run Right At Them, Take the Top Off, Pick On their weak corner, Get It Out Quick… Each
+  moves real engine knobs (the run key, the blitz rate, the shell, the pass mix, the bracket), lifts the units that run
+  it, and is judged on its own line (their star's yards, their rushing, your passing, sacks + takeaways…) with its own
+  risk (trust / hype / chemistry +2…+7 or −1…−4) and swing. Coach trust, chemistry and Field General are your SAY: 2 to 5
+  calls open and how hard the staff runs them. The plan's game rating now lifts every teammate (+0.4% a point). The
+  post-game card says whether the call worked. Also: the focus cards roll their own multiplier every week (×1.04–1.50,
+  and one in five lands on a useless stat); the involvement rung is how hard you play (reckless at the top, safe at the
+  bottom) and an aggressive player gets more out of going hard; the prestige specialization is gone; the section bar
+  can no longer stack; the plan tiles name each plan's own rating instead of one shared variance. Kill switches `v171`,
+  `v171Bspec`, `v171Cfocus`, `v171Dhard`.
 - **v170 — the spray menu: hold, slide, slide.** (`src/34-spray.js` new, `src/22-hub-sections.js`, `src/25-shell.js`,
   `scripts/spraycheck.mjs`, `scripts/v146Echeck.mjs`, `scripts/phonecheck.mjs`.) Pages were split in half on a phone,
   each half scrolling on its own (training had four scroll boxes). Now holding any button on the bottom bar sprays its

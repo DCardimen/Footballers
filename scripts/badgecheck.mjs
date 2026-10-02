@@ -21,6 +21,9 @@ page.on('pageerror', e => errs.push('PAGEERROR: ' + e.message))
 page.on('console', m => { if (m.type() === 'error') errs.push('CONSOLE: ' + m.text()) })
 page.on('requestfailed', r => failedReq.push(r.url()))
 page.on('response', r => { if (r.status() >= 400) failedReq.push(r.status() + ' ' + r.url()) })
+// v164 F / v172: the badges are said on the stadium's screen now; this check measures the DOM wall, which is the path
+// with the jumbotron messages OFF — pin it (v164Fcheck and jumbocheck cover the screen)
+await page.addInitScript(() => { window.RIB_TUNE = Object.assign(window.RIB_TUNE || {}, { v164Fjumbo: 0 }) })
 await page.addInitScript(() => { setInterval(() => { try { if (window.o) window.o.tutorialSeen = true } catch {} document.querySelector('.onboard')?.remove() }, 60) })
 await page.goto(GAME_URL, { waitUntil: 'load', timeout: 60000 }); await page.waitForTimeout(1500)   // warm-up: absorbs vite's one full-reload after an index.html edit
 await page.goto(GAME_URL, { waitUntil: 'networkidle', timeout: 30000 })

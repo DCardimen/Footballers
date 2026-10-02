@@ -184,3 +184,41 @@
   @keyframes rvFadeOut{from{opacity:1}to{opacity:0}}
   @keyframes rvFadeOnly{to{opacity:1}}
 }
+
+/* ===== v173 THE PILE IS THE BUTTON — the card off the money, the pile as a button, the pops =====
+ * `#ribVault.rv-v173` is set at open unless RIB_TUNE.v173pile = 0, which leaves every rule
+ * below asleep and the v137 layout exactly as it was. */
+#ribVault.rv-v173 .rv-tgt{position:absolute;left:50%;transform:translateX(-50%);z-index:2;
+  width:min(74vw,300px);margin:0;padding:5px 12px 7px;border-radius:12px;background:rgba(6,10,16,.72)}
+#ribVault.rv-v173 .rv-tgt .nm{font-size:12.5px;letter-spacing:2px}
+#ribVault.rv-v173 .rv-tgt .lv{font-size:8.5px}
+#ribVault.rv-v173 .rv-tgt .rv-track{height:6px;margin:5px 0 4px}
+#ribVault.rv-v173 .rv-tgt .num{font-size:11px}
+#ribVault.rv-v173 .rv-mult{z-index:3}
+/* the keyboard's way onto the pile: invisible, never takes a pointer (the canvas does) */
+#ribVault .rv-ui .rv-pile{position:absolute;pointer-events:none;background:transparent;border:0;padding:0;margin:0;
+  border-radius:50%;color:transparent;font-size:0;outline:none;-webkit-appearance:none;appearance:none}
+#ribVault .rv-ui .rv-pile[hidden]{display:none}
+#ribVault .rv-ui .rv-pile:focus-visible{box-shadow:0 0 0 2px rgba(255,214,130,.85),0 0 28px 6px rgba(240,187,69,.35)}
+/* "+N PP" off the finger, and the quarter marks over the core */
+#ribVault .rv-pops{position:absolute;inset:0;pointer-events:none;z-index:2;overflow:hidden}
+#ribVault .rv-pop{position:absolute;transform:translate(-50%,-50%);white-space:nowrap;opacity:0;
+  font-family:Oswald,sans-serif;font-weight:700;font-size:22px;letter-spacing:.5px;color:#ffeab2;
+  font-variant-numeric:tabular-nums;
+  text-shadow:0 0 2px #000,0 1px 3px rgba(0,0,0,.95),0 2px 0 rgba(0,0,0,.8),0 0 16px rgba(240,187,69,.9)}
+#ribVault .rv-pop small{font-size:.58em;letter-spacing:1.4px;color:#f0bb45;margin-left:3px}
+#ribVault .rv-pop.hot{font-size:26px;color:#fff3cf}
+#ribVault .rv-pop.mile{font-size:22px;letter-spacing:3px;color:#fff1c8;
+  text-shadow:0 0 16px rgba(255,200,100,.95),0 0 40px rgba(240,187,69,.5),0 2px 0 rgba(0,0,0,.75)}
+#ribVault .rv-pop.mile.big{font-size:26px;letter-spacing:5px;color:#d9ffe4;
+  text-shadow:0 0 18px rgba(110,227,139,.9),0 0 44px rgba(110,227,139,.45),0 2px 0 rgba(0,0,0,.75)}
+#ribVault .rv-pop.go{animation:rvPopUp .85s cubic-bezier(.2,.8,.3,1) forwards}
+#ribVault .rv-pop.mile.go{animation:rvPopMile 1.05s cubic-bezier(.2,.9,.3,1.2) forwards}
+@keyframes rvPopUp{0%{opacity:0;transform:translate(-50%,-30%) scale(.7)}15%{opacity:1;transform:translate(-50%,-70%) scale(1.12)}
+  100%{opacity:0;transform:translate(-50%,-260%) scale(.95)}}
+@keyframes rvPopMile{0%{opacity:0;transform:translate(-50%,-50%) scale(.5)}20%{opacity:1;transform:translate(-50%,-50%) scale(1.18)}
+  70%{opacity:1;transform:translate(-50%,-80%) scale(1)}100%{opacity:0;transform:translate(-50%,-130%) scale(1)}}
+@media (prefers-reduced-motion:reduce){
+  #ribVault .rv-pop.go,#ribVault .rv-pop.mile.go{animation:rvPopFade .8s ease forwards}
+  @keyframes rvPopFade{0%{opacity:0}20%{opacity:1}100%{opacity:0}}
+}

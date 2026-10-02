@@ -250,7 +250,7 @@ await page.waitForTimeout(200)
 await page.evaluate(() => window.__V112_D.go(3)); await page.waitForTimeout(300)
 const FP = await readWiz()
 ok(/Game focus/i.test(FP.imp) && !/None/.test(FP.imp.split('Body')[0]), 'the focus he picked is named on the last page', (FP.imp || '').slice(0, 120))
-ok(!!FP.sheetFocus && /×1\.2/.test(FP.sheetFocus), 'and the stat sheet under it carries the multiplier', FP.sheetFocus)
+ok(!!FP.sheetFocus && /×1\.\d/.test(FP.sheetFocus), 'and the stat sheet under it carries the multiplier (v171 C: the card\'s own roll)', FP.sheetFocus)
 ok(/%/.test((FP.imp.match(/Body[^A-Za-z]*([-+]?\d+% to every attribute)/) || [])[1] || ''), 'the body\'s own swing is stated too', (FP.imp.match(/Body[^A-Za-z]*([-+]?\d+% to every attribute)/) || [])[1])
 
 // ---------------------------------------------------------------- 5. the way to the field, on every page

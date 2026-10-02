@@ -127,7 +127,7 @@ const res = await page.evaluate(({ N, POS }) => {
     forecastShape: ['load', 'fatigueAfter', 'injPct', 'gamesMissed', 'statCut', 'parts', 'stakes', 'oppMul', 'durMul'].filter(k => fc[k] === undefined),
     partsOk: Array.isArray(fc.parts) && fc.parts.length > 0 && fc.parts.every(p => p.label && typeof p.mul === 'number'),
     focusN: fl.length,
-    focusShape: fl.every(x => x.key && x.name && x.icon && x.stat && x.mul === 1.2 && x.desc),
+    focusShape: fl.every(x => x.key && x.name && x.icon && x.stat && x.mul >= 1.04 && x.mul <= 1.5 && x.desc /* v171 C: each card rolls its own */),
     focusEveryPos: ['QB', 'RB', 'WR', 'TE', 'OL', 'DL', 'LB', 'CB', 'S', 'K'].filter(p => {
       const l = V.focusFor(p); return !(l.length === 3 && l.every(x => x.stat && window.__GRIDIRON_AUDIT__.ATTRS.indexOf(x.stat) >= 0))
     }),
@@ -277,12 +277,12 @@ const res = await page.evaluate(({ N, POS }) => {
   w.focusV111 = null
   R.focus = { pick: pick.key, stat: pick.stat, mul: pick.mul, moved, base: pl.attrs[pick.stat],
     before: before.eff[pick.stat], after: after.eff[pick.stat], active, simSees,
-    expected: Math.max(1, Math.round(Math.round(pl.attrs[pick.stat] * before.mult) * 1.2)) }
+    expected: Math.max(1, Math.round(Math.round(pl.attrs[pick.stat] * before.mult) * pick.mul)) }
   R.focusVerdict = {
     exactlyOne: moved.length === 1 && moved[0] === pick.stat,
     isTwentyPct: after.eff[pick.stat] === R.focus.expected && after.eff[pick.stat] > before.eff[pick.stat],
-    reachesSim: simSees.length === 1 && simSees[0].stat === pick.stat && simSees[0].mul === 1.2,
-    buffForActive: active && active.stat === pick.stat && active.mul === 1.2
+    reachesSim: simSees.length === 1 && simSees[0].stat === pick.stat && simSees[0].mul === pick.mul,
+    buffForActive: active && active.stat === pick.stat && active.mul === pick.mul
   }
 
   // ---- every focus, at every position, reaches the engine's own accessor -----------------
@@ -290,6 +290,7 @@ const res = await page.evaluate(({ N, POS }) => {
   // One game per pick, reading back what that accessor returned for him.
   const bite = []
   const savedPos = pl.pos
+  const tune171 = window.RIB_TUNE; window.RIB_TUNE = Object.assign({}, tune171 || {}, { v171Cfocus: 0 })   // v171 C: the mechanism is tested on the classic ×1.2 card (the roll can be ×1.04)
   for (const p of ['QB', 'RB', 'WR', 'TE', 'OL', 'DL', 'LB', 'CB', 'S']) {
     pl.pos = p
     for (const pk of V.focusFor(p)) {
@@ -302,6 +303,7 @@ const res = await page.evaluate(({ N, POS }) => {
         lands: rows.every(r => r.raw > r.base * 1.1) } : { pos: p, key: pk.key, stat: pk.stat, lands: false, rows: null })
     }
   }
+  window.RIB_TUNE = tune171
   pl.pos = savedPos
   R.bite = bite
   R.biteVerdict = { all: bite.every(b => b.lands), dead: bite.filter(b => !b.lands).map(b => b.pos + ':' + b.key + ' ' + (b.keys || [b.stat]).join('+')) }
@@ -384,7 +386,7 @@ ok(A.keysOk, 'KEYS is wrong', A.keys)
 ok(A.usageShape.length === 0, 'usage() is missing fields', A.usageShape)
 ok(A.forecastShape.length === 0, 'forecast() is missing fields', A.forecastShape)
 ok(A.partsOk, 'forecast().parts is not a list of {label,mul}')
-ok(A.focusN === 3 && A.focusShape, 'focusFor() must return exactly 3 {key,name,icon,stat,mul:1.2,desc}', { n: A.focusN })
+ok(A.focusN === 3 && A.focusShape, 'focusFor() must return exactly 3 {key,name,icon,stat,mul (×1.04-1.50, v171 C),desc}', { n: A.focusN })
 ok(A.focusEveryPos.length === 0, 'focusFor() does not cover every position with real attributes', A.focusEveryPos)
 ok(A.focusDeadStats.length === 0, 'a focus names a stat FieldSim never asks for — it would do nothing on the field', A.focusDeadStats)
 ok(A.buffNull, 'buffFor() must be null with no focus picked')
@@ -416,7 +418,7 @@ ok(res.recovery.paidBack, 'a light week does not pay load back', res.recovery)
 
 const X = res.focusVerdict
 ok(X.exactlyOne, 'the focus moved more than one stat', res.focus)
-ok(X.isTwentyPct, 'the focus is not a 1.2x on the sheet', res.focus)
+ok(X.isTwentyPct, 'the focus is not its card multiplier on the sheet (v171 C: rolled per week)', res.focus)
 ok(X.reachesSim, 'the focus does not reach what the sim reads', res.focus)
 ok(X.buffForActive, 'buffFor() does not report the active pick', res.focus)
 ok(res.biteVerdict.all, 'a focus does not reach the engine\'s attribute accessor', res.biteVerdict.dead)
@@ -438,7 +440,7 @@ console.log(JSON.stringify({ identity, api: res.api, dial: res.dial, dialVerdict
   recovery: res.recovery, focus: res.focus, focusVerdict: res.focusVerdict, bite: res.bite, biteVerdict: res.biteVerdict, resolve: res.resolve,
   arc: res.arc, arcVerdict: res.arcVerdict,
   fails: fails.length, pageErrors: pageErrors.length }, null, 1))
-if (fails.length) console.log('FAILURES:\n' + fails.join('\n'))
+if (fails.length) console.log(fails.map(f => 'FAIL ' + f).join('\n'))   // v171: one FAIL line each, so run-checks can tell a known failure from a new one
 if (pageErrors.length) console.log('PAGE ERRORS:\n' + pageErrors.slice(0, 6).join('\n'))
 console.log(fails.length || pageErrors.length ? 'v111A: FAIL' : 'v111A: PASS')
 await browser.close()
