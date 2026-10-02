@@ -1656,7 +1656,7 @@
   }
   function dropV153G(m, prop) { var o = m[prop]; if (o) { try { o.destroy(); } catch (e) {} m[prop] = null; } }
   function clearFxV153G(scene, m) {
-    ["_auV153G", "_wlV153G", "_wrV153G", "_crV153G", "_auBV157B", "_auFV157B"].forEach(function (p) { dropV153G(m, p); });   // v157 B: its two particle layers
+    ["_auV153G", "_wlV153G", "_wrV153G", "_crV153G", "_auBV157B", "_auFV157B", "_crShV177H"].forEach(function (p) { dropV153G(m, p); });   // v157 B: its two particle layers
     numfontFxV153G(m, null); m._trV153G = null; m._cosV153G = 0; G153.fx.cleared++;
     try { (scene._cosGhostV153G || []).forEach(function (g) { if (g && g.scene) g.setVisible(false); }); var g = scene._cosTrailV153G; if (g && g.scene) g.clear(); } catch (e) {}
   }
@@ -1719,10 +1719,11 @@
         if (!co) { co = m._crV153G = scene.add.image(0, 0, ck); m.root.once("destroy", function () { try { co.destroy(); } catch (e) {} }); }
         else if (co.texture.key !== ck) co.setTexture(ck);
         co.setOrigin(ca.ax / ca.w, ca.ay / ca.h).setDepth(TUv("cosCrownDepthV153G", 23.05));
-        var cy = geo.top + (cd.kind === "halo" ? -2.5 + Math.sin(now / 420) * 0.8 : cd.kind === "horns" ? 4 : 2.5) + crownBobV159D(now);   // v159 D: a gentle bob
+        var hov = hatOffV177H(cd.kind, now), cy = geo.top + (hov != null ? hov : (cd.kind === "halo" ? -2.5 + Math.sin(now / 420) * 0.8 : cd.kind === "horns" ? 4 : 2.5) + crownBobV159D(now));   // v159 D: a gentle bob — v177 H: every hat hovers
         co.setPosition(m.root.x + geo.cx * s, m.root.y + cy * s).setScale(s).setVisible(!down && m.root.visible !== false);
+        hatFieldV177H(scene, m, co, ca, cd, geo, now, s, !down && m.root.visible !== false);   // v177 H: its shadow and glow on the helmet
         G153.fx.crown++;
-      } else dropV153G(m, "_crV153G");
+      } else { dropV153G(m, "_crV153G"); dropV153G(m, "_crShV177H"); }
       numfontFxV153G(m, F.numfont);
       fieldNumV157C(m, F.numfont);   // v157 C: his number, bigger, in the font
       // the footprints: world space, under every player
@@ -1770,7 +1771,9 @@
   }
   function paintFrontV153G(ctx, geo, F, k, t) {   // v159 D: `t` (optional) — the crown's animation frame and bob
     ctx.imageSmoothingEnabled = false;
-    if (F.crown) { var cd = F.crown.d, ca = t != null ? crownAnimV159D(cd, t) : crownArtV153G(cd, 0), off = (cd.kind === "halo" ? -2.5 : cd.kind === "horns" ? 4 : 2.5) + crownBobV159D(t); ctx.drawImage(ca.cv, geo.cx - ca.ax * k, geo.top + off * k - ca.ay * k, ca.w * k, ca.h * k); }
+    if (F.crown) { var cd = F.crown.d, ca = t != null ? crownAnimV159D(cd, t) : crownArtV153G(cd, 0), hov = hatOffV177H(cd.kind, t), off = hov != null ? hov : (cd.kind === "halo" ? -2.5 : cd.kind === "horns" ? 4 : 2.5) + crownBobV159D(t);
+      if (hov != null) { hatShadowV177H(ctx, geo.cx, geo.top, ca.w, k, hatBobV177H(t), cd); if (G177H) G177H.card++; }   // v177 H: every hat hovers, its shadow and glow on the helmet
+      ctx.imageSmoothingEnabled = false; ctx.drawImage(ca.cv, geo.cx - ca.ax * k, geo.top + off * k - ca.ay * k, ca.w * k, ca.h * k); }
   }
   function flairFromIdsV153G(cz) {
     var get = function (id, cat, fld) { var it = id ? findItem(id) : null; return it && it.cat === cat && it[fld] ? { id: it.id, d: it[fld] } : null; };
@@ -3941,6 +3944,523 @@
     registered: function () { return FLAPS_V157A.map(function (r) { return { where: r.where, kind: r.kind || null, on: !!r.cv.isConnected }; }); }
   });
   G157.pose = function (t, kind) { return wingPoseV159D(t, kind); };   // v159 D: the pose the wings are drawn with
+
+  /* ===== v177 F TEN NEW FOOTSTEPS =====
+   * The owner: "Add 10 more footsteps animations. I LOVED the look of the afterimage. Creativity like that is going to
+   * get people interested. Don't copy that, but the same level of ingenuity."
+   * Ten footprint programs in `FX_V177F`, each its own idea (v157 B's painter, its newest-first primitive cap, its
+   * animated Locker preview and its `sample`; registered into `TFX_V157B` so every path that draws a trail finds them):
+   *   datamosh       the stride glitches: RGB-split tear bars that jump, dead scanlines, a smeared block dragged behind
+   *   ink            sumi brushwork: a pressure-varying black stroke, the wash bleeding out under it, splatter, a red seal
+   *   frostbite      every print freezes: a frost ring, cracks that race out and branch, a glint, then thaw
+   *   film           a strip of film unspools behind him — sprockets, flickering frames with a tiny runner in each, curling up
+   *   bloom          a vine sprouts from a print, unfurls two leaves, opens a flower, drops its petals
+   *   gravity        each print collapses into a tiny black hole: the turf's grid bends into it, matter spirals in, a flash
+   *   cranes         a paper square on the turf folds itself into a crane and flaps away
+   *   sands          sand pours into a pile at each print and the wind blows it away; an hourglass flips over the trail
+   *   constellation  stars light at his steps and the lines of a constellation draw between them
+   *   chrome         liquid mercury: beads that wobble, splash when they land and pull a bridge to the last one
+   * All ten are SUPER looks (mythic, source "super": only a super challenge grants one — v156 C's mechanics, listed "Super
+   * challenge: …" while locked, never sold, never member). Ten new super challenges (`SUPER_V177F`), each paying a pair:
+   * one of these footprints and one of v177 G's wings. They join v156 C's list (the SEASON tab's section, `rib.super.v1`,
+   * outside the save) through wrappers on its scan / tick / progress / desc — v156 C's own code is untouched.
+   * No Math.random: every particle is a function of the clock and an integer hash of the print's index.
+   * Kill switch TU("v177Ftrail", 0): each new trail draws as its base v153 G `kind`. `window.__V177F`; v177FGHcheck. */
+  function onV177F() { return !!TUv("v177Ftrail", 1); }
+  var G177F = (window.__V177F = window.__V177F || { errs: [] });
+  function errV177F(e) { try { if (G177F.errs.length < 8) G177F.errs.push(String((e && e.message) || e)); } catch (x) {} }
+  function itemsV177F() {
+    var T = function (id, name, kind, col, fx) { return { id: id, cat: "trail", name: name, rarity: "mythic", source: "super", tr: { kind: kind, col: col, fx: fx } }; };
+    return [
+      T("trail_datamosh", "Datamosh", "pixels", ["#ff2d55", "#00e5ff", "#ffffff", "#120a1c", "#7a2aff"], "datamosh"),
+      T("trail_ink", "Sumi Ink", "smoke", ["#07070b", "#3a4458", "#c8102e", "#f4efe6"], "ink"),
+      T("trail_frostbite", "Frostbite", "ice", ["#ffffff", "#bfe9ff", "#5ab4ff", "#1f4f8f"], "frostbite"),
+      T("trail_film", "Film Reel", "comet", ["#141110", "#f2d9a0", "#fff6dc", "#7a5a2a", "#3a2a1a"], "film"),
+      T("trail_bloom", "Wildbloom", "petals", ["#ff5fa2", "#b06bff", "#ffe14d", "#2f7a32", "#6fdc5a"], "bloom"),
+      T("trail_gravity", "Gravity Well", "stars", ["#050208", "#ffffff", "#ffb02e", "#8a5cff", "#6fd3ff"], "gravity"),
+      T("trail_cranes", "Paper Cranes", "petals", ["#fffaf0", "#ffc8d4", "#c8b0ff", "#8a8070"], "cranes"),
+      T("trail_sands", "Sands of Time", "sparks", ["#f6deb0", "#d4a860", "#8a6a3a", "#fff4d6", "#4a3018"], "sands"),
+      T("trail_constellation", "Constellation", "stars", ["#ffffff", "#9fc8ff", "#ffe9a0", "#5a48c8"], "constellation"),
+      T("trail_chrome", "Liquid Chrome", "comet", ["#ffffff", "#dfe6ee", "#8a96a8", "#2a3240", "#9fe0ff"], "chrome")
+    ];
+  }
+  var TAU_V177F = 6.283185307179586;
+  function hV177F(i, k) { return ihV153G(((i | 0) * 131 + (k | 0) * 7919 + 17) >>> 0); }
+  var STAR_V177F = { last: null };   // the constellation's previous star, within one frame (reset at the head)
+  var FX_V177F = {
+    // DATAMOSH: the stride glitches — RGB-split tear bars that jump on a step clock, a dead scanline, a smeared block
+    datamosh: { life: 1.3, k: 1.5, draw: function (P, p, q, a, F, s, now, c) {
+      if (p.i % 2) return false;
+      var st = Math.floor(now / 85), r = hV177F(p.i, 1), jump = hV177F(p.i, st) > 0.68 ? (hV177F(p.i * 3, st) - 0.5) * 7 * s : 0;
+      var w = (4 + 7 * r) * s * (0.45 + 0.55 * F), h = (1.2 + 2 * hV177F(p.i, 2)) * s, x = p.x - w / 2 + jump, y = p.y - 1.5 * s - hV177F(p.i, 3) * 8 * s * (0.3 + a), sp = (0.8 + 1.4 * a) * s;
+      P.rect(x - sp, y, w, h, c[0], 0.8 * F); P.rect(x + sp, y, w, h, c[1], 0.8 * F); P.rect(x, y, w, h, c[2], 0.95 * F);
+      P.rect(x - sp, y + h * 0.45, w + 2 * sp, 0.4 * s, c[3], 0.9 * F);   // the dead scanline
+      if (q && r > 0.5) { var dx = p.x - q.x, dy = p.y - q.y; P.rect(x - dx * (2 + 5 * a), y - 2.5 * s - dy * 3 * a, w * 0.7, h * 1.9, c[4], 0.5 * F); }   // the smear
+      if (a > 0.3) for (var k = 0; k < 3; k++) { var g = 1.6 * s, px = Math.round((p.x + (hV177F(p.i, 5 + k) - 0.5) * 9 * s) / g) * g, py = Math.round((y - (1 + k * 2) * s - a * 4 * s) / g) * g; P.rect(px, py, g, g, c[(p.i + k) % 3], F); }
+    } },
+    // SUMI INK: a brushstroke that swells and thins with the stride, the wash bleeding out under it, splatter, a seal
+    ink: { life: 1.7, k: 1.5, draw: function (P, p, q, a, F, s, now, c) {
+      if (!nearV157B(p, q, s)) return false;
+      var pr = 0.5 + 0.5 * Math.sin(p.i * 0.55), w = (1.4 + 3.8 * pr) * s * (0.5 + 0.5 * Math.min(1, F * 1.3)), y0 = p.y - 0.6 * s, y1 = q.y - 0.6 * s;
+      P.circ(p.x, y0, (1 + 3.4 * Math.sqrt(a)) * s * (0.6 + pr * 0.6), c[1], 0.22 * F);   // the bleed spreads as it dries
+      P.seg(q.x, y1, p.x, y0, w, c[0], 0.94 * Math.min(1, F * 1.5));
+      if (w > 2.2 * s) P.seg(q.x, y1 - w * 0.28, p.x, y0 - w * 0.28, 0.35 * s, c[3], 0.4 * F);   // dry-brush bristle streak
+      if (hV177F(p.i, 4) > 0.8) { var an = hV177F(p.i, 5) * TAU_V177F, d = (2.5 + 5 * hV177F(p.i, 6)) * s * Math.min(1, a * 4); P.circ(p.x + Math.cos(an) * d, y0 + Math.sin(an) * d * 0.5, (0.35 + 0.6 * hV177F(p.i, 7)) * s, c[0], F); }
+      if (p.i % 16 === 8) {   // the artist's seal: a red square with a white glyph
+        var S2 = 3.4 * s, sx = p.x - S2 / 2, sy = p.y - 6.5 * s - S2 / 2;
+        P.rect(sx, sy, S2, S2, c[2], F); P.rect(sx + 0.5 * s, sy + 0.5 * s, S2 - s, 0.35 * s, c[3], F); P.rect(sx + S2 / 2 - 0.18 * s, sy + 0.5 * s, 0.36 * s, S2 - s, c[3], F); P.rect(sx + 0.5 * s, sy + S2 - 0.85 * s, S2 - s, 0.35 * s, c[3], F);
+      }
+    } },
+    // FROSTBITE: every print freezes — a frost ring, cracks racing out and branching, a glint, then the thaw
+    frostbite: { life: 1.8, k: 1.6, draw: function (P, p, q, a, F, s, now, c) {
+      if (p.i % 3) return false;
+      var g = Math.min(1, a * 4), cx = p.x, cy = p.y;
+      P.ell(cx, cy, 4.6 * s, 1.8 * s, c[1], 0.4 * F); P.ellS(cx, cy, (2.4 + 3 * g) * s, (1 + 1.1 * g) * s, 0.5 * s, c[0], 0.75 * F);
+      for (var sp = 0; sp < 3; sp++) { var sx = cx + (sp - 1) * 2.2 * s + (hV177F(p.i, 30 + sp) - 0.5) * s, sh = (1.5 + 2.5 * hV177F(p.i, 33 + sp)) * s * g * (0.5 + 0.5 * F);   // frost spikes stand up out of it
+        P.tri(sx - 0.7 * s, cy, sx, cy, sx + 0.2 * s, cy - sh, c[0], 0.9 * F); P.tri(sx, cy, sx + 0.7 * s, cy, sx + 0.2 * s, cy - sh, c[1], 0.9 * F); }
+      for (var k = 0; k < 5; k++) {
+        var an = (k / 5 + hV177F(p.i, k) * 0.15) * TAU_V177F, L = (4 + 5 * hV177F(p.i, 10 + k)) * s * g, mx = cx + Math.cos(an) * L * 0.55, my = cy + Math.sin(an) * L * 0.28, ex = cx + Math.cos(an + 0.18) * L, ey = cy + Math.sin(an + 0.18) * L * 0.5;
+        P.seg(cx, cy, mx, my, 0.75 * s, c[2], 0.9 * F); P.seg(mx, my, ex, ey, 0.5 * s, c[0], F);
+        if (g > 0.6) { var bn = an + (k % 2 ? 0.7 : -0.7); P.seg(mx, my, mx + Math.cos(bn) * L * 0.35, my + Math.sin(bn) * L * 0.18, 0.4 * s, c[1], 0.9 * F); }
+      }
+      P.ell(cx, cy, 1.2 * s, 0.6 * s, c[3], 0.55 * F);
+      if (hV177F(p.i, Math.floor(now / 140)) > 0.72) { var gx = cx + (hV177F(p.i, 20) - 0.5) * 5 * s, gy = cy - 1.2 * s; P.rect(gx - 1.4 * s, gy - 0.2 * s, 2.8 * s, 0.4 * s, c[0], F); P.rect(gx - 0.2 * s, gy - 1.4 * s, 0.4 * s, 2.8 * s, c[0], F); }
+    } },
+    // FILM REEL: a strip unspools behind him — sprockets, flickering frames each holding a tiny runner, curling as it ages
+    film: { life: 1.4, k: 1.5, draw: function (P, p, q, a, F, s, now, c) {
+      if (!nearV157B(p, q, s)) return false;
+      var lift = function (pt, ag) { return pt.y - 3 * s - ag * ag * 7 * s - Math.sin(pt.i * 0.7 + now / 260) * ag * 2 * s; };
+      var aq = Math.min(1, a + 0.04), y0 = lift(p, a), y1 = lift(q, aq), H = 4.6 * s;
+      P.seg(q.x, y1, p.x, y0, H, c[0], 0.92 * F);
+      var hy = H * 0.36; P.rect(p.x - 0.35 * s, y0 - hy - 0.35 * s, 0.7 * s, 0.7 * s, c[2], 0.8 * F); P.rect(p.x - 0.35 * s, y0 + hy - 0.35 * s, 0.7 * s, 0.7 * s, c[2], 0.8 * F);   // sprockets
+      if (p.i % 3 === 0) {
+        var fl = 0.75 + 0.25 * hV177F(p.i, Math.floor(now / 70)), fw = 2.6 * s, fh = 2.3 * s;
+        P.rect(p.x - fw / 2, y0 - fh / 2, fw, fh, c[1], fl * F);
+        var leg = ((p.i / 3) | 0) % 2 ? 1 : -1, bx = p.x, by = y0 + 0.75 * s;   // the runner: a head, a body, two legs in stride
+        P.circ(bx + 0.25 * s, by - 1.45 * s, 0.32 * s, c[4], F); P.seg(bx + 0.15 * s, by - 1.1 * s, bx - 0.1 * s, by - 0.25 * s, 0.35 * s, c[4], F);
+        P.seg(bx - 0.1 * s, by - 0.25 * s, bx + leg * 0.6 * s, by + 0.35 * s, 0.3 * s, c[4], F); P.seg(bx - 0.1 * s, by - 0.25 * s, bx - leg * 0.55 * s, by + 0.3 * s, 0.3 * s, c[4], F);
+        P.rect(p.x - fw / 2, y0 - fh / 2, fw, 0.3 * s, c[2], 0.5 * F * fl);
+      }
+    } },
+    // WILDBLOOM: a vine sprouts from a print, unfurls two leaves, opens a flower, and drops its petals
+    bloom: { life: 1.9, k: 1.5, draw: function (P, p, q, a, F, s, now, c) {
+      if (p.i % 3) return false;
+      var g = Math.min(1, a * 3.2), H = (8 + 5 * hV177F(p.i, 1)) * s, sway = Math.sin(now / 420 + p.i) * 0.6 * s, lean = (hV177F(p.i, 2) - 0.5) * 2 * s, x0 = p.x, y0 = p.y;
+      var pt = function (t) { return [x0 + lean * t + Math.sin(t * 3.2 + p.i) * 1.1 * s * t + sway * t * t, y0 - H * t]; };
+      var N = 4, px = x0, py = y0;
+      for (var k = 1; k <= N; k++) { var t = k / N * g, Q = pt(t); P.seg(px, py, Q[0], Q[1], (1 - 0.12 * k) * s, c[3], F); px = Q[0]; py = Q[1]; }
+      if (g > 0.45) [0.38, 0.62].forEach(function (lt, j) { var L0 = pt(lt), dir = j ? 1 : -1, ls = Math.min(1, (g - 0.45) * 3) * 2.6 * s; P.tri(L0[0], L0[1], L0[0] + dir * ls * 1.4, L0[1] - ls * 0.9, L0[0] + dir * ls * 0.3, L0[1] - ls * 0.2, c[4], F); });
+      if (g >= 1) {
+        var T = pt(1), open = Math.min(1, (a - 0.31) * 3), fall = Math.max(0, (a - 0.7) / 0.3), col = c[(p.i / 3 | 0) % 2], R2 = (0.7 + 1.6 * open) * s;
+        for (var k2 = 0; k2 < 5; k2++) { var an = k2 * TAU_V177F / 5 + now / 1600 + p.i, dropx = fall * Math.cos(an) * 3 * s, dropy = fall * (4 + k2) * s;
+          P.circ(T[0] + Math.cos(an) * R2 + dropx, T[1] + Math.sin(an) * R2 * 0.8 + dropy, (0.8 + 0.8 * open) * s, col, F * (1 - fall * 0.5)); }
+        if (fall < 0.6) { P.circ(T[0], T[1], 0.9 * s, c[2], F); P.rect(T[0] - 0.3 * s, T[1] - 0.5 * s, 0.4 * s, 0.4 * s, 0xffffff, 0.8 * F); }
+      } else P.circ(px, py, 0.8 * s, c[4], F);   // the bud
+    } },
+    // GRAVITY WELL: each print collapses into a tiny black hole — the turf grid bends into it, matter spirals in, a flash
+    gravity: { life: 1.6, k: 1.6, draw: function (P, p, q, a, F, s, now, c) {
+      if (p.i % 4) return false;
+      var cx = p.x, cy = p.y - 0.5 * s, life2 = a < 0.82 ? 1 : Math.max(0, 1 - (a - 0.82) / 0.18), R = 2.2 * s * life2;
+      for (var ln = -1; ln <= 1; ln++) {   // the warped grid: three lines dipping toward the core
+        var yL = cy + ln * 2.2 * s, prx = cx - 6 * s, pry = yL;
+        for (var k = 1; k <= 6; k++) { var xx = cx - 6 * s + k * 2 * s, dx = (xx - cx) / (2.6 * s), dip = 2.4 * s * Math.exp(-dx * dx) * life2 * (ln === 0 ? 0.4 : 1) * (ln < 0 ? 1 : -1) * -1, yy = yL + dip;
+          P.seg(prx, pry, xx, yy, 0.35 * s, c[3], 0.55 * F); prx = xx; pry = yy; }
+      }
+      if (R > 0.2) {
+        P.ell(cx, cy, R * 2.6, R * 1.1, c[2], 0.35 * F);   // the accretion disc
+        for (var j = 0; j < 4; j++) { var an = now / 170 + j * TAU_V177F / 4 + p.i, ox = Math.cos(an) * R * 2.3, oy = Math.sin(an) * R * 0.9; P.circ(cx + ox, cy + oy, 0.45 * s, j % 2 ? c[2] : c[4], (Math.sin(an) > 0 ? 1 : 0.55) * F); }
+        P.ellS(cx, cy, R * 1.35, R * 1.35, 0.45 * s, c[1], 0.8 * F);   // the photon ring
+        P.circ(cx, cy, R, c[0], F);
+        for (var m = 0; m < 2; m++) { var ph = (now / 900 + hV177F(p.i, m)) % 1, rr = (1 - ph) * 6 * s + R, aa = hV177F(p.i, 5 + m) * TAU_V177F + ph * 6; P.rect(cx + Math.cos(aa) * rr - 0.35 * s, cy + Math.sin(aa) * rr * 0.45 - 0.35 * s, 0.7 * s, 0.7 * s, c[4], F * ph); }
+      } else { var fl = (a - 0.82) / 0.18; P.ring(cx, cy, (1 + fl * 5) * s, 0.5 * s, c[1], 1 - fl); }
+    } },
+    // PAPER CRANES: a paper square on the turf folds itself into a crane, which flaps up and away
+    cranes: { life: 1.8, k: 1.8, draw: function (P, p, q, a, F, s, now, c) {
+      if (p.i % 3) return false;
+      var g = Math.min(1, a * 3.5), col = c[(p.i / 3 | 0) % 3], shade = c[3];
+      if (g < 1) {   // the square, folding: its corners pull in as the folds form
+        var S2 = 3.4 * s * (1 - 0.35 * g), x = p.x, y = p.y - 0.6 * s;
+        P.tri(x - S2, y, x, y - S2 * 0.5 * (1 + g), x + S2, y, col, F); P.tri(x - S2, y, x, y + S2 * 0.5 * (1 - g * 0.6), x + S2, y, col, F);
+        P.seg(x - S2, y, x + S2, y, 0.3 * s, shade, 0.7 * F); P.seg(x, y - S2 * 0.5 * (1 + g), x, y + S2 * 0.5, 0.25 * s, shade, 0.5 * F);
+        return;
+      }
+      var up = (a - 0.29) / 0.71, x2 = p.x + Math.sin(up * 3 + p.i) * 2 * s - up * 3 * s, y2 = p.y - 2 * s - up * up * 16 * s, k = 1.35 * s, flap = Math.sin(now / 85 + p.i * 1.3);
+      P.ell(p.x, p.y, 2.2 * s * (1 - up * 0.6), 0.6 * s, shade, 0.25 * F);   // its shadow on the turf
+      P.tri(x2 - 1 * k, y2 - 0.4 * k, x2 + 0.8 * k, y2 - 0.4 * k, x2 - 0.5 * k + flap * 0.3 * k, y2 - (2.9 + 1.3 * flap) * k, shade, F);   // the far wing
+      P.tri(x2 - 1.2 * k, y2 - 0.4 * k, x2 - 0.2 * k, y2 + 0.3 * k, x2 - 3.7 * k, y2 - 2.7 * k, col, F);   // the tail
+      P.tri(x2 + 1.2 * k, y2 - 0.4 * k, x2 + 0.3 * k, y2 + 0.3 * k, x2 + 3.3 * k, y2 - 3.1 * k, col, F);   // the neck
+      P.tri(x2 + 3.3 * k, y2 - 3.1 * k, x2 + 2.8 * k, y2 - 2.6 * k, x2 + 4.2 * k, y2 - 2.3 * k, shade, F);   // the head
+      P.tri(x2 - 1.5 * k, y2 - 0.4 * k, x2 + 1.5 * k, y2 - 0.4 * k, x2 + 0.1 * k, y2 + 1.1 * k, col, F);   // the body
+      P.seg(x2 - 1.5 * k, y2 - 0.4 * k, x2 + 0.1 * k, y2 + 1.1 * k, 0.25 * k, shade, 0.6 * F);   // its fold
+      P.tri(x2 - 0.7 * k, y2 - 0.4 * k, x2 + 1.2 * k, y2 - 0.4 * k, x2 + 0.5 * k + flap * 0.3 * k, y2 - (2.5 + 1.2 * flap) * k, c[0], F);   // the near wing, in the light
+    } },
+    // SANDS OF TIME: sand pours into a pile at each print and the wind takes it; an hourglass flips over the trail
+    sands: { life: 1.8, k: 1.6, draw: function (P, p, q, a, F, s, now, c) {
+      if (p.i % 2) return false;
+      var pile = Math.min(1, a * 2.4), blow = Math.max(0, (a - 0.55) / 0.45), x = p.x, y = p.y, bx = q ? (q.x - p.x) : -1, by = q ? (q.y - p.y) : 0, bl = Math.hypot(bx, by) || 1;
+      bx /= bl; by /= bl;
+      if (blow < 1) { var hw = (1.6 + 2.8 * pile) * s * (1 - blow), hh = (0.8 + 2.2 * pile) * s * (1 - blow);
+        P.tri(x - hw, y, x + hw, y, x + bx * blow * 2 * s, y - hh, c[1], F); P.tri(x - hw * 0.4, y - hh * 0.2, x + hw * 0.3, y - hh * 0.2, x + bx * blow * 2 * s, y - hh, c[0], F); }
+      if (pile < 1) for (var k = 0; k < 3; k++) { var ph = (now / 380 + k / 3 + hV177F(p.i, k)) % 1, gy = y - 8 * s * (1 - ph); P.rect(x + (hV177F(p.i, 9 + k) - 0.5) * 0.8 * s, gy, 0.55 * s, 0.55 * s, c[k % 2 ? 0 : 3], F); }
+      if (blow > 0) for (var j = 0; j < 4; j++) { var t = blow + hV177F(p.i, 20 + j) * 0.3, d = t * (5 + 4 * hV177F(p.i, 30 + j)) * s; P.rect(x + bx * d + Math.sin(now / 200 + j) * 0.6 * s, y - (0.6 + 2.2 * hV177F(p.i, 40 + j)) * s * (1 - t * 0.4) + by * d, 0.55 * s, 0.55 * s, c[j % 3], F * (1 - blow)); }
+      if (p.i % 10 === 4) {   // the hourglass: two glass cones in a frame, the sand moving between them; it flips
+        var hx = x, hy = y - 8.5 * s - Math.sin(now / 500 + p.i) * 0.8 * s, u = 1.5 * s, flip = Math.floor(now / 1400 + p.i) % 2, lvl = (now % 1400) / 1400;
+        P.rect(hx - 1.6 * u, hy - 2.4 * u, 3.2 * u, 0.5 * u, c[4], F); P.rect(hx - 1.6 * u, hy + 1.9 * u, 3.2 * u, 0.5 * u, c[4], F);
+        P.tri(hx - 1.2 * u, hy - 1.9 * u, hx + 1.2 * u, hy - 1.9 * u, hx, hy, c[3], 0.55 * F); P.tri(hx - 1.2 * u, hy + 1.9 * u, hx + 1.2 * u, hy + 1.9 * u, hx, hy, c[3], 0.55 * F);
+        var top = flip ? 1 - lvl : lvl, f1 = 1 - top, f2 = top;   // how much sand is up, how much down
+        if (f1 > 0.05) P.tri(hx - 1.1 * u * f1, hy - 0.2 * u - 1.6 * u * f1, hx + 1.1 * u * f1, hy - 0.2 * u - 1.6 * u * f1, hx, hy - 0.1 * u, c[1], F);
+        if (f2 > 0.05) P.tri(hx - 1.1 * u, hy + 1.85 * u, hx + 1.1 * u, hy + 1.85 * u, hx, hy + 1.85 * u - 1.5 * u * f2, c[1], F);
+        P.rect(hx - 0.15 * u, hy - 0.1 * u, 0.3 * u, 1.9 * u * (f1 > 0.05 ? 1 : 0), c[0], 0.9 * F);
+      }
+    } },
+    // CONSTELLATION: stars light at his steps and the lines of a constellation draw between them
+    constellation: { life: 2.1, k: 1.6, draw: function (P, p, q, a, F, s, now, c, head) {
+      if (head) STAR_V177F.last = null;
+      if (p.i % 3) return false;
+      var big = p.i % 9 === 0, tw = 0.6 + 0.4 * Math.sin(now / 110 + p.i * 1.9), x = p.x + (hV177F(p.i, 1) - 0.5) * 6 * s, y = p.y - (2.5 + hV177F(p.i, 2) * 9) * s - a * 3 * s, L = STAR_V177F.last;
+      if (L && Math.abs(L.x - x) + Math.abs(L.y - y) < 30 * s) {   // the line draws itself from the older star toward the newer one
+        var dr = Math.min(1, a * 3.5 + 0.15), ex = x + (L.x - x) * dr, ey = y + (L.y - y) * dr;
+        P.seg(x, y, ex, ey, 0.9 * s, c[3], 0.35 * F); P.seg(x, y, ex, ey, 0.45 * s, c[1], 0.8 * F);
+        var mx = (x + ex) / 2, my = (y + ey) / 2; P.rect(mx - 0.25 * s, my - 0.25 * s, 0.5 * s, 0.5 * s, c[0], 0.6 * F);
+      }
+      P.circ(x, y, (big ? 3.2 : 2) * s, c[3], 0.3 * F * tw);
+      var arm = (big ? 3 : 1.9) * s * (0.7 + 0.3 * tw);
+      P.rect(x - arm, y - 0.22 * s, arm * 2, 0.44 * s, c[big ? 2 : 0], F * tw); P.rect(x - 0.22 * s, y - arm, 0.44 * s, arm * 2, c[big ? 2 : 0], F * tw);
+      P.circ(x, y, (big ? 0.9 : 0.65) * s, c[0], F);
+      STAR_V177F.last = { x: x, y: y };
+    } },
+    // LIQUID CHROME: mercury beads that splash when they land, wobble as they settle, and pull a bridge to the last bead
+    chrome: { life: 1.5, k: 1.5, draw: function (P, p, q, a, F, s, now, c) {
+      if (p.i % 2) return false;
+      var x = p.x, y = p.y - 0.6 * s, wob = Math.sin(now / 60 + p.i) * Math.max(0, 0.5 - a) * 0.9, R = (2 + 1.2 * hV177F(p.i, 1)) * s * (a > 0.8 ? (1 - a) / 0.2 : 1), rx = R * (1.25 + wob * 0.4), ry = R * (0.75 - wob * 0.3);
+      if (q && a < 0.5 && nearV157B(p, q, s)) { var qq = q; P.seg(qq.x, qq.y - 0.6 * s, x, y, R * (1 - a * 2) * 0.9, c[2], 0.9 * F); P.seg(qq.x, qq.y - 0.9 * s, x, y - 0.3 * s, R * (1 - a * 2) * 0.35, c[1], 0.8 * F); }
+      if (a < 0.16) { var sp = a / 0.16; P.ellS(x, y + 0.2 * s, (1 + sp * 4) * s, (0.5 + sp * 1.6) * s, 0.45 * s, c[1], 1 - sp);   // the splash
+        for (var k = 0; k < 4; k++) { var an = Math.PI + (k + 0.5) * Math.PI / 4, d = sp * 4 * s; P.circ(x + Math.cos(an) * d * 1.3, y + Math.sin(an) * d * 1.2, 0.5 * s * (1 - sp * 0.5), c[1], 1 - sp); } }
+      if (R < 0.1) return;
+      P.ell(x, y + ry * 0.35, rx, ry * 0.8, c[3], F);   // the shadowed underside
+      P.ell(x, y, rx, ry, c[2], F);
+      P.ell(x, y - ry * 0.2, rx * 0.8, ry * 0.6, c[1], F);
+      P.ell(x, y + ry * 0.55, rx * 0.65, ry * 0.22, c[4], 0.7 * F);   // the turf's reflection
+      P.ell(x - rx * 0.35, y - ry * 0.45, rx * 0.32, ry * 0.22, c[0], F);   // the highlight
+    } }
+  };
+  /* registered with v157 B's trails, drawn `k` × bigger (TU v177FtrailScale): a footprint has to read at broadcast size */
+  Object.keys(FX_V177F).forEach(function (k) { var D = FX_V177F[k];
+    TFX_V157B[k] = { life: D.life, draw: function (P, p, q, a, F, s, now, c, head) { try { return D.draw(P, p, q, a, F, s * D.k * TUv("v177FtrailScale", 1), now, c, head); } catch (e) { errV177F(e); return false; } } }; });
+  // the kill switch: a v177 F footprint draws as its base v153 G kind (v157 B's own switch already does this for all)
+  var trailDraw0V177F = trailDrawV153G, trailLife0V177F = trailLifeV157B;
+  trailDrawV153G = function (A, pts, now, life, d, s) {
+    if (d && d.fx && FX_V177F[d.fx] && !onV177F()) d = d._baseV177F || (d._baseV177F = { kind: d.kind, col: d.col });
+    return trailDraw0V177F(A, pts, now, life, d, s);
+  };
+  trailLifeV157B = function (td) { return td && td.fx && FX_V177F[td.fx] && !onV177F() ? 1 : trailLife0V177F(td); };
+
+  /* ---- the ten new SUPER CHALLENGES (each pays a v177 G wing + a v177 F footprint) ---- */
+  var SUPER_V177F = [
+    { id: "tds200", item: "wings_koi", also: "trail_ink", name: "Two Hundred", icon: "💯", goal: function () { return TUv("superTdsV177F", 200); }, desc: function () { return "Score " + TUv("superTdsV177F", 200) + " touchdowns in one career"; }, acct: function (A) { return A.bestTds; } },
+    { id: "mvp5", item: "wings_aurora", also: "trail_constellation", name: "Five-Time MVP", icon: "🌌", goal: function () { return TUv("superMvpsV177F", 5); }, desc: function () { return "Be named League MVP (college or higher) " + TUv("superMvpsV177F", 5) + " times across your careers"; }, acct: function (A) { return A.leagueMvps; } },
+    { id: "isl5", item: "wings_peacock", also: "trail_bloom", name: "Interstellar Dynasty", icon: "🚀", goal: function () { return TUv("superIslV177F", 5); }, desc: function () { return "Win " + TUv("superIslV177F", 5) + " Interstellar championships across your careers"; }, acct: function (A) { return A.interstellarTitles; } },
+    { id: "hof10", item: "wings_sunburst", also: "trail_film", name: "Hall of Ten", icon: "🏛", goal: function () { return TUv("superHofV177F", 10); }, desc: function () { return "Enshrine " + TUv("superHofV177F", 10) + " careers that made the UFF in the Hall of Fame"; }, acct: function (A) { return A.hofWon; } },
+    { id: "chal100", item: "wings_neon", also: "trail_datamosh", name: "Hundred Challenges", icon: "✅", goal: function () { return TUv("superChalV177F", 100); }, desc: function () { return "Complete " + TUv("superChalV177F", 100) + " season challenges"; }, acct: function () { try { var T = window.RIB_SEASONS && window.RIB_SEASONS.challengeTotals && window.RIB_SEASONS.challengeTotals(); return T ? T.total : 0; } catch (e) { return 0; } } },
+    { id: "gen8", item: "wings_blades", also: "trail_cranes", name: "Eighth Generation", icon: "🌳", goal: function () { return TUv("superGenV177F", 8); }, desc: function () { return "Play as the " + TUv("superGenV177F", 8) + "th generation of your family"; }, acct: function (A) { return A.gen; } },
+    { id: "titles40", item: "wings_maple", also: "trail_frostbite", name: "Forty Titles", icon: "🍂", goal: function () { return TUv("superTitlesV177F", 40); }, desc: function () { return "Win " + TUv("superTitlesV177F", 40) + " championships at any level"; }, acct: function (A) { return A.titles; } },
+    { id: "awards150", item: "wings_quetzal", also: "trail_sands", name: "Trophy Room", icon: "🎖", goal: function () { return TUv("superAwardsV177F", 150); }, desc: function () { return "Collect " + TUv("superAwardsV177F", 150) + " season awards across your careers"; }, acct: function (A) { return A.awards; } },
+    { id: "legacy400", item: "wings_magma", also: "trail_chrome", name: "Forged in Legacy", icon: "🔥", goal: function () { return TUv("superLegacyV177F", 400); }, desc: function () { return "Reach Legacy medal " + TUv("superLegacyV177F", 400); }, acct: function (A) { return A.legacyMedal; } },
+    { id: "careers30", item: "wings_bass", also: "trail_gravity", name: "Thirty Careers", icon: "🔁", goal: function () { return TUv("superCareersV177F", 30); }, desc: function () { return "Finish " + TUv("superCareersV177F", 30) + " careers"; }, acct: function (A, st) { return st ? st.careersCompleted | 0 : 0; } }
+  ];
+  /* the catalogue: added here (not at the top of the file) — the same packs / preview wiring ITEMS.forEach gives */
+  itemsV177F().concat(itemsV177G()).forEach(function (it) { if (BY[it.id]) return; it.packs = []; it.preview = function (el) { return previewInto(el, it); }; ITEMS.push(it); BY[it.id] = it; });
+  SUPER_V177F.forEach(function (c) { if (!SUPER_V156C.some(function (x) { return x.id === c.id; })) { SUPER_V156C.push(c); SUPER_IDS_V156C.push(c.item, c.also); } });
+  // v156 C's wrappers: the scan learns the account-wide counts, a finished challenge pays its pair, the rows name both
+  var superScan0V177F = superScanV156C;
+  superScanV156C = function (st) {
+    var ch = superScan0V177F(st);
+    try { var S = sload(), A = account(st); SUPER_V177F.forEach(function (c) { var v = Math.floor(+c.acct(A, st) || 0); if (v > (S.best[c.id] | 0)) { S.best[c.id] = v; ch = true; } }); } catch (e) { errV177F(e); }
+    return ch;
+  };
+  var superTick0V177F = superTickV156C;
+  superTickV156C = function (st) {
+    var got = superTick0V177F(st);
+    try { if (cosOnV156C()) { var S = sload(); SUPER_V177F.forEach(function (c) { if (S.done[c.id] && !owned(c.also)) { grant(c.also, "super"); got.push(c.also); } }); } } catch (e) { errV177F(e); }
+    return got;
+  };
+  var superProg0V177F = superProgressV156C;
+  superProgressV156C = function () {
+    return superProg0V177F().map(function (r) {
+      var c = SUPER_V177F.filter(function (x) { return x.id === r.id; })[0]; if (!c) return r;
+      var b = BY[c.also] || {}; r.itemName = r.itemName + " + " + (b.name || c.also); r.items = [c.item, c.also]; r.owned = owned(c.item) && owned(c.also); return r;
+    });
+  };
+  var superDesc0V177F = superDescV156C;
+  superDescV156C = function (itemId) { var c = SUPER_V177F.filter(function (x) { return x.also === itemId; })[0]; return c ? c.desc() : superDesc0V177F(itemId); };
+  window.RIB_SUPER.tick = superTickV156C; window.RIB_SUPER.progress = superProgressV156C;
+  window.__V156C.superTick = superTickV156C; window.__V156C.superProgress = superProgressV156C;
+  Object.assign(G177F, {
+    on: onV177F, ids: function () { return itemsV177F().map(function (i) { return i.id; }); }, kinds: function () { return Object.keys(FX_V177F); },
+    challenges: function () { return SUPER_V177F.map(function (c) { return { id: c.id, wings: c.item, trail: c.also, name: c.name, goal: c.goal() }; }); },
+    sample: function (id, t) { return sampleV157B(id, t); }
+  });
+
+  /* ===== v177 G TEN NEW WINGS =====
+   * The owner: "Add 10 more wings, super status."
+   * Ten new kinds drawn from code (`WINGS_V177G`, registered into v157 A's `WINGS_V157A`: the RIGHT wing, shoulder at
+   * (0, ay), mirrored for the left), each its own silhouette and its own motion — a koi pond (two koi swim a loop through
+   * the rippling water), an aurora veil (curtains of light that ripple), a peacock train (eyespot feathers that shimmer),
+   * an art deco sunburst (a glint runs the rays), a neon sign (tubes with a glow that buzz and flicker), a fan of
+   * katanas (a glint runs each blade), an autumn maple branch (a leaf falls), a quetzal's jade train with a gold
+   * step-fret band (a sheen), magma glass (obsidian shards, the lava in the cracks pulsing out from the shoulder) and a
+   * bass-drop equalizer (LED bars that bounce, peak caps). Up to six frames each (`frames` × `ms`, a pure function of the
+   * clock via v157 A's `wingFrameV157A`, which the field, the card and the Locker all ask); v159 D's flutter family per
+   * kind (`FAM_V159D`). All mythic SUPER looks, paid by v177 F's super challenges (each pays one wing + one footprint).
+   * Kill switch TU("v177Gwings", 0): the new wings hold their first frame (no motion of their own; the flap stays). */
+  function onV177G() { return !!TUv("v177Gwings", 1); }
+  var G177G = (window.__V177G = window.__V177G || { errs: [] });
+  function itemsV177G() {
+    var W = function (id, name, kind, col) { return { id: id, cat: "wings", name: name, rarity: "mythic", source: "super", w: { kind: kind, col: col } }; };
+    return [
+      W("wings_koi", "Koi Pond", "koi", ["#174f9a", "#6fd3ff", "#ff7a1a"]),
+      W("wings_aurora", "Aurora Veil", "aurora", ["#3fffb0", "#2fd3ff", "#b06bff"]),
+      W("wings_peacock", "Peacock Train", "peacock", ["#1fa38a", "#1f5fd8", "#e6b53a"]),
+      W("wings_sunburst", "Art Deco Sunburst", "sunburst", ["#ffd76f", "#15171d", "#a8761e"]),
+      W("wings_neon", "Neon Sign", "neon", ["#ff3df2", "#6ff7ff", "#ffffff"]),
+      W("wings_blades", "Thousand Blades", "blades", ["#eef2f8", "#8a96a8", "#e6b53a"]),
+      W("wings_maple", "Autumn Maple", "maple", ["#e8401a", "#ffb02e", "#4a2a14"]),
+      W("wings_quetzal", "Quetzal", "quetzal", ["#18b45e", "#2fd3ff", "#ffd76f"]),
+      W("wings_magma", "Magma Glass", "magma", ["#1c1626", "#ff6a1a", "#ffe14d"]),
+      W("wings_bass", "Bass Drop", "bass", ["#39ff6a", "#ffe14d", "#ff3df2"])
+    ];
+  }
+  // a maple leaf from a 9x9 pixel map (pointing up), turned by `rot` and scaled to radius r: vein down the middle, lit left
+  var MAPLE_V177G = ["....X....", "...XXX...", "X..XXX..X", "XX.XXX.XX", ".XXXXXXX.", "..XXXXX..", ".XXXXXXX.", "....X....", "....X...."];
+  function mapleLeafV177G(R, cx, cy, r, rot, col, vein) {
+    var sc = r / 4.5, ca = Math.cos(rot), sa = Math.sin(rot);
+    for (var y = Math.floor(cy - r - 1); y <= cy + r + 1; y++) for (var x = Math.floor(cx - r - 1); x <= cx + r + 1; x++) {
+      var dx = (x + 0.5 - cx) / sc, dy = (y + 0.5 - cy) / sc, u = dx * ca + dy * sa + 4.5, v = -dx * sa + dy * ca + 4.5, mx = Math.floor(u), my = Math.floor(v);
+      if (mx < 0 || my < 0 || mx > 8 || my > 8 || MAPLE_V177G[my].charAt(mx) !== "X") continue;
+      R.put(x, y, mx === 4 && my > 1 ? vein : mx < 4 ? light(col, 0.14) : my > 5 ? dark(col, 0.15) : col);
+    }
+  }
+  var WINGS_V177G = {
+    // KOI POND: a flowing fin of water — ripples spread from the shoulder, two koi swim a loop through it
+    koi: { W: 22, H: 20, ay: 7, frames: 4, ms: 260, fam: "ether", draw: function (R, a, b, e, fr) {
+      var P = [[0, 5], [6, 1.5], [14, 0], [21.5, 1.5], [19, 6], [21.5, 10], [16, 12], [17.5, 17], [11.5, 15], [8.5, 19.5], [5, 14], [0, 11]], foam = [236, 250, 255];
+      polyV157A(R, P, function (x, y) { var d = edgeDistV157A(P, x + 0.5, y + 0.5), r = Math.hypot(x - 1, y - 8), t = Math.min(1, r / 19), c = mix(a, b, t * 0.8);
+        if (((r - fr * 1.1) % 4.4 + 4.4) % 4.4 < 0.75 && d > 1.3) c = light(c, 0.28);
+        if (d < 1.05) c = mix(b, foam, 0.6); else if (d < 2) c = light(c, 0.12);
+        return c; });
+      var fish = function (u, body, spot, len) {
+        var cx = 11 + Math.cos(u) * 5.2, cy = 8.5 + Math.sin(u) * 3.6, vx = -Math.sin(u) * 5.2, vy = Math.cos(u) * 3.6, L = Math.hypot(vx, vy); vx /= L; vy /= L;
+        for (var k = -len; k <= 2; k++) { var px = cx + vx * k, py = cy + vy * k, w = k >= 1 ? 0.4 : k <= -len + 1 ? 0 : 0.9;
+          R.put(px, py, (k + len) % 3 === 1 ? spot : body); if (w > 0.5) { R.put(px - vy, py + vx, body); R.put(px + vy, py - vx, (k % 2) ? spot : body); } }
+        var tx = cx - vx * (len + 1), ty = cy - vy * (len + 1), fl = (fr % 2) ? 1 : -1;   // the tail, flicking
+        R.put(tx - vy * fl, ty + vx * fl, body, 0.9); R.put(tx + vy * 1.2 * fl, ty - vx * 1.2 * fl, light(body, 0.3), 0.8);
+        R.put(cx + vx * 2 + vy * 0.5, cy + vy * 2 - vx * 0.5, [20, 20, 30]);   // the eye
+      };
+      fish(fr / 4 * TAU_V177F, e, [255, 250, 240], 3);
+      fish(fr / 4 * TAU_V177F + Math.PI, [255, 250, 240], e, 2);
+      R.put(19, 3, foam); R.put(14, 13, foam, 0.8);
+      R.outline(dark(a, 0.45), 0.85); } },
+    // AURORA VEIL: curtains of light hung from a glowing arm — green at the hem, violet at the top, rippling
+    aurora: { W: 22, H: 22, ay: 6, frames: 4, ms: 210, fam: "ether", draw: function (R, a, b, e, fr) {
+      var top = function (x) { return 6 - 5.5 * Math.sin(Math.min(1, x / 14) * Math.PI / 2) + Math.max(0, x - 14) * 0.3; };
+      for (var x = 0; x < 22; x++) {
+        var y0 = Math.round(top(x)), L = Math.round(8 + 8 * Math.sin(x / 21 * Math.PI * 0.95 + 0.25) + 1.8 * Math.sin(x * 1.1 + fr * TAU_V177F / 4)), br = 0.5 + 0.5 * Math.sin(x * 0.85 - fr * TAU_V177F / 4);
+        for (var y = y0; y <= y0 + L; y++) {
+          var t = (y - y0) / Math.max(1, L), c = t < 0.25 ? mix(e, b, t / 0.25) : t < 0.6 ? mix(b, a, (t - 0.25) / 0.35) : a;
+          c = light(c, br * 0.3); if ((x + fr) % 3 === 0) c = light(c, 0.22);
+          R.put(x, y, c, t > 0.68 ? 0.25 + 0.7 * (1 - t) / 0.32 : 0.95);
+        }
+        R.put(x, y0 - 1, light(e, 0.55), 0.9);
+      }
+      [[6, 0], [17, 0], [11, 1]].forEach(function (st, k) { if ((fr + k) % 2 === 0) R.put(st[0], st[1], WHITE_V157A); });
+    } },
+    // PEACOCK TRAIN: a fan of long feathers, each a fine shaft with a fringe of barbs and an eyespot that shimmers
+    peacock: { W: 24, H: 25, ay: 12, frames: 2, ms: 320, fam: "feather", draw: function (R, a, b, e, fr) {
+      var navy = [14, 20, 66], bronze = mix(e, [120, 60, 20], 0.45), sh = fr ? 0.2 : 0;
+      var eye = function (ex, ey, ca, sa, rr, lit) {
+        for (var yy = Math.floor(ey - rr - 1); yy <= ey + rr + 1; yy++) for (var xx = Math.floor(ex - rr - 1); xx <= ex + rr + 1; xx++) {
+          var dx = xx + 0.5 - ex, dy = yy + 0.5 - ey, u = dx * ca + dy * sa, vv = -dx * sa + dy * ca, r = Math.hypot(u / 1.3, vv) / rr;
+          if (r > 1) continue;
+          R.put(xx, yy, r < 0.3 ? navy : r < 0.55 ? light(b, sh * 1.5) : r < 0.78 ? bronze : light(a, 0.22 + sh));
+        }
+        if (lit) R.put(ex - 0.5, ey - 0.8, light(b, 0.7));
+      };
+      var feather = function (ang, L, rr, k, under) {
+        var ca = Math.cos(ang), sa = Math.sin(ang);
+        for (var t = 1; t <= L - rr; t += 0.5) { var x = ca * t * 1.2, y = 12 + sa * t * 0.72, w = 0.35 + t / L * 1.25;
+          R.put(x, y, light(e, 0.1));
+          for (var v = 0.5; v <= w; v += 0.5) { var c = mix(light(a, sh * 0.6), dark(a, under ? 0.45 : 0.2), v / 1.6); if ((((t * 2) | 0) + k) % 3 === 0) c = light(c, 0.18); R.put(x - sa * v, y + ca * v, c, 0.9); R.put(x + sa * v, y - ca * v, c, 0.9); } }
+        eye(ca * (L - rr * 0.8) * 1.2, 12 + sa * (L - rr * 0.8) * 0.72, ca, sa, rr, (k + fr) % 2 === 0);
+      };
+      [-0.85, -0.45, -0.05, 0.35, 0.75].forEach(function (an, k) { feather(an, 11, 1.9, k, true); });   // the short under-row, between
+      [-1.05, -0.65, -0.25, 0.15, 0.55, 0.95].forEach(function (an, k) { feather(an, 17.5 - Math.abs(an + 0.05) * 2, 2.6, k, false); });
+      R.outline(dark(a, 0.62), 0.85); } },
+    // ART DECO SUNBURST: a stepped ziggurat of gold and black rays round a sunrise disc — a glint runs out along them
+    sunburst: { W: 23, H: 23, ay: 11, frames: 6, ms: 140, fam: "mech", draw: function (R, a, b, e, fr) {
+      var N = 11, A0 = -1.4, A1 = 1.15, step = (A1 - A0) / N, glintRay = (fr * 2) % N;
+      var rayLen = function (ri) { var mid = A0 + (ri + 0.5) * step, d = Math.abs(mid + 0.62) / 1.8; return Math.round((21.5 - 10 * d * d) * 2) / 2; };
+      for (var y = 0; y < 23; y++) for (var x = 0; x < 23; x++) {
+        var dx = x + 0.5, dy = y + 0.5 - 11, r = Math.hypot(dx, dy), an = Math.atan2(dy, dx); if (an < A0 || an > A1) continue;
+        var ri = Math.min(N - 1, Math.floor((an - A0) / step)), L = rayLen(ri), c;
+        if (r > L) continue;
+        if (r < 2.4) c = light(a, 0.6); else if (r < 3.5) c = a; else if (r < 4.4) c = b; else if (r < 5.3) c = e;
+        else if (ri % 2) c = r > L - 1.6 ? e : b;
+        else { c = ri === glintRay && r > 6 ? light(a, 0.55) : r > L - 1.6 ? e : r > L - 3.2 ? light(a, 0.18) : a; if (Math.abs(r - 8.5) < 0.5 || Math.abs(r - 13) < 0.5) c = dark(a, 0.25); }   // the engraved bands
+        R.put(x, y, c);
+      }
+      R.outline(dark(b, 0.3)); } },
+    // NEON SIGN: a wing in glass tubing — a pink outline, cyan feather lines, a glow, a buzz; one line flickers out
+    neon: { W: 23, H: 21, ay: 7, frames: 4, ms: 150, fam: "ether", draw: function (R, a, b, e, fr) {
+      var outer = [[0, 7], [8, 2], [21, 0], [19, 6], [15, 7], [16.5, 12], [11, 12], [10.5, 17.5], [5, 14], [0, 11]], inner = [[[5, 6], [15, 6.5]], [[4, 9], [11, 11.5]], [[3, 11], [5.5, 14]]];
+      var tube = function (x0, y0, x1, y1, col, alpha, glow) { var n = Math.max(Math.abs(x1 - x0), Math.abs(y1 - y0)) * 2 | 0;
+        for (var k = 0; k <= n; k++) { var t = k / Math.max(1, n), x = x0 + (x1 - x0) * t, y = y0 + (y1 - y0) * t;
+          if (glow) { for (var oy = -1; oy <= 1; oy++) for (var ox = -1; ox <= 1; ox++) if ((ox || oy) && !R.has(Math.round(x + ox), Math.round(y + oy))) R.put(x + ox, y + oy, col, 0.3 * alpha); }
+          else R.put(x, y, light(col, 0.45), alpha); } };
+      var lines = []; for (var i = 0; i < outer.length - 1; i++) lines.push([outer[i], outer[i + 1], a]);
+      inner.forEach(function (l, k) { lines.push([l[0], l[1], b, k === 1 && fr === 2 ? 0.18 : fr === 3 ? 0.7 : 1]); });
+      lines.forEach(function (l) { tube(l[0][0], l[0][1], l[1][0], l[1][1], l[2], l[3] == null ? 1 : l[3], true); });
+      lines.forEach(function (l) { tube(l[0][0], l[0][1], l[1][0], l[1][1], l[2], l[3] == null ? (fr === 1 ? 0.85 : 1) : l[3], false); });
+      [[8, 2], [21, 0], [10.5, 17.5]].forEach(function (p) { R.put(p[0], p[1] + 1, [140, 148, 160]); });   // the mounting clips
+    } },
+    // THOUSAND BLADES: six katanas fanned from the shoulder — wrapped hilts, gold guards, curved steel; a glint runs each
+    blades: { W: 24, H: 22, ay: 8, frames: 6, ms: 130, fam: "mech", draw: function (R, a, b, e, fr) {
+      var wrap = [36, 26, 30], wrapL = [120, 30, 44];
+      [[1.0, 13], [0.68, 16], [0.36, 18.5], [0.04, 20.5], [-0.28, 19.5], [-0.6, 16]].forEach(function (f, k) {
+        var ca = Math.cos(f[0]), sa = Math.sin(f[0]), L = f[1], gl = (fr + k) % 6;
+        for (var t = 0; t <= L; t += 0.5) {
+          var cur = t > 4 ? 0.016 * (t - 4) * (t - 4) : 0, x = ca * t + sa * cur, y = 8 + sa * t - ca * cur;
+          if (t < 3.5) { R.put(x, y, ((t * 2) | 0) % 2 ? wrapL : wrap); continue; }
+          if (t < 4.5) { R.put(x - sa, y + ca, e); R.put(x, y, light(e, 0.3)); R.put(x + sa, y - ca, dark(e, 0.25)); continue; }   // the tsuba
+          var near = Math.abs(t - (5 + gl * (L - 5) / 5)) < 1.2;
+          R.put(x, y, near ? WHITE_V157A : a); R.put(x + sa * 0.9, y - ca * 0.9, near ? light(b, 0.5) : b);
+          if (((t * 2) | 0) % 5 === 2) R.put(x, y, light(a, 0.6));   // the hamon's wave catches the light
+        }
+      });
+      R.outline([14, 16, 22]); } },
+    // AUTUMN MAPLE: a fine branch along the arm, six maple leaves in fall colours; one has come loose and falls
+    maple: { W: 24, H: 27, ay: 7, frames: 6, ms: 200, fam: "feather", draw: function (R, a, b, e, fr) {
+      var br = function (x) { return 7 - 5 * Math.sin(Math.min(1, x / 16) * Math.PI / 2) + Math.max(0, x - 16) * 0.2; };
+      for (var x = 0; x <= 21; x++) R.put(x, br(x), x < 7 ? e : light(e, 0.12));
+      [[19.5, 4, 4.2, 0.9, 0.85], [15.5, 9.5, 4.6, 1.3, 0.6], [9.5, 2.8, 3.8, 0.5, 1], [10.5, 12.5, 4.8, 2.2, 0.3], [4.5, 12.5, 4.2, 2.9, 0.0], [16.5, 16, 3.8, 1.9, 0.15]].forEach(function (L) {
+        var sx = Math.min(20, L[0] - 1), sy = br(sx); lnV157A(R, sx, sy, L[0], L[1], dark(e, 0.1));
+        mapleLeafV177G(R, L[0], L[1], L[2], L[3], mix(a, b, L[4]), dark(mix(a, b, L[4]), 0.4));
+      });
+      var fx = 12 + Math.sin(fr * 1.1) * 2.4, fy = 19 + fr * 0.9;
+      mapleLeafV177G(R, fx, fy, 2.8, fr * 0.9 + 0.4, mix(a, b, 0.5), dark(a, 0.3));
+      R.outline(dark(e, 0.45), 0.85); } },
+    // QUETZAL: a sweeping train of jade feathers tipped in turquoise, a gold band of step-fret at the shoulder
+    quetzal: { W: 24, H: 23, ay: 8, frames: 2, ms: 360, fam: "feather", draw: function (R, a, b, e, fr) {
+      var red = [200, 32, 58];
+      [[-0.55, 19], [-0.22, 21], [0.12, 22], [0.45, 20], [0.8, 16]].forEach(function (f, k) {
+        for (var t = 0; t <= f[1]; t += 0.5) { var rt = t / f[1], an = f[0] + rt * rt * 0.55, x = Math.cos(f[0]) * t + Math.cos(an) * 0, y = 8 + Math.sin(f[0]) * t + rt * rt * 3.5, w = (1 - rt * 0.7) * 1.7;
+          var base = rt < 0.55 ? a : mix(a, b, (rt - 0.55) / 0.45);
+          for (var v = -w; v <= w; v += 0.5) { var c = Math.abs(v) < 0.45 ? light(base, 0.35) : (fr && Math.abs(v - 0.5) < 0.5 && rt > 0.25 + k * 0.1 && rt < 0.45 + k * 0.1) ? light(base, 0.45) : v > 0 ? dark(base, 0.22) : base;
+            R.put(x - Math.sin(f[0]) * v, y + Math.cos(f[0]) * v, c); } }
+      });
+      for (var y2 = 2; y2 <= 14; y2++) for (var x2 = 0; x2 <= 6; x2++) {   // the band: a curved gold collar with the step-fret
+        var r = Math.hypot(x2 + 0.5, y2 + 0.5 - 8); if (r < 3.5 || r > 6.2) continue;
+        var g = ((x2 + y2) % 4 < 2) !== (((r * 1.6) | 0) % 2 === 0); R.put(x2, y2, r > 5.5 || r < 4 ? dark(e, 0.35) : g ? e : dark(e, 0.45));
+      }
+      R.put(1, 8, red); R.put(1, 9, red); R.put(2, 8, light(red, 0.3));
+      R.outline(dark(a, 0.6), 0.9); } },
+    // MAGMA GLASS: obsidian shards with a purple sheen, set in cracks of lava that pulse out from the shoulder
+    magma: { W: 22, H: 21, ay: 8, frames: 4, ms: 190, fam: "bone", draw: function (R, a, b, e, fr) {
+      var P = [[0, 6], [7, 1], [12, 2.5], [21.5, 0], [18, 6], [21.5, 9.5], [15, 12], [17.5, 17.5], [11, 15], [8.5, 20.5], [5, 14], [0, 11]];
+      var seeds = [[3, 8], [8, 4], [14, 3], [19, 2], [10, 9], [17, 8], [6, 13], [13, 13], [9, 18], [16, 15], [2, 11]], sheen = mix(a, [150, 110, 220], 0.45);
+      polyV157A(R, P, function (x, y) {
+        var d1 = 1e9, d2 = 1e9, idx = 0; seeds.forEach(function (s0, i) { var d = Math.hypot(x + 0.5 - s0[0], y + 0.5 - s0[1]); if (d < d1) { d2 = d1; d1 = d; idx = i; } else if (d < d2) d2 = d; });
+        var crack = d2 - d1 < 0.95, ed = edgeDistV157A(P, x + 0.5, y + 0.5);
+        if (crack) { var pu = 0.5 + 0.5 * Math.sin(Math.hypot(x, y - 8) * 0.75 - fr * TAU_V177F / 4); return mix(b, e, pu * 0.85); }
+        if (ed < 1) return dark(a, 0.2);
+        var s0 = seeds[idx], toward = (s0[0] - x) + (s0[1] - y);
+        return toward > 1.8 && toward < 3 ? sheen : ((x - y + idx) % 7 === 0 ? light(a, 0.12) : a);
+      });
+      R.outline(mix(b, [40, 8, 4], 0.6), 0.85); } },
+    // BASS DROP: an equalizer hung from a chrome arm — LED columns drop and bounce to the beat, white peak caps hold
+    bass: { W: 22, H: 22, ay: 6, frames: 6, ms: 110, fam: "mech", draw: function (R, a, b, e, fr) {
+      var arm = function (x) { return 6 - 5 * Math.sin(Math.min(1, x / 15) * Math.PI / 2) + Math.max(0, x - 15) * 0.25; };
+      var lvl = function (k, f) { var j = ihV153G(((k + 1) * 977 + (f + 6) * 131) >>> 0); return Math.max(0.25, Math.min(1, 0.35 + j * 0.75)); };
+      for (var k = 0; k < 7; k++) {
+        var x0 = 1 + k * 3, top = Math.round(arm(x0 + 0.5)) + 2, nb = Math.round(4 + 5.5 * Math.sin((k + 0.9) / 7.6 * Math.PI)), on = Math.max(1, Math.round(lvl(k, fr) * nb)), peak = Math.min(nb - 1, Math.max(on, Math.round(lvl(k, (fr + 5) % 6) * nb)));
+        for (var bk = 0; bk < nb; bk++) {
+          var y = top + bk * 2, f = bk / Math.max(1, nb - 1), col = f < 0.45 ? a : f < 0.75 ? b : e;
+          if (bk < on) { R.put(x0, y, light(col, 0.35)); R.put(x0 + 1, y, col); }
+          else if (bk === peak) { R.put(x0, y, WHITE_V157A); R.put(x0 + 1, y, WHITE_V157A); }
+          else { R.put(x0, y, dark(col, 0.72), 0.55); R.put(x0 + 1, y, dark(col, 0.72), 0.55); }
+        }
+      }
+      for (var x = 0; x <= 21; x++) { var ya = Math.round(arm(x)); R.put(x, ya, [226, 232, 242]); R.put(x, ya + 1, [118, 126, 140]); }
+      for (var y2 = 3; y2 <= 10; y2++) for (var x2 = 0; x2 <= 4; x2++) { var r = Math.hypot(x2 + 0.5, y2 + 0.5 - 6.5); if (r > 3.6) continue; R.put(x2, y2, r < 1.1 ? [210, 216, 226] : r < 2.4 ? ((fr % 2) ? [60, 64, 74] : [34, 38, 46]) : [96, 102, 116]); }   // the speaker cone, thumping
+      R.outline([10, 10, 16], 0.6); } }
+  };
+  Object.keys(WINGS_V177G).forEach(function (k) { WINGS_V157A[k] = WINGS_V177G[k]; FAM_V159D[k] = WINGS_V177G[k].fam; });
+  // their frames: the field, the card and the Locker all ask v157 A's `wingFrameV157A` (v159 D's asks it too)
+  var wingFrame0V177G = wingFrameV157A;
+  wingFrameV157A = function (kind, now) {
+    var D = WINGS_V177G[kind];
+    if (D) return D.frames > 1 && onV177G() && !reducedV157A() ? Math.floor(Math.abs(now) / D.ms) % D.frames : 0;
+    return wingFrame0V177G(kind, now);
+  };
+  Object.assign(G177G, {
+    on: onV177G, ids: function () { return itemsV177G().map(function (i) { return i.id; }); }, kinds: function () { return Object.keys(WINGS_V177G); },
+    frames: function (kind) { var D = WINGS_V177G[kind]; return D ? D.frames : 0; }, frame: function (kind, t) { return wingFrameV157A(kind, t); },
+    art: function (id, fr) { var it = BY[id]; return it && it.w ? wingArtV153G(it.w, fr | 0) : null; }
+  });
+
+  /* ===== v177 H EVERY HAT FLOATS =====
+   * The owner: "Make all hats hover over the helmet, like the halos."
+   * Every crown (the headwear slot — crowns, horns, tiaras, caps, the halo) now hovers over the helmet the way the halo
+   * always did: its base `hatLiftPxV177H` (3.2) sprite px above the top of the helmet, bobbing on a slow sine
+   * (`hatBobPxV177H` 0.9 px, `hatBobMsV177H` 1700 ms — v159 D's own crown bob is folded into it, not added), with a soft
+   * shadow on the helmet under it and a faint glow of the hat's own colour between the two (smaller and fainter as it
+   * rises). On the profile card, the growth screen and the Locker (`paintFrontV153G`), and on the live field
+   * (`fieldFxV153G`: the crown's world-space image, plus `_crShV177H` under it — and his plumbob rises to float over
+   * the hat instead of hiding behind it, TU `hatPlumbV177H`). prefers-reduced-motion: it hovers, still. Kill switch TU("v177Hfloat", 0): v153 G's seating (the halo floats, the rest sit on the helmet).
+   * `window.__V177H`; v177FGHcheck. */
+  function onV177H() { return !!TUv("v177Hfloat", 1); }
+  var G177H = (window.__V177H = window.__V177H || { field: null, card: 0, errs: [] });
+  function errV177H(e) { try { if (G177H.errs.length < 8) G177H.errs.push(String((e && e.message) || e)); } catch (x) {} }
+  function hatBobV177H(t) { if (t == null || reducedV157A()) return 0; return Math.sin(t / Math.max(300, TUv("hatBobMsV177H", 1700)) * TAU_V177F) * TUv("hatBobPxV177H", 0.9); }
+  /* the crown art's baseline, in sprite px from the top of the helmet (negative: above it); null with the switch off */
+  function hatOffV177H(kind, t) { if (!onV177H()) return null; return -TUv("hatLiftPxV177H", 3.2) - (kind === "halo" ? 0.4 : 0) + hatBobV177H(t); }
+  // the shadow on the helmet and the glow under the hat, on a 2D canvas (k: sprite px → canvas px)
+  function hatShadowV177H(ctx, cx, topY, w, k, bob, cd) {
+    try {
+      var lift = Math.max(0, -bob) / Math.max(0.1, TUv("hatBobPxV177H", 0.9)), rx = Math.max(2, w * 0.36) * k * (1 - 0.12 * lift), ry = Math.max(0.7, 1.15 * k);
+      ctx.save(); ctx.imageSmoothingEnabled = true;
+      ctx.globalAlpha = TUv("hatShadowV177H", 0.3) * (1 - 0.3 * lift); ctx.fillStyle = "#05070c";
+      ctx.beginPath(); ctx.ellipse(cx, topY + 1.3 * k, rx, ry, 0, 0, TAU_V177F); ctx.fill();
+      var col = colRgb(((cd && cd.col) || ["#fff3c4"])[0]), g = ctx.createRadialGradient(cx, topY - 0.6 * k, 0, cx, topY - 0.6 * k, rx * 1.2);
+      g.addColorStop(0, "rgba(" + (col[0] | 0) + "," + (col[1] | 0) + "," + (col[2] | 0) + "," + (TUv("hatGlowV177H", 0.42) * (1 - 0.25 * lift)).toFixed(3) + ")"); g.addColorStop(1, "rgba(" + (col[0] | 0) + "," + (col[1] | 0) + "," + (col[2] | 0) + ",0)");
+      ctx.globalAlpha = 1; ctx.globalCompositeOperation = "lighter"; ctx.fillStyle = g; ctx.beginPath(); ctx.ellipse(cx, topY - 0.6 * k, rx * 1.2, ry * 1.5, 0, 0, TAU_V177F); ctx.fill();
+      ctx.restore();
+    } catch (e) { errV177H(e); }
+  }
+  // on the field: one soft-shadow-and-glow texture per hat colour, an image under the crown (world space, as the crown is)
+  function hatShadowArtV177H(cd) {
+    var col = ((cd && cd.col) || ["#fff3c4"])[0], key = "hatsh177|" + col;
+    if (ART_V153G[key]) return ART_V153G[key];
+    var c = document.createElement("canvas"); c.width = 24; c.height = 10; var x = c.getContext("2d");
+    hatShadowV177H(x, 12, 5.2, 20, 1, 0, cd);
+    return (ART_V153G[key] = { key: key, cv: c, ax: 12, ay: 5.2, w: 24, h: 10 });
+  }
+  function hatFieldV177H(scene, m, co, ca, cd, geo, now, s, show) {
+    try {
+      if (!onV177H()) { dropV153G(m, "_crShV177H"); return; }
+      var art = hatShadowArtV177H(cd), key = texV153G(scene, art), o = m._crShV177H;
+      if (o && (!o.scene || !o.active)) o = m._crShV177H = null;
+      if (!o) { o = m._crShV177H = scene.add.image(0, 0, key); m.root.once("destroy", function () { try { o.destroy(); } catch (e) {} }); }
+      else if (o.texture.key !== key) o.setTexture(key);
+      var bob = hatBobV177H(now), lift = Math.max(0, -bob) / Math.max(0.1, TUv("hatBobPxV177H", 0.9)), sc = s * Math.max(0.5, ca.w / 20);
+      o.setOrigin(art.ax / art.w, art.ay / art.h).setDepth(TUv("cosCrownDepthV153G", 23.05) - 0.01).setPosition(m.root.x + geo.cx * s, m.root.y + geo.top * s).setScale(sc * (1 - 0.1 * lift), s).setAlpha(1 - 0.25 * lift).setVisible(show);
+      // the plumbob floats over the hovering hat, never behind it (src/05 places it each frame, just before this)
+      var bob0 = m.bob && m.bob.active ? m.bob.y : null;
+      if (bob0 != null && TUv("hatPlumbV177H", 1)) { var want = co.y - ca.h * s - (TUv("bobH", 9.6) + 1.5) * s; if (m.bob.y > want) m.bob.y = want; }
+      G177H.field = { t: now, crownY: co.y, crownTop: co.y - ca.h * s, shY: o.y, top: m.root.y + geo.top * s, bottom: co.y, s: s, kind: cd.kind, bob0: bob0, bob: m.bob ? m.bob.y : null };
+    } catch (e) { errV177H(e); }
+  }
+  G177H.on = onV177H; G177H.off = hatOffV177H; G177H.bob = hatBobV177H;
+  G177H.paint = function (ctx, cd, geo, k, t) { paintFrontV153G(ctx, geo, { crown: { id: "crown", d: cd } }, k, t); };
 
   /* ===== v157 C ONE FACE EVERYWHERE =====
    * The owner: "Number fonts, I currently don't see those in the profile or live player" · "ensure the colors of the

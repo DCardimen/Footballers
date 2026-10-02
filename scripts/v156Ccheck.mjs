@@ -165,7 +165,8 @@ const sup = await E(() => { const C = window.RIB_COSMETICS, V = window.__V156C, 
   out.gold = [own('trail_goldrush'), cnt('trail_goldrush'), R.progress().find((c) => c.id === 'goldRush').have]
   // The Ultimate: Legacy medal 500
   out.ult0 = own('frame_ultimate'); S.legacyV152 = { xp: window.__V152A.xpAt(500) + 1 }; R.tick(S); R.tick(S); out.ult = [own('frame_ultimate'), cnt('frame_ultimate'), window.__V152A.rank(S.legacyV152.xp).medal]
-  out.store = V.superStore(); out.done = Object.keys(out.store.done).sort().join(','); out.inSave = /rib\.super|crown_ladder/.test(localStorage.getItem('gridiron_save_v1') || '')
+  out.store = V.superStore(); out.done = Object.keys(out.store.done).filter((k) => ['allPositions', 'goldRush', 'ladder10', 'mvpInterstellar', 'ultimate'].includes(k)).sort().join(',');   // v177 F adds super challenges of its own (v177FGHcheck)
+  out.inSave = /rib\.super|crown_ladder/.test(localStorage.getItem('gridiron_save_v1') || '')
   // super looks equip (they are OWNED), and the kill switch hides the section's source
   out.lbAll = lbAll; out.eq = [C.equip('wings', 'wings_angel'), C.equip('crown', 'crown_ladder'), C.equip('aura', 'aura_supernova'), C.equip('trail', 'trail_goldrush'), C.equip('frame', 'frame_ultimate')]
   return out })
@@ -181,7 +182,7 @@ const sec = await E(() => { const s = document.getElementById('ss156Super'); if 
   const rows = [...s.querySelectorAll('.ss156-sup')]
   return { n: rows.length, ids: rows.map((r) => r.dataset.sup).join(','), bars: s.querySelectorAll('.ss151-bar').length, pv: s.querySelectorAll('.cos-pvbox-v151b canvas, .cos-pvbox-v151b div').length, pos: s.querySelectorAll('.ss156-pos i').length,
     text: s.textContent.replace(/\s+/g, ' ').slice(0, 900), vis: s.getBoundingClientRect().height > 100 } })
-ok(sec && sec.n === 5 && sec.bars === 5 && sec.pv >= 5 && sec.pos === 9 && sec.vis && /Angel Wings/.test(sec.text || '') && /1\/10/.test(sec.text || ''), 'the SEASON tab shows SUPER CHALLENGES: five rows with progress bars, drawn reward previews and the nine positions', sec)
+ok(sec && sec.n >= 5 && sec.bars === sec.n && sec.pv >= sec.n && /^ladder10,allPositions,mvpInterstellar,goldRush,ultimate/.test(sec.ids) && sec.pos === 9 && sec.vis && /Angel Wings/.test(sec.text || '') && /1\/10/.test(sec.text || ''), 'the SEASON tab shows SUPER CHALLENGES: the five (then v177 F\'s) rows with progress bars, drawn reward previews and the nine positions', sec)
 await E(() => { const s = document.getElementById('ss156Super'); s && s.scrollIntoView({ block: 'start' }) }); await page.waitForTimeout(300)
 await shot('super-section')
 const sf = await fits(); ok(sf.page, 'the SEASON tab with the super section fits 400x860 with no page scroll', sf)
