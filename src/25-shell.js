@@ -158,6 +158,7 @@
   var drawnAt = 0;
   function fit() {
     var sc = $("screen"); if (!sc || !on()) return;
+    if (root.classList.contains("one-v170")) { if (sc.querySelector(".fill-v146")) unfit(); return }   // v170: a phone's page is one scroll
     /* a screen the v75 sectioner is about to split (it waits 90ms for the render to settle) is not
      * measured yet — squeezing its stack now would squeeze the wrong card. And a split one folds
      * first (v97): an accordion is better than a card with a scrollbar */

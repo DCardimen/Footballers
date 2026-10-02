@@ -85,7 +85,7 @@
     /* v126: the season screen is four tabs now, so the body ledger is one tap away rather than on
      * screen. Point at the TAB (it comes first in the DOM, so a comma selector finds it) and fall
      * back to the card itself on any screen that still renders it in the open. */
-    body: '#screen .hubv75-tab[data-sec="body"], #screen .condition-card-v11',
+    body: '#screen .hubv75-tab[data-sec="body"], #screen .condition-card-v11, #screen .secbar-v170 .sb-mid',   // v170: on a phone the tab strip gives way to the section bar
     hubTabs: '#screen .tabs, #screen [class*="tab"]',
     name: 'parent:#screen .name-hint-v96', team: 'find:🏟',   // the name he can rename, the team line on the hub card
   };

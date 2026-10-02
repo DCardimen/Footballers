@@ -2,8 +2,8 @@
 //   On a phone (360x740 and 375x667, touch, 2x) the career screens read: no visible text under 12px on the hub, the
 //   season's tabs, the league, training, skills and stats, and at most half of it under
 //   13px (the 12px floor is for uppercase labels); the html carries phone-v169 / short-v169; a short phone folds the
-//   ticker; the section tabs stand 48px+ with the icon over the label; the dock's main button is 46px+; training shows
-//   three programs a row with the chosen program's panel in view; the season hero's next-up is one line on a short
+//   ticker; the section bar (v170) replaces the tab strip; the dock's main button is 46px+; training shows three
+//   programs a row and a tap turns to THE PICK with its panel in view (v170); the season hero's next-up is one line on a short
 //   phone; the pregame wizard and the post-game card meet the same floor, and the post-game card's Continue is on
 //   screen. TU v169phone 0: none of it (no classes, nothing lifted). No page errors.
 //   GAME_URL=http://localhost:5173/ node scripts/phonecheck.mjs
@@ -73,20 +73,24 @@ for (const [w, h] of [[360, 740], [375, 667]]) {
   }
   // the chrome: ticker, tabs, main button
   await go(p, 'season', 'sched')
-  const C = await p.evaluate(() => { const t = document.getElementById('tickV146'), tabs = [...document.querySelectorAll('.hubv75-tab')], m = document.querySelector('#dock .qa-main-v146')
-    const tb = tabs[0] && tabs[0].getBoundingClientRect(), ic = tabs[0] && tabs[0].querySelector('i'), icR = ic && ic.getBoundingClientRect()
-    return { ticker: t ? getComputedStyle(t).display : 'none', tabH: tb ? Math.round(tb.height) : 0, iconAbove: !!(icR && tb && icR.bottom <= tb.top + tb.height * 0.62), main: m ? Math.round(m.getBoundingClientRect().height) : 0 } })
-  ok((h <= 760 ? C.ticker === 'none' : true) && C.tabH >= 48 && C.iconAbove && C.main >= 46, `${w}x${h}: the ticker folds on a short phone; tabs 48px+ with the icon over the label; the main button 46px+`, C)
+  // v170: on a phone the section tab strip gives way to the section bar at the top of the page (and the spray)
+  const C = await p.evaluate(() => { const t = document.getElementById('tickV146'), strip = document.querySelector('#screen > .hubv75-tabs'), bar = document.querySelector('#screen > .secbar-v170'), m = document.querySelector('#dock .qa-main-v146')
+    const btns = bar ? [...bar.querySelectorAll('button')].map((b) => Math.round(b.getBoundingClientRect().height)) : []
+    return { ticker: t ? getComputedStyle(t).display : 'none', strip: strip ? getComputedStyle(strip).display : null, bar: !!bar, barBtns: btns, main: m ? Math.round(m.getBoundingClientRect().height) : 0 } })
+  ok((h <= 760 ? C.ticker === 'none' : true) && C.strip === 'none' && C.bar && C.barBtns.length === 3 && Math.min(...C.barBtns) >= 40 && C.main >= 46, `${w}x${h}: the ticker folds on a short phone; the section bar (40px+ buttons) replaces the tab strip; the main button 46px+`, C)
   // the hero's next-up on a short phone
   const N = await p.evaluate(() => { const you = document.querySelector('.sx-mu > .sx-side:not(.them)'), them = document.querySelector('.sx-mu > .sx-side.them')
     return { you: you ? getComputedStyle(you).display : null, them: !!(them && them.getBoundingClientRect().height > 0), h: Math.round((document.querySelector('.sx-hero-v168') || { getBoundingClientRect: () => ({ height: 0 }) }).getBoundingClientRect().height) } })
   ok(h <= 760 ? N.you === 'none' && N.them : N.them, `${w}x${h}: the hero's next-up is the opponent on one line on a short phone`, N)
   // training: three a row, the chosen program in view
   await go(p, 'training')
-  const T = await p.evaluate(() => { const g = document.querySelector('.tp-grid-v113'), tiles = [...document.querySelectorAll('.tp-tile-v113')], pan = document.querySelector('#screen > .tp-panel-v113')
-    const tops = tiles.slice(0, 4).map((t) => Math.round(t.getBoundingClientRect().top)), pr = pan && pan.getBoundingClientRect(), dock = document.getElementById('dock').getBoundingClientRect()
-    return { perRow: tops.filter((t) => t === tops[0]).length, panelTop: pr ? Math.round(pr.top) : null, dockTop: Math.round(dock.top), gridScrolls: g ? g.scrollHeight > g.clientHeight : null } })
-  ok(T.perRow === 3 && T.panelTop != null && T.panelTop < T.dockTop - 60, `${w}x${h}: training is three programs a row and the chosen program's panel is on screen`, T)
+  // v170: training is two pages on a phone — a tap on a program turns to THE PICK, its panel on screen
+  const T = await p.evaluate(async () => { const tiles = [...document.querySelectorAll('.tp-tile-v113')]
+    const tops = tiles.slice(0, 4).map((t) => Math.round(t.getBoundingClientRect().top)), on0 = (document.querySelector('.hubv75-tab.on') || {}).dataset?.sec
+    tiles[1] && tiles[1].click(); await new Promise((r) => setTimeout(r, 700))
+    const pan = document.querySelector('.hubv75-sec.on .tp-panel-v113'), pr = pan && pan.getBoundingClientRect(), dock = document.getElementById('dock').getBoundingClientRect()
+    return { perRow: tops.filter((t) => t === tops[0]).length, first: on0, after: (document.querySelector('.hubv75-tab.on') || {}).dataset?.sec, panelTop: pr ? Math.round(pr.top) : null, dockTop: Math.round(dock.top) } })
+  ok(T.perRow === 3 && T.first === 'progs' && T.after === 'pick' && T.panelTop != null && T.panelTop < T.dockTop - 60, `${w}x${h}: training is three programs a row; a tap on one turns to THE PICK with its panel on screen`, T)
   // the pregame wizard
   await p.evaluate(async () => { window.go('season'); await new Promise((r) => setTimeout(r, 400)); try { window.playWeek(true) } catch (e) {} await new Promise((r) => setTimeout(r, 1400)) })
   const W = await audit(p, '#pregameV1513')
