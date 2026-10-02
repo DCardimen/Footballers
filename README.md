@@ -51,6 +51,9 @@ Every gameplay dial reads through `TU(key, default)`, so values can be retuned l
 
 The full history, newest first, is [`docs/CHANGELOG.md`](docs/CHANGELOG.md) — add new entries there.
 
+- **v169 — big on a phone.** No text under 12px on a phone (prose at 14-15px), a short phone folds the ticker,
+  bigger tabs, buttons and rows, training three a row with its details in view, and a post-game card that scrolls with
+  Continue always reachable. `src/33-phone.js`; `phonecheck`.
 - **v168 — the season, redrawn.** Explanations live behind ⓘ buttons (a bottom sheet with the same words), long tabs
   end on a ‹ previous · next › pager, and the season screen opens on a hero in the main menu's style — crest, record,
   league place, the playoff race as pips, the next matchup — with a LEAGUE tab, crests on every fixture, a post-game

@@ -31,6 +31,7 @@
     { sel: ".lg-note-v168", group: ".league-card-v168", anchor: ".lg-head-v168", t: "How the league works" },
     { sel: "#screen > .tp-note-v133", group: "#screen", anchor: "#screen > .h1", sheet: "Choosing your training", t: "The coach's suggestion" },
     { sel: "#screen > .tp-tierkey-v133", group: "#screen", anchor: "#screen > .h1", sheet: "Choosing your training", t: "Reading the cards" },
+    { sel: "#screen .pace-note-v169", group: "#screen", anchor: "#screen > .h1", sheet: "The national leaders", t: "Mid-season pace" },
     { sel: "#screen > .st-note-v168", group: "#screen", anchor: "#screen > .h1", sheet: "The standings", t: "Making the playoffs" },
     { sel: ".tp-panel-v113 > .threshold-note", group: ".tp-panel-v113", t: function (el) { return /TRADES/.test(el.textContent) ? "The trade" : /ROLL/.test(el.textContent) ? "The roll" : /RISK/.test(el.textContent) ? "The risk" : "The program" }, sheet: "This program" },
     /* a screen's long intro under its title (the board, the path, goals, the tree, the dynasty) */
@@ -132,7 +133,10 @@
       var b = e.target.closest("[data-go]"); if (!b) return;
       var t = scr.querySelector('.hubv75-tab[data-sec="' + b.dataset.go + '"]'); t && t.click();
     });
-    sec.appendChild(p);   // after the section's own blocks — never inside a card
+    // after the section's own blocks — never inside a card; on a phone (v169) at the END of the scrolling list, so it
+    // costs nothing until you reach it
+    var phoneBox = document.documentElement.classList.contains("phone-v169") && box !== sec && !box.id && !/\bcard\b/.test(box.className) ? box : null;
+    (phoneBox || sec).appendChild(p);
   }
 
   /* the hub's NOW tab carries the season strip (07 seasonStripV168) under the player card */

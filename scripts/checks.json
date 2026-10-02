@@ -1704,7 +1704,28 @@
     "scrollcheck",
     "v158Bcheck",
     "v156Ccheck",
-    "combinecheck"
+    "combinecheck",
+    "phonecheck"
+   ]
+  },
+  "phone": {
+   "desc": "v169 — big on a phone: the type floor, the short-phone chrome, the controls, the season / training / skills / stats / overlay phone layouts (src/33-phone.js)",
+   "anchors": [
+    "v169"
+   ],
+   "files": [
+    "src/33-phone.js"
+   ],
+   "checks": [
+    "phonecheck",
+    "v153Echeck",
+    "v146Echeck",
+    "scrollcheck",
+    "v168check",
+    "postgamecheck",
+    "v111Bcheck",
+    "v136check",
+    "v164Bcheck"
    ]
   }
  },
@@ -4417,6 +4438,19 @@
     "ui"
    ],
    "runtimeSec": 60,
+   "slow": false,
+   "needsServer": true,
+   "pureNode": false,
+   "flaky": []
+  },
+  "phonecheck": {
+   "file": "scripts/phonecheck.mjs",
+   "desc": "v169 — at 360x740 and 375x667 (touch, 2x): no visible text under 12px (at most half under 13px) on the hub, the season's tabs, the league, training, skills and stats; phone-v169 / short-v169 on the html; the ticker folds on a short phone; tabs 48px+ with the icon over the label; the main button 46px+; the hero's next-up on one line; training three a row with its panel on screen; the pregame wizard and the post-game card meet the floor, Continue on screen; TU v169phone 0 restores. No page errors.",
+   "areas": [
+    "ui",
+    "season"
+   ],
+   "runtimeSec": 70,
    "slow": false,
    "needsServer": true,
    "pureNode": false,

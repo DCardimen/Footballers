@@ -10,6 +10,15 @@ Names in older entries are the career app's pre-v149 C minified names (`q`, `ms`
 `index.html` + `src/` (`docs/LAYOUT.md`).
 
 <!-- new entries go here, newest first -->
+- **v169 — big on a phone.** (`src/33-phone.js` new, `src/32-season-ui.js`, `src/22-hub-sections.js`,
+  `src/07-career-app.js`, `scripts/phonecheck.mjs`.) Measured at 360x740, 375x667 and 390x844, the career screens were
+  too small to read: 50-90% of the visible text sat under 13px (the body card and the training board went to 8px) and
+  the bars took 40% of a 375x667 phone. Now no visible text is under 12px (only uppercase labels sit at 12; prose reads
+  at 14-15px); a short phone folds the ticker; the section tabs stand 50px with the icon over the label; the dock's
+  buttons are 42-48px; the season hero puts the next opponent on one line on a short phone; schedule, league and
+  standings rows are 48px+ with 15-16px names; training shows three programs a row with the chosen program's panel in
+  view; filter chips ride one swipeable row; skills rows still fit one page; the post-game card scrolls with its
+  scoreline on one line and Continue riding the bottom. Kill switch `v169phone`.
 - **v168 — the season, redrawn.** (`src/32-season-ui.js` new, `src/07-career-app.js`, `src/22-hub-sections.js`,
   `src/25-shell.js`, `src/28-cosmetics.js`, `scripts/v168check.mjs`.) The career screens explained themselves in
   paragraphs; the main menu says almost nothing and looks better for it. Every card's explanations now fold behind one ⓘ
