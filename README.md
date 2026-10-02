@@ -51,6 +51,9 @@ Every gameplay dial reads through `TU(key, default)`, so values can be retuned l
 
 The full history, newest first, is [`docs/CHANGELOG.md`](docs/CHANGELOG.md) — add new entries there.
 
+- **v174 — the palette.** Every look in one place: the Locker's STYLE tab (and the top bar's 🎨) is one page with
+  the live card on top and a row for the uniform, the team colours and crest, the helmet, the celebration, the banner
+  and every other look — each showing what he wears; open one, tap a look to wear it. `src/28-cosmetics.js`; `palettecheck`.
 - **v171 — the matchup call.** Every opponent has a face (a named star, a weak link, a unit to fear and one to
   attack) and the pregame's plan page opens on the calls against it — shut down their star, load the box, send the
   house, pick on their weak corner — each with real engine effects, its own line to beat, risk, reward and swing. Your
