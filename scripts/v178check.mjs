@@ -240,6 +240,28 @@ ok(pt0 - held.pts >= 5, 'holding + repeats: several points spent in one press', 
 ok(held.pts - tap >= 1 && held.pts - tap <= 4, "a quick tap is still one step (a hold's release never adds one more)", { step: held.pts - tap })
 ok(back === pt0, 'holding − gives everything back and stops at nothing-left-to-return', { back, pt0 })
 
+// ============================== O / N: the league above 99, the gap at its size ==============================
+const O = await M(() => {
+  const S = window.S, p = S.player, keep = { lv: p.level, pr: S.prestige }
+  S.prestige = 15; p.level = 7; window.__oppMulV22 = 0.92
+  const g = window.__simGameV2(55, p.pos)
+  const all = [...g.roster.us.off, ...g.roster.us.def, ...g.roster.opp.off, ...g.roster.opp.def].filter((x) => !x.you)
+  const maxAttr = Math.max(...all.map((x) => Math.max(...Object.values(x.attrs || {}).filter((v) => typeof v === 'number'))))
+  const badgeGap = g.roster.us.ovr - g.roster.opp.ovr
+  const mean = (r) => { const xs = [...r.off, ...r.def].filter((x) => !x.you); return xs.reduce((a, x) => a + x.attrs.speed, 0) / xs.length }
+  const attrGap = mean(g.roster.us) - mean(g.roster.opp)
+  window.RIB_TUNE.v178O = 0
+  const g0 = window.__simGameV2(55, p.pos)
+  const max0 = Math.max(...[...g0.roster.us.off, ...g0.roster.opp.def].filter((x) => !x.you).map((x) => Math.max(...Object.values(x.attrs || {}).filter((v) => typeof v === 'number'))))
+  delete window.RIB_TUNE.v178O; delete window.__oppMulV22
+  S.prestige = keep.pr; p.level = keep.lv
+  return { maxAttr, max0, badgeGap, attrGap: +attrGap.toFixed(1), ist: window.__levelBaseV178(8), uff: window.__levelBaseV178(7) }
+})
+console.log('league:', JSON.stringify(O))
+ok(O.maxAttr > 99 && O.max0 <= 99, 'a UFF roster\'s attributes go past 99 (TU v178O 0: the old 99 clamp)', O)
+ok(O.ist > O.uff && O.ist === 100, 'Interstellar has its own team base above the UFF\'s (it fell back to 55)', { ist: O.ist, uff: O.uff })
+ok(O.badgeGap > 15 && O.attrGap > 0 && O.attrGap < O.badgeGap * 0.6, 'the sim plays a big badge gap smaller than the badge (the square-root gap), the favourite still better', { badge: O.badgeGap, attrs: O.attrGap })
+
 // ============================== the kill switch ==============================
 await seed({ level: 2, pos: 'WR' })
 const K = await M(async () => {

@@ -15843,8 +15843,8 @@
     return [18, 30, 42, 54, 66, 78, 86, 90, TU("v178O", 1) ? TU("aiBaseIstV178", 100) : 55][lv | 0] || 55;
   }
   window.__levelBaseV178 = levelBaseV178;
-  // v178 N: how much of the badge gap the sim plays, by level (Pee Wee … Interstellar), measured to the v76 0.7 a point
-  var SIM_GAP_V178 = [0.62, 0.62, 0.55, 0.45, 0.48, 0.48, 0.58, 0.36, 0.36];
+  // v178 N: the scale S of the square-root gap the sim plays, by level (Pee Wee … Interstellar), fitted to the v76 0.7 a point
+  var SIM_GAP_V178 = [1.5, 1.5, 1.4, 1.2, 1.35, 1.35, 1.35, 1.4, 1.55];
   function buildGameRosters(e, t, a, s, n, i, r) {
     const l = ["QB", "RB", "RB", "WR", "WR", "TE", "OL", "OL", "OL", "OL", "OL"],
       d = ["DL", "DL", "DL", "DL", "LB", "LB", "LB", "CB", "CB", "S", "S"],
@@ -15997,15 +15997,22 @@
      * averaged +68 (every game by four scores) — against the v76 spec of 0.7 a point ("10 overall = one touchdown, 20 =
      * two", the owner's words). The v76 play levers could not hold it: the favourite's raw plays averaged 27.7 yards
      * before the damper. So the sim plays the gap at its size: both sides' attributes are drawn from an OVR pulled toward
-     * the two teams' midpoint (the mean of the two quality factors' OVRs), keeping `simGapKV178` of each man's distance
-     * from it (per level: `SIM_GAP_V178`). The BADGE (each man's `ovr`, the team OVR, the box-score quality) is
+     * the two teams' midpoint (the mean of the two quality factors' OVRs): a man's distance d from it plays as S·√d
+     * (`simOvrV178`; S per level in `SIM_GAP_V178`, TU `simGapSV178` / `simGapPV178`), because the sim's margin grows
+     * with about the SQUARE of the attribute gap — the root makes it linear in the badge gap. Fitted, 70 games a cell:
+     * Varsity +13 → +8, +22 → +15; Middle School +14 → +10; UFF +14 → +8. The BADGE (each man's `ovr`, the team OVR, the box-score quality) is
      * untouched, so the schedule keeps its mismatches and the scoreboard shows them; an even matchup is a no-op; the
      * you-player's attributes are his own. Kill switch TU "v178N" 0. `blowoutcheck` / `v178check`. */
     function simOvrV178(Q) {
       if (!TU("v178N", 1)) return Q;
+      // The sim's margin grows about with the SQUARE of the attribute gap (measured: 2.3x the gap, 5.4x the margin), so a
+      // straight scale is right at one gap and wrong at the rest; a square root makes the margin come out linear in the
+      // badge gap — the v76 line. Distance d from the midpoint plays as S·|d|^P (per level, `SIM_GAP_V178`).
       const center = (u * (0.72 + C0V178 * 0.5) + u * (0.72 + V0V178 * 0.5)) / 2,
-        k = clamp99(TU("simGapKV178", SIM_GAP_V178[i] != null ? SIM_GAP_V178[i] : 0.3), 0.05, 1);
-      return center + (Q - center) * k;
+        d = Q - center,
+        S = TU("simGapSV178", SIM_GAP_V178[i] != null ? SIM_GAP_V178[i] : 1.3),
+        P = clamp99(TU("simGapPV178", 0.5), 0.2, 1);
+      return center + Math.sign(d) * Math.min(Math.abs(d), S * Math.pow(Math.abs(d), P));
     }
     function y(Y) {
       const _ = (ie, B) =>
