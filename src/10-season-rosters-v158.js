@@ -141,7 +141,7 @@
       // v20: the roster displays on the SAME scale the sim plays at (Wr's per-level
       // team baseline), so pregame comparisons stop mixing scales
       const target = Math.round(
-        Number(p.teamOvr || p.teamRating || p.schoolRating) || [18, 30, 42, 54, 66, 78, 86, 90][p.level || 0] || 55
+        Number(p.teamOvr || p.teamRating || p.schoolRating) || (window.__levelBaseV178 ? window.__levelBaseV178(p.level || 0) : [18, 30, 42, 54, 66, 78, 86, 90][p.level || 0] || 55) /* v178 O */
       );
       let pack = window.__GRIDIRON_GENERATE_ROSTER_V157(target, (p.seasonSeed || 1) + (p.level || 0) * 1009);
       ensureMeta(pack.players, p.seasonSeed || 1);

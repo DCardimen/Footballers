@@ -10,6 +10,19 @@ Names in older entries are the career app's pre-v149 C minified names (`q`, `ms`
 `index.html` + `src/` (`docs/LAYOUT.md`).
 
 <!-- new entries go here, newest first -->
+- **v178 L / M / N / O — hold to spend; the gap plays to its size; the league above 99.** (`src/07-career-app.js`,
+  `src/10-season-rosters-v158.js`.) The owner: "Add a way to hold down the skills for the upgrade menu"; "games are
+  returning to blowouts … only 10 to 20 overall higher … my guy only has 100 to 159 throwing yards and I'm winning 80 to
+  0. Original goal was a 10 overall difference results in an average touchdown difference of 1, 20 is 2"; "lift the cap
+  so attributes go above 99". **L** — hold a + / − stepper and it repeats, speeding up, stopping at the points or the
+  cap. **N** — measured: +10 badge OVR at Varsity averaged a +26 margin, +21 averaged +68; every AI attribute is his OVR
+  ± 14, so the badge gap was the gap in every attribute of all 22 men, and the sim's margin grows with its square. The
+  sim now plays each man's distance from the two teams' midpoint as S·√d, fitted per level to v76's 0.7 a point
+  (Varsity +13 → +8, +22 → +15; UFF +14 → +8); the badge, the schedule's mismatches and the you-player are untouched.
+  **M** — a margin governor from the kickoff: an offence running past its expected margin plus a slack loses yards and
+  goal-line touchdowns. **O** — AI attributes follow their OVR past 99 like the you-player's, and Interstellar has its
+  own team base (it fell back to 55, weaker than Varsity). Kill switches `v178hold` / `v178M` / `v178N` / `v178O`.
+  `blowoutcheck`, `v178check`.
 - **v178 K — the week flows.** (`src/07-career-app.js`.) The owner: "On simmed days show the scorecard too, and after the
   recap page go directly to upgrade skills, then after that go to a continue week option. I want that to be seamless."
   A tapped Quick Play (or the ⏭ season sim) now opens the same scorecard a watched game gets — the result and the
