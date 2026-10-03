@@ -36714,7 +36714,7 @@
   /* ===== v178 K THE WEEK FLOWS =====
    * The owner: "On simmed days show the scorecard too, and after the recap page go directly to upgrade skills, then
    * after that go to a continue week option. I want that to be seamless." A Quick Play TAPPED on the season dock
-   * (`quickV178`; the dock's `playWeek(false)` button is rewired in `decorateScreen`) or the ⏭ season sim (`skipV178`)
+   * (a capture-phase click listener sees the dock's own `playWeek(false)` button; `quickV178` from code) or the ⏭ season sim (`skipV178`)
    * asks for the card (`V178.want`); the week's ledger answers it (`payWeekV178` queues `V178.card` instead of the
    * strip) and `simCardV178` draws the same scorecard the watched game gets — the result, the score and the reel —
    * as `#simCardV178` (a batch says how many games it covered and what they paid in all). A call to `playWeek(false)`
@@ -36830,21 +36830,32 @@
     }
     if (!d.querySelector("#flowDockV178")) d.innerHTML = `<div id="flowDockV178">${flowDockV178(e)}</div>`;
   }
+  // a TAPPED Quick Play / ⏭ on the dock asks for the card (capture phase: before the button's own onclick, which is
+  // left exactly as it was — checks and the store find these buttons by it); a call from code does not
+  try {
+    document.addEventListener(
+      "click",
+      ev => {
+        const b = ev.target && ev.target.closest && ev.target.closest('#dock button[onclick="playWeek(false)"],#dock button[onclick^="seasonSkipV151A"]');
+        if (!b || !flowOnV178()) return;
+        const e = state && state.player;
+        if (!e || !e.weekResults) return;
+        if (/seasonSkip/.test(b.getAttribute("onclick"))) V178.want = { i: -1, at: Date.now(), batch: true };
+        else {
+          const i = e.weekResults.findIndex(w => !w.played);
+          i >= 0 && (V178.want = { i, at: Date.now() });
+        }
+      },
+      true
+    );
+  } catch (_) {}
   const decK178 = decorateScreen;
   decorateScreen = function () {
     decK178();
     if (!flowOnV178()) return;
     try {
       if (state.view !== "upgrade") V178.flow = null;
-      if (state.view === "season") {
-        const d = byId("dock");
-        // a TAPPED Quick Play / ⏭ asks for the card; a call from code does not
-        d &&
-          d.querySelectorAll('button[onclick="playWeek(false)"]').forEach(b => b.setAttribute("onclick", "window.__V178.quick()"));
-        d &&
-          d.querySelectorAll('button[onclick="seasonSkipV151A()"]').forEach(b => b.setAttribute("onclick", "window.__V178.skip()"));
-        simCardV178();
-      }
+      if (state.view === "season") simCardV178();
       flowDecorateV178();
     } catch (err) {
       V178.lastError = String((err && err.stack) || err);

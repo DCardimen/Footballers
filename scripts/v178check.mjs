@@ -189,7 +189,7 @@ const F0 = await M(async () => {
   return { wired, card: !!card, rows: card ? card.querySelectorAll('.rv-row').length : 0, title: card ? (card.querySelector('.decision-title') || {}).textContent : null, pts: p.points }
 })
 console.log('sim card:', JSON.stringify(F0))
-ok(F0.wired === 'window.__V178.quick()' && F0.card && F0.rows >= 5 && /WIN|LOSS/.test(F0.title || ''), 'a TAPPED Quick Play shows the scorecard: the result and the reel', F0)
+ok(F0.wired === 'playWeek(false)' && F0.card && F0.rows >= 5 && /WIN|LOSS/.test(F0.title || ''), 'a TAPPED Quick Play shows the scorecard: the result and the reel', F0)
 const F1 = await M(async () => {
   window.__V178.finish(); window.__V178.closeCard(); await new Promise((r) => setTimeout(r, 500))
   const d = document.getElementById('dock')
@@ -208,12 +208,16 @@ ok(!F2.card && F2.view === 'season', 'playWeek(false) from code gets no card and
 const F3 = await M(async () => {
   window.RIB_TUNE.v178flow = 0
   window.go('season'); await new Promise((r) => setTimeout(r, 200))
+  const p = window.S.player, i = p.weekResults.findIndex((w) => !w.played)
   const b = [...document.querySelectorAll('#dock button')].find((x) => /Quick Play/.test(x.textContent))
-  const out = { wired: b && b.getAttribute('onclick') }
+  b && b.click()
+  for (let k = 0; k < 80 && !(p.weekResults[i].played && p.weekResults[i].payV178); k++) await new Promise((r) => setTimeout(r, 150))
+  await new Promise((r) => setTimeout(r, 500))
+  const out = { card: !!document.getElementById('simCardV178'), view: window.S.view }
   delete window.RIB_TUNE.v178flow
   return out
 })
-ok(F3.wired === 'playWeek(false)', 'TU v178flow 0: the dock\'s Quick Play is the old button', F3)
+ok(!F3.card && F3.view === 'season', 'TU v178flow 0: a tapped Quick Play gets no card, as before', F3)
 
 // ============================== the kill switch ==============================
 await seed({ level: 2, pos: 'WR' })
