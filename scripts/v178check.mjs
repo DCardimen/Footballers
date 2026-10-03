@@ -173,6 +173,48 @@ console.log('report:', JSON.stringify(R))
 ok(R.view === 'result' && R.split && /paid game by game/.test(R.split) && R.paidAfter === 0, 'the season report says what was paid game by game and what the season end added; the season tally resets', R)
 ok(!R.err, 'no error inside the ledger', R.err)
 
+// ============================== K: the week flows ==============================
+await seed({ level: 3, pos: 'WR' })
+const F0 = await M(async () => {
+  const p = window.S.player; p.points = 0; p.payBankV178 = 0.95
+  window.go('season'); await new Promise((r) => setTimeout(r, 300))
+  const b = [...document.querySelectorAll('#dock button')].find((x) => /Quick Play/.test(x.textContent))
+  const wired = b && b.getAttribute('onclick')
+  b && b.click()
+  for (let k = 0; k < 80 && !document.getElementById('simCardV178'); k++) {
+    const g = document.getElementById('gv42go'); if (g && g.style.display !== 'none' && g.getBoundingClientRect().height) g.click()
+    await new Promise((r) => setTimeout(r, 150))
+  }
+  const card = document.getElementById('simCardV178')
+  return { wired, card: !!card, rows: card ? card.querySelectorAll('.rv-row').length : 0, title: card ? (card.querySelector('.decision-title') || {}).textContent : null, pts: p.points }
+})
+console.log('sim card:', JSON.stringify(F0))
+ok(F0.wired === 'window.__V178.quick()' && F0.card && F0.rows >= 5 && /WIN|LOSS/.test(F0.title || ''), 'a TAPPED Quick Play shows the scorecard: the result and the reel', F0)
+const F1 = await M(async () => {
+  window.__V178.finish(); window.__V178.closeCard(); await new Promise((r) => setTimeout(r, 500))
+  const d = document.getElementById('dock')
+  return { view: window.S.view, banner: !!document.getElementById('flowBannerV178'), live: !![...d.querySelectorAll('button')].find((x) => /Play Week 2 Live/i.test(x.textContent) && /playWeek\(true\)/.test(x.getAttribute('onclick'))), quick: !![...d.querySelectorAll('button')].find((x) => /Quick Play Week 2/i.test(x.textContent)) }
+})
+ok(F1.view === 'upgrade' && F1.banner && F1.live && F1.quick, 'Continue goes straight to the skill sheet, whose dock is the next week (Play Live / Quick Play)', F1)
+const F2 = await M(async () => {
+  const p = window.S.player, i = p.weekResults.findIndex((w) => !w.played); p.points = 0
+  window.go('season'); await new Promise((r) => setTimeout(r, 200))
+  window.playWeek(false)
+  for (let k = 0; k < 80 && !(p.weekResults[i].played && p.weekResults[i].payV178); k++) await new Promise((r) => setTimeout(r, 150))
+  await new Promise((r) => setTimeout(r, 500))
+  return { card: !!document.getElementById('simCardV178'), view: window.S.view }
+})
+ok(!F2.card && F2.view === 'season', 'playWeek(false) from code gets no card and stays on the season screen (the strip)', F2)
+const F3 = await M(async () => {
+  window.RIB_TUNE.v178flow = 0
+  window.go('season'); await new Promise((r) => setTimeout(r, 200))
+  const b = [...document.querySelectorAll('#dock button')].find((x) => /Quick Play/.test(x.textContent))
+  const out = { wired: b && b.getAttribute('onclick') }
+  delete window.RIB_TUNE.v178flow
+  return out
+})
+ok(F3.wired === 'playWeek(false)', 'TU v178flow 0: the dock\'s Quick Play is the old button', F3)
+
 // ============================== the kill switch ==============================
 await seed({ level: 2, pos: 'WR' })
 const K = await M(async () => {

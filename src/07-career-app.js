@@ -33487,11 +33487,15 @@
           try {
             wr && autoFlipV178(p, wr); /* v178 F: picks left unspent are picked for him */
           } catch (e) {}
+          var flowV178 = true;
           try {
             cont();
           } catch (e) {
             console.warn("[postgame continue]", e);
           }
+          try {
+            flowV178 && flowAfterCardV178(); /* v178 K: the recap leads to the skill sheet, then the next week */
+          } catch (e) {}
         };
         return true;
       }
@@ -35861,8 +35865,14 @@
     (P.reps || []).forEach(r => r.up && V178.moments.push({ p: 5, t: "⬆ " + r.name.toUpperCase() + " +" + r.up, s: "Practice reps paid off · now " + Math.round(r.now), tone: "good" }));
     if (orders && orders.length && hits === orders.length) V178.moments.push({ p: 5, t: "📋 CLEAN SWEEP", s: "Every order this week · bonus points", tone: "good" });
     if (!ctx.card) {
-      autoFlipV178(e, w);
-      if (on178("reel")) V178.queue.push(w);
+      if (wantsCardV178(e, w)) {
+        /* v178 K: a tapped sim gets the scorecard; its picks wait for the card */
+        V178.card = V178.card || { weeks: [], at: Date.now() };
+        V178.card.weeks.push(w);
+      } else {
+        autoFlipV178(e, w);
+        if (on178("reel")) V178.queue.push(w);
+      }
     }
     return P;
   }
@@ -36562,7 +36572,7 @@
   }
   function momentsV178() {
     if (!V178.moments.length || V178.batch) return;
-    if ((state && state.view === "live") || document.getElementById("pgOverlayV13")) return;
+    if ((state && state.view === "live") || document.getElementById("pgOverlayV13") || document.getElementById("simCardV178")) return;
     const m = V178.moments.sort((a, b) => b.p - a.p)[0];
     V178.moments = [];
     setTimeout(() => bigMoment(m.t, m.s, m.tone), 650);
@@ -36656,7 +36666,7 @@
       V178.batch--;
       if (!V178.batch)
         setTimeout(() => {
-          stripV178();
+          simCardV178() || stripV178();
           momentsV178();
         }, 60);
     }
@@ -36700,4 +36710,152 @@
     finish: reelFinishV178,
     strip: stripV178
   };
+
+  /* ===== v178 K THE WEEK FLOWS =====
+   * The owner: "On simmed days show the scorecard too, and after the recap page go directly to upgrade skills, then
+   * after that go to a continue week option. I want that to be seamless." A Quick Play TAPPED on the season dock
+   * (`quickV178`; the dock's `playWeek(false)` button is rewired in `decorateScreen`) or the ⏭ season sim (`skipV178`)
+   * asks for the card (`V178.want`); the week's ledger answers it (`payWeekV178` queues `V178.card` instead of the
+   * strip) and `simCardV178` draws the same scorecard the watched game gets — the result, the score and the reel —
+   * as `#simCardV178` (a batch says how many games it covered and what they paid in all). A call to `playWeek(false)`
+   * from code still gets the strip. Continue on either card (`flowAfterCardV178`): with points to spend he goes
+   * straight to the skill sheet, flagged `V178.flow`, whose dock becomes the next week — "▶ Play Week N Live" and
+   * "⏩ Quick Play Week N" with the season dock's own labels and gates (`flowDockV178`: Live Sim Only, the playoff lock,
+   * the season finished → "Finish Season & See Results") — and a banner over the sheet says what just landed; with no
+   * points he lands on the season screen as before. Never over another overlay or a screen the week moved him to.
+   * Kill switch TU "v178flow" 0. `v178check`. */
+  function flowOnV178() {
+    return on178() && !!TU("v178flow", 1);
+  }
+  function quickV178() {
+    const e = state && state.player;
+    if (flowOnV178() && e && e.weekResults) {
+      const i = e.weekResults.findIndex(w => !w.played);
+      i >= 0 && (V178.want = { i, at: Date.now(), n: 0 });
+    }
+    return window.playWeek(false);
+  }
+  function skipV178() {
+    const e = state && state.player;
+    if (flowOnV178() && e && e.weekResults) V178.want = { i: -1, at: Date.now(), n: 0, batch: true };
+    return window.seasonSkipV151A();
+  }
+  // the ledger asks: does someone want this week's card?
+  function wantsCardV178(e, w) {
+    const W = V178.want;
+    if (!W || !flowOnV178() || Date.now() - W.at > 60000) return false;
+    if (W.batch) return true;
+    return e.weekResults && e.weekResults.indexOf(w) === W.i;
+  }
+  function simCardV178() {
+    const C = V178.card;
+    if (!C || !on178("reel")) return false;
+    if (Date.now() - C.at > 90000) return (V178.card = null), false; /* a card nobody got to see in time is dropped */
+    if (state && state.view === "live") return false;
+    if (document.getElementById("pgOverlayV13") || document.getElementById("simCardV178") || document.querySelector(".life-event-overlay-v12,#growthV42,#pregameV1513")) return false;
+    if (V178.batch) return false;
+    const e = state && state.player,
+      ws = C.weeks.filter(w => w && w.payV178 && !w.payV178.skipped);
+    V178.card = null;
+    V178.want = null;
+    if (!e || !ws.length) return false;
+    const w = ws[ws.length - 1],
+      P = w.payV178,
+      wk = e.weekResults.indexOf(w),
+      flipPts = p => (p.flip ? p.flip.picked.reduce((a, k) => a + (k.id === "pt1" ? 1 : k.id === "pt2" ? 2 : 0), 0) : 0),
+      tot = ws.reduce((a, x) => a + x.payV178.whole + flipPts(x.payV178), 0),
+      rec = ws.reduce((a, x) => (x.won ? a.w++ : a.l++, a), { w: 0, l: 0 });
+    V178.cardWeek = w;
+    const head =
+      ws.length > 1
+        ? `<div class="decision-kicker">${ws.length} GAMES SIMMED · ${rec.w}–${rec.l}</div><div class="decision-title">💰 +${tot} upgrade pts</div><div class="small center" style="color:var(--chalk-dim);margin:2px 0 4px">The last of them, ${w.won ? "a win" : "a loss"} ${w.us}–${w.them} ${escHtml(w.opp || "")}, below</div>`
+        : `<div class="decision-kicker">${w.playoff ? escHtml(w.round || "PLAYOFFS") : "WEEK " + (wk + 1)} FINAL · ${escHtml(String(w.opp || "OPPONENT"))} · SIMMED</div><div class="decision-title">${TU("v168season", 1) ? myCrestV168(e, 34) : ""}${w.won ? "✅ WIN" : "❌ LOSS"} · ${w.us} – ${w.them}${TU("v168season", 1) ? crestV168(String(w.opp || "").replace(/^.*'s /, ""), 34) : ""}</div><div class="small center" style="color:var(--chalk-dim);margin:2px 0 4px">Game grade ${Math.round(w.perf || 0)}${w.gameGrade ? " · " + escHtml(w.gameGrade) : ""}</div>`;
+    document.body.insertAdjacentHTML(
+      "beforeend",
+      `<div class="decision-overlay" id="simCardV178"><div class="decision-panel" style="border-color:var(--gold)">${head}${reelHtmlV178(e, w)}<div class="small center watch-hint-v178" style="margin-top:8px;color:var(--cyan)">📺 Watch next week live: ×${TU("watchPayV178", 2)} points, ×2 reps, two card picks</div><button class="btn" style="margin-top:12px" onclick="window.__V178.closeCard()">Continue ›</button></div></div>`
+    );
+    requestAnimationFrame(() => {
+      try {
+        reelStartV178();
+      } catch (_) {}
+    });
+    return true;
+  }
+  function closeCardV178() {
+    const el = document.getElementById("simCardV178");
+    el && el.remove();
+    try {
+      const e = state && state.player;
+      e && V178.cardWeek && autoFlipV178(e, V178.cardWeek);
+      saveGame();
+    } catch (_) {}
+    flowAfterCardV178();
+  }
+  // after a card: the skill sheet when there is something to spend, else the season screen as before
+  function flowAfterCardV178() {
+    if (!flowOnV178()) return;
+    setTimeout(() => {
+      const e = state && state.player;
+      if (!e || !e.pos || state.view !== "season") return;
+      if (document.querySelector(".decision-overlay,.life-event-overlay-v12,#growthV42,#pregameV1513")) return;
+      if (!((e.points || 0) > 0)) return momentsV178();
+      V178.flow = { at: Date.now() };
+      window.go("upgrade");
+    }, 40);
+  }
+  // the season dock's next-week buttons, for the skill sheet the flow brought him to
+  function flowDockV178(e) {
+    const a = e.weekResults || [],
+      reg = a.filter(w => !w.playoff),
+      y = a.find(w => !w.played);
+    if (!y) return `<button class="btn" onclick="window.__V178.leave();finishSeasonGames()">Finish Season &amp; See Results ▸</button>`;
+    const C = y.playoff ? y.round : "Week " + (reg.findIndex(w => !w.played) + 1);
+    const quick = liveOnlyV164D(e) || playoffLockV156B(e, y) ? "" : `<button class="btn secondary" onclick="window.__V178.leave();window.__V178.quick()">⏩ Quick Play ${C}${gameSimTagV158B()}</button>`;
+    return (
+      `<button class="btn" style="width:100%" onclick="window.__V178.leave();playWeek(true)">▶ Play ${C} Live</button><div style="height:8px"></div>` +
+      `<div class="btn-row">${quick}<button class="btn secondary" onclick="autoAllocKey()">⚡ Auto: Key Stats</button></div>`
+    );
+  }
+  function flowDecorateV178() {
+    const e = state && state.player,
+      t = byId("screen"),
+      d = byId("dock");
+    if (!V178.flow || state.view !== "upgrade" || !e || !t || !d) return;
+    if (!t.querySelector("#flowBannerV178")) {
+      const last = (e.weekResults || []).filter(w => w && w.played && w.payV178 && !w.payV178.skipped).slice(-1)[0];
+      t.insertAdjacentHTML(
+        "afterbegin",
+        `<div class="card" id="flowBannerV178" style="border-color:var(--gold);background:linear-gradient(160deg,rgba(242,201,76,.14),rgba(13,18,28,.96))"><div class="l" style="font-size:11px;color:var(--gold);letter-spacing:2px">⚡ SPEND YOUR PAYCHECK</div><div style="font-family:'Barlow Condensed';font-size:15px;margin-top:3px">${last ? `<b style="color:var(--gold)">+${last.payV178.whole}</b> this week · ` : ""}<b>${e.points}</b> points to spend — then straight back on the field.</div></div>`
+      );
+    }
+    if (!d.querySelector("#flowDockV178")) d.innerHTML = `<div id="flowDockV178">${flowDockV178(e)}</div>`;
+  }
+  const decK178 = decorateScreen;
+  decorateScreen = function () {
+    decK178();
+    if (!flowOnV178()) return;
+    try {
+      if (state.view !== "upgrade") V178.flow = null;
+      if (state.view === "season") {
+        const d = byId("dock");
+        // a TAPPED Quick Play / ⏭ asks for the card; a call from code does not
+        d &&
+          d.querySelectorAll('button[onclick="playWeek(false)"]').forEach(b => b.setAttribute("onclick", "window.__V178.quick()"));
+        d &&
+          d.querySelectorAll('button[onclick="seasonSkipV151A()"]').forEach(b => b.setAttribute("onclick", "window.__V178.skip()"));
+        simCardV178();
+      }
+      flowDecorateV178();
+    } catch (err) {
+      V178.lastError = String((err && err.stack) || err);
+    }
+  };
+  Object.assign(window.__V178, {
+    quick: quickV178,
+    skip: skipV178,
+    closeCard: closeCardV178,
+    leave: () => (V178.flow = null),
+    flowDock: () => flowDockV178(state.player),
+    afterCard: flowAfterCardV178
+  });
 })();
