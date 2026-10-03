@@ -15844,7 +15844,7 @@
   }
   window.__levelBaseV178 = levelBaseV178;
   // v178 N: the scale S of the square-root gap the sim plays, by level (Pee Wee … Interstellar), fitted to the v76 0.7 a point
-  var SIM_GAP_V178 = [1.5, 1.5, 1.4, 1.2, 1.35, 1.35, 1.35, 1.4, 1.55];
+  var SIM_GAP_V178 = [1.5, 1.5, 1.4, 1.2, 1.35, 1.35, 1.35, 2.3, 3.6];
   function buildGameRosters(e, t, a, s, n, i, r) {
     const l = ["QB", "RB", "RB", "WR", "WR", "TE", "OL", "OL", "OL", "OL", "OL"],
       d = ["DL", "DL", "DL", "DL", "LB", "LB", "LB", "CB", "CB", "S", "S"],
@@ -15944,6 +15944,10 @@
           "injuryResist"
         ])
           delete b[Q]; /* kill-switch: the pre-v141 roster */
+      // v178 O: past 99 a point counts `aiAttrOverKV178` — the league keeps up with a 99+ star without every equal
+      // matchup turning into a shootout (the sim's reads ease toward 99, so a roster all past it favours the offence)
+      if (HI_V178 > 99)
+        for (const Q in b) typeof b[Q] == "number" && b[Q] > 99 && (b[Q] = Math.round(99 + (b[Q] - 99) * TU("aiAttrOverKV178", 0.35)));
       return b;
     }
     function p(Y, _) {
