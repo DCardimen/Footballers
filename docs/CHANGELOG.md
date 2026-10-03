@@ -10,6 +10,24 @@ Names in older entries are the career app's pre-v149 C minified names (`q`, `ms`
 `index.html` + `src/` (`docs/LAYOUT.md`).
 
 <!-- new entries go here, newest first -->
+- **v178 — the weekly paycheck.** (`src/07-career-app.js`, `scripts/v178check.mjs`.) The owner: "I would like game
+  rewards to be more instant, satisfying… instead of the upgrade points at the end of the season, split it up and give
+  them a game. Show in a satisfying way the coach trust change and why. Show any win streaks. Any game watched should grant
+  double rewards. Simmed games offer standard rewards" — "whatever the season paid out divided by the number of games" —
+  "think of a system that would get people hooked… implement all those changes." Every game now pays on the night:
+  **A** the season's upgrade points cut into per-game slices (the old formula ÷ games, big games, wins, playoff wins, the
+  title), ×1 simmed and ×2 watched, through a "next point" bank; the season end keeps only the win-% bonus, the flat
+  points, the scouts' buzz and any game nothing paid (an AI-simmed season pays the old total at ×1), and the report says
+  "+N paid game by game · +M at the season end". **B** the coach's receipt (the win/loss, the grade, the rivalry, the
+  call, the cap — it adds up to the swing that lands) and a depth ladder on the season screen (snaps before/after, who you
+  outplayed, the gap to the next rung; promoted / demoted moments). **C** win streaks pay ×1.2 at 3, ×1.35 at 5, ×1.5 at
+  8; a snapped run says so. **D** three orders a week, judged on the booked stat line. **E** practice reps: the three key
+  attributes bank progress every game and level up on the spot. **F** three face-down cards after every game — one pick
+  simmed, two watched (points, reps, trust, banked PP, gear, rarely a permanent +1); the cards you passed on turn over.
+  **G** the stock ticker: recruiting stars, then draft round, then market value, with the reasons, paying at the season
+  end. **H** the season pace against three marks set after week two, with a payout when one falls. **I** the post-game
+  card's reward reel (count-ups, sounds, haptics, tap to finish), a strip for a simmed week that never blocks a tap, and
+  THIS WEEK on the season screen. Kill switch `TU("v178", 0)` (and one per piece). `v178check`.
 - **v177 C/D/E — the board throws a party, the rim is a clean line, the far end holds its shape.**
   (`src/05-field-renderer.js`, `src/28-cosmetics.js`, `scripts/jumboPartycheck.mjs`, `scripts/rimcheck.mjs`,
   `scripts/perspcheck.mjs`.) **C** — the owner: "Add TD celebrations after a key play (defense) or touchdown. Have it play

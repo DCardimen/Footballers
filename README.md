@@ -51,6 +51,9 @@ Every gameplay dial reads through `TU(key, default)`, so values can be retuned l
 
 The full history, newest first, is [`docs/CHANGELOG.md`](docs/CHANGELOG.md) — add new entries there.
 
+- **v178 — the weekly paycheck.** Upgrade points are paid every game (simmed ×1, watched ×2) instead of all at the
+  season end, with a reward reel on the post-game card: the coach's receipt (why trust moved), win-streak heat, weekly
+  orders, practice reps, a card flip, the scouts' stock and the season pace; THIS WEEK on the season screen. `v178check`.
 - **v176 — the number is sewn on.** Jersey numbers are printed into the shirt on the sprite's own pixels: centred on
   the back under the helmet, on the chest under the facemask, covered by an arm or the ball, shaded with the fabric, in
   the kit's colours (and his number font's); the profile figure's chest the same way. `numsewcheck`.

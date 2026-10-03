@@ -12979,10 +12979,13 @@
         dropGear(R ? 3 : 2, "Championship loot"));
     }
     const ge = 4 + e.level * 3,
+      _p178 = seasonPayV178(e, P, ie, Y, B) /* v178 A: the games paid their own points; this is what is left */,
       $e =
-        Math.round(
-          (Math.round((U / 94) * ge + ge * 0.6 + e.attrs.awareness * 0.02) + g + N + H + oe) * _wv164.mult
-        ) /* v164 C: the season's points ride the watched share */ +
+        (_p178
+          ? _p178.pts
+          : Math.round(
+              (Math.round((U / 94) * ge + ge * 0.6 + e.attrs.awareness * 0.02) + g + N + H + oe) * _wv164.mult
+            )) /* v164 C: the season's points ride the watched share */ +
         Math.floor(treeFx("pointsFlat") + gearFx("pointsFlat") + seasonModFx("pointsFlat") + gearV147("points")) +
         repsV146(),
       de = prodStats(e.pos, U, e.level),
@@ -13109,6 +13112,7 @@
       injuries: u,
       newOvr: se,
       pointsEarned: $e,
+      payV178: _p178 /* v178 A: paid game by game, and the season end's part */,
       watchV164C: _wv164 /* v164 C: the watched share and its multiplier, for the report card */,
       contractResults: To,
       salary: X,
@@ -13129,8 +13133,8 @@
       chance: Mo,
       standoutGames: p,
       dominantGames: m,
-      perfPoints: H,
-      teamBonus: oe,
+      perfPoints: _p178 ? 0 : H /* v178 A: big games paid on the night */,
+      teamBonus: _p178 ? Math.max(0, _p178.team) : oe,
       tier: currentTier(e),
       record: `${y}-${ce}`,
       teamWins: y,
@@ -23585,7 +23589,11 @@
     }
 
     <div class="pts-banner">
-      <div><span class="n">+${t.pointsEarned}</span> <span class="l">UPGRADE POINTS EARNED</span>${t.perfPoints > 0 ? `<div style="font-size:11px;color:var(--good)">includes +${t.perfPoints} from big games</div>` : ""}</div>
+      <div>${
+        t.payV178
+          ? `<span class="n">+${t.payV178.paid + t.pointsEarned}</span> <span class="l">UPGRADE POINTS THIS SEASON</span><div class="pay-split-v178" style="font-size:11px;color:var(--good)">+${t.payV178.paid} paid game by game · +${t.pointsEarned} at the season end${t.payV178.stock ? ` (incl. +${t.payV178.stock} scouts' buzz)` : ""}</div>` /* v178 A */
+          : `<span class="n">+${t.pointsEarned}</span> <span class="l">UPGRADE POINTS EARNED</span>${t.perfPoints > 0 ? `<div style="font-size:11px;color:var(--good)">includes +${t.perfPoints} from big games</div>` : ""}`
+      }</div>
       <div style="font-family:'Oswald';font-size:15px;color:var(--gold)">${e.points} total</div>
     </div>
 
@@ -32164,6 +32172,8 @@
     return 1 + TU("simCutRiskKV164C", 0.3) * (1 - w.share);
   }
   function watchNoteV164C() {
+    if (TU("v178", 1))
+      return `<div class="small center watch-note-v164c" style="margin-top:6px;opacity:.8">📺 Watch live: ×${TU("watchPayV178", 2)} points, ×2 reps &amp; two card picks a game · Quick Play: the standard pay</div>`; /* v178 A */
     if (!TU("v164Cwatch", 1)) return "";
     const b = Math.round(TU("watchXpBonusV164C", 0.25) * 100),
       c = Math.round(TU("simXpCutV164C", 0.15) * 100);
@@ -33355,8 +33365,26 @@
           // the card is a promise: book the number it shows, so the week is finalised against
           // it even though the sim re-derives the game's rating after Continue
           if (wr && !wr._pulse95) wr.coachPreview98 = sw;
+          // v178 B: a rivalry week lands the swing doubled (processWeek95), so the card says the doubled number
+          if (wr && !wr._pulse95 && wr.rivalV128 && TU("v178receipt", 1)) {
+            var rm = window.__V128 ? window.__V128.mult() : 2;
+            sw = Math.max(0, Math.min(100, now + sw * rm)) - now;
+            ct.delta = sw;
+            ct.after = Math.max(0, Math.min(100, now + sw));
+          }
         } catch (e) {
           ct = null;
+        }
+        // v178: the week's paycheck is paid here, on the card, and the reel shows it
+        var reel = "";
+        try {
+          if (wr) {
+            payWeekV178(p, wr, { watched: true, card: true, perf: grade.score, won: us > them, stat: g.stat, live: g });
+            V178.cardWeek = wr;
+            reel = reelHtmlV178(p, wr);
+          }
+        } catch (e) {
+          reel = "";
         }
         var ctCol = !ct ? "" : ct.delta > 0 ? "var(--good)" : ct.delta < 0 ? "#e08a8a" : "var(--chalk-dim)";
         var coachRow = !ct
@@ -33422,6 +33450,7 @@
           "</em>" +
           "</div>" +
           coachRow +
+          reel /* v178 I: the reward reel */ +
           // v53: the SEASON line leads. What a player wants after a whistle is where
           // the year now stands — the single-game box is the detail underneath it.
           // The green deltas still show what this game contributed, so leading with
@@ -33449,9 +33478,15 @@
             pgApplyScore(grade.score, grade.snaps > 0 ? " · " + grade.snaps + " snaps" : "");
           }
         });
+        try {
+          reel && reelStartV178();
+        } catch (e) {}
         window.__pgContinueV13 = function () {
           var el = document.getElementById("pgOverlayV13");
           if (el) el.remove();
+          try {
+            wr && autoFlipV178(p, wr); /* v178 F: picks left unspent are picked for him */
+          } catch (e) {}
           try {
             cont();
           } catch (e) {
@@ -35368,5 +35403,882 @@
     preview: k => window.previewTraining(k),
     panel: tpPanelV113,
     row: tpRowV113
+  };
+  /* ===== v178 THE WEEKLY PAYCHECK =====
+   * The owner: "I would like game rewards to be more instant, satisfying… instead of the upgrade points at the end of
+   * the season, split it up and give them a game. Show in a satisfying way the coach trust change and why. Show any win
+   * streaks. Any game watched should grant double rewards. Simmed games offer standard rewards — whatever the season
+   * paid out divided by the number of games." Ten pieces, one ledger per game (`w.payV178`, written ONCE by
+   * `payWeekV178` — at the post-game card for a watched game, from `processWeek95` for every other one):
+   *  A THE PAYCHECK — `gamePotV178` is the old season formula (`$e` in simSeason) cut into its per-game slices: the base
+   *    (grade/94 × (4 + 3·level) + 0.6 × that + awareness·.02 + the tree/path/trait/program bonus points) ÷ games, the big
+   *    game (84+: 1, Big Game Hunter 2) and the 72+ third, a win's half point, a playoff win's 2, the title's points.
+   *    A simmed game pays it ×1, a watched game ×`watchPayV178` (2). Points land through a fractional bank
+   *    (`player.payBankV178` — "next point 40%"), whole points straight onto `player.points`. The season end pays only
+   *    what is still the season's: the win-% bonus, the flat points (tree/gear/mods/reps), the stock bonus (G), and any
+   *    game no ledger paid (an old save, an AI-simmed season) at ×1 (`seasonPayV178`). v164 C's season multiplier no
+   *    longer rides the points (it still rides Legacy XP, growth and the cut roll).
+   *  B THE COACH'S RECEIPT — the trust the post-game card quotes, itemised: the result, the grade, the rivalry, the call
+   *    (`coachReceiptV178`). The depth chart (the snap share v11's rival battle moves) is a ladder on the season screen:
+   *    the share before/after, who you outplayed, the gap to the next rung; a promotion or demotion is a big moment.
+   *  C THE STREAK IS HOT — a win streak multiplies the game's pay: 3 ×1.2, 5 ×1.35, 8 ×1.5 (`heatV178`). A snapped
+   *    streak of 3+ says so.
+   *  D THIS WEEK'S ORDERS — three goals a week (`ordersV178`), fixed on the week row the first time they are drawn
+   *    (seeded, no Math.random), judged on the booked stat line only (stat-credit truth). Each cleared pays
+   *    `orderPtsV178` of a game's worth, all three `sweepPtsV178` more.
+   *  E PRACTICE REPS — the position's three key attributes bank progress every game (`practiceV178`); a whole point is
+   *    a level-up on the spot. Watched ×2. Damped near the cap like the season's growth.
+   *  F FLIP A CARD — three face-down cards after every game (`deckV178`, seeded): a simmed game picks one (auto), a
+   *    watched game two. Points, reps, coach trust, banked PP, a gear drop, rarely a permanent +1. Earned only.
+   *  G THE STOCK TICKER — the scouts' read after every game (`stockV178`): recruiting stars through Varsity, draft
+   *    round in College and the Combine, market value in the UFF. It moves on the grade, the result, OVR vs the level
+   *    and trust, says why, and pays at the season end (`stockBonusV178`).
+   *  H THE PACE — the season's headline stat against three marks (`marksV178`): pace, the yards still to go, and a
+   *    one-time payout when a mark falls.
+   *  I THE REWARD REEL — the post-game card reveals it all in order with count-ups, sounds and haptics (`reelHtmlV178`,
+   *    tap to finish); a simmed week is a strip that fades by itself (`stripV178`, no buttons, never blocks a tap); the
+   *    season screen carries THIS WEEK (`weekCardV178`).
+   * Kill switches: TU "v178" 0 = the old season-end points and nothing else here; "v178heat" / "v178orders" /
+   * "v178reps" / "v178flip" / "v178stock" / "v178pace" / "v178reel" 0 each switch off their piece. `window.__V178`;
+   * `v178check`. */
+  const V178 = { batch: 0, queue: [], moments: [], stripTimer: 0, paid: 0, lastPay: null };
+  function on178(k) {
+    return !!TU("v178", 1) && (!k || !!TU("v178" + k, 1));
+  }
+  const RUNGS_V178 = ["BENCH", "SECOND STRING", "ROTATION", "STARTER", "FIRST STRING"],
+    RUNG_AT_V178 = [0, 0.16, 0.38, 0.66, 0.82];
+  function rungV178(role) {
+    return Math.max(0, RUNGS_V178.indexOf(String(role || "BENCH")));
+  }
+  // one game's worth of points at this level — the yardstick the extras are priced in
+  function gameWorthV178(e) {
+    const lv = (e && e.level) | 0,
+      G = Math.max(1, (LEVELS[lv] || LEVELS[0]).games);
+    return ((4 + lv * 3) * 1.6) / G;
+  }
+  function gamePotV178(e, w, perf, won, opts) {
+    opts = opts || {};
+    const lv = e.level | 0,
+      G = Math.max(1, LEVELS[lv].games),
+      ge = 4 + lv * 3,
+      prog = PROGRAMS[e.training || "balanced"] || {},
+      bonus =
+        nodeLvl("coachable") +
+        nodeLvl("vet") * 2 +
+        nodeLvl("proDay") +
+        nodeLvl("mastermind") * 2 +
+        pathVal("bonusPoints", 0) +
+        (hasTrait(e, "coachsSon") ? 1 : 0) +
+        (prog.bonusPoints || 0),
+      items = [];
+    perf = Number(perf) || 0;
+    items.push({
+      k: "base",
+      label: "Game check · grade " + Math.round(perf),
+      v: ((perf / 94) * ge + ge * 0.6 + ((e.attrs && e.attrs.awareness) || 0) * 0.02 + bonus) / G
+    });
+    const hunter = hasTrait(e, "bigGameHunter");
+    if (perf >= 84) items.push({ k: "big", label: "Big game (84+)" + (hunter ? " · Big Game Hunter" : ""), v: (hunter ? 2 : 1) + 1 / 3 });
+    else if (perf >= 72) items.push({ k: "solid", label: "Solid game (72+)", v: 1 / 3 });
+    const playoff = !!(opts.playoff != null ? opts.playoff : w && w.playoff);
+    if (won) items.push({ k: "win", label: playoff ? "Playoff win" : "Win", v: playoff ? 2 : 0.5 });
+    let title = false;
+    try {
+      title = !!(won && (opts.title != null ? opts.title : playoff && titleWeekV164B(e, w)));
+    } catch (_) {}
+    if (title) items.push({ k: "title", label: "Championship", v: Math.round((4 + Math.round(lv * 0.8)) * titleXpMultV164C()) });
+    return { items, raw: items.reduce((s, i) => s + i.v, 0), title };
+  }
+  // the sheets carry no decimals (v92): a multiplier reads as a percentage, a part of a point as a fraction glyph
+  function pctV178(m) {
+    return "+" + Math.round((m - 1) * 100) + "%";
+  }
+  function fracV178(v) {
+    const sg = v < 0 ? "−" : "+",
+      a = Math.abs(v),
+      w = Math.floor(a + 1e-9),
+      f = a - w,
+      G = [[0, ""], [0.25, "¼"], [1 / 3, "⅓"], [0.5, "½"], [2 / 3, "⅔"], [0.75, "¾"], [1, ""]];
+    let best = G[0];
+    for (const g of G) if (Math.abs(f - g[0]) < Math.abs(f - best[0])) best = g;
+    const whole = w + (best[0] === 1 ? 1 : 0);
+    return whole === 0 && !best[1] ? "±0" : sg + (whole ? whole : "") + best[1];
+  }
+  function heatV178(streak) {
+    if (!on178("heat") || !(streak >= 3)) return { mult: 1, tier: 0, label: "" };
+    return streak >= 8
+      ? { mult: TU("heat8V178", 1.5), tier: 3, label: "UNSTOPPABLE" }
+      : streak >= 5
+        ? { mult: TU("heat5V178", 1.35), tier: 2, label: "ON FIRE" }
+        : { mult: TU("heat3V178", 1.2), tier: 1, label: "HOT STREAK" };
+  }
+  /* ---- D: this week's orders ---- */
+  const ORDERS_V178 = {
+    QB: { vol: ["pass", "pass yds", "passYds"], sec: ["td", ["TD pass", "TD passes"], "passTD"], hard: [{ k: "int", txt: "Throw 0 INTs", max: 0 }, { k: "win", txt: "Win the game" }] },
+    RB: { vol: ["rush", "rush yds", "rushYds"], sec: ["td", ["TD", "TDs"], "rushTD"], hard: [{ k: "fum", txt: "No fumbles", max: 0 }, { k: "longest", txt: "A 20+ yd run", min: 20 }] },
+    WR: { vol: ["rec", "rec yds", "recYds"], sec: ["rec_c", ["catch", "catches"], "rec"], hard: [{ k: "td", txt: "Score a TD", min: 1 }, { k: "longest", txt: "A 25+ yd catch", min: 25 }] },
+    TE: { vol: ["rec", "rec yds", "recYds"], sec: ["rec_c", ["catch", "catches"], "rec"], hard: [{ k: "td", txt: "Score a TD", min: 1 }, { k: "win", txt: "Win the game" }] },
+    OL: { vol: ["pancake", ["pancake", "pancakes"], "pancakes"], sec: null, hard: [{ k: "sackAllowed", txt: "Allow 0 sacks", max: 0 }, { k: "win", txt: "Win the game" }] },
+    DL: { vol: ["tackle", ["tackle", "tackles"], "tackles"], sec: ["tfl", ["TFL", "TFLs"], "tfl"], hard: [{ k: "sack", txt: "Get a sack", min: 1 }, { k: "qbhit", txt: "2+ QB hits", min: 2 }] },
+    LB: { vol: ["tackle", ["tackle", "tackles"], "tackles"], sec: ["tfl", ["TFL", "TFLs"], "tfl"], hard: [{ k: "sack", txt: "Get a sack", min: 1 }, { k: "win", txt: "Win the game" }] },
+    CB: { vol: ["pd", ["pass breakup", "pass breakups"], "pd"], sec: ["tackle", ["tackle", "tackles"], "tackles"], hard: [{ k: "int", txt: "Pick one off", min: 1 }, { k: "win", txt: "Win the game" }] },
+    S: { vol: ["tackle", ["tackle", "tackles"], "tackles"], sec: ["pd", ["pass breakup", "pass breakups"], "pd"], hard: [{ k: "int", txt: "Pick one off", min: 1 }, { k: "tfl", txt: "A tackle for loss", min: 1 }] }
+  };
+  function perGameBaseV178(e, posKey) {
+    const ps = POS_STATS[e.pos],
+      st = ps && ps.stats.find(s => s.key === posKey);
+    return st ? st.per[Math.min(st.per.length - 1, e.level | 0)] || 0 : 0;
+  }
+  function ownAvgV178(e, key, notW) {
+    let n = 0,
+      sum = 0;
+    (e.weekResults || []).forEach(w => {
+      if (!w || w === notW || !w.played || w.satOut || !w.statLine) return;
+      n++;
+      sum += Number(w.statLine[key]) || 0;
+    });
+    return n >= 2 ? sum / n : null;
+  }
+  function niceV178(x) {
+    return x >= 2000 ? Math.round(x / 250) * 250 : x >= 500 ? Math.round(x / 100) * 100 : x >= 100 ? Math.round(x / 50) * 50 : x >= 40 ? Math.round(x / 5) * 5 : Math.max(1, Math.round(x));
+  }
+  function ordersV178(e, w) {
+    if (!on178("orders") || !e || !w || !ORDERS_V178[e.pos]) return null;
+    if (w.ordersV178) return w.ordersV178;
+    const O = ORDERS_V178[e.pos],
+      rng = seededRng(e.seasonSeed || 0, e.level || 0, w.week || 0, w.opp || "", e.pos, "ordersV178"),
+      out = [];
+    const ref = (spec, k) => {
+      const base = perGameBaseV178(e, spec[2]),
+        own = ownAvgV178(e, spec[0], w);
+      return (own != null ? base * 0.4 + own * 0.6 : base) * k;
+    };
+    const say = (t, lab) => t + "+ " + (Array.isArray(lab) ? lab[t === 1 ? 0 : 1] : lab);
+    const t0 = niceV178(ref(O.vol, 0.85));
+    out.push({ id: "vol", k: O.vol[0], min: t0, txt: say(t0, O.vol[1]) });
+    const S2 = O.sec || O.vol,
+      t1 = niceV178(ref(S2, O.sec ? 1 : 1.35));
+    out.push({ id: "sec", k: S2[0], min: t1, txt: say(t1, S2[1]) });
+    const h = O.hard[rng() < 0.5 ? 0 : 1];
+    out.push(Object.assign({ id: "hard" }, h));
+    w.ordersV178 = out;
+    return out;
+  }
+  function judgeOrdersV178(orders, stat, won) {
+    if (!orders || !stat) return null;
+    return orders.map(o => {
+      const actual = o.k === "win" ? (won ? 1 : 0) : Number(stat[o.k]) || 0,
+        ok = o.k === "win" ? !!won : o.max != null ? actual <= o.max : actual >= (o.min || 0);
+      return Object.assign({}, o, { actual, ok });
+    });
+  }
+  /* ---- E: practice reps ---- */
+  function keyAttrsV178(e) {
+    const W = (POSITIONS[e.pos] && POSITIONS[e.pos].w) || {};
+    return Object.keys(W)
+      .filter(k => e.attrs && e.attrs[k] != null)
+      .sort((a, b) => W[b] - W[a])
+      .slice(0, 3);
+  }
+  function repAttrV178(e, k, g) {
+    e.practiceV178 = e.practiceV178 || {};
+    const cap = attrCap(),
+      cur = e.attrs[k] || 1;
+    let bank = (e.practiceV178[k] || 0) + g,
+      up = 0;
+    if (cur >= cap) bank = Math.min(bank, 0.99);
+    else if (bank >= 1) {
+      up = Math.min(Math.floor(bank), cap - cur);
+      e.attrs[k] = clamp99(cur + up, 1, cap);
+      bank -= Math.floor(bank);
+    }
+    e.practiceV178[k] = bank;
+    return { k, name: (ATTR_INFO[k] && ATTR_INFO[k].name) || k, gain: g, bank, up, now: e.attrs[k] };
+  }
+  function practiceV178(e, perf, mult, hits) {
+    if (!on178("reps")) return [];
+    const cap = attrCap(),
+      ceil = e.potentialCeil || cap,
+      k = TU("repsV178", 0.08) * clamp99((Number(perf) || 50) / 70, 0.4, 1.4) * mult * (1 + 0.25 * (hits || 0));
+    return keyAttrsV178(e).map(a => {
+      const cur = e.attrs[a] || 1,
+        damp = cur >= ceil ? 0.25 : clamp99(1 - (cur / cap) * 0.55, 0.35, 1);
+      return repAttrV178(e, a, k * damp);
+    });
+  }
+  /* ---- F: flip a card ---- */
+  const FLIPS_V178 = [
+    { id: "pt1", w: 38, rar: "common", col: "#c8d0da", icon: "🪙", name: "+1 Upgrade Point" },
+    { id: "pt2", w: 16, rar: "uncommon", col: "#6bbf59", icon: "💰", name: "+2 Upgrade Points" },
+    { id: "reps", w: 17, rar: "uncommon", col: "#6bbf59", icon: "🏋️", name: "Extra reps" },
+    { id: "trust", w: 12, rar: "rare", col: "#5ab0ff", icon: "🤝", name: "+3 Coach Trust" },
+    { id: "pp", w: 10, rar: "rare", col: "#5ab0ff", icon: "💎", name: "+3 Prestige Points" },
+    { id: "gear", w: 5, rar: "epic", col: "#b07cff", icon: "🎁", name: "Gear drop" },
+    { id: "attr", w: 2, rar: "legendary", col: "#f2c94c", icon: "⚡", name: "+1 Permanent" }
+  ];
+  function deckV178(e, w) {
+    const rng = seededRng(e.seasonSeed || 0, e.level || 0, e.totalSeasons || 0, w.week || 0, w.opp || "", w.playoff ? "p" : "r", "flipV178"),
+      tot = FLIPS_V178.reduce((s, c) => s + c.w, 0);
+    return [0, 1, 2].map(() => {
+      let r = rng() * tot;
+      for (const c of FLIPS_V178) if ((r -= c.w) <= 0) return c.id;
+      return "pt1";
+    });
+  }
+  function flipCardV178(id) {
+    return FLIPS_V178.find(c => c.id === id) || FLIPS_V178[0];
+  }
+  function applyFlipV178(e, id) {
+    const keys = keyAttrsV178(e);
+    let say = flipCardV178(id).name;
+    if (id === "pt1" || id === "pt2") {
+      const n = id === "pt1" ? 1 : 2;
+      e.points = (e.points || 0) + n;
+      e.paidV178 = (e.paidV178 || 0) + n;
+    } else if (id === "reps") {
+      const r = repAttrV178(e, keys[0] || "speed", 0.5);
+      say = "Extra reps · " + r.name + (r.up ? " +1!" : " +0.5");
+    } else if (id === "trust") e.coachTrust = clamp99((e.coachTrust != null ? e.coachTrust : 50) + 3, 0, 100);
+    else if (id === "pp") bankPPV136(3, "flipV178");
+    else if (id === "gear") {
+      try {
+        const g = dropGear(1, "Card flip");
+        say = "Gear drop · " + ((g && g.name) || "new gear");
+      } catch (_) {}
+    } else if (id === "attr") {
+      const k = keys.slice().sort((a, b) => (e.attrs[a] || 0) - (e.attrs[b] || 0))[0] || "speed";
+      e.attrs[k] = clamp99((e.attrs[k] || 1) + 1, 1, attrCap());
+      say = "+1 " + ((ATTR_INFO[k] && ATTR_INFO[k].name) || k) + " · permanent";
+    }
+    return say;
+  }
+  // pick card i of the week's deck (the reel's tap, or the auto-pick); returns false once the picks are spent
+  function pickFlipV178(e, w, i) {
+    const P = w && w.payV178,
+      F = P && P.flip;
+    if (!F || F.picked.length >= F.n || F.picked.some(p => p.i === i) || !F.deck[i]) return false;
+    F.picked.push({ i, id: F.deck[i], say: applyFlipV178(e, F.deck[i]) });
+    return true;
+  }
+  function autoFlipV178(e, w) {
+    const F = w && w.payV178 && w.payV178.flip;
+    if (!F) return;
+    for (let i = 0; i < 3 && F.picked.length < F.n; i++) pickFlipV178(e, w, i);
+  }
+  /* ---- G: the stock ticker ---- */
+  function stockReadV178(e, v) {
+    v = clamp99(v, 1, 99);
+    const lv = e.level | 0;
+    if (lv <= 4) {
+      const st = Math.min(5, 1 + (v / 100) * 4.6),
+        n = Math.floor(st);
+      return { kind: "RECRUITING", txt: "★".repeat(n) + "☆".repeat(5 - n), tier: n, tierTxt: n + "-STAR RECRUIT" };
+    }
+    if (lv <= 6) {
+      const r = v >= 88 ? 0 : v >= 78 ? 1 : v >= 68 ? 2 : v >= 58 ? 3 : v >= 50 ? 4 : v >= 42 ? 5 : v >= 35 ? 6 : v >= 28 ? 7 : 8,
+        txt = r === 0 ? "TOP-10 PICK" : r === 8 ? "UNDRAFTED" : "ROUND " + r;
+      return { kind: "DRAFT STOCK", txt, tier: 8 - r, tierTxt: txt };
+    }
+    const m = Math.round((0.8 + Math.pow(v / 100, 2) * 44) * 10) / 10,
+      tier = m >= 30 ? 4 : m >= 18 ? 3 : m >= 8 ? 2 : m >= 3 ? 1 : 0;
+    return { kind: "MARKET VALUE", txt: "$" + Math.max(1, Math.round(m)) + "M/yr", tier, tierTxt: ["MINIMUM DEAL", "ROLE-PLAYER MONEY", "STARTER MONEY", "PRO BOWL MONEY", "MAX CONTRACT"][tier] };
+  }
+  function stockV178(e, perf, won) {
+    if (!on178("stock")) return null;
+    if (e.stockV178 == null || e.stockLvlV178 !== e.level) {
+      e.stockV178 = e.stockV178 == null ? 45 : e.stockV178 * 0.5 + 22;
+      e.stockLvlV178 = e.level;
+    }
+    const lv = LEVELS[e.level],
+      why = [],
+      g = (Number(perf) - 60) * 0.9,
+      r = won ? 4 : -3,
+      o = clamp99((playerOvr(e) - lv.need) * 0.6, -20, 20),
+      t = ((e.coachTrust != null ? e.coachTrust : 50) - 50) * 0.12,
+      target = clamp99(50 + g + r + o + t, 1, 99),
+      before = e.stockV178,
+      after = Math.round((before * 0.75 + target * 0.25) * 10) / 10;
+    why.push({ txt: "grade " + Math.round(perf), v: g });
+    why.push({ txt: won ? "the win" : "the loss", v: r });
+    why.push({ txt: "OVR vs the " + lv.name + " bar", v: o });
+    why.push({ txt: "coach trust", v: t });
+    e.stockV178 = after;
+    const a = stockReadV178(e, before),
+      b = stockReadV178(e, after);
+    return { before, after, from: a, to: b, why: why.sort((x, y) => Math.abs(y.v) - Math.abs(x.v)).slice(0, 2), up: b.tier > a.tier, down: b.tier < a.tier };
+  }
+  function stockBonusV178(e) {
+    if (!on178("stock") || e.stockV178 == null) return 0;
+    const v = e.stockV178;
+    return v >= 80 ? 3 : v >= 65 ? 2 : v >= 50 ? 1 : 0;
+  }
+  /* ---- H: the pace ---- */
+  const PACE_V178 = { QB: ["pass", "pass yds", "passYds"], RB: ["rush", "rush yds", "rushYds"], WR: ["rec", "rec yds", "recYds"], TE: ["rec", "rec yds", "recYds"], OL: ["pancake", "pancakes", "pancakes"], DL: ["sack", "sacks", "sacks"], LB: ["tackle", "tackles", "tackles"], CB: ["pd", "pass breakups", "pd"], S: ["tackle", "tackles", "tackles"] };
+  // the season's marks: set ONCE a season, after his second booked game, from the level's baseline blended with his own
+  // per-game line (the engine's numbers and the season-sim table differ by level and role), and kept on the season key
+  function marksV178(e, curW, curStat) {
+    const P = PACE_V178[e.pos];
+    if (!P) return [];
+    const key = (e.totalSeasons || 0) + ":" + (e.level || 0);
+    if (!e.mileV178 || e.mileV178.key !== key) e.mileV178 = { key, hit: [], marks: null };
+    if (e.mileV178.marks) return e.mileV178.marks;
+    const s = seasonTotalV178(e, P[0], curW, curStat);
+    if (s.games < 2) return [];
+    const G = Math.max(1, LEVELS[e.level | 0].games),
+      per = perGameBaseV178(e, P[2]) * 0.35 + (s.total / s.games) * 0.65,
+      out = [];
+    [0.85, 1.1, 1.4].forEach(k => {
+      const m = niceV178(per * G * k);
+      if (m > 0 && !out.includes(m)) out.push(m);
+    });
+    return (e.mileV178.marks = out);
+  }
+  function seasonTotalV178(e, key, curW, curStat) {
+    let t = 0,
+      n = 0;
+    (e.weekResults || []).forEach(w => {
+      if (!w || w === curW || !w.played || !w.statLine) return;
+      t += Number(w.statLine[key]) || 0;
+      if (!w.playoff) n++;
+    });
+    if (curStat) {
+      t += Number(curStat[key]) || 0;
+      if (!(curW && curW.playoff)) n++;
+    }
+    return { total: t, games: n };
+  }
+  function paceV178(e, curW, curStat) {
+    if (!on178("pace")) return null;
+    const P = PACE_V178[e.pos];
+    if (!P) return null;
+    const marks = marksV178(e, curW, curStat),
+      s = seasonTotalV178(e, P[0], curW, curStat),
+      G = Math.max(1, LEVELS[e.level | 0].games),
+      now = Number((curStat && curStat[P[0]]) || 0),
+      prev = s.total - now;
+    const hit = [];
+    if (curStat)
+      marks.forEach(m => {
+        if (prev < m && s.total >= m && !e.mileV178.hit.includes(m)) {
+          e.mileV178.hit.push(m);
+          hit.push(m);
+        }
+      });
+    const next = marks.find(m => s.total < m);
+    return { key: P[0], unit: P[1], total: s.total, games: s.games, pace: s.games ? Math.round((s.total / s.games) * G) : 0, marks, hit, next, toGo: next != null ? next - s.total : 0 };
+  }
+  /* ---- B: the coach's receipt ---- */
+  function coachReceiptV178(e, w, perf, won, g) {
+    const n = clamp99(Math.round(((Number(perf) || 50) - 58) / 8), -6, 7),
+      items = [{ txt: won ? "The win" : "The loss", v: won ? 3 : -3 }],
+      gv = won ? Math.max(0, n) : n;
+    items.push({ txt: "Your grade (" + Math.round(perf) + ")" + (won && n < 0 ? " — the win covers it" : gv === 0 ? " — what he expected" : gv > 0 ? " — above the bar" : " — below the bar"), v: gv });
+    if (w && w.rivalV128) {
+      const m = window.__V128 ? window.__V128.mult() : 2,
+        s = items.reduce((a, i) => a + i.v, 0);
+      items.push({ txt: "Rivalry game ×" + m, v: s * (m - 1) });
+    }
+    let call = null;
+    try {
+      const R = (g && g.callV171) || (w && w.callResV171);
+      if (R && TU("v171", 1)) {
+        const P = (PAY_V171[R.risk] || PAY_V171[1])[R.ok ? "ok" : "no"];
+        call = { txt: (R.ok ? "The call worked" : "The call backfired") + (R.name ? " · " + R.name : ""), v: P.trust };
+      }
+    } catch (_) {}
+    let total = items.reduce((a, i) => a + i.v, 0);
+    // what actually lands: trust lives on 0..100, so a swing past the end is cut (the week's own record once it has one)
+    const c = Number(hypeState().coach) || 0,
+      landed = w && w._pulse95 && w.coachDelta98 != null ? Number(w.coachDelta98) : clamp99(Math.round(c) + total, 0, 100) - Math.round(c);
+    if (Number.isFinite(landed) && landed !== total) {
+      items.push({ txt: total > landed ? "Capped at 100" : "Floor at 0", v: landed - total });
+      total = landed;
+    }
+    return { items, call, total };
+  }
+  /* ---- the ledger ---- */
+  function payWeekV178(e, w, ctx) {
+    if (!on178() || !e || !w || !e.pos) return null;
+    if (w.payV178) return w.payV178;
+    ctx = ctx || {};
+    if (w.satOut) return (w.payV178 = { skipped: true, raw: 0, whole: 0 });
+    const watched = !!(ctx.watched != null ? ctx.watched : w.liveBookedV85),
+      perf = Number(ctx.perf != null ? ctx.perf : w.perf) || 50,
+      won = !!(ctx.won != null ? ctx.won : w.won),
+      stat = ctx.stat || w.statLine || null,
+      s0 = ctx.s0 != null ? ctx.s0 : hypeState().streak || 0 /* the streak before this game */,
+      streak = won ? (s0 > 0 ? s0 + 1 : 1) : s0 < 0 ? s0 - 1 : -1,
+      snapped = !won && s0 >= 3 ? s0 : 0,
+      heat = heatV178(streak),
+      wmul = watched ? Math.max(1, TU("watchPayV178", 2)) : 1,
+      pot = gamePotV178(e, w, perf, won),
+      worth = gameWorthV178(e),
+      orders = judgeOrdersV178(ordersV178(e, w), stat, won),
+      hits = orders ? orders.filter(o => o.ok).length : 0,
+      ordPts = orders ? hits * TU("orderPtsV178", 0.2) * worth + (orders.length && hits === orders.length ? TU("sweepPtsV178", 0.4) * worth : 0) : 0,
+      pace = paceV178(e, w, stat),
+      milePts = pace && pace.hit.length ? pace.hit.length * TU("milePtsV178", 0.75) * worth : 0,
+      raw = (pot.raw + ordPts + milePts) * wmul * heat.mult,
+      bank0 = e.payBankV178 || 0,
+      bank = bank0 + raw,
+      whole = Math.floor(bank + 1e-9);
+    e.payBankV178 = bank - whole;
+    e.points = (e.points || 0) + whole;
+    e.paidV178 = (e.paidV178 || 0) + whole;
+    const P = (w.payV178 = {
+      at: Date.now(),
+      watched,
+      wmul,
+      perf,
+      won,
+      streak,
+      snapped,
+      heat,
+      pot,
+      orders,
+      hits,
+      ordPts,
+      pace,
+      milePts,
+      raw,
+      whole,
+      bank0,
+      bank: e.payBankV178,
+      coach: coachReceiptV178(e, w, perf, won, ctx.live),
+      reps: practiceV178(e, perf, wmul, hits),
+      stock: stockV178(e, perf, won),
+      flip: on178("flip") ? { deck: deckV178(e, w), n: watched ? 2 : 1, picked: [] } : null,
+      title: pot.title,
+      shown: !!ctx.card
+    });
+    V178.paid++;
+    V178.lastPay = P;
+    // the big beats, queued and said once the card is gone (the highest one wins)
+    if (heat.tier && streak === [0, 3, 5, 8][heat.tier]) V178.moments.push({ p: 3 + heat.tier, t: "🔥 " + heat.label, s: streak + " straight wins · every game pays " + pctV178(heat.mult), tone: "good" });
+    if (snapped) V178.moments.push({ p: 2, t: "STREAK SNAPPED", s: "The run ends at " + snapped + ". Start a new one.", tone: "bad" });
+    if (pace && pace.hit.length) V178.moments.push({ p: 6, t: "🏁 " + pace.hit[pace.hit.length - 1].toLocaleString() + " " + pace.unit.toUpperCase(), s: "Season mark reached · bonus points", tone: "good" });
+    if (P.stock && (P.stock.up || P.stock.down)) V178.moments.push({ p: P.stock.up ? 4 : 1, t: (P.stock.up ? "📈 " : "📉 ") + P.stock.to.tierTxt, s: P.stock.to.kind + " " + (P.stock.up ? "climbs" : "slips"), tone: P.stock.up ? "good" : "bad" });
+    (P.reps || []).forEach(r => r.up && V178.moments.push({ p: 5, t: "⬆ " + r.name.toUpperCase() + " +" + r.up, s: "Practice reps paid off · now " + Math.round(r.now), tone: "good" }));
+    if (orders && orders.length && hits === orders.length) V178.moments.push({ p: 5, t: "📋 CLEAN SWEEP", s: "Every order this week · bonus points", tone: "good" });
+    if (!ctx.card) {
+      autoFlipV178(e, w);
+      if (on178("reel")) V178.queue.push(w);
+    }
+    return P;
+  }
+  function seasonPayV178(e, P, ie, Y, B) {
+    if (!on178()) return null;
+    let unpaid = 0,
+      n = 0;
+    // the season's own rows when any game was paid on the night — simSeason AI-sims a fresh set of games when the rows
+    // do not make a full season, and those must never pay a second time for games the ledger already paid
+    const rows = (e.weekResults || []).filter(w => w && w.played),
+      own = rows.some(w => w.payV178),
+      weeks = own
+        ? rows.map(w => [w, !!w.playoff])
+        : (P || []).map(w => [w, !1]).concat((ie || []).map(w => [w, !0]));
+    let titlePaid = false;
+    for (const [w, po] of weeks) {
+      if (!w) continue;
+      if (w.payV178) {
+        if (w.payV178.title) titlePaid = true;
+        continue;
+      }
+      if (w.satOut) continue;
+      unpaid += gamePotV178(e, w, w.perf, !!w.won, { playoff: po, title: false }).raw;
+      n++;
+    }
+    let title = 0;
+    if (B && !titlePaid) title = Math.round((4 + Math.round((e.level | 0) * 0.8)) * titleXpMultV164C());
+    const team = Y >= 0.9 ? 4 : Y >= 0.7 ? 2 : Y < 0.35 ? -1 : 0,
+      stock = stockBonusV178(e),
+      paid = e.paidV178 || 0,
+      pts = Math.max(0, Math.round(unpaid + title + team + stock));
+    e.paidV178 = 0;
+    return { pts, unpaid: n, unpaidPts: Math.round(unpaid), title, team, stock, paid };
+  }
+  /* ---- I: the reel ---- */
+  function cssV178() {
+    if (document.getElementById("v178css")) return;
+    const s = document.createElement("style");
+    s.id = "v178css";
+    s.textContent = `
+.reel-v178{margin:8px 0 4px;display:flex;flex-direction:column;gap:6px;cursor:pointer}
+.rv-row{opacity:0;transform:translateY(8px) scale(.98);transition:opacity .28s ease,transform .28s ease;padding:8px 11px;border-radius:11px;background:#00000040;border:1px solid rgba(255,255,255,.07);font-family:'Barlow Condensed',sans-serif;font-size:13px}
+.rv-row.in{opacity:1;transform:none}
+.rv-head{display:flex;align-items:center;gap:8px;font-family:Oswald,sans-serif}
+.rv-head .rv-k{font-size:10px;letter-spacing:1.5px;color:var(--chalk-dim)}
+.rv-head b{font-size:20px}
+.rv-head em{margin-left:auto;font-style:normal;font-size:11px;letter-spacing:.6px}
+.rv-tag{display:inline-block;font:700 9px Oswald,sans-serif;letter-spacing:1px;border-radius:9px;padding:1px 6px;margin-left:4px;border:1px solid currentColor}
+.rv-list{margin-top:3px;color:var(--chalk-dim);line-height:1.45}
+.rv-list b{color:var(--chalk);font-weight:600}
+.rv-pos{color:var(--good)}.rv-neg{color:#e08a8a}
+.rv-bar{height:6px;border-radius:4px;background:rgba(255,255,255,.08);overflow:hidden;margin-top:5px}
+.rv-bar i{display:block;height:100%;width:0;background:linear-gradient(90deg,var(--gold),#ffe08a);transition:width .7s ease}
+.rv-flame{display:inline-block;animation:rvFlame .6s ease-in-out infinite alternate}
+@keyframes rvFlame{from{transform:scale(1) rotate(-4deg)}to{transform:scale(1.18) rotate(4deg)}}
+.rv-pop{animation:rvPop .5s ease}
+@keyframes rvPop{0%{transform:scale(1)}40%{transform:scale(1.35)}100%{transform:scale(1)}}
+.rv-cards{display:flex;gap:8px;margin-top:6px}
+.rv-card{flex:1;height:84px;perspective:600px;cursor:pointer}
+.rv-card .in{position:relative;width:100%;height:100%;transition:transform .5s ease;transform-style:preserve-3d}
+.rv-card.flipped .in{transform:rotateY(180deg)}
+.rv-card .f,.rv-card .b{position:absolute;inset:0;border-radius:10px;backface-visibility:hidden;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:4px}
+.rv-card .f{background:repeating-linear-gradient(45deg,#1b2433,#1b2433 6px,#222d3f 6px,#222d3f 12px);border:1px solid rgba(255,255,255,.18);font:700 22px Oswald,sans-serif;color:var(--gold)}
+.rv-card .b{transform:rotateY(180deg);background:#0d121c;border:2px solid var(--rc,#c8d0da);font:600 11px 'Barlow Condensed',sans-serif;color:var(--chalk)}
+.rv-card .b i{font-style:normal;font-size:22px}
+.rv-card .b small{font:700 8px Oswald,sans-serif;letter-spacing:1px;color:var(--rc,#c8d0da)}
+.rv-card.passed{opacity:.45}
+.rv-card.passed .b{border-style:dashed}
+.rv-ladder{display:flex;gap:3px;margin-top:5px}
+.rv-ladder span{flex:1;text-align:center;font:700 8px Oswald,sans-serif;letter-spacing:.5px;padding:3px 0;border-radius:6px;background:rgba(255,255,255,.06);color:var(--chalk-dim)}
+.rv-ladder span.on{background:var(--gold);color:#111}
+.week-v178 .wk-row{display:flex;align-items:center;gap:8px;margin:5px 0;font-family:'Barlow Condensed',sans-serif;font-size:14px}
+.week-v178 .wk-row .ic{width:22px;text-align:center}
+.week-v178 .wk-row small{color:var(--chalk-dim)}
+.strip-v178{position:fixed;left:50%;top:58px;transform:translate(-50%,-30px);z-index:99990;pointer-events:none;max-width:min(94vw,440px);padding:9px 14px;border-radius:13px;background:rgba(13,18,28,.96);border:1px solid var(--gold);box-shadow:0 8px 28px #0009;font:600 13px 'Barlow Condensed',sans-serif;color:var(--chalk);transition:transform .35s ease,opacity .35s ease;opacity:0}
+.strip-v178.go{transform:translate(-50%,0);opacity:1}
+.strip-v178 b{font-family:Oswald,sans-serif;color:var(--gold)}
+`;
+    document.head.appendChild(s);
+  }
+  function sgnV178(v, d) {
+    const r = d ? Math.round(v * 10) / 10 : Math.round(v);
+    return (r > 0 ? "+" : r < 0 ? "−" : "±") + Math.abs(r);
+  }
+  function reelHtmlV178(e, w) {
+    const P = w && w.payV178;
+    if (!P || P.skipped || !on178("reel")) return "";
+    try {
+      cssV178();
+    } catch (_) {}
+    const rows = [];
+    // 1 — the paycheck
+    const tags =
+      (P.watched ? `<span class="rv-tag" style="color:var(--cyan)">×${P.wmul} WATCHED</span>` : "") +
+      (P.heat.tier ? `<span class="rv-tag" style="color:#ff9d4a"><span class="rv-flame">🔥</span> ${pctV178(P.heat.mult)}</span>` : "");
+    const lines = P.pot.items
+      .map(i => `${escHtml(i.label)} <b>${fracV178(i.v)}</b>`)
+      .concat(P.ordPts ? [`Orders ${P.hits}/${(P.orders || []).length} <b>${fracV178(P.ordPts)}</b>`] : [])
+      .concat(P.milePts ? [`Season mark <b>${fracV178(P.milePts)}</b>`] : []);
+    rows.push(
+      `<div class="rv-row"><div class="rv-head"><span class="rv-k">PAYCHECK</span><b style="color:var(--gold)">+<span data-count="${P.whole}">0</span></b><small style="color:var(--chalk-dim)">upgrade pts</small>${tags}<em style="color:var(--chalk-dim)">${Math.round(e.points || 0)} to spend</em></div>` +
+        `<div class="rv-list">${lines.join(" · ")}${P.wmul > 1 || P.heat.tier ? ` · <b>${fracV178(P.raw).replace("+", "")}</b> after ${P.wmul > 1 ? "×" + P.wmul + " watched" : ""}${P.wmul > 1 && P.heat.tier ? " " : ""}${P.heat.tier ? pctV178(P.heat.mult) + " streak" : ""}` : ""}</div>` +
+        `<div class="rv-bar"><i data-w="${Math.round(P.bank * 100)}"></i></div><div class="rv-list" style="font-size:11px">Next point ${Math.round(P.bank * 100)}%</div></div>`
+    );
+    // 2 — the cards, right under the paycheck: the slot machine is played while the rest lands
+    if (P.flip) {
+      const F = P.flip,
+        left = F.n - F.picked.length;
+      rows.push(
+        `<div class="rv-row" id="rvFlipV178"><div class="rv-head"><span class="rv-k">FLIP ${F.n === 1 ? "A CARD" : F.n + " CARDS"}</span>${P.watched ? '<span class="rv-tag" style="color:var(--cyan)">WATCHED: 2 PICKS</span>' : ""}<em style="color:var(--gold)" id="rvFlipLeftV178">${left ? left + " to pick" : "done"}</em></div><div class="rv-cards">${F.deck
+          .map((id, i) => {
+            const c = flipCardV178(id),
+              pk = F.picked.find(p => p.i === i);
+            return `<div class="rv-card${pk ? " flipped" : ""}" data-i="${i}" style="--rc:${c.col}" onclick="event.stopPropagation();window.__V178.pick(${i})"><div class="in"><div class="f">?</div><div class="b"><i>${c.icon}</i>${escHtml(pk ? pk.say : c.name)}<small>${c.rar.toUpperCase()}</small></div></div></div>`;
+          })
+          .join("")}</div></div>`
+      );
+    }
+    // 3 — the orders
+    if (P.orders && P.orders.length)
+      rows.push(
+        `<div class="rv-row"><div class="rv-head"><span class="rv-k">THIS WEEK'S ORDERS</span><b style="color:${P.hits === P.orders.length ? "var(--good)" : "var(--chalk)"}">${P.hits}/${P.orders.length}</b>${P.hits === P.orders.length ? '<em style="color:var(--good)">CLEAN SWEEP</em>' : ""}</div><div class="rv-list">${P.orders
+          .map(o => `${o.ok ? "✅" : "❌"} ${escHtml(o.txt)}${o.k === "win" ? "" : ` <small>(${o.actual})</small>`}`)
+          .join("<br>")}</div></div>`
+      );
+    // 4 — the streak
+    const st = P.streak;
+    rows.push(
+      `<div class="rv-row"><div class="rv-head"><span class="rv-k">STREAK</span><b style="color:${st > 0 ? "var(--good)" : "#e08a8a"}">${st > 0 ? (st >= 3 ? '<span class="rv-flame">🔥</span>' : "") + "W" + st : "L" + Math.abs(st)}</b>${P.heat.tier ? `<em style="color:#ff9d4a">${P.heat.label} · ${pctV178(P.heat.mult)}</em>` : P.snapped ? `<em style="color:#e08a8a">SNAPPED AT ${P.snapped}</em>` : `<em style="color:var(--chalk-dim)">${st > 0 && st < 3 ? 3 - st + " more for " + pctV178(TU("heat3V178", 1.2)) : "win 3 straight for " + pctV178(TU("heat3V178", 1.2))}</em>`}</div></div>`
+    );
+    // 5 — the coach's receipt
+    if (on178("receipt") && P.coach)
+      rows.push(
+        `<div class="rv-row"><div class="rv-head"><span class="rv-k">COACH'S RECEIPT</span><b class="${P.coach.total >= 0 ? "rv-pos" : "rv-neg"}">${sgnV178(P.coach.total)}</b><em style="color:var(--chalk-dim)">why trust moved</em></div><div class="rv-list">${P.coach.items
+          .map(i => `${escHtml(i.txt)} <b class="${i.v >= 0 ? "rv-pos" : "rv-neg"}">${sgnV178(i.v)}</b>`)
+          .join("<br>")}${P.coach.call ? `<br>${escHtml(P.coach.call.txt)} <b class="${P.coach.call.v >= 0 ? "rv-pos" : "rv-neg"}">${sgnV178(P.coach.call.v)}</b> <small>(lands with the week)</small>` : ""}</div></div>`
+      );
+    // 6 — the reps
+    if (P.reps && P.reps.length)
+      rows.push(
+        `<div class="rv-row"><div class="rv-head"><span class="rv-k">PRACTICE REPS</span>${P.wmul > 1 ? `<span class="rv-tag" style="color:var(--cyan)">×${P.wmul}</span>` : ""}${P.reps.some(r => r.up) ? '<em style="color:var(--good)">LEVEL UP!</em>' : ""}</div>${P.reps
+          .map(
+            r =>
+              `<div class="rv-list">${escHtml(r.name)} <b>${Math.round(r.now)}</b> <small class="rv-pos">+${Math.max(1, Math.round(r.gain * 100))}%</small> <small>${Math.round(r.bank * 100)}% to +1</small>${r.up ? ` <b class="rv-pos rv-pop">+${r.up}!</b>` : ""}<div class="rv-bar" style="height:4px;margin-top:2px"><i data-w="${Math.round(r.bank * 100)}"></i></div></div>`
+          )
+          .join("")}</div>`
+      );
+    // 7 — the stock
+    if (P.stock) {
+      const d = P.stock.after - P.stock.before;
+      rows.push(
+        `<div class="rv-row"><div class="rv-head"><span class="rv-k">${P.stock.to.kind}</span><b style="color:var(--gold)">${P.stock.to.txt}</b><em class="${d >= 0 ? "rv-pos" : "rv-neg"}">${Math.round(Math.abs(d)) ? (d >= 0 ? "▲ " : "▼ ") + Math.round(Math.abs(d)) : "▶ steady"}</em></div><div class="rv-list">Scouts saw: ${P.stock.why
+          .map(x => `${escHtml(x.txt)} <b class="${x.v >= 0 ? "rv-pos" : "rv-neg"}">${x.v >= 0 ? "▲" : "▼"}</b>`)
+          .join(" · ")}${P.stock.up ? " · <b class='rv-pos'>NEW TIER</b>" : P.stock.down ? " · <b class='rv-neg'>TIER LOST</b>" : ""} · season end pays +${stockBonusV178(e)}</div></div>`
+      );
+    }
+    // 8 — the pace
+    if (P.pace && P.pace.marks.length) {
+      const p = P.pace;
+      rows.push(
+        `<div class="rv-row"><div class="rv-head"><span class="rv-k">SEASON PACE</span><b>${p.total.toLocaleString()}</b><small style="color:var(--chalk-dim)">${escHtml(p.unit)}</small>${p.hit.length ? `<em style="color:var(--good)">🏁 ${p.hit[p.hit.length - 1].toLocaleString()} REACHED</em>` : p.next != null ? `<em style="color:var(--gold)">${p.toGo.toLocaleString()} to ${p.next.toLocaleString()}</em>` : '<em style="color:var(--good)">EVERY MARK HIT</em>'}</div><div class="rv-list">On pace for <b>${p.pace.toLocaleString()}</b> · marks ${p.marks.map(m => (p.total >= m ? "✅" : "⬜") + " " + m.toLocaleString()).join(" · ")}</div></div>`
+      );
+    }
+    return `<div class="reel-v178" id="reelV178" onclick="window.__V178.finish()">${rows.join("")}</div>`;
+  }
+  function reelStartV178() {
+    const R = document.getElementById("reelV178");
+    if (!R) return;
+    const rows = [...R.querySelectorAll(".rv-row")];
+    let i = 0;
+    V178.reelDone = false;
+    const show = row => {
+      if (!row || row.classList.contains("in")) return;
+      row.classList.add("in");
+      row.querySelectorAll("[data-count]").forEach(el => {
+        const to = Number(el.getAttribute("data-count")) || 0,
+          t0 = performance.now();
+        const tick = ts => {
+          const k = Math.min(1, (ts - t0) / 600);
+          el.textContent = Math.round(to * (1 - Math.pow(1 - k, 2)));
+          if (k < 1 && document.body.contains(el)) requestAnimationFrame(tick);
+        };
+        requestAnimationFrame(tick);
+        to > 0 && (playSfx("coin"), haptic(18));
+      });
+      setTimeout(() => row.querySelectorAll("[data-w]").forEach(b => (b.style.width = b.getAttribute("data-w") + "%")), 60);
+      row.querySelector(".rv-pop") && (playSfx("big"), haptic([20, 30, 40]));
+    };
+    V178.reelShow = show;
+    const step = () => {
+      if (!document.body.contains(R) || V178.reelDone) return;
+      if (i >= rows.length) {
+        V178.reelDone = true;
+        return;
+      }
+      show(rows[i++]);
+      setTimeout(step, TU("reelStepMsV178", 420));
+    };
+    setTimeout(step, TU("reelLeadMsV178", 500));
+  }
+  function reelFinishV178() {
+    const R = document.getElementById("reelV178");
+    if (!R) return;
+    V178.reelDone = true;
+    R.querySelectorAll(".rv-row").forEach(r => (V178.reelShow ? V178.reelShow(r) : r.classList.add("in")));
+  }
+  function reelPickV178(i) {
+    const e = state && state.player,
+      w = e && e.weekResults && e.currentWeek != null ? e.weekResults[e.currentWeek] : V178.cardWeek;
+    const W = (w && w.payV178 && w.payV178.flip && w) || V178.cardWeek;
+    if (!e || !W || !pickFlipV178(e, W, i)) return;
+    const F = W.payV178.flip,
+      pk = F.picked[F.picked.length - 1],
+      c = flipCardV178(pk.id),
+      el = document.querySelector(`#rvFlipV178 .rv-card[data-i="${i}"]`);
+    if (el) {
+      el.classList.add("flipped");
+      const b = el.querySelector(".b");
+      b && (b.innerHTML = `<i>${c.icon}</i>${escHtml(pk.say)}<small>${c.rar.toUpperCase()}</small>`);
+    }
+    playSfx(c.rar === "legendary" || c.rar === "epic" ? "big" : "good");
+    haptic(c.rar === "legendary" ? [30, 40, 60, 40, 80] : 22);
+    const left = F.n - F.picked.length,
+      L = document.getElementById("rvFlipLeftV178");
+    L && (L.textContent = left ? left + " to pick" : "done");
+    if (!left)
+      // the near miss: the cards you passed on turn over too
+      setTimeout(
+        () =>
+          document.querySelectorAll("#rvFlipV178 .rv-card:not(.flipped)").forEach(x => {
+            x.classList.add("flipped", "passed");
+          }),
+        450
+      );
+  }
+  /* ---- the simmed week's strip ---- */
+  function stripV178() {
+    if (!on178("reel") || !V178.queue.length || V178.batch) return;
+    if (state && state.view === "live") return;
+    if (document.getElementById("pgOverlayV13")) return;
+    const ws = V178.queue.splice(0);
+    const ps = ws.map(w => w.payV178).filter(p => p && !p.skipped);
+    if (!ps.length) return;
+    try {
+      cssV178();
+    } catch (_) {}
+    const flipPts = p => (p.flip ? p.flip.picked.reduce((a, k) => a + (k.id === "pt1" ? 1 : k.id === "pt2" ? 2 : 0), 0) : 0),
+      pts = ps.reduce((s, p) => s + p.whole + flipPts(p), 0),
+      last = ps[ps.length - 1],
+      hits = ps.reduce((s, p) => s + (p.hits || 0), 0),
+      ords = ps.reduce((s, p) => s + ((p.orders && p.orders.length) || 0), 0),
+      ct = ws.reduce((s, w) => s + (Number(w.coachDelta98) || 0), 0),
+      cards = ps
+        .map(p => p.flip && p.flip.picked.map(k => flipCardV178(k.id).icon).join(""))
+        .filter(Boolean)
+        .join(" "),
+      st = last.streak;
+    let el = document.getElementById("stripV178");
+    el || (document.body.insertAdjacentHTML("beforeend", '<div class="strip-v178" id="stripV178"></div>'), (el = document.getElementById("stripV178")));
+    el.innerHTML =
+      `<b>${ps.length > 1 ? ps.length + " GAMES SIMMED" : "WEEK PAID"}</b> · 💰 <b>+${pts}</b> pts` +
+      (ords ? ` · 📋 ${hits}/${ords}` : "") +
+      ` · 🤝 ${ct >= 0 ? "+" : ""}${ct} trust` +
+      ` · ${st > 0 ? (st >= 3 ? "🔥" : "") + "W" + st : "L" + Math.abs(st)}` +
+      (cards ? ` · 🃏 ${cards}` : "") +
+      (last.stock ? ` · ${last.stock.to.txt}` : "") +
+      `<div style="font-size:11px;color:var(--chalk-dim);margin-top:2px">Watch live for ×${TU("watchPayV178", 2)} pay, ×2 reps and two card picks</div>`;
+    el.classList.remove("go");
+    void el.offsetWidth;
+    el.classList.add("go");
+    playSfx("coin");
+    clearTimeout(V178.stripTimer);
+    V178.stripTimer = setTimeout(() => {
+      el.classList.remove("go");
+      setTimeout(() => !el.classList.contains("go") && el.remove(), 450); /* gone from the page, not just faded */
+    }, TU("stripMsV178", 4200));
+    V178.strips++;
+  }
+  function momentsV178() {
+    if (!V178.moments.length || V178.batch) return;
+    if ((state && state.view === "live") || document.getElementById("pgOverlayV13")) return;
+    const m = V178.moments.sort((a, b) => b.p - a.p)[0];
+    V178.moments = [];
+    setTimeout(() => bigMoment(m.t, m.s, m.tone), 650);
+  }
+  /* ---- the season screen: THIS WEEK ---- */
+  function weekCardV178(e) {
+    if (!on178() || !e || !e.pos || !e.weekResults) return "";
+    const next = e.weekResults.find(w => w && !w.played),
+      H = hypeState(),
+      st = H.streak || 0,
+      heat = heatV178(st + 1),
+      bank = e.payBankV178 || 0,
+      lastW = e.weekResults.filter(w => w && w.played && w.payV178 && !w.payV178.skipped).slice(-1)[0],
+      orders = next ? ordersV178(e, next) : null,
+      pace = paceV178(e, null, null),
+      rows = [];
+    rows.push(
+      `<div class="wk-row"><span class="ic">💰</span><span>Paid this season <b style="color:var(--gold)">+${e.paidV178 || 0}</b> · next point ${Math.round(bank * 100)}%</span>${(e.points || 0) > 0 ? `<button class="btn secondary" style="margin-left:auto;width:auto;padding:4px 10px;font-size:12px" onclick="go('upgrade')">Spend ${e.points} ▸</button>` : ""}</div>` +
+        `<div class="rv-bar" style="margin:0 0 4px"><i style="width:${Math.round(bank * 100)}%"></i></div>`
+    );
+    const hot = heatV178(st),
+      need = 3 - Math.max(0, st);
+    rows.push(
+      `<div class="wk-row"><span class="ic">${st >= 3 ? '<span class="rv-flame">🔥</span>' : st > 0 ? "✅" : st < 0 ? "❄️" : "➖"}</span><span>${st > 0 ? "W" + st + " streak" : st < 0 ? "L" + Math.abs(st) + " slide" : "No streak"} · ${hot.tier ? `<b style="color:#ff9d4a">${hot.label}</b> · a win pays <b style="color:#ff9d4a">${pctV178(heat.mult)}</b>` : heat.tier ? `a win makes it <b style="color:#ff9d4a">${heat.label} ${pctV178(heat.mult)}</b>` : `${need} more win${need > 1 ? "s" : ""} in a row for ${pctV178(TU("heat3V178", 1.2))}`}</span></div>`
+    );
+    if (orders && orders.length)
+      rows.push(
+        `<div class="wk-row" style="align-items:flex-start"><span class="ic">📋</span><span>Orders vs ${escHtml(next.opp || "next opponent")}: ${orders.map(o => `<b>${escHtml(o.txt)}</b>`).join(" · ")}<br><small>Each pays · all three pay a sweep bonus · watched pays ×${TU("watchPayV178", 2)}</small></span></div>`
+      );
+    if (on178("stock") && e.stockV178 != null) {
+      const s = stockReadV178(e, e.stockV178);
+      rows.push(`<div class="wk-row"><span class="ic">📈</span><span>${s.kind} <b style="color:var(--gold)">${s.txt}</b> <small>· season end pays +${stockBonusV178(e)}</small></span></div>`);
+    }
+    if (pace && pace.marks.length && pace.games)
+      rows.push(
+        `<div class="wk-row"><span class="ic">🏁</span><span>${pace.total.toLocaleString()} ${escHtml(pace.unit)} · on pace for <b>${pace.pace.toLocaleString()}</b>${pace.next != null ? ` · <b style="color:var(--gold)">${pace.toGo.toLocaleString()}</b> to ${pace.next.toLocaleString()}` : " · every mark hit"}</span></div>`
+      );
+    // the depth ladder: where the snaps stand and what the last game did to them
+    if (on178("receipt")) {
+      const r = rungV178(e.depthRole),
+        sh = Math.round((e.snapShare || 0) * 100),
+        D = lastW && lastW.payV178.depth,
+        nextAt = RUNG_AT_V178[r + 1];
+      rows.push(
+        `<div class="wk-row" style="align-items:flex-start"><span class="ic">📶</span><span style="flex:1">Depth chart <b>${escHtml(e.depthRole || "BENCH")}</b> · ${sh}% snaps${D && Math.round(D.s1 * 100) !== Math.round(D.s0 * 100) ? ` <small class="${D.s1 > D.s0 ? "rv-pos" : "rv-neg"}">(${D.s1 > D.s0 ? "+" : "−"}${Math.abs(Math.round(D.s1 * 100) - Math.round(D.s0 * 100))}% last game${D.why ? " · " + escHtml(D.why) : ""})</small>` : ""}${nextAt != null ? ` · <small>${Math.max(1, Math.round(nextAt * 100) - sh)}% more to ${RUNGS_V178[r + 1]}</small>` : ""}<div class="rv-ladder">${RUNGS_V178.map((n, i) => `<span class="${i === r ? "on" : ""}">${n.replace(" STRING", "")}</span>`).join("")}</div></span></div>`
+      );
+    }
+    try {
+      cssV178();
+    } catch (_) {}
+    return `<div class="card week-v178" id="weekV178"><div class="l" style="font-size:11px;color:var(--gold);letter-spacing:2px;margin-bottom:4px">⚡ THIS WEEK</div>${rows.join("")}</div>`;
+  }
+  // the ladder's record of one game: the snap share before and after the week's processing
+  function depthMarkV178(w, e, s0, r0) {
+    const P = w && w.payV178;
+    if (!P || P.skipped || !on178("receipt")) return;
+    const s1 = e.snapShare || 0,
+      r1 = rungV178(e.depthRole),
+      RR = w.rivalResultV11;
+    P.depth = {
+      s0,
+      s1,
+      r0,
+      r1,
+      why: RR && RR.rival ? (RR.swing >= 0 ? "outplayed " : "outplayed by ") + RR.rival.name + " " + Math.round(w.perf || 0) + "–" + RR.rivalPerf : ""
+    };
+    if (r1 > r0) V178.moments.push({ p: 7, t: "📶 PROMOTED: " + RUNGS_V178[r1], s: "Snaps " + Math.round(s0 * 100) + "% → " + Math.round(s1 * 100) + "%", tone: "good" });
+    else if (r1 < r0) V178.moments.push({ p: 6, t: "DEMOTED: " + RUNGS_V178[r1], s: "Snaps " + Math.round(s0 * 100) + "% → " + Math.round(s1 * 100) + "% · win it back", tone: "bad" });
+  }
+  const pw95V178 = processWeek95;
+  processWeek95 = function (w, e) {
+    const s0 = e && e.snapShare != null ? e.snapShare : 0,
+      r0 = rungV178(e && e.depthRole),
+      fresh = !!(w && !w._pulse95),
+      k0 = fresh ? hypeState().streak || 0 : 0;
+    pw95V178(w, e);
+    if (!fresh || !on178()) return;
+    try {
+      payWeekV178(e, w, { s0: k0 });
+      depthMarkV178(w, e, s0, r0);
+    } catch (err) {
+      V178.lastError = String((err && err.stack) || err);
+    }
+  };
+  const simRestV178 = simRemainingWeeks;
+  simRemainingWeeks = function () {
+    V178.batch++;
+    try {
+      return simRestV178.apply(this, arguments);
+    } finally {
+      V178.batch--;
+      if (!V178.batch)
+        setTimeout(() => {
+          stripV178();
+          momentsV178();
+        }, 60);
+    }
+  };
+  const decV178 = decorateScreen;
+  decorateScreen = function () {
+    decV178();
+    if (!on178()) return;
+    try {
+      const e = state.player,
+        t = byId("screen");
+      if (e && t && state.view === "season" && !t.querySelector("#weekV178")) {
+        const a = t.querySelector(".sx-hero-v168") || t.querySelector(".card");
+        a && a.insertAdjacentHTML("afterend", weekCardV178(e));
+      }
+      stripV178();
+      momentsV178();
+    } catch (err) {
+      V178.lastError = String((err && err.stack) || err);
+    }
+  };
+  window.__V178 = {
+    get state() {
+      return V178;
+    },
+    pot: (w, perf, won) => gamePotV178(state.player, w || {}, perf, won),
+    worth: () => gameWorthV178(state.player),
+    heat: heatV178,
+    orders: w => ordersV178(state.player, w),
+    judge: judgeOrdersV178,
+    pay: (w, ctx) => payWeekV178(state.player, w, ctx),
+    season: (P, ie, Y, B) => seasonPayV178(state.player, P, ie, Y, B),
+    deck: w => deckV178(state.player, w),
+    stock: v => stockReadV178(state.player, v),
+    marks: () => marksV178(state.player),
+    pace: () => paceV178(state.player, null, null),
+    receipt: (w, perf, won) => coachReceiptV178(state.player, w || {}, perf, won, null),
+    weekCard: () => weekCardV178(state.player),
+    reel: w => reelHtmlV178(state.player, w),
+    pick: reelPickV178,
+    finish: reelFinishV178,
+    strip: stripV178
   };
 })();

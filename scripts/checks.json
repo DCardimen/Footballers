@@ -1801,6 +1801,22 @@
     "occheck",
     "spraycheck"
    ]
+  },
+  "paycheck": {
+   "desc": "v178 — the weekly paycheck: the season's upgrade points paid game by game (watched ×2), the coach's receipt and the depth ladder, the streak heat, the weekly orders, practice reps, the card flip, the stock ticker, the pace, the reward reel",
+   "anchors": [
+    "v178"
+   ],
+   "files": [],
+   "checks": [
+    "v178check",
+    "v98check",
+    "postgamecheck",
+    "v164Bcheck",
+    "v85check",
+    "v146Ccheck",
+    "v168check"
+   ]
   }
  },
  "checks": {
@@ -4703,6 +4719,18 @@
     "pile"
    ],
    "runtimeSec": 120,
+   "slow": false,
+   "needsServer": true,
+   "pureNode": false,
+   "flaky": []
+  },
+  "v178check": {
+   "file": "scripts/v178check.mjs",
+   "desc": "v178 — the weekly paycheck: a game's slice is the old season formula ÷ games (base, the 72+ third, a win's half point), a Quick-Played game pays ×1 and a watched game ×2 through a fractional bank onto player.points, once (the card and processWeek95 never pay twice); the streak heat (3 ×1.2, 5 ×1.35, 8 ×1.5); three orders a week fixed on the row and judged on the stat line; a seeded three-card deck (one pick simmed, two watched); practice reps on three key attributes; the stock reads as stars below college; the season marks are set after two games and stay put; the coach's receipt adds up to the swing that lands; the post-game reel's rows and tap-to-finish; the simmed week's strip never takes a tap; the season screen's THIS WEEK card; the season end pays only the win-% bonus, the flats and the stock (a fully unpaid season pays the old total at ×1) and the report splits the two; TU v178 0 = the old season-end points. No page errors.",
+   "areas": [
+    "season"
+   ],
+   "runtimeSec": 60,
    "slow": false,
    "needsServer": true,
    "pureNode": false,
