@@ -79,7 +79,7 @@ ok(Array.isArray(L.marks0) && L.marks0.length === 0, 'the season marks wait for 
 const Q = await M(async () => {
   const p = window.S.player, i = p.weekResults.findIndex((w) => !w.played), pts0 = p.points, b0 = p.payBankV178 || 0
   window.playWeek(false)
-  for (let k = 0; k < 40 && !p.weekResults[i].played; k++) await new Promise((r) => setTimeout(r, 150))
+  for (let k = 0; k < 80 && !(p.weekResults[i].played && p.weekResults[i].payV178); k++) await new Promise((r) => setTimeout(r, 150)) // the week is closed, then paid
   await new Promise((r) => setTimeout(r, 600))
   const w = p.weekResults[i], P = w.payV178 || {}
   const flipPts = (P.flip ? P.flip.picked : []).reduce((a, k) => a + (k.id === 'pt1' ? 1 : k.id === 'pt2' ? 2 : 0), 0)

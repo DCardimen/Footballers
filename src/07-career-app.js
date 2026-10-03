@@ -35765,7 +35765,7 @@
         }
       });
     const next = marks.find(m => s.total < m);
-    return { key: P[0], unit: P[1], total: s.total, games: s.games, pace: s.games ? Math.round((s.total / s.games) * G) : 0, marks, hit, next, toGo: next != null ? next - s.total : 0 };
+    return { key: P[0], unit: P[1], total: s.total, prev, games: s.games, pace: s.games ? Math.round((s.total / s.games) * G) : 0, marks, hit, next, toGo: next != null ? next - s.total : 0 };
   }
   /* ---- B: the coach's receipt ---- */
   function coachReceiptV178(e, w, perf, won, g) {
@@ -35903,43 +35903,107 @@
     const s = document.createElement("style");
     s.id = "v178css";
     s.textContent = `
-.reel-v178{margin:8px 0 4px;display:flex;flex-direction:column;gap:6px;cursor:pointer}
-.rv-row{opacity:0;transform:translateY(8px) scale(.98);transition:opacity .28s ease,transform .28s ease;padding:8px 11px;border-radius:11px;background:#00000040;border:1px solid rgba(255,255,255,.07);font-family:'Barlow Condensed',sans-serif;font-size:13px}
-.rv-row.in{opacity:1;transform:none}
-.rv-head{display:flex;align-items:center;gap:8px;font-family:Oswald,sans-serif}
-.rv-head .rv-k{font-size:10px;letter-spacing:1.5px;color:var(--chalk-dim)}
+.reel-v178{margin:10px 0 6px;display:flex;flex-direction:column;gap:7px;cursor:pointer;position:relative}
+.rv-row{position:relative;overflow:hidden;opacity:0;transform:translateX(-18px) scale(.97);filter:blur(3px);transition:opacity .34s ease,transform .45s cubic-bezier(.2,1.4,.4,1),filter .34s ease,box-shadow .4s ease,border-color .4s ease;padding:9px 12px;border-radius:13px;background:linear-gradient(160deg,rgba(255,255,255,.06),rgba(0,0,0,.35));border:1px solid rgba(255,255,255,.08);font-family:'Barlow Condensed',sans-serif;font-size:13px}
+.rv-row.in{opacity:1;transform:none;filter:none}
+.rv-row::after{content:"";position:absolute;top:0;bottom:0;left:-60%;width:45%;background:linear-gradient(100deg,transparent,rgba(255,255,255,.14),transparent);transform:skewX(-18deg);pointer-events:none;opacity:0}
+.rv-row.in::after{animation:rvShine .9s ease .1s 1}
+@keyframes rvShine{0%{left:-60%;opacity:1}100%{left:130%;opacity:0}}
+.rv-row.glow{border-color:var(--rvg,var(--gold));box-shadow:0 0 0 1px var(--rvg,var(--gold)) inset,0 0 22px -4px var(--rvg,var(--gold))}
+.rv-row.shake{animation:rvShake .42s ease}
+@keyframes rvShake{0%,100%{transform:none}20%{transform:translateX(-5px) rotate(-.6deg)}40%{transform:translateX(5px) rotate(.6deg)}60%{transform:translateX(-3px)}80%{transform:translateX(3px)}}
+.rv-head{display:flex;align-items:center;gap:8px;font-family:Oswald,sans-serif;position:relative;z-index:1}
+.rv-head .rv-k{font-size:10px;letter-spacing:1.8px;color:var(--chalk-dim)}
 .rv-head b{font-size:20px}
 .rv-head em{margin-left:auto;font-style:normal;font-size:11px;letter-spacing:.6px}
-.rv-tag{display:inline-block;font:700 9px Oswald,sans-serif;letter-spacing:1px;border-radius:9px;padding:1px 6px;margin-left:4px;border:1px solid currentColor}
-.rv-list{margin-top:3px;color:var(--chalk-dim);line-height:1.45}
+.rv-big{font:700 34px/1 Oswald,sans-serif!important;color:var(--gold);text-shadow:0 0 18px rgba(242,201,76,.55),0 2px 0 #0008;display:inline-block}
+.rv-bump{animation:rvBump .32s cubic-bezier(.2,1.8,.4,1)}
+@keyframes rvBump{0%{transform:scale(1)}45%{transform:scale(1.32)}100%{transform:scale(1)}}
+.rv-tag{display:inline-block;font:700 9px Oswald,sans-serif;letter-spacing:1px;border-radius:9px;padding:2px 7px;margin-left:4px;border:1px solid currentColor;background:rgba(0,0,0,.35)}
+.rv-stamp{opacity:0;transform:scale(2.6) rotate(-14deg)}
+.rv-stamp.on{animation:rvStamp .42s cubic-bezier(.2,1.6,.4,1) forwards}
+@keyframes rvStamp{0%{opacity:0;transform:scale(2.6) rotate(-14deg)}60%{opacity:1;transform:scale(.9) rotate(3deg)}100%{opacity:1;transform:none}}
+.rv-list{margin-top:3px;color:var(--chalk-dim);line-height:1.5;position:relative;z-index:1}
 .rv-list b{color:var(--chalk);font-weight:600}
+.rv-chips{display:flex;flex-wrap:wrap;gap:4px;margin-top:5px}
+.rv-chip{font:600 11px 'Barlow Condensed',sans-serif;padding:1px 7px;border-radius:8px;background:rgba(255,255,255,.07);color:var(--chalk-dim);opacity:0;transform:translateY(6px);transition:opacity .25s ease,transform .3s cubic-bezier(.2,1.5,.4,1)}
+.rv-chip.on{opacity:1;transform:none}
+.rv-chip b{color:var(--chalk)}
 .rv-pos{color:var(--good)}.rv-neg{color:#e08a8a}
-.rv-bar{height:6px;border-radius:4px;background:rgba(255,255,255,.08);overflow:hidden;margin-top:5px}
-.rv-bar i{display:block;height:100%;width:0;background:linear-gradient(90deg,var(--gold),#ffe08a);transition:width .7s ease}
-.rv-flame{display:inline-block;animation:rvFlame .6s ease-in-out infinite alternate}
-@keyframes rvFlame{from{transform:scale(1) rotate(-4deg)}to{transform:scale(1.18) rotate(4deg)}}
-.rv-pop{animation:rvPop .5s ease}
-@keyframes rvPop{0%{transform:scale(1)}40%{transform:scale(1.35)}100%{transform:scale(1)}}
-.rv-cards{display:flex;gap:8px;margin-top:6px}
-.rv-card{flex:1;height:84px;perspective:600px;cursor:pointer}
-.rv-card .in{position:relative;width:100%;height:100%;transition:transform .5s ease;transform-style:preserve-3d}
-.rv-card.flipped .in{transform:rotateY(180deg)}
-.rv-card .f,.rv-card .b{position:absolute;inset:0;border-radius:10px;backface-visibility:hidden;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:4px}
-.rv-card .f{background:repeating-linear-gradient(45deg,#1b2433,#1b2433 6px,#222d3f 6px,#222d3f 12px);border:1px solid rgba(255,255,255,.18);font:700 22px Oswald,sans-serif;color:var(--gold)}
-.rv-card .b{transform:rotateY(180deg);background:#0d121c;border:2px solid var(--rc,#c8d0da);font:600 11px 'Barlow Condensed',sans-serif;color:var(--chalk)}
-.rv-card .b i{font-style:normal;font-size:22px}
-.rv-card .b small{font:700 8px Oswald,sans-serif;letter-spacing:1px;color:var(--rc,#c8d0da)}
-.rv-card.passed{opacity:.45}
-.rv-card.passed .b{border-style:dashed}
+.rv-meter{position:relative;height:12px;border-radius:7px;background:rgba(255,255,255,.07);overflow:hidden;margin-top:6px;box-shadow:inset 0 1px 3px #000a}
+.rv-meter.thin{height:7px;margin-top:3px}
+.rv-meter .gh{position:absolute;left:0;top:0;bottom:0;width:0;background:rgba(255,255,255,.28);border-radius:7px}
+.rv-meter .gh.loss{background:rgba(224,138,138,.55)}
+.rv-meter .fi{position:absolute;left:0;top:0;bottom:0;width:0;border-radius:7px;background:linear-gradient(90deg,#f2c94c,#ffe9a8,#f2c94c);background-size:200% 100%;animation:rvFlow 1.6s linear infinite;box-shadow:0 0 10px rgba(242,201,76,.5)}
+.rv-meter.green .fi{background:linear-gradient(90deg,#6bbf59,#b7f0a8,#6bbf59);background-size:200% 100%;box-shadow:0 0 10px rgba(107,191,89,.45)}
+.rv-meter.blue .fi{background:linear-gradient(90deg,#5ab0ff,#c4e3ff,#5ab0ff);background-size:200% 100%;box-shadow:0 0 10px rgba(90,176,255,.45)}
+.rv-meter .fi::after{content:"";position:absolute;inset:0;background:repeating-linear-gradient(-45deg,rgba(255,255,255,.16) 0 6px,transparent 6px 12px);animation:rvStripe .8s linear infinite;border-radius:7px}
+@keyframes rvFlow{to{background-position:-200% 0}}
+@keyframes rvStripe{to{background-position:17px 0}}
+.rv-meter.flash .fi{filter:brightness(1.9) saturate(1.3)}
+.rv-meter .tk{position:absolute;top:-1px;bottom:-1px;width:2px;background:rgba(255,255,255,.35);z-index:2}
+.rv-meter .tk.hit{background:var(--good);box-shadow:0 0 8px var(--good)}
+.rv-meter .mk{position:absolute;top:50%;width:14px;height:14px;margin:-7px 0 0 -7px;border-radius:50%;background:#fff;box-shadow:0 0 0 3px var(--gold),0 0 12px var(--gold);z-index:3;left:0}
+.rv-meter-l{display:flex;justify-content:space-between;font:600 10px Oswald,sans-serif;letter-spacing:.8px;color:var(--chalk-dim);margin-top:3px}
+.rv-float{position:absolute;font:700 18px Oswald,sans-serif;color:var(--gold);text-shadow:0 0 10px rgba(242,201,76,.8);pointer-events:none;z-index:5;animation:rvFloat .9s ease-out forwards}
+@keyframes rvFloat{0%{opacity:0;transform:translateY(6px) scale(.6)}25%{opacity:1;transform:translateY(-6px) scale(1.25)}100%{opacity:0;transform:translateY(-34px) scale(1)}}
+.rv-coin{position:fixed;width:14px;height:14px;margin:-7px 0 0 -7px;border-radius:50%;background:radial-gradient(circle at 35% 35%,#fff6c8,#f2c94c 45%,#a87915);box-shadow:0 0 6px rgba(242,201,76,.8);pointer-events:none;z-index:100000;transition:transform .62s cubic-bezier(.5,-.4,.6,1),opacity .62s ease}
+.rv-conf{position:absolute;width:6px;height:9px;pointer-events:none;z-index:6;border-radius:1px;animation:rvConf 1.1s cubic-bezier(.2,.7,.4,1) forwards}
+@keyframes rvConf{0%{opacity:1;transform:translate(0,0) rotate(0)}100%{opacity:0;transform:translate(var(--dx),var(--dy)) rotate(var(--rot))}}
+.rv-pips{display:flex;gap:5px;margin-top:6px}
+.rv-pip{flex:1;max-width:30px;height:24px;border-radius:7px;background:rgba(255,255,255,.06);display:flex;align-items:center;justify-content:center;font-size:14px;filter:grayscale(1);opacity:.35;transition:all .3s cubic-bezier(.2,1.6,.4,1);transform:scale(.8)}
+.rv-pip.on{filter:none;opacity:1;transform:scale(1);background:rgba(255,157,74,.18);box-shadow:0 0 10px rgba(255,157,74,.45)}
+.rv-pip.loss.on{background:rgba(224,138,138,.18);box-shadow:0 0 10px rgba(224,138,138,.4)}
+.rv-pip.goal{border:1px dashed rgba(255,157,74,.6)}
+.rv-ord{display:flex;align-items:center;gap:8px;margin-top:4px;opacity:0;transform:translateX(-10px);transition:opacity .25s,transform .3s}
+.rv-ord.on{opacity:1;transform:none}
+.rv-ord .st{width:22px;text-align:center;font-size:16px}
+.rv-ord small{margin-left:auto;font:600 12px Oswald,sans-serif;color:var(--chalk)}
+.rv-rec{display:flex;align-items:center;gap:6px;margin-top:3px;opacity:0;transform:translateY(5px);transition:opacity .25s,transform .3s}
+.rv-rec.on{opacity:1;transform:none}
+.rv-rec b{margin-left:auto}
+.rv-rep{margin-top:5px}
+.rv-rep .rh{display:flex;align-items:center;gap:6px}
+.rv-rep .rh b.n{font:700 15px Oswald,sans-serif;color:var(--chalk)}
+.rv-rep .rh em{margin-left:auto;font-style:normal;font:600 11px Oswald,sans-serif;color:var(--chalk-dim)}
+.rv-stars{font-size:20px;letter-spacing:2px}
+.rv-stars i{font-style:normal;display:inline-block;color:rgba(255,255,255,.18);transition:color .25s,transform .3s cubic-bezier(.2,1.8,.4,1),text-shadow .25s}
+.rv-stars i.on{color:var(--gold);transform:scale(1.15);text-shadow:0 0 10px rgba(242,201,76,.7)}
+.rvcs-v178{display:flex;gap:8px;margin-top:7px}
+.rvc-v178{flex:1;height:92px;perspective:700px;cursor:pointer;opacity:0;transform:translateY(-40px) rotate(-12deg) scale(.7)}
+.rv-row.in .rvc-v178{animation:rvDeal .55s cubic-bezier(.2,1.4,.4,1) forwards}
+.rv-row.in .rvc-v178[data-i="1"]{animation-delay:.12s}
+.rv-row.in .rvc-v178[data-i="2"]{animation-delay:.24s}
+@keyframes rvDeal{to{opacity:1;transform:none}}
+.rvc-v178 .rv-in{position:relative;width:100%;height:100%;transition:transform .6s cubic-bezier(.3,1.5,.5,1);transform-style:preserve-3d}
+.rvc-v178:not(.flipped):hover .rv-in{transform:translateY(-4px) rotate(-2deg)}
+.rvc-v178.flipped .rv-in{transform:rotateY(180deg)}
+.rvc-v178 .f,.rvc-v178 .b{position:absolute;inset:0;border-radius:11px;backface-visibility:hidden;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:4px;overflow:hidden}
+.rvc-v178 .f{background:repeating-linear-gradient(45deg,#1b2433,#1b2433 6px,#222d3f 6px,#222d3f 12px);border:1px solid rgba(242,201,76,.45);font:700 26px Oswald,sans-serif;color:var(--gold);box-shadow:0 4px 14px #0008;animation:rvTapme 1.4s ease-in-out infinite}
+.rvc-v178 .f::after{content:"";position:absolute;top:0;bottom:0;width:40%;left:-60%;background:linear-gradient(100deg,transparent,rgba(255,255,255,.22),transparent);transform:skewX(-18deg);animation:rvCardShine 2.2s ease-in-out infinite}
+@keyframes rvCardShine{0%,40%{left:-60%}100%{left:140%}}
+@keyframes rvTapme{0%,100%{box-shadow:0 4px 14px #0008}50%{box-shadow:0 4px 14px #0008,0 0 16px rgba(242,201,76,.45)}}
+.rvc-v178 .b{transform:rotateY(180deg);background:radial-gradient(circle at 50% 30%,color-mix(in srgb,var(--rc,#c8d0da) 28%,#0d121c),#0d121c 70%);border:2px solid var(--rc,#c8d0da);font:600 11px 'Barlow Condensed',sans-serif;color:var(--chalk);box-shadow:0 0 18px -2px var(--rc,#c8d0da)}
+.rvc-v178 .b i{font-style:normal;font-size:26px;filter:drop-shadow(0 0 6px var(--rc,#fff))}
+.rvc-v178 .b small{font:700 8px Oswald,sans-serif;letter-spacing:1px;color:var(--rc,#c8d0da)}
+.rvc-v178.flipped:not(.passed) .rv-in{animation:rvLift .6s ease}
+@keyframes rvLift{50%{transform:rotateY(180deg) translateY(-8px) scale(1.06)}}
+.rvc-v178.passed{opacity:.42!important;filter:grayscale(.6)}
+.rvc-v178.passed .b{border-style:dashed;box-shadow:none}
 .rv-ladder{display:flex;gap:3px;margin-top:5px}
 .rv-ladder span{flex:1;text-align:center;font:700 8px Oswald,sans-serif;letter-spacing:.5px;padding:3px 0;border-radius:6px;background:rgba(255,255,255,.06);color:var(--chalk-dim)}
 .rv-ladder span.on{background:var(--gold);color:#111}
+.rv-flame{display:inline-block;animation:rvFlame .6s ease-in-out infinite alternate}
+@keyframes rvFlame{from{transform:scale(1) rotate(-4deg)}to{transform:scale(1.18) rotate(4deg)}}
+.rv-bar{height:6px;border-radius:4px;background:rgba(255,255,255,.08);overflow:hidden;margin-top:5px}
+.rv-bar i{display:block;height:100%;width:0;background:linear-gradient(90deg,var(--gold),#ffe08a);transition:width .7s ease}
 .week-v178 .wk-row{display:flex;align-items:center;gap:8px;margin:5px 0;font-family:'Barlow Condensed',sans-serif;font-size:14px}
 .week-v178 .wk-row .ic{width:22px;text-align:center}
 .week-v178 .wk-row small{color:var(--chalk-dim)}
 .strip-v178{position:fixed;left:50%;top:58px;transform:translate(-50%,-30px);z-index:99990;pointer-events:none;max-width:min(94vw,440px);padding:9px 14px;border-radius:13px;background:rgba(13,18,28,.96);border:1px solid var(--gold);box-shadow:0 8px 28px #0009;font:600 13px 'Barlow Condensed',sans-serif;color:var(--chalk);transition:transform .35s ease,opacity .35s ease;opacity:0}
 .strip-v178.go{transform:translate(-50%,0);opacity:1}
 .strip-v178 b{font-family:Oswald,sans-serif;color:var(--gold)}
+@media (prefers-reduced-motion:reduce){.reel-v178 *,.reel-v178 *::after{animation:none!important;transition:none!important}.rv-row,.rvc-v178,.rv-chip,.rv-ord,.rv-rec,.rv-stamp{opacity:1!important;transform:none!important;filter:none!important}}
 `;
     document.head.appendChild(s);
   }
@@ -35947,125 +36011,470 @@
     const r = d ? Math.round(v * 10) / 10 : Math.round(v);
     return (r > 0 ? "+" : r < 0 ? "−" : "±") + Math.abs(r);
   }
+  /* ===== v178 J THE SCORECARD MOVES =====
+   * The owner: "Make the scorecard waaay more animated and visually appealing, satisfying bar movement." The reel is a
+   * sequence now (`reelStartV178`): each row slides in with a shine and then PLAYS — the paycheck counts up point by
+   * point while its next-point bar fills, overflows, pops a "+1" and throws a coin into the to-spend counter for every
+   * whole point, then settles on the remainder; the multipliers stamp in; the cards are dealt; each order slides in and
+   * its ✅/❌ is stamped; the streak's pips light one by one; the coach's meter steps by each line of the receipt with a
+   * ghost bar trailing the change; each rep bar fills from where it stood (a level-up fills, flashes, pops +1, resets);
+   * the stock's marker glides across its tier ticks and the stars light; the pace bar fills past the season marks.
+   * Confetti on a sweep, a level-up, a new tier, a mark. A tap anywhere finishes every row at its end state
+   * (`reelFinishV178`). Reduced motion: no animation, the end state. Particles use a local LCG (no Math.random — the
+   * sample-path rule). Timings `reelStepMsV178` / `reelLeadMsV178` / `reelBarMsV178`. `v178check`. */
+  const REEL_V178 = { skip: false, seed: 1 };
+  function rmV178() {
+    try {
+      return !!(window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches);
+    } catch (_) {
+      return false;
+    }
+  }
+  function lcgV178() {
+    REEL_V178.seed = (REEL_V178.seed * 1103515245 + 12345) % 2147483648;
+    return REEL_V178.seed / 2147483648;
+  }
+  function waitV178(ms) {
+    return new Promise(r => (REEL_V178.skip || rmV178() ? r() : setTimeout(r, ms)));
+  }
+  // one tween: fn(k) with k eased 0..1; a skip lands it on 1 at once
+  function tweenV178(ms, fn, ease) {
+    ease = ease || (k => 1 - Math.pow(1 - k, 3));
+    return new Promise(res => {
+      if (REEL_V178.skip || rmV178() || ms <= 0) {
+        fn(1);
+        return res();
+      }
+      const t0 = performance.now();
+      const step = ts => {
+        if (REEL_V178.skip) {
+          fn(1);
+          return res();
+        }
+        const k = Math.min(1, (ts - t0) / ms);
+        fn(ease(k));
+        k < 1 ? requestAnimationFrame(step) : res();
+      };
+      requestAnimationFrame(step);
+    });
+  }
+  const backV178 = k => 1 + 2.2 * Math.pow(k - 1, 3) + 1.2 * Math.pow(k - 1, 2);
+  function bumpV178(el) {
+    if (!el) return;
+    el.classList.remove("rv-bump");
+    void el.offsetWidth;
+    el.classList.add("rv-bump");
+  }
+  function floatV178(row, txt, x, color) {
+    if (!row || REEL_V178.skip || rmV178()) return;
+    const f = document.createElement("div");
+    f.className = "rv-float";
+    f.textContent = txt;
+    f.style.left = (x != null ? x : 50) + "%";
+    f.style.top = "8px";
+    color && (f.style.color = color);
+    row.appendChild(f);
+    setTimeout(() => f.remove(), 950);
+  }
+  function confettiV178(row, n) {
+    if (!row || REEL_V178.skip || rmV178()) return;
+    const cols = ["#f2c94c", "#6bbf59", "#5ab0ff", "#ff9d4a", "#b07cff", "#ffffff"];
+    for (let i = 0; i < (n || 26); i++) {
+      const c = document.createElement("i");
+      c.className = "rv-conf";
+      c.style.left = 20 + lcgV178() * 60 + "%";
+      c.style.top = "40%";
+      c.style.background = cols[i % cols.length];
+      c.style.setProperty("--dx", (lcgV178() * 2 - 1) * 160 + "px");
+      c.style.setProperty("--dy", -40 - lcgV178() * 90 + "px");
+      c.style.setProperty("--rot", (lcgV178() * 2 - 1) * 540 + "deg");
+      c.style.animationDelay = lcgV178() * 0.12 + "s";
+      row.appendChild(c);
+      setTimeout(() => c.remove(), 1400);
+    }
+  }
+  function coinV178(fromEl, toEl) {
+    if (!fromEl || !toEl || REEL_V178.skip || rmV178()) return;
+    const a = fromEl.getBoundingClientRect(),
+      b = toEl.getBoundingClientRect(),
+      c = document.createElement("i");
+    c.className = "rv-coin";
+    const x0 = a.left + a.width * (0.3 + lcgV178() * 0.6),
+      y0 = a.top + a.height / 2;
+    c.style.left = x0 + "px";
+    c.style.top = y0 + "px";
+    document.body.appendChild(c);
+    requestAnimationFrame(() =>
+      requestAnimationFrame(() => {
+        c.style.transform = `translate(${b.left + b.width / 2 - x0}px,${b.top + b.height / 2 - y0}px) scale(.6)`;
+        c.style.opacity = ".2";
+      })
+    );
+    setTimeout(() => c.remove(), 700);
+  }
+  function glowV178(row, col, shake) {
+    if (!row) return;
+    row.style.setProperty("--rvg", col || "var(--gold)");
+    row.classList.add("glow");
+    if (shake && !REEL_V178.skip && !rmV178()) {
+      row.classList.remove("shake");
+      void row.offsetWidth;
+      row.classList.add("shake");
+    }
+  }
+  function pctWV178(v) {
+    return Math.max(0, Math.min(100, v)) + "%";
+  }
   function reelHtmlV178(e, w) {
     const P = w && w.payV178;
     if (!P || P.skipped || !on178("reel")) return "";
     try {
       cssV178();
     } catch (_) {}
-    const rows = [];
-    // 1 — the paycheck
+    const rows = [],
+      ptsAfter = Math.round(e.points || 0),
+      ptsBefore = ptsAfter - (P.whole || 0);
+    // 1 — the paycheck: the big number, the next-point bar that overflows once a point, the parts as chips
     const tags =
-      (P.watched ? `<span class="rv-tag" style="color:var(--cyan)">×${P.wmul} WATCHED</span>` : "") +
-      (P.heat.tier ? `<span class="rv-tag" style="color:#ff9d4a"><span class="rv-flame">🔥</span> ${pctV178(P.heat.mult)}</span>` : "");
-    const lines = P.pot.items
+      (P.watched ? `<span class="rv-tag rv-stamp" style="color:var(--cyan)">×${P.wmul} WATCHED</span>` : "") +
+      (P.heat.tier ? `<span class="rv-tag rv-stamp" style="color:#ff9d4a"><span class="rv-flame">🔥</span> ${pctV178(P.heat.mult)}</span>` : "");
+    const chips = P.pot.items
       .map(i => `${escHtml(i.label)} <b>${fracV178(i.v)}</b>`)
       .concat(P.ordPts ? [`Orders ${P.hits}/${(P.orders || []).length} <b>${fracV178(P.ordPts)}</b>`] : [])
-      .concat(P.milePts ? [`Season mark <b>${fracV178(P.milePts)}</b>`] : []);
+      .concat(P.milePts ? [`Season mark <b>${fracV178(P.milePts)}</b>`] : [])
+      .concat(P.wmul > 1 || P.heat.tier ? [`<b>${fracV178(P.raw).replace("+", "")}</b> after ${P.wmul > 1 ? "×" + P.wmul + " watched" : ""}${P.wmul > 1 && P.heat.tier ? " " : ""}${P.heat.tier ? pctV178(P.heat.mult) + " streak" : ""}`] : []);
     rows.push(
-      `<div class="rv-row"><div class="rv-head"><span class="rv-k">PAYCHECK</span><b style="color:var(--gold)">+<span data-count="${P.whole}">0</span></b><small style="color:var(--chalk-dim)">upgrade pts</small>${tags}<em style="color:var(--chalk-dim)">${Math.round(e.points || 0)} to spend</em></div>` +
-        `<div class="rv-list">${lines.join(" · ")}${P.wmul > 1 || P.heat.tier ? ` · <b>${fracV178(P.raw).replace("+", "")}</b> after ${P.wmul > 1 ? "×" + P.wmul + " watched" : ""}${P.wmul > 1 && P.heat.tier ? " " : ""}${P.heat.tier ? pctV178(P.heat.mult) + " streak" : ""}` : ""}</div>` +
-        `<div class="rv-bar"><i data-w="${Math.round(P.bank * 100)}"></i></div><div class="rv-list" style="font-size:11px">Next point ${Math.round(P.bank * 100)}%</div></div>`
+      `<div class="rv-row" data-kind="pay" data-whole="${P.whole}" data-b0="${Math.round((P.bank0 || 0) * 100)}" data-b1="${Math.round(P.bank * 100)}" data-p0="${ptsBefore}" data-p1="${ptsAfter}">` +
+        `<div class="rv-head"><span class="rv-k">PAYCHECK</span><span class="rv-big">+<span class="rv-n" data-count="${P.whole}">0</span></span><small style="color:var(--chalk-dim)">upgrade pts</small>${tags}<em style="color:var(--chalk-dim)"><b class="rv-spend" id="rvSpendV178" style="font-size:15px;color:var(--gold)">${ptsBefore}</b> to spend</em></div>` +
+        `<div class="rv-chips">${chips.map(c => `<span class="rv-chip">${c}</span>`).join("")}</div>` +
+        `<div class="rv-meter"><span class="gh"></span><span class="fi" style="width:${pctWV178(Math.round((P.bank0 || 0) * 100))}"></span></div>` +
+        `<div class="rv-meter-l"><span>NEXT POINT</span><span class="rv-np">${Math.round((P.bank0 || 0) * 100)}%</span></div></div>`
     );
     // 2 — the cards, right under the paycheck: the slot machine is played while the rest lands
     if (P.flip) {
       const F = P.flip,
         left = F.n - F.picked.length;
       rows.push(
-        `<div class="rv-row" id="rvFlipV178"><div class="rv-head"><span class="rv-k">FLIP ${F.n === 1 ? "A CARD" : F.n + " CARDS"}</span>${P.watched ? '<span class="rv-tag" style="color:var(--cyan)">WATCHED: 2 PICKS</span>' : ""}<em style="color:var(--gold)" id="rvFlipLeftV178">${left ? left + " to pick" : "done"}</em></div><div class="rv-cards">${F.deck
+        `<div class="rv-row" id="rvFlipV178" data-kind="cards"><div class="rv-head"><span class="rv-k">FLIP ${F.n === 1 ? "A CARD" : F.n + " CARDS"}</span>${P.watched ? '<span class="rv-tag" style="color:var(--cyan)">WATCHED: 2 PICKS</span>' : ""}<em style="color:var(--gold)" id="rvFlipLeftV178">${left ? "TAP " + left + " to pick" : "done"}</em></div><div class="rvcs-v178">${F.deck
           .map((id, i) => {
             const c = flipCardV178(id),
               pk = F.picked.find(p => p.i === i);
-            return `<div class="rv-card${pk ? " flipped" : ""}" data-i="${i}" style="--rc:${c.col}" onclick="event.stopPropagation();window.__V178.pick(${i})"><div class="in"><div class="f">?</div><div class="b"><i>${c.icon}</i>${escHtml(pk ? pk.say : c.name)}<small>${c.rar.toUpperCase()}</small></div></div></div>`;
+            return `<div class="rvc-v178${pk ? " flipped" : ""}" data-i="${i}" style="--rc:${c.col}" onclick="event.stopPropagation();window.__V178.pick(${i})"><div class="rv-in"><div class="f">?</div><div class="b"><i>${c.icon}</i>${escHtml(pk ? pk.say : c.name)}<small>${c.rar.toUpperCase()}</small></div></div></div>`;
           })
           .join("")}</div></div>`
       );
     }
-    // 3 — the orders
+    // 3 — the orders: each one slides in, then its verdict is stamped
     if (P.orders && P.orders.length)
       rows.push(
-        `<div class="rv-row"><div class="rv-head"><span class="rv-k">THIS WEEK'S ORDERS</span><b style="color:${P.hits === P.orders.length ? "var(--good)" : "var(--chalk)"}">${P.hits}/${P.orders.length}</b>${P.hits === P.orders.length ? '<em style="color:var(--good)">CLEAN SWEEP</em>' : ""}</div><div class="rv-list">${P.orders
-          .map(o => `${o.ok ? "✅" : "❌"} ${escHtml(o.txt)}${o.k === "win" ? "" : ` <small>(${o.actual})</small>`}`)
-          .join("<br>")}</div></div>`
-      );
-    // 4 — the streak
-    const st = P.streak;
-    rows.push(
-      `<div class="rv-row"><div class="rv-head"><span class="rv-k">STREAK</span><b style="color:${st > 0 ? "var(--good)" : "#e08a8a"}">${st > 0 ? (st >= 3 ? '<span class="rv-flame">🔥</span>' : "") + "W" + st : "L" + Math.abs(st)}</b>${P.heat.tier ? `<em style="color:#ff9d4a">${P.heat.label} · ${pctV178(P.heat.mult)}</em>` : P.snapped ? `<em style="color:#e08a8a">SNAPPED AT ${P.snapped}</em>` : `<em style="color:var(--chalk-dim)">${st > 0 && st < 3 ? 3 - st + " more for " + pctV178(TU("heat3V178", 1.2)) : "win 3 straight for " + pctV178(TU("heat3V178", 1.2))}</em>`}</div></div>`
-    );
-    // 5 — the coach's receipt
-    if (on178("receipt") && P.coach)
-      rows.push(
-        `<div class="rv-row"><div class="rv-head"><span class="rv-k">COACH'S RECEIPT</span><b class="${P.coach.total >= 0 ? "rv-pos" : "rv-neg"}">${sgnV178(P.coach.total)}</b><em style="color:var(--chalk-dim)">why trust moved</em></div><div class="rv-list">${P.coach.items
-          .map(i => `${escHtml(i.txt)} <b class="${i.v >= 0 ? "rv-pos" : "rv-neg"}">${sgnV178(i.v)}</b>`)
-          .join("<br>")}${P.coach.call ? `<br>${escHtml(P.coach.call.txt)} <b class="${P.coach.call.v >= 0 ? "rv-pos" : "rv-neg"}">${sgnV178(P.coach.call.v)}</b> <small>(lands with the week)</small>` : ""}</div></div>`
-      );
-    // 6 — the reps
-    if (P.reps && P.reps.length)
-      rows.push(
-        `<div class="rv-row"><div class="rv-head"><span class="rv-k">PRACTICE REPS</span>${P.wmul > 1 ? `<span class="rv-tag" style="color:var(--cyan)">×${P.wmul}</span>` : ""}${P.reps.some(r => r.up) ? '<em style="color:var(--good)">LEVEL UP!</em>' : ""}</div>${P.reps
+        `<div class="rv-row" data-kind="orders" data-sweep="${P.hits === P.orders.length ? 1 : 0}"><div class="rv-head"><span class="rv-k">THIS WEEK'S ORDERS</span><b class="rv-hits" style="color:${P.hits === P.orders.length ? "var(--good)" : "var(--chalk)"}">0/${P.orders.length}</b>${P.hits === P.orders.length ? '<em class="rv-stamp" style="color:var(--good)">CLEAN SWEEP</em>' : ""}</div>${P.orders
           .map(
-            r =>
-              `<div class="rv-list">${escHtml(r.name)} <b>${Math.round(r.now)}</b> <small class="rv-pos">+${Math.max(1, Math.round(r.gain * 100))}%</small> <small>${Math.round(r.bank * 100)}% to +1</small>${r.up ? ` <b class="rv-pos rv-pop">+${r.up}!</b>` : ""}<div class="rv-bar" style="height:4px;margin-top:2px"><i data-w="${Math.round(r.bank * 100)}"></i></div></div>`
+            o =>
+              `<div class="rv-ord" data-ok="${o.ok ? 1 : 0}"><span class="st rv-stamp">${o.ok ? "✅" : "❌"}</span><span>${escHtml(o.txt)}</span>${o.k === "win" ? "" : `<small>${o.actual}</small>`}</div>`
           )
           .join("")}</div>`
       );
-    // 7 — the stock
-    if (P.stock) {
-      const d = P.stock.after - P.stock.before;
+    // 4 — the streak: one pip a game up to the next heat tier, lit one by one
+    const st = P.streak,
+      goal = st > 0 ? (st < 3 ? 3 : st < 5 ? 5 : st < 8 ? 8 : st) : 3,
+      nPips = Math.min(10, Math.max(goal, Math.abs(st)));
+    rows.push(
+      `<div class="rv-row" data-kind="streak" data-st="${st}" data-heat="${P.heat.tier}" data-snapped="${P.snapped || 0}"><div class="rv-head"><span class="rv-k">STREAK</span><b style="color:${st > 0 ? "var(--good)" : "#e08a8a"}">${st > 0 ? (st >= 3 ? '<span class="rv-flame">🔥</span>' : "") + "W" + st : "L" + Math.abs(st)}</b>${P.heat.tier ? `<em class="rv-stamp" style="color:#ff9d4a">${P.heat.label} · ${pctV178(P.heat.mult)}</em>` : P.snapped ? `<em class="rv-stamp" style="color:#e08a8a">SNAPPED AT ${P.snapped}</em>` : `<em style="color:var(--chalk-dim)">${st > 0 && st < 3 ? 3 - st + " more for " + pctV178(TU("heat3V178", 1.2)) : "win 3 straight for " + pctV178(TU("heat3V178", 1.2))}</em>`}</div><div class="rv-pips">${Array.from({ length: nPips }, (_, i) => `<span class="rv-pip${st < 0 ? " loss" : ""}${i === goal - 1 && st > 0 && st < goal ? " goal" : ""}">${st < 0 ? "❄️" : "🔥"}</span>`).join("")}</div></div>`
+    );
+    // 5 — the coach's receipt: the meter steps by each line
+    if (on178("receipt") && P.coach) {
+      const H = hypeState(),
+        c1 = w._pulse95 ? Math.round(H.coach || 0) : Math.round(H.coach || 0) + P.coach.total,
+        c0 = c1 - P.coach.total;
       rows.push(
-        `<div class="rv-row"><div class="rv-head"><span class="rv-k">${P.stock.to.kind}</span><b style="color:var(--gold)">${P.stock.to.txt}</b><em class="${d >= 0 ? "rv-pos" : "rv-neg"}">${Math.round(Math.abs(d)) ? (d >= 0 ? "▲ " : "▼ ") + Math.round(Math.abs(d)) : "▶ steady"}</em></div><div class="rv-list">Scouts saw: ${P.stock.why
+        `<div class="rv-row" data-kind="coach" data-c0="${c0}" data-c1="${c1}"><div class="rv-head"><span class="rv-k">COACH'S RECEIPT</span><b class="rv-cnum ${P.coach.total >= 0 ? "rv-pos" : "rv-neg"}">${sgnV178(P.coach.total)}</b><em style="color:var(--chalk-dim)">trust <b class="rv-cnow" style="font-size:14px;color:var(--chalk)">${c0}</b></em></div>${P.coach.items
+          .map(i => `<div class="rv-rec" data-v="${Math.round(i.v)}"><span>${escHtml(i.txt)}</span><b class="${i.v >= 0 ? "rv-pos" : "rv-neg"}">${sgnV178(i.v)}</b></div>`)
+          .join("")}${P.coach.call ? `<div class="rv-rec" data-v="0"><span>${escHtml(P.coach.call.txt)} <small>(lands with the week)</small></span><b class="${P.coach.call.v >= 0 ? "rv-pos" : "rv-neg"}">${sgnV178(P.coach.call.v)}</b></div>` : ""}<div class="rv-meter green"><span class="gh"></span><span class="fi" style="width:${pctWV178(c0)}"></span></div><div class="rv-meter-l"><span>0</span><span>COACH TRUST</span><span>100</span></div></div>`
+      );
+    }
+    // 6 — the reps: each bar fills from where it stood; a level-up overflows
+    if (P.reps && P.reps.length)
+      rows.push(
+        `<div class="rv-row" data-kind="reps"><div class="rv-head"><span class="rv-k">PRACTICE REPS</span>${P.wmul > 1 ? `<span class="rv-tag" style="color:var(--cyan)">×${P.wmul}</span>` : ""}${P.reps.some(r => r.up) ? '<em class="rv-stamp" style="color:var(--good)">LEVEL UP!</em>' : ""}</div>${P.reps
+          .map(r => {
+            const b0 = Math.max(0, Math.min(0.999, r.bank + (r.up || 0) - r.gain));
+            return `<div class="rv-rep" data-b0="${Math.round(b0 * 100)}" data-b1="${Math.round(r.bank * 100)}" data-up="${r.up || 0}" data-n1="${Math.round(r.now)}"><div class="rh"><span>${escHtml(r.name)}</span><b class="n">${Math.round(r.now) - (r.up || 0)}</b><small class="rv-pos">+${Math.max(1, Math.round(r.gain * 100))}%</small><em><span class="rv-rp">${Math.round(b0 * 100)}</span>% to +1</em></div><div class="rv-meter thin blue"><span class="gh"></span><span class="fi" style="width:${pctWV178(Math.round(b0 * 100))}"></span></div></div>`;
+          })
+          .join("")}</div>`
+      );
+    // 7 — the stock: the marker glides across the tier ticks
+    if (P.stock) {
+      const d = P.stock.after - P.stock.before,
+        lv = e.level | 0,
+        ticks = lv <= 4 ? [1, 2, 3, 4].map(n => (n / 4.6) * 100) /* where a star is earned */ : lv <= 6 ? [28, 35, 42, 50, 58, 68, 78, 88] /* the draft rounds */ : [22.4, 40.5, 62.5, 81.5] /* the pay bands */,
+        isStars = lv <= 4,
+        n1 = isStars ? Math.floor(Math.min(5, 1 + (P.stock.after / 100) * 4.6)) : 0;
+      rows.push(
+        `<div class="rv-row" data-kind="stock" data-s0="${Math.round(P.stock.before)}" data-s1="${Math.round(P.stock.after)}" data-up="${P.stock.up ? 1 : 0}" data-down="${P.stock.down ? 1 : 0}"><div class="rv-head"><span class="rv-k">${P.stock.to.kind}</span>${isStars ? `<span class="rv-stars" data-n="${n1}">${[1, 2, 3, 4, 5].map(() => "<i>★</i>").join("")}</span>` : `<b style="color:var(--gold)" class="rv-stamp">${P.stock.to.txt}</b>`}<em class="${d >= 0 ? "rv-pos" : "rv-neg"}">${Math.round(Math.abs(d)) ? (d >= 0 ? "▲ " : "▼ ") + Math.round(Math.abs(d)) : "▶ steady"}</em></div><div class="rv-meter"><span class="gh${d < 0 ? " loss" : ""}"></span><span class="fi" style="width:${pctWV178(Math.round(P.stock.before))}"></span>${ticks.map(t => `<span class="tk" style="left:${Math.round(t)}%"></span>`).join("")}<span class="mk" style="left:${pctWV178(Math.round(P.stock.before))}"></span></div><div class="rv-list">Scouts saw: ${P.stock.why
           .map(x => `${escHtml(x.txt)} <b class="${x.v >= 0 ? "rv-pos" : "rv-neg"}">${x.v >= 0 ? "▲" : "▼"}</b>`)
           .join(" · ")}${P.stock.up ? " · <b class='rv-pos'>NEW TIER</b>" : P.stock.down ? " · <b class='rv-neg'>TIER LOST</b>" : ""} · season end pays +${stockBonusV178(e)}</div></div>`
       );
     }
-    // 8 — the pace
+    // 8 — the pace: the season bar fills past its marks
     if (P.pace && P.pace.marks.length) {
-      const p = P.pace;
+      const p = P.pace,
+        top = Math.max(p.marks[p.marks.length - 1], p.total) * 1.08,
+        prev = p.prev != null ? p.prev : p.total;
       rows.push(
-        `<div class="rv-row"><div class="rv-head"><span class="rv-k">SEASON PACE</span><b>${p.total.toLocaleString()}</b><small style="color:var(--chalk-dim)">${escHtml(p.unit)}</small>${p.hit.length ? `<em style="color:var(--good)">🏁 ${p.hit[p.hit.length - 1].toLocaleString()} REACHED</em>` : p.next != null ? `<em style="color:var(--gold)">${p.toGo.toLocaleString()} to ${p.next.toLocaleString()}</em>` : '<em style="color:var(--good)">EVERY MARK HIT</em>'}</div><div class="rv-list">On pace for <b>${p.pace.toLocaleString()}</b> · marks ${p.marks.map(m => (p.total >= m ? "✅" : "⬜") + " " + m.toLocaleString()).join(" · ")}</div></div>`
+        `<div class="rv-row" data-kind="pace" data-t0="${prev}" data-t1="${p.total}" data-top="${Math.round(top)}" data-hit="${p.hit.length}"><div class="rv-head"><span class="rv-k">SEASON PACE</span><b class="rv-tot">${prev.toLocaleString()}</b><small style="color:var(--chalk-dim)">${escHtml(p.unit)}</small>${p.hit.length ? `<em class="rv-stamp" style="color:var(--good)">🏁 ${p.hit[p.hit.length - 1].toLocaleString()} REACHED</em>` : p.next != null ? `<em style="color:var(--gold)">${p.toGo.toLocaleString()} to ${p.next.toLocaleString()}</em>` : '<em style="color:var(--good)">EVERY MARK HIT</em>'}</div><div class="rv-meter"><span class="gh"></span><span class="fi" style="width:${pctWV178((prev / top) * 100)}"></span>${p.marks.map(m => `<span class="tk${prev >= m ? " hit" : ""}" data-m="${m}" style="left:${((m / top) * 100).toFixed(2)}%"></span>`).join("")}</div><div class="rv-meter-l"><span>ON PACE FOR ${p.pace.toLocaleString()}</span><span>${p.marks.map(m => m.toLocaleString()).join(" · ")}</span></div></div>`
       );
     }
     return `<div class="reel-v178" id="reelV178" onclick="window.__V178.finish()">${rows.join("")}</div>`;
   }
+  /* ---- each row's play: returns when its beat is done (a skip finishes it at once) ---- */
+  async function playPayV178(row) {
+    const whole = +row.dataset.whole || 0,
+      b0 = +row.dataset.b0 || 0,
+      b1 = +row.dataset.b1 || 0,
+      p0 = +row.dataset.p0 || 0,
+      fi = row.querySelector(".fi"),
+      meter = row.querySelector(".rv-meter"),
+      np = row.querySelector(".rv-np"),
+      n = row.querySelector(".rv-n"),
+      big = row.querySelector(".rv-big"),
+      spend = row.querySelector(".rv-spend"),
+      barMs = TU("reelBarMsV178", 380);
+    row.querySelectorAll(".rv-chip").forEach((c, i) => setTimeout(() => c.classList.add("on"), REEL_V178.skip ? 0 : 90 * i));
+    let from = b0,
+      paid = 0;
+    const loops = Math.min(whole, 6); // past six the rest lands in one go
+    for (let i = 0; i < loops; i++) {
+      await tweenV178(i ? barMs * 0.55 : barMs, k => {
+        const v = from + (100 - from) * k;
+        fi.style.width = v + "%";
+        np.textContent = Math.round(v) + "%";
+      });
+      paid = i === loops - 1 ? whole : paid + 1;
+      n.textContent = paid;
+      spend && (spend.textContent = p0 + paid);
+      bumpV178(big);
+      bumpV178(spend);
+      meter.classList.add("flash");
+      floatV178(row, "+1", 30 + ((i * 23) % 50));
+      coinV178(meter, spend);
+      playSfx("coin");
+      haptic(14);
+      await waitV178(90);
+      meter.classList.remove("flash");
+      fi.style.width = "0%";
+      from = 0;
+    }
+    if (!loops) n.textContent = 0;
+    await tweenV178(barMs * 0.8, k => {
+      const v = from + (b1 - from) * k;
+      fi.style.width = v + "%";
+      np.textContent = Math.round(v) + "%";
+    });
+    for (const t of row.querySelectorAll(".rv-stamp")) {
+      t.classList.add("on");
+      playSfx("good");
+      await waitV178(150);
+    }
+    if (whole >= 3) glowV178(row, "var(--gold)");
+  }
+  async function playOrdersV178(row) {
+    const lines = [...row.querySelectorAll(".rv-ord")],
+      hits = row.querySelector(".rv-hits");
+    let h = 0;
+    for (const l of lines) {
+      l.classList.add("on");
+      await waitV178(130);
+      l.querySelector(".st").classList.add("on");
+      const ok = l.dataset.ok === "1";
+      if (ok) h++;
+      hits && (hits.textContent = h + "/" + lines.length);
+      ok ? (bumpV178(hits), playSfx("good"), haptic(16)) : playSfx("bad");
+      await waitV178(170);
+    }
+    if (row.dataset.sweep === "1") {
+      const s = row.querySelector("em.rv-stamp");
+      s && s.classList.add("on");
+      glowV178(row, "var(--good)", true);
+      confettiV178(row, 30);
+      playSfx("big");
+      haptic([20, 30, 50]);
+    }
+  }
+  async function playStreakV178(row) {
+    const st = +row.dataset.st || 0,
+      pips = [...row.querySelectorAll(".rv-pip")],
+      lit = Math.min(pips.length, Math.abs(st));
+    for (let i = 0; i < lit; i++) {
+      pips[i].classList.add("on");
+      playSfx(st > 0 ? "tap" : "bad");
+      await waitV178(75);
+    }
+    const s = row.querySelector("em.rv-stamp");
+    if (s) {
+      s.classList.add("on");
+      if (+row.dataset.heat) (glowV178(row, "#ff9d4a"), playSfx("big"), haptic([18, 30, 40]));
+      if (+row.dataset.snapped) glowV178(row, "#e08a8a", true);
+    }
+  }
+  async function playCoachV178(row) {
+    const c0 = +row.dataset.c0 || 0,
+      recs = [...row.querySelectorAll(".rv-rec")],
+      fi = row.querySelector(".fi"),
+      gh = row.querySelector(".gh"),
+      now = row.querySelector(".rv-cnow");
+    let at = c0;
+    gh.style.width = c0 + "%";
+    for (const r of recs) {
+      r.classList.add("on");
+      const v = +r.dataset.v || 0;
+      await waitV178(90);
+      if (!v) continue;
+      const to = Math.max(0, Math.min(100, at + v)),
+        from = at;
+      if (v < 0) {
+        gh.classList.add("loss");
+        gh.style.width = from + "%";
+      }
+      playSfx(v > 0 ? "good" : "bad");
+      await tweenV178(300, k => {
+        const x = from + (to - from) * k;
+        fi.style.width = x + "%";
+        now.textContent = Math.round(x);
+      }, v > 0 ? backV178 : undefined);
+      bumpV178(now);
+      at = to;
+      if (v > 0) gh.style.width = at + "%";
+      else setTimeout(() => (gh.style.transition = "width .6s ease", (gh.style.width = at + "%")), REEL_V178.skip ? 0 : 260);
+    }
+    bumpV178(row.querySelector(".rv-cnum"));
+    if (+row.dataset.c1 - c0 >= 5) glowV178(row, "var(--good)");
+    else if (+row.dataset.c1 - c0 <= -5) glowV178(row, "#e08a8a", true);
+  }
+  async function playRepsV178(row) {
+    const reps = [...row.querySelectorAll(".rv-rep")];
+    await Promise.all(
+      reps.map(async (r, i) => {
+        await waitV178(i * 140);
+        const b0 = +r.dataset.b0 || 0,
+          b1 = +r.dataset.b1 || 0,
+          up = +r.dataset.up || 0,
+          fi = r.querySelector(".fi"),
+          rp = r.querySelector(".rv-rp"),
+          nEl = r.querySelector(".n"),
+          meter = r.querySelector(".rv-meter");
+        let from = b0;
+        if (up) {
+          await tweenV178(420, k => {
+            const v = from + (100 - from) * k;
+            fi.style.width = v + "%";
+            rp.textContent = Math.round(v);
+          });
+          meter.classList.add("flash");
+          nEl.textContent = r.dataset.n1;
+          bumpV178(nEl);
+          floatV178(row, "+" + up + "!", 70, "var(--good)");
+          confettiV178(row, 18);
+          playSfx("big");
+          haptic([20, 30, 40]);
+          await waitV178(180);
+          meter.classList.remove("flash");
+          fi.style.width = "0%";
+          from = 0;
+        }
+        await tweenV178(400, k => {
+          const v = from + (b1 - from) * k;
+          fi.style.width = v + "%";
+          rp.textContent = Math.round(v);
+        });
+      })
+    );
+    const s = row.querySelector("em.rv-stamp");
+    s && (s.classList.add("on"), glowV178(row, "var(--good)"));
+  }
+  async function playStockV178(row) {
+    const s0 = +row.dataset.s0 || 0,
+      s1 = +row.dataset.s1 || 0,
+      fi = row.querySelector(".fi"),
+      gh = row.querySelector(".gh"),
+      mk = row.querySelector(".mk"),
+      stars = row.querySelector(".rv-stars");
+    gh.style.width = Math.max(s0, s1) + "%";
+    const nStar = v => Math.floor(Math.min(5, 1 + (v / 100) * 4.6));
+    let lit = -1;
+    await tweenV178(600, k => {
+      const v = s0 + (s1 - s0) * k;
+      fi.style.width = v + "%";
+      mk.style.left = v + "%";
+      if (stars) {
+        const n = nStar(v);
+        if (n !== lit) {
+          lit = n;
+          stars.querySelectorAll("i").forEach((x, j) => x.classList.toggle("on", j < n));
+        }
+      }
+    }, backV178);
+    if (s1 < s0) setTimeout(() => (gh.style.transition = "width .6s ease", (gh.style.width = s1 + "%")), REEL_V178.skip ? 0 : 200);
+    const b = row.querySelector(".rv-stamp");
+    b && b.classList.add("on");
+    if (row.dataset.up === "1") (glowV178(row, "var(--gold)", true), confettiV178(row, 24), playSfx("big"));
+    else if (row.dataset.down === "1") (glowV178(row, "#e08a8a", true), playSfx("bad"));
+  }
+  async function playPaceV178(row) {
+    const t0 = +row.dataset.t0 || 0,
+      t1 = +row.dataset.t1 || 0,
+      top = +row.dataset.top || 1,
+      fi = row.querySelector(".fi"),
+      tot = row.querySelector(".rv-tot"),
+      ticks = [...row.querySelectorAll(".tk")];
+    await tweenV178(650, k => {
+      const v = t0 + (t1 - t0) * k;
+      fi.style.width = (v / top) * 100 + "%";
+      tot.textContent = Math.round(v).toLocaleString();
+      ticks.forEach(t => {
+        if (!t.classList.contains("hit") && v >= +t.dataset.m) {
+          t.classList.add("hit");
+          floatV178(row, "🏁", (+t.dataset.m / top) * 100);
+          playSfx("big");
+        }
+      });
+    });
+    const s = row.querySelector("em.rv-stamp");
+    if (s) (s.classList.add("on"), glowV178(row, "var(--good)", true), confettiV178(row, 26));
+  }
+  const PLAY_V178 = { pay: playPayV178, orders: playOrdersV178, streak: playStreakV178, coach: playCoachV178, reps: playRepsV178, stock: playStockV178, pace: playPaceV178 };
   function reelStartV178() {
     const R = document.getElementById("reelV178");
     if (!R) return;
     const rows = [...R.querySelectorAll(".rv-row")];
-    let i = 0;
+    REEL_V178.skip = false;
+    REEL_V178.seed = 1 + ((rows.length * 7919) % 1000);
     V178.reelDone = false;
-    const show = row => {
+    const show = async row => {
       if (!row || row.classList.contains("in")) return;
       row.classList.add("in");
-      row.querySelectorAll("[data-count]").forEach(el => {
-        const to = Number(el.getAttribute("data-count")) || 0,
-          t0 = performance.now();
-        const tick = ts => {
-          const k = Math.min(1, (ts - t0) / 600);
-          el.textContent = Math.round(to * (1 - Math.pow(1 - k, 2)));
-          if (k < 1 && document.body.contains(el)) requestAnimationFrame(tick);
-        };
-        requestAnimationFrame(tick);
-        to > 0 && (playSfx("coin"), haptic(18));
-      });
-      setTimeout(() => row.querySelectorAll("[data-w]").forEach(b => (b.style.width = b.getAttribute("data-w") + "%")), 60);
-      row.querySelector(".rv-pop") && (playSfx("big"), haptic([20, 30, 40]));
+      const f = PLAY_V178[row.dataset.kind];
+      try {
+        f && (await f(row));
+      } catch (_) {}
     };
     V178.reelShow = show;
-    const step = () => {
-      if (!document.body.contains(R) || V178.reelDone) return;
-      if (i >= rows.length) {
-        V178.reelDone = true;
-        return;
+    (async () => {
+      document.getElementById("stripV178")?.remove(); /* the simmed week's strip never sits over the card */
+      await waitV178(TU("reelLeadMsV178", 350));
+      for (const row of rows) {
+        if (!document.body.contains(R)) return;
+        const p = show(row);
+        // the cards are dealt and left to the player; every other row plays out before the next arrives
+        if (row.dataset.kind !== "cards") await p;
+        await waitV178(TU("reelStepMsV178", 110));
       }
-      show(rows[i++]);
-      setTimeout(step, TU("reelStepMsV178", 420));
-    };
-    setTimeout(step, TU("reelLeadMsV178", 500));
+      V178.reelDone = true;
+    })();
   }
   function reelFinishV178() {
     const R = document.getElementById("reelV178");
     if (!R) return;
+    REEL_V178.skip = true;
     V178.reelDone = true;
     R.querySelectorAll(".rv-row").forEach(r => (V178.reelShow ? V178.reelShow(r) : r.classList.add("in")));
   }
@@ -36077,7 +36486,7 @@
     const F = W.payV178.flip,
       pk = F.picked[F.picked.length - 1],
       c = flipCardV178(pk.id),
-      el = document.querySelector(`#rvFlipV178 .rv-card[data-i="${i}"]`);
+      el = document.querySelector(`#rvFlipV178 .rvc-v178[data-i="${i}"]`);
     if (el) {
       el.classList.add("flipped");
       const b = el.querySelector(".b");
@@ -36085,14 +36494,24 @@
     }
     playSfx(c.rar === "legendary" || c.rar === "epic" ? "big" : "good");
     haptic(c.rar === "legendary" ? [30, 40, 60, 40, 80] : 22);
+    // v178 J: the rarity lands — the row glows the card's colour, a rare+ card throws confetti, an epic+ shakes it
+    const row = document.getElementById("rvFlipV178");
+    if (row) {
+      const big = c.rar === "legendary" || c.rar === "epic";
+      setTimeout(() => {
+        glowV178(row, c.col, big);
+        (big || c.rar === "rare") && confettiV178(row, big ? 40 : 18);
+        floatV178(row, c.icon, 16 + i * 33);
+      }, 330);
+    }
     const left = F.n - F.picked.length,
       L = document.getElementById("rvFlipLeftV178");
-    L && (L.textContent = left ? left + " to pick" : "done");
+    L && (L.textContent = left ? "TAP " + left + " to pick" : "done");
     if (!left)
       // the near miss: the cards you passed on turn over too
       setTimeout(
         () =>
-          document.querySelectorAll("#rvFlipV178 .rv-card:not(.flipped)").forEach(x => {
+          document.querySelectorAll("#rvFlipV178 .rvc-v178:not(.flipped)").forEach(x => {
             x.classList.add("flipped", "passed");
           }),
         450
