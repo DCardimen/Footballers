@@ -43,7 +43,7 @@ const errors = []
 async function open (tag) {
   const ctx = await browser.newContext({ viewport: { width: 400, height: 860 } })
   await ctx.addInitScript((tune) => {
-    window.RIB_TUNE = Object.assign(window.RIB_TUNE || {}, { v156Bplayoffs: 0, v164Bsim: 0, speedGateV151A: 0, v156Cspeed: 0 }, tune || {})
+    window.RIB_TUNE = Object.assign(window.RIB_TUNE || {}, { v156Bplayoffs: 0, speedGateV151A: 0, v156Cspeed: 0 }, tune || {})
     try { localStorage.setItem('rib.coachTour.v119', 'off'); localStorage.setItem('rib.debriefOff.v122', 'off') } catch {}
     setInterval(() => {
       try { if (window.S) window.S.tutorialSeen = true } catch {}
@@ -192,8 +192,14 @@ function installDriver () {
         const n0 = unplayed(p).length
         window.simRemainingWeeks(); await sleep(10)
         if (S().view === 'season' && unplayed(P()).length === n0 && !P().offersV146B) {
-          // nothing moved: a stale offer list, or a stuck silent week — play one week the quick way, then give up
-          window.playWeek(false); await sleep(10)
+          if (P().cutOutV146B || P().retirementPending) continue // v179: cut mid-season — the top of the loop settles it
+          // nothing moved: the season sims are spent, a stale offer list, or a stuck silent week — Quick Play week by week
+          for (let k = 0; k < 30 && S().view === 'season' && unplayed(P()).length && !P().cutOutV146B; k++) {
+            const m0 = unplayed(P()).length
+            window.playWeek(false); await sleep(10)
+            if (unplayed(P()).length === m0) break
+          }
+          if (P().cutOutV146B || P().retirementPending) continue
           if (S().view === 'season' && unplayed(P()).length === n0) return dump('the season sim cannot play the next week')
         }
         continue
