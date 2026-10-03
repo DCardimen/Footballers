@@ -219,6 +219,27 @@ const F3 = await M(async () => {
 })
 ok(!F3.card && F3.view === 'season', 'TU v178flow 0: a tapped Quick Play gets no card, as before', F3)
 
+// ============================== L: hold to spend ==============================
+await seed({ level: 3, pos: 'WR' })
+await M(() => { document.querySelectorAll('.team-modal-v153,#teamModalV153,.decision-overlay,#simCardV178').forEach((x) => x.remove()); const p = window.S.player; p.points = 40; window.go('upgrade') })
+await page.waitForTimeout(500)
+const key = await M(() => { const b = document.querySelector('button.step[id^="plus-"]'); return b ? b.id.replace('plus-', '') : null })
+const pt0 = await M(() => window.S.player.points)
+let box = await page.locator('#plus-' + key).boundingBox()
+await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2); await page.mouse.down(); await page.waitForTimeout(1600); await page.mouse.up()
+await page.waitForTimeout(300)
+const held = await M((k) => ({ pts: window.S.player.points, v: window.S.player.attrs[k] }), key)
+await page.locator('#plus-' + key).click(); await page.waitForTimeout(250)
+const tap = await M(() => window.S.player.points)
+box = await page.locator('#minus-' + key).boundingBox()
+await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2); await page.mouse.down(); await page.waitForTimeout(3500); await page.mouse.up()
+await page.waitForTimeout(300)
+const back = await M(() => window.S.player.points)
+console.log('hold:', JSON.stringify({ key, pt0, held, tap, back }))
+ok(pt0 - held.pts >= 5, 'holding + repeats: several points spent in one press', { spent: pt0 - held.pts })
+ok(held.pts - tap >= 1 && held.pts - tap <= 4, "a quick tap is still one step (a hold's release never adds one more)", { step: held.pts - tap })
+ok(back === pt0, 'holding − gives everything back and stops at nothing-left-to-return', { back, pt0 })
+
 // ============================== the kill switch ==============================
 await seed({ level: 2, pos: 'WR' })
 const K = await M(async () => {

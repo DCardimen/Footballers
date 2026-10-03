@@ -15837,12 +15837,16 @@
     }[e] || [1, 99];
     return randInt(a[0], a[1]);
   }
+  // v178 N: how much of the badge gap the sim plays, by level (Pee Wee … Interstellar), measured to the v76 0.7 a point
+  var SIM_GAP_V178 = [0.75, 0.75, 0.75, 0.75, 0.75, 0.75, 0.75, 0.75, 0.75];
   function buildGameRosters(e, t, a, s, n, i, r) {
     const l = ["QB", "RB", "RB", "WR", "WR", "TE", "OL", "OL", "OL", "OL", "OL"],
       d = ["DL", "DL", "DL", "DL", "LB", "LB", "LB", "CB", "CB", "S", "S"],
       c = ["QB", "RB", "WR", "TE", "OL"].includes(e);
     ((i = i || (state.player ? state.player.level : 0)), (r = r || (state.player ? playerOvr(state.player) : 40)));
     const u = [18, 30, 42, 54, 66, 78, 86, 90][i] || 55;
+    let C0V178 = 1,
+      V0V178 = 1; /* v178 N: the two quality factors, read when the rosters are drawn */
     function h(Y, _) {
       const ie = clamp99(_, 5, 99),
         B = () => ie + randRange(-14, 14),
@@ -15976,12 +15980,28 @@
     function m(Y) {
       return clamp99(Math.round(u * (0.72 + Y * 0.5) + randRange(-4, 4)), 3, 999);
     }
+    /* ===== v178 N THE GAP PLAYS TO ITS SIZE =====
+     * A roster player's attributes are his OVR ± 14, so a 20-point badge gap was a 20-point gap in EVERY attribute of
+     * all 22 men, and the agent sim answers that steeply: measured at Varsity, +10 badge OVR averaged a +26 margin, +21
+     * averaged +68 (every game by four scores) — against the v76 spec of 0.7 a point ("10 overall = one touchdown, 20 =
+     * two", the owner's words). The v76 play levers could not hold it: the favourite's raw plays averaged 27.7 yards
+     * before the damper. So the sim plays the gap at its size: both sides' attributes are drawn from an OVR pulled toward
+     * the two teams' midpoint (the mean of the two quality factors' OVRs), keeping `simGapKV178` of each man's distance
+     * from it (per level: `SIM_GAP_V178`). The BADGE (each man's `ovr`, the team OVR, the box-score quality) is
+     * untouched, so the schedule keeps its mismatches and the scoreboard shows them; an even matchup is a no-op; the
+     * you-player's attributes are his own. Kill switch TU "v178N" 0. `blowoutcheck` / `v178check`. */
+    function simOvrV178(Q) {
+      if (!TU("v178N", 1)) return Q;
+      const center = (u * (0.72 + C0V178 * 0.5) + u * (0.72 + V0V178 * 0.5)) / 2,
+        k = clamp99(TU("simGapKV178", SIM_GAP_V178[i] != null ? SIM_GAP_V178[i] : 0.3), 0.05, 1);
+      return center + (Q - center) * k;
+    }
     function y(Y) {
       const _ = (ie, B) =>
         ie.map(b => {
           const pe = clamp99(Y + randRange(-0.15, 0.15), 0.05, 1.7),
             Q = m(pe);
-          return { name: randName(), num: jerseyNum(b), pos: b, isOff: B, ovr: Q, attrs: h(b, Q), stat: p(b, pe) };
+          return { name: randName(), num: jerseyNum(b), pos: b, isOff: B, ovr: Q, attrs: h(b, simOvrV178(Q)), stat: p(b, pe) };
         });
       return { off: _(l, !0), def: _(d, !1) };
     }
@@ -16019,7 +16039,7 @@
         1.65
       ),
       V = clamp99((_oppMul - 0.72) * 2, 0.36, 1.16),
-      P = y(C),
+      P = ((C0V178 = C), (V0V178 = V), y(C)) /* v178 N: the midpoint both rosters' attributes are drawn toward */,
       v = y(V),
       j = c ? P.off : P.def,
       U = j.findIndex(Y => Y.pos === e);
@@ -16962,7 +16982,8 @@
      * clear the starters come out and the playbook shrinks, which is both what really
      * happens and what stops the tail. ===== */
     let _gapV76 = 0,
-      _leadV76 = 0;
+      _leadV76 = 0,
+      _marginV178 = 0; /* v178 M: the offence's SIGNED score margin (behind is negative) */
     function dampV76(y) {
       if (!y || !isFinite(y)) return y;
       const g = _gapV76,
@@ -16974,6 +16995,7 @@
         want = B0 + K * R * g;
       let m = have > 0.4 ? want / have : 1;
       m *= gtV76();
+      m *= govYardV178(); /* v178 M: past its line the leader's yards are cut */
       // The diagnostic that started all this found the favoured team converting 43% of
       // its third downs against the underdog's 23% — a wider discrepancy than yards per
       // play, and the one that actually turns field position into points. A drive that
@@ -17041,6 +17063,32 @@
      * and one-sided by design (an earlier two-sided version cancelled itself out — the
      * underdog's boost undid the favourite's damp and total scoring rose while the margin
      * stayed put), and it never touches the baseline rate two even teams play at. ===== */
+    /* ===== v178 M THE MARGIN GOVERNOR =====
+     * The owner: "Games are returning to blowouts … despite only being 10 to 20 overall higher than my opponent. …
+     * My guy only has 100 to 159 throwing yards and I'm winning 80 to 0. Original goal was a 10 overall difference
+     * results in an average touchdown difference of 1, 20 is 2." Measured on this build (60 live games a cell, a QB at
+     * his level's rating): +10 OVR at Varsity averaged +26 (47% of games by 28+), +16 averaged +49, +21 averaged +68 —
+     * 3+ points an OVR against v76's 0.7. The v76 levers drifted with FieldSim (each only bites late, or caps), so a
+     * team that is simply better every snap still ran away. The governor works from the opening kickoff on the ONE
+     * number the spec is written in: the offence's lead against what the matchup should produce (`marginPerOvr` × the
+     * signed badge gap — an underdog offence ahead is past its line too). Past `govSlackV178` points over that line its
+     * yards are cut by 1 / (1 + over / `govKV178`) (through `dampV76`, both resolvers), and inside the ten a would-be
+     * touchdown stalls with `govStandV178` per point over (through `standV76`, up to `govStandMaxV178`). Inside the slack
+     * nothing moves: an even game, a fast start, a team playing to form are untouched. No Math.random of its own (the
+     * stand draw is the one v76 already spends). Kill switch TU "v178M" 0. `blowoutcheck` / `v178check`. */
+    function govOverV178() {
+      if (!TU("v178M", 1)) return 0;
+      const want = TU("marginPerOvr", 0.7) * _gapV76;
+      return _marginV178 - want - TU("govSlackV178", 4);
+    }
+    function govYardV178() {
+      const over = govOverV178();
+      return over > 0 ? 1 / (1 + over / Math.max(1, TU("govKV178", 10))) : 1;
+    }
+    function govStandV178() {
+      const over = govOverV178();
+      return over > 0 ? clamp99(over * TU("govStandV178", 0.035), 0, TU("govStandMaxV178", 0.6)) : 0;
+    }
     function toV76() {
       const g = -_gapV76; // how far the team WITH THE BALL is outmatched
       if (g <= 0) return 1;
@@ -17112,7 +17160,8 @@
         a2 = TU("standStart", 4),
         b2 = Math.max(a2 + 1, TU("standFull", 24)),
         lateP = over > a2 ? ((over - a2) / (b2 - a2)) * mx : 0;
-      return Math.random() < clamp99(gapP + lateP, 0, mx);
+      const gov = govStandV178(); /* v178 M: past its line a touchdown inside the ten stalls more often */
+      return Math.random() < clamp99(gapP + lateP + gov, 0, Math.max(mx, gov));
     }
     /* ===== v165 D THE DEFENSE HAS A COORDINATOR =====
      * The defense never called anything: the blitz was a flat 18% that only ever came on passes (it knew),
@@ -18076,6 +18125,7 @@
         _v76 =
           ((_gapV76 = usDrive ? c.us.ovr - c.opp.ovr : c.opp.ovr - c.us.ovr),
           (_leadV76 = Math.max(0, margin)),
+          (_marginV178 = margin),
           (window.__toMultV76 = toV76())),
         pre = { pos, down, toGo: Math.max(1, Math.round(toGo)), clock: fmtC(clock), q: Math.min(quarter, 5) },
         hurry = margin < 0 && ((quarter === 2 && clock <= 150) || (quarter >= 4 && clock <= 330)),
@@ -36869,4 +36919,85 @@
     flowDock: () => flowDockV178(state.player),
     afterCard: flowAfterCardV178
   });
+
+  /* ===== v178 L HOLD TO SPEND =====
+   * The owner: "Add a way to hold down the skills for the upgrade menu to make faster." Press and hold a + / − stepper
+   * on the skill sheet (`#plus-<stat>` / `#minus-<stat>`): after `holdDelayMsV178` it repeats through `window.alloc`,
+   * starting every `holdStartMsV178` and speeding up to `holdMinMsV178`, a light haptic on each step. It stops when the
+   * finger lifts or leaves, or the moment a step changes nothing (no points left, the cap, nothing to take back) — so it
+   * never spends past what a tap could. The click a held press ends with is swallowed (capture phase), so a hold never
+   * adds one more. One listener set on the document, no per-render wiring. Kill switch TU "v178hold" 0. `v178check`. */
+  const HOLD_V178 = { t: 0, n: 0, btn: null, swallow: 0 };
+  function holdStopV178() {
+    clearTimeout(HOLD_V178.t);
+    HOLD_V178.t = 0;
+    HOLD_V178.btn && HOLD_V178.n > 0 && (HOLD_V178.swallow = Date.now());
+    HOLD_V178.btn = null;
+  }
+  function holdStepV178() {
+    const b = HOLD_V178.btn;
+    if (!b || !document.body.contains(b)) return holdStopV178();
+    const m = /^(plus|minus)-(.+)$/.exec(b.id || "");
+    if (!m) return holdStopV178();
+    const pl = state && state.player,
+      k = m[2],
+      before = pl ? String(pl.points) + "|" + (pl.attrs && pl.attrs[k]) : "";
+    try {
+      window.alloc(k, m[1] === "plus" ? 1 : -1);
+    } catch (_) {
+      return holdStopV178();
+    }
+    const after = pl ? String(pl.points) + "|" + (pl.attrs && pl.attrs[k]) : "";
+    if (after === before) return holdStopV178(); /* nothing moved: out of points, at the cap, nothing to give back */
+    HOLD_V178.n++;
+    try {
+      haptic(6);
+    } catch (_) {}
+    const ms = Math.max(TU("holdMinMsV178", 35), TU("holdStartMsV178", 150) * Math.pow(0.86, HOLD_V178.n));
+    HOLD_V178.t = setTimeout(holdStepV178, ms);
+  }
+  try {
+    document.addEventListener(
+      "pointerdown",
+      ev => {
+        if (!TU("v178hold", 1) || (ev.button != null && ev.button > 0)) return;
+        const b = ev.target && ev.target.closest && ev.target.closest('button.step[id^="plus-"],button.step[id^="minus-"]');
+        if (!b || !state || state.view !== "upgrade") return;
+        holdStopV178();
+        HOLD_V178.btn = b;
+        HOLD_V178.n = 0;
+        HOLD_V178.t = setTimeout(holdStepV178, TU("holdDelayMsV178", 380));
+      },
+      true
+    );
+    ["pointerup", "pointercancel"].forEach(t => document.addEventListener(t, holdStopV178, true));
+    // the WINDOW losing focus stops it — an element's blur (focus moving + → −) reaches a capture listener too, and must not
+    window.addEventListener("blur", ev => ev.target === window && holdStopV178());
+    document.addEventListener(
+      "pointerout",
+      ev => {
+        HOLD_V178.btn && ev.target && HOLD_V178.btn.contains(ev.target) && !(ev.relatedTarget && HOLD_V178.btn.contains(ev.relatedTarget)) && holdStopV178();
+      },
+      true
+    );
+    // the click that ends a hold already did its work as the first repeat — swallow it
+    document.addEventListener(
+      "click",
+      ev => {
+        if (!HOLD_V178.swallow || Date.now() - HOLD_V178.swallow > 600) return;
+        const b = ev.target && ev.target.closest && ev.target.closest('button.step[id^="plus-"],button.step[id^="minus-"]');
+        if (!b) return;
+        HOLD_V178.swallow = 0;
+        ev.stopPropagation();
+        ev.preventDefault();
+      },
+      true
+    );
+    // no long-press menu / text selection on the steppers
+    document.addEventListener("contextmenu", ev => ev.target && ev.target.closest && ev.target.closest("button.step") && ev.preventDefault(), true);
+    const st = document.createElement("style");
+    st.textContent = "button.step{-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;touch-action:manipulation}";
+    document.head.appendChild(st);
+  } catch (_) {}
+  window.__V178.hold = HOLD_V178;
 })();
