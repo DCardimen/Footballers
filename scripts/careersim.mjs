@@ -75,6 +75,9 @@ function installDriver () {
   // between careers: the cheapest affordable prestige node, again and again; then a Path when the medals allow
   CS.spendPP = () => {
     const bought = []
+    // v179 G: the medal rewards first (they pay PP and permanent boosts) — good takes the stronger card, bad the weaker
+    let medals = 0
+    try { if (window.__V179 && window.__V179.medals) medals = window.__V179.medals.autoQuiet(CS.policy === 'good' ? 'good' : CS.policy === 'bad' ? 'bad' : 'random') } catch (e) {}
     for (let g = 0; g < 200; g++) {
       const s = S(), nodes = Object.values(A.TREE_NODES)
         .filter((n) => A.nodeLvl(n.key) < n.max && A.nodeUnlocked(n) && A.nodeCost(n) <= s.pp)
@@ -90,7 +93,7 @@ function installDriver () {
     }
     let path = null
     try { if (!S().path && typeof window.choosePath === 'function') { window.choosePath(CS.casual ? ['prodigy', 'magnate', 'grinder'][Math.floor(Math.random() * 3)] : 'prodigy'); path = S().path || null } } catch (e) {}
-    return { bought, path, ppLeft: S().pp, tree: Object.assign({}, S().tree) }
+    return { bought, path, medals, ppLeft: S().pp, tree: Object.assign({}, S().tree) }
   }
 
   const bestOffer = (O) => { let bi = 0, bs = -1e9; (O.list || []).forEach((c, i) => { const v = (c.rating || 0) + (c.security || 0) * 0.5 + (c.role === 'starter' ? 8 : c.role === 'rotation' ? 3 : 0); if (v > bs) { bs = v; bi = i } }); return bi }
