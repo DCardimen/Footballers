@@ -37052,11 +37052,17 @@
   // careers. They are priced for the stage they belong to now: Apex ×`apexPriceV179`, Impossible ×`impossiblePriceV179`.
   function branchPriceV179(b) {
     if (!TU("v179", 1)) return 1;
-    return b === "impossible" ? TU("impossiblePriceV179", 100) : b === "apex" ? TU("apexPriceV179", 10) : 1;
+    return b === "impossible"
+      ? TU("impossiblePriceV179", 100)
+      : b === "apex"
+        ? TU("apexPriceV179", 10)
+        : b === "eternal"
+          ? 1
+          : TU("corePriceV179", 1); /* the early branches: PP scarce enough that what you buy first matters */
   }
   function medalGateV179(e) {
     const lv = e ? e.level | 0 : 0,
-      need = !TU("v179", 1) ? 0 : lv === 5 ? TU("gateCombineV179", 110) : lv === 6 ? TU("gateUffV179", 210) : 0;
+      need = !TU("v179", 1) ? 0 : lv === 5 ? TU("gateCombineV179", 0) : lv === 6 ? TU("gateUffV179", 0) : 0;
     let m = 0;
     try {
       m = medalsV156A();
