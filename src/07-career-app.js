@@ -15838,7 +15838,7 @@
     return randInt(a[0], a[1]);
   }
   // v178 N: how much of the badge gap the sim plays, by level (Pee Wee … Interstellar), measured to the v76 0.7 a point
-  var SIM_GAP_V178 = [0.75, 0.75, 0.75, 0.75, 0.75, 0.75, 0.75, 0.75, 0.75];
+  var SIM_GAP_V178 = [0.5, 0.5, 0.42, 0.32, 0.36, 0.36, 0.45, 1, 1];
   function buildGameRosters(e, t, a, s, n, i, r) {
     const l = ["QB", "RB", "RB", "WR", "WR", "TE", "OL", "OL", "OL", "OL", "OL"],
       d = ["DL", "DL", "DL", "DL", "LB", "LB", "LB", "CB", "CB", "S", "S"],
