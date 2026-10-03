@@ -1,10 +1,13 @@
 // Dev check: v179 THE LONG ROAD (src/07-career-app.js) — the prestige pacing.
-//   A: the last two climbs ask for Legacy medals — College → Combine `gateCombineV179`, Combine → UFF `gateUffV179`; short
+//   A: the last two climbs CAN ask for Legacy medals (off by default since v179 F) — College → Combine `gateCombineV179`, Combine → UFF `gateUffV179`; short
 //      of them the declare is capped at `gateCapV179`% and the hub says how many medals the scouts want; with them the
 //      odds are the game's own
 //   B: the Interstellar Call waits on the era (`istEraV179`): a UFF ring in an early era cannot answer it (the hub says so,
 //      declareFromHub refuses); in the era it can
 //   C: big PP reads K / M / B / T (`fmtBigV179`) on the top bar; the career-end card keeps a raw number under 100,000
+//   D: the medal rewards (TU v179G): a medal deals two cards, each with its context line; the 10th is a MAJOR — two face-down
+//      unique permanent upgrades; a claim lands in treeFx (the game's own readers), a major is owned once, Head Start
+//      points reach a new player, an old save is not handed its whole history, the hub carries the 🎁 chip; v179G 0 = none
 //   TU v179 0: no medal cap, the old Interstellar Call
 // No page errors.  GAME_URL=http://localhost:5173/ node scripts/v179check.mjs
 import { gameUrl, launch } from './lib/env.mjs'
@@ -46,7 +49,7 @@ const A = await M(async () => {
   return { need: G.need, colNeed: col.need, short, open, off, gs: Gs, note }
 })
 console.log('A:', JSON.stringify(A))
-ok(A.need > 0 && A.colNeed > 0 && A.need > A.colNeed, 'the Combine → UFF climb asks for more medals than College → Combine', { uff: A.need, combine: A.colNeed })
+ok(A.need === 0 && A.colNeed === 0, 'the medal walls ship off (the pacing is in the tree prices); `gateUffV179` / `gateCombineV179` turn them on', { uff: A.need, combine: A.colNeed })
 ok(A.gs.short && A.short <= 2, 'short of the medals, the declare is capped at 2%', A.short)
 ok(/Legacy medals/.test(A.note) && /999999/.test(A.note.replace(/,/g, '')), 'the hub says how many medals the scouts want', A.note)
 ok(A.open > 2 && A.off > 2, 'with the medals (or TU v179 0) the odds are the game\'s own', { open: A.open, off: A.off })
@@ -83,6 +86,53 @@ const C = await M(() => {
 console.log('C:', JSON.stringify(C))
 ok(C.a === '999' && C.b === '123.46K' && C.c === '2.5M' && C.d === '3.4B' && C.e === '7.1T' && C.f === '4Qa', 'PP reads K / M / B / T / Qa (the v146 C style)', C)
 ok(C.bar === '3.4B', 'the top bar shows a billion PP as 3.4B', C.bar)
+
+// D: the medal rewards
+const D = await M(async () => {
+  const AU = window.__GRIDIRON_AUDIT__, S = AU.freshState(); S.tutorialSeen = true; S.player = AU.newPlayer(); S.player.pos = 'QB'; S.player._wonShown = true; S.careers = 3; AU.setState(S)
+  const Md = window.__V179.medals, st = Md.store()
+  const synced = Md.sync() // an old save starts where it is
+  const small = Md.deal(7, st), major = Md.deal(10, st)
+  st.pending = [small, major]
+  window.go('hub'); await new Promise((r) => setTimeout(r, 300))
+  const chip = (document.getElementById('medalChipV179') || {}).textContent || ''
+  Md.open(); await new Promise((r) => setTimeout(r, 100))
+  const cards0 = document.querySelectorAll('#medalPickV179 .mp-card').length
+  const ctx = [...document.querySelectorAll('#medalPickV179 .mp-face em')].map((e) => e.textContent)
+  const pp0 = S.pp || 0, fx0 = JSON.stringify(st.fx)
+  Md.tap(0) // claims the small card
+  const gotSmall = st.log[st.log.length - 1], fx1 = JSON.stringify(st.fx), pp1 = S.pp || 0
+  await new Promise((r) => setTimeout(r, 100))
+  const down = document.querySelectorAll('#medalPickV179 .mp-card.down').length
+  Md.tap(0) // turns the major over
+  const down2 = document.querySelectorAll('#medalPickV179 .mp-card.down').length
+  // claim a known major to prove the effect path
+  st.pending = [{ rank: 20, major: true, opts: [{ id: 'silverSpoon', fx: { startAll: 3 } }, { id: 'headStart', fx: { startPointsV179: 10 } }] }]
+  const all0 = AU.treeFx ? AU.treeFx('startAll') : null
+  Md.claim(0)
+  const all1 = AU.treeFx ? AU.treeFx('startAll') : null
+  st.pending = [{ rank: 30, major: true, opts: [{ id: 'headStart', fx: { startPointsV179: 10 } }, { id: 'fortune', fx: { ppMult: 0.1 } }] }]
+  const pts0 = (Md.newPlayer().points || 0); Md.claim(0); const pts1 = (Md.newPlayer().points || 0)
+  const next = Md.deal(40, st), nextIds = next.opts.map((c) => c.id)
+  const unique = !nextIds.includes('silverSpoon') && !nextIds.includes('headStart')
+  document.getElementById('medalPickV179')?.remove()
+  window.RIB_TUNE = Object.assign(window.RIB_TUNE || {}, { v179G: 0 }); st.pending = [small]
+  window.go('hub'); await new Promise((r) => setTimeout(r, 300))
+  const chipOff = !!document.getElementById('medalChipV179'), fxOff = Md.fx('startAll')
+  delete window.RIB_TUNE.v179G
+  return { synced, small: small.opts.map((c) => c.id), smallMajor: small.major, major: major.opts.map((c) => c.id), majorFlag: major.major, chip, cards0, ctx, pp0, pp1, fx0, fx1, gotSmall, down, down2, all0, all1, pts0, pts1, nextIds, unique, chipOff, fxOff }
+})
+console.log('D:', JSON.stringify(D))
+ok(D.synced === 0, 'an old save is not handed its whole medal history at once', D.synced)
+ok(!D.smallMajor && D.small.length === 2 && D.majorFlag && D.major.length === 2, 'a medal deals two cards; the 10th is a MAJOR with two', { small: D.small, major: D.major })
+ok(/2/.test(D.chip) && /MYSTERY/.test(D.chip), 'the hub carries the 🎁 medal-reward chip (and says a mystery major waits)', D.chip)
+ok(D.cards0 === 2 && D.ctx.length === 2 && D.ctx.every((t) => t.length > 20), 'the chooser shows two cards, each saying what it does and where', D.ctx)
+ok(D.gotSmall && (D.fx1 !== D.fx0 || D.pp1 > D.pp0 || /look|\(/.test(D.gotSmall.name)), 'claiming a small card pays it (PP, a permanent effect or a look)', D.gotSmall)
+ok(D.down === 2 && D.down2 === 0, 'the major\'s cards are face-down until the first tap turns them over', { before: D.down, after: D.down2 })
+ok(D.all0 != null && D.all1 - D.all0 === 3, 'Silver Spoon lands in treeFx: +3 to every starting attribute', { before: D.all0, after: D.all1 })
+ok(D.pts1 - D.pts0 === 10, 'Head Start: a new player carries 10 upgrade points', { before: D.pts0, after: D.pts1 })
+ok(D.unique, 'an owned major is never dealt again', D.nextIds)
+ok(!D.chipOff && D.fxOff === 0, 'TU v179G 0: no chip, no effects', { chip: D.chipOff, fx: D.fxOff })
 
 console.log(JSON.stringify({ pass, fail, pageErrors: errors.length }))
 if (errors.length) console.log('page errors:', errors.slice(0, 6))

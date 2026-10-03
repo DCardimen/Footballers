@@ -5157,8 +5157,8 @@
   window.statInfoCloseV142 = statInfoCloseV142;
 
   function treeFx(e) {
-    let t = 0;
-    if (!state || !state.tree) return 0;
+    let t = medalFxV179(e); /* v179 G: the medal rewards are permanent tree effects */
+    if (!state || !state.tree) return t;
     for (const a in state.tree) {
       const s = TREE_NODES[a];
       s && s.fx && s.fx[e] && (t += s.fx[e] * (state.tree[a] || 0));
@@ -35704,9 +35704,12 @@
   function deckV178(e, w) {
     const rng = seededRng(e.seasonSeed || 0, e.level || 0, e.totalSeasons || 0, w.week || 0, w.opp || "", w.playoff ? "p" : "r", "flipV178"),
       tot = FLIPS_V178.reduce((s, c) => s + c.w, 0);
+    const luck = 1 + medalFxV179("flipLuckV179"), /* v179 G: Loaded Deck / luckier flips weigh the rare cards up */
+      wOf = c => (c.rar === "common" || c.rar === "uncommon" ? c.w : c.w * luck),
+      totL = FLIPS_V178.reduce((s, c) => s + wOf(c), 0);
     return [0, 1, 2].map(() => {
-      let r = rng() * tot;
-      for (const c of FLIPS_V178) if ((r -= c.w) <= 0) return c.id;
+      let r = rng() * (luck === 1 ? tot : totL);
+      for (const c of FLIPS_V178) if ((r -= luck === 1 ? c.w : wOf(c)) <= 0) return c.id;
       return "pt1";
     });
   }
@@ -35903,7 +35906,7 @@
       ordPts = orders ? hits * TU("orderPtsV178", 0.2) * worth + (orders.length && hits === orders.length ? TU("sweepPtsV178", 0.4) * worth : 0) : 0,
       pace = paceV178(e, w, stat),
       milePts = pace && pace.hit.length ? pace.hit.length * TU("milePtsV178", 0.75) * worth : 0,
-      raw = (pot.raw + ordPts + milePts) * wmul * heat.mult,
+      raw = (pot.raw + ordPts + milePts) * wmul * heat.mult * (1 + medalFxV179("payMultV179")) /* v179 G: Golden Paycheck */,
       bank0 = e.payBankV178 || 0,
       bank = bank0 + raw,
       whole = Math.floor(bank + 1e-9);
@@ -35932,7 +35935,7 @@
       coach: coachReceiptV178(e, w, perf, won, ctx.live),
       reps: practiceV178(e, perf, wmul, hits),
       stock: stockV178(e, perf, won),
-      flip: on178("flip") ? { deck: deckV178(e, w), n: watched ? 2 : 1, picked: [] } : null,
+      flip: on178("flip") ? { deck: deckV178(e, w), n: Math.min(3, (watched ? 2 : 1) + Math.round(medalFxV179("flipPicksV179"))), picked: [] } : null,
       title: pot.title,
       shown: !!ctx.card
     });
@@ -37110,8 +37113,274 @@
       msg && d.insertAdjacentHTML("afterbegin", `<div class="small center gate-v179" style="margin-bottom:8px;color:var(--gold)">${msg}</div>`);
     } catch (_) {}
   };
+
+  /* ===== v179 G THE MEDAL REWARDS =====
+   * The owner: "a mystery reward per 10 medals — prestige gained, skins, PP multipliers, permanent start boosts, roll
+   * odds — with context. Each smaller medal gives you a 2-choice option; larger medals grant the choice between 2 more
+   * unique permanent upgrades." Every Legacy medal earned from here on queues a choice (`state.medalRewardsV179.pending`,
+   * found lazily: `medalSyncV179` compares the medal count with the last one seen, so every source of medals counts and
+   * an old save is not handed its whole history at once). A medal deals two cards from `MEDAL_SMALL_V179` (seeded by the
+   * medal number and the account — no Math.random): PP now, +1% PP forever, +1 to a starting attribute, growth, declare
+   * odds, coach trust, an upgrade point a season, luckier card flips, an earned look. Every 10th medal is a MAJOR — two
+   * face-down cards from `MEDAL_MAJOR_V179`, unique permanent upgrades you can own once (+3 every starting attribute, +10%
+   * PP, a 4th flip card, …); when they run out the major deals the greater stacking ones. A choice is never forced: the
+   * hub, the season report, the career-end screen and the prestige tree carry a "🎁 N medal rewards" button
+   * (`medalChipV179`) that opens the chooser (`openMedalPickV179`). Every effect is a tree effect (`medalFxV179` inside
+   * `treeFx`), so the game's own readers apply it; the card names the stat, the size and where it shows up. Kill switch
+   * TU "v179G" 0. `window.__V179.medals`; `v179check`. */
+  const MEDAL_SMALL_V179 = [
+    { id: "pp", w: 26, rar: "common", icon: "💰", name: "Prestige windfall", ctx: "Prestige Points paid into your balance now — spend them in the tree." },
+    { id: "ppPct", w: 16, rar: "common", icon: "📈", name: "+1% Prestige Points", fx: { ppMult: 0.01 }, ctx: "Every PP you earn from now on, forever: career ends, titles, bounties." },
+    { id: "start", w: 22, rar: "common", icon: "🧬", name: "+1 starting ATTR", ctx: "Every future player is born with it — your next career starts ahead." },
+    { id: "trust", w: 10, rar: "common", icon: "🤝", name: "+2 starting coach trust", fx: { coachStart: 2 }, ctx: "Every new player starts with a little more of the coach's faith — more snaps early." },
+    { id: "growth", w: 8, rar: "uncommon", icon: "🌱", name: "+1% attribute growth", fx: { eGrowth: 0.05 }, ctx: "Every season's development is a little bigger, every career." },
+    { id: "odds", w: 8, rar: "uncommon", icon: "🎯", name: "+1% declare odds", fx: { advFlat: 1 }, ctx: "Every declare roll — to the next level, the draft, the UFF — is a point likelier." },
+    { id: "luck", w: 6, rar: "rare", icon: "🍀", name: "Luckier card flips", fx: { flipLuckV179: 0.1 }, ctx: "The post-game cards turn up rare, epic and legendary 10% more often." },
+    { id: "points", w: 4, rar: "rare", icon: "⭐", name: "+1 upgrade point a season", fx: { pointsFlat: 1 }, ctx: "One more skill point at the end of every season, every career." },
+    { id: "skin", w: 4, rar: "epic", icon: "🎨", name: "A new look", ctx: "An earned look from the Locker — yours to wear." }
+  ];
+  const MEDAL_MAJOR_V179 = [
+    { id: "silverSpoon", icon: "🥄", name: "Silver Spoon", fx: { startAll: 3 }, ctx: "+3 to EVERY starting attribute, every future career." },
+    { id: "fortune", icon: "🏦", name: "Fortune's Favourite", fx: { ppMult: 0.1 }, ctx: "+10% Prestige Points from every source, forever." },
+    { id: "scoutsEye", icon: "🔭", name: "The Scout's Eye", fx: { advFlat: 3 }, ctx: "+3% on every declare roll, forever." },
+    { id: "fourthCard", icon: "🃏", name: "The Extra Card", fx: { flipPicksV179: 1 }, ctx: "One more card pick after EVERY game (two simmed, three watched)." },
+    { id: "luckyDeck", icon: "🎲", name: "Loaded Deck", fx: { flipLuckV179: 1 }, ctx: "Rare, epic and legendary post-game cards turn up twice as often." },
+    { id: "prodigy", icon: "🌟", name: "Born for It", fx: { eGrowth: 0.25 }, ctx: "+5% to every season's attribute growth, every career." },
+    { id: "ironBody", icon: "🦴", name: "Iron Body", fx: { injDown: 0.08 }, ctx: "8% fewer injuries, every game, every career." },
+    { id: "pedigree", icon: "🏛️", name: "Program Pedigree", fx: { teamQual: 0.05 }, ctx: "Every team you join is a little better around you." },
+    { id: "headStart", icon: "🚀", name: "Head Start", fx: { startPointsV179: 10 }, ctx: "Every new player starts with 10 upgrade points to spend." },
+    { id: "paycheck", icon: "💵", name: "Golden Paycheck", fx: { payMultV179: 0.1 }, ctx: "+10% to every game's paycheck (the per-game upgrade points)." },
+    { id: "titleHunter", icon: "🏆", name: "Title Hunter", fx: { titleMult: 0.15 }, ctx: "+15% Prestige Points from every championship." },
+    { id: "ceiling", icon: "📐", name: "Higher Ceiling", fx: { ceilPlus: 3 }, ctx: "+3 to your potential ceiling — every attribute can grow further." },
+    { id: "clutch", icon: "🧊", name: "Clutch Gene", fx: { playoffPerf: 2 }, ctx: "+2 performance in every playoff game." },
+    { id: "secondLife", icon: "❤️‍🩹", name: "Second Life", fx: { cutLives: 1 }, ctx: "One more UFF cut forgiven before your career is over." },
+    { id: "favour", icon: "🫡", name: "Coach's Favourite", fx: { coachStart: 8 }, ctx: "+8 starting coach trust — the staff believes in you from day one." },
+    { id: "skinMajor", icon: "👑", name: "A legendary look", ctx: "A legendary or mythic look from the Locker." }
+  ];
+  const MEDAL_GREATER_V179 = [
+    { id: "gPP", icon: "🏦", name: "Greater Fortune", fx: { ppMult: 0.05 }, ctx: "+5% Prestige Points, forever (stacks)." },
+    { id: "gStart", icon: "🧬", name: "Greater Pedigree", fx: { startAll: 1 }, ctx: "+1 to every starting attribute (stacks)." },
+    { id: "gOdds", icon: "🔭", name: "Greater Scouting", fx: { advFlat: 1 }, ctx: "+1% on every declare roll (stacks)." },
+    { id: "gGrowth", icon: "🌱", name: "Greater Growth", fx: { eGrowth: 0.1 }, ctx: "+2% to every season's growth (stacks)." }
+  ];
+  const RAR_COL_V179 = { common: "#c8d0da", uncommon: "#6bbf59", rare: "#5ab0ff", epic: "#b07cff", legendary: "#f2c94c", mythic: "#ff7a7a" };
+  function medalStoreV179() {
+    if (!state) return null;
+    const M = state.medalRewardsV179 || (state.medalRewardsV179 = { seen: null, pending: [], fx: {}, owned: {}, log: [], seed: randInt(1, 2e9) });
+    M.pending || (M.pending = []);
+    M.fx || (M.fx = {});
+    M.owned || (M.owned = {});
+    M.log || (M.log = []);
+    return M;
+  }
+  function medalFxV179(k) {
+    if (!state || !state.medalRewardsV179 || !TU("v179G", 1)) return 0;
+    return Number(state.medalRewardsV179.fx[k]) || 0;
+  }
+  function medalCountV179() {
+    try {
+      return medalsV156A() | 0;
+    } catch (_) {
+      return 0;
+    }
+  }
+  function earnedLooksV179(minRar) {
+    try {
+      const C = window.RIB_COSMETICS;
+      if (!C || !C.catalog) return [];
+      const order = ["common", "rare", "epic", "legendary", "mythic"],
+        lo = order.indexOf(minRar || "common");
+      return (C.catalog() || []).filter(it => it && it.source === "earned" && !C.owned(it.id) && order.indexOf(it.rarity) >= lo);
+    } catch (_) {
+      return [];
+    }
+  }
+  function dealMedalV179(rank, M) {
+    const rng = seededRng("medalV179", M.seed, rank),
+      major = rank % 10 === 0,
+      pickW = (pool, n) => {
+        const out = [],
+          left = pool.slice();
+        while (out.length < n && left.length) {
+          const tot = left.reduce((a, c) => a + (c.w || 1), 0);
+          let r = rng() * tot,
+            k = 0;
+          for (; k < left.length - 1; k++) if ((r -= left[k].w || 1) <= 0) break;
+          out.push(left.splice(k, 1)[0]);
+        }
+        return out;
+      },
+      dress = c => {
+        const o = Object.assign({}, c, { fx: Object.assign({}, c.fx || {}) });
+        if (c.id === "pp") {
+          o.amt = Math.round((20 + rank * 6) * eraMult() * Math.max(1, Math.sqrt(chaosPPMult())));
+          o.name = "+" + fmtBigV179(o.amt) + " Prestige Points";
+        }
+        if (c.id === "start") {
+          const keys = ATTR_KEYS.filter(k => k !== "injuryResist"),
+            k = keys[Math.floor(rng() * keys.length)];
+          o.fx = { ["start_" + k]: 1 };
+          o.name = "+1 starting " + ((ATTR_INFO[k] && ATTR_INFO[k].name) || k);
+        }
+        if (c.id === "skin" || c.id === "skinMajor") {
+          const L = earnedLooksV179(c.id === "skinMajor" ? "legendary" : "rare");
+          if (!L.length) return null;
+          const it = L[Math.floor(rng() * L.length)];
+          o.look = it.id;
+          o.rar = it.rarity;
+          o.name = (c.id === "skinMajor" ? "👑 " : "") + it.name + " (" + it.cat + ")";
+        }
+        return o;
+      };
+    let opts;
+    if (major) {
+      const left = MEDAL_MAJOR_V179.filter(c => !M.owned[c.id]).map(c => Object.assign({ w: 1, rar: "legendary" }, c));
+      opts = pickW(left.length >= 2 ? left : left.concat(MEDAL_GREATER_V179.map(c => Object.assign({ w: 1, rar: "epic" }, c))), 2);
+    } else opts = pickW(MEDAL_SMALL_V179, 3);
+    opts = opts.map(dress).filter(Boolean).slice(0, 2);
+    while (opts.length < 2) opts.push(dress(MEDAL_SMALL_V179[0]));
+    return { rank, major, opts };
+  }
+  // new medals → pending choices (lazy: any medal source counts; an old save starts from where it is)
+  function medalSyncV179() {
+    if (!TU("v179G", 1) || !state) return 0;
+    const M = medalStoreV179(),
+      now = medalCountV179();
+    if (M.seen == null) M.seen = state.player || (state.careers || 0) > 0 ? now : Math.min(now, 1);
+    for (let r = M.seen + 1; r <= now; r++) M.pending.push(dealMedalV179(r, M));
+    M.seen = Math.max(M.seen, now);
+    return M.pending.length;
+  }
+  function claimMedalV179(i) {
+    const M = medalStoreV179(),
+      P = M && M.pending[0],
+      c = P && P.opts[i];
+    if (!c) return null;
+    for (const k in c.fx || {}) M.fx[k] = (Number(M.fx[k]) || 0) + c.fx[k];
+    if (c.amt) state.pp = (state.pp || 0) + c.amt;
+    if (c.look)
+      try {
+        window.RIB_COSMETICS.grant(c.look, "earned");
+      } catch (_) {}
+    if (P.major && MEDAL_MAJOR_V179.some(x => x.id === c.id)) M.owned[c.id] = true;
+    M.pending.shift();
+    M.log.push({ rank: P.rank, major: P.major, id: c.id, name: c.name });
+    M.log.length > 60 && M.log.splice(0, M.log.length - 60);
+    try {
+      syncCounters();
+      saveGame();
+    } catch (_) {}
+    return c;
+  }
+  // the simulator's (and a "pick for me") choice: the stronger card by a plain value table, or the weaker
+  function autoMedalV179(mode) {
+    const V = { silverSpoon: 9, scoutsEye: 9, prodigy: 8, ceiling: 8, headStart: 7, pedigree: 7, fortune: 6, paycheck: 6, clutch: 5, fourthCard: 5, secondLife: 5, ironBody: 4, titleHunter: 4, luckyDeck: 4, favour: 4, skinMajor: 1, gStart: 6, gOdds: 6, gGrowth: 5, gPP: 4, odds: 6, points: 6, start: 5, growth: 5, trust: 3, ppPct: 3, pp: 2, luck: 2, skin: 1 };
+    let n = 0;
+    medalSyncV179();
+    const M = medalStoreV179();
+    while (M && M.pending.length && n < 1000) {
+      const o = M.pending[0].opts,
+        a = V[o[0].id] || 0,
+        b = V[(o[1] || o[0]).id] || 0,
+        i = mode === "bad" ? (a <= b ? 0 : 1) : mode === "random" ? (seededRng("medalAuto", M.seed, M.pending[0].rank)() < 0.5 ? 0 : 1) : a >= b ? 0 : 1;
+      claimMedalV179(i);
+      n++;
+    }
+    return n;
+  }
+  function cssMedalV179() {
+    if (document.getElementById("medalCssV179")) return;
+    const s = document.createElement("style");
+    s.id = "medalCssV179";
+    s.textContent = `
+.medal-chip-v179{display:flex;align-items:center;gap:8px;width:100%;margin:0 0 10px;padding:10px 12px;border-radius:13px;border:1px solid var(--gold);background:linear-gradient(135deg,rgba(242,201,76,.22),rgba(13,18,28,.9));color:var(--chalk);font:700 14px Oswald,sans-serif;letter-spacing:.6px;cursor:pointer;animation:mcPulse 1.6s ease-in-out infinite}
+.medal-chip-v179 b{color:var(--gold)}
+@keyframes mcPulse{0%,100%{box-shadow:0 0 0 0 rgba(242,201,76,.0)}50%{box-shadow:0 0 18px 2px rgba(242,201,76,.45)}}
+#medalPickV179 .mp-cards{display:flex;gap:10px;margin-top:12px}
+#medalPickV179 .mp-card{flex:1;min-height:190px;perspective:800px;cursor:pointer}
+#medalPickV179 .mp-in{position:relative;width:100%;height:100%;min-height:190px;transition:transform .6s cubic-bezier(.3,1.5,.5,1);transform-style:preserve-3d}
+#medalPickV179 .mp-card.down .mp-in{transform:rotateY(180deg)}
+#medalPickV179 .mp-face,#medalPickV179 .mp-back{position:absolute;inset:0;border-radius:13px;backface-visibility:hidden;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:10px;border:2px solid var(--mc,#c8d0da);background:radial-gradient(circle at 50% 25%,color-mix(in srgb,var(--mc,#c8d0da) 26%,#0d121c),#0d121c 72%);box-shadow:0 0 18px -4px var(--mc,#c8d0da)}
+#medalPickV179 .mp-back{transform:rotateY(180deg);background:repeating-linear-gradient(45deg,#1b2433,#1b2433 7px,#222d3f 7px,#222d3f 14px);font:700 40px Oswald,sans-serif;color:var(--gold)}
+#medalPickV179 .mp-face i{font-style:normal;font-size:34px}
+#medalPickV179 .mp-face b{font:700 15px Oswald,sans-serif;margin-top:6px;color:var(--chalk)}
+#medalPickV179 .mp-face small{font:700 9px Oswald,sans-serif;letter-spacing:1.4px;color:var(--mc);margin-top:3px}
+#medalPickV179 .mp-face em{font-style:normal;font:500 12px 'Barlow Condensed',sans-serif;color:var(--chalk-dim);margin-top:6px;line-height:1.35}
+#medalPickV179 .mp-card:not(.down):hover .mp-in{transform:translateY(-4px)}
+`;
+    document.head.appendChild(s);
+  }
+  function medalChipV179() {
+    if (!TU("v179G", 1)) return "";
+    const n = medalSyncV179();
+    if (!n) return "";
+    const M = medalStoreV179(),
+      majors = M.pending.filter(p => p.major).length;
+    try {
+      cssMedalV179();
+    } catch (_) {}
+    return `<button class="medal-chip-v179" id="medalChipV179" onclick="window.__V179.medals.open()">🎁 <span><b>${n}</b> medal reward${n > 1 ? "s" : ""} to choose${majors ? ` · <b>${majors}</b> MYSTERY` : ""}</span><span style="margin-left:auto">OPEN ▸</span></button>`;
+  }
+  function openMedalPickV179() {
+    medalSyncV179();
+    const M = medalStoreV179(),
+      P = M && M.pending[0];
+    document.getElementById("medalPickV179")?.remove();
+    if (!P) return false;
+    try {
+      cssMedalV179();
+    } catch (_) {}
+    const card = (c, i) =>
+      `<div class="mp-card${P.major ? " down" : ""}" data-i="${i}" style="--mc:${RAR_COL_V179[c.rar] || "#c8d0da"}" onclick="window.__V179.medals.tap(${i})"><div class="mp-in"><div class="mp-face"><i>${c.icon}</i><b>${escHtml(c.name)}</b><small>${String(c.rar || "").toUpperCase()}${P.major ? " · PERMANENT" : ""}</small><em>${escHtml(c.ctx)}</em></div><div class="mp-back">?</div></div></div>`;
+    document.body.insertAdjacentHTML(
+      "beforeend",
+      `<div class="decision-overlay" id="medalPickV179"><div class="decision-panel" style="border-color:var(--gold)"><div class="decision-kicker">${P.major ? "MAJOR MEDAL · MYSTERY" : "LEGACY MEDAL"} ${P.rank}</div><div class="decision-title">${P.major ? "🎁 Two sealed upgrades — tap to reveal, then choose one" : "Choose one"}</div><div class="small" style="color:var(--chalk-dim);margin-top:2px">${P.major ? "Every 10th medal: a unique permanent upgrade. The one you pass on can come back on a later major." : "Every medal pays one of two rewards. Permanent ones last every career from now on."}</div><div class="mp-cards">${P.opts.map(card).join("")}</div><div class="small center" style="margin-top:10px;color:var(--chalk-dim)">${M.pending.length > 1 ? M.pending.length - 1 + " more after this" : "the last one waiting"}</div><div class="btn-row" style="margin-top:10px"><button class="btn ghost" onclick="window.__V179.medals.close()">Later</button>${M.pending.length > 1 ? '<button class="btn ghost" onclick="window.__V179.medals.auto()">Pick the rest for me</button>' : ""}</div></div></div>`
+    );
+    return true;
+  }
+  function tapMedalV179(i) {
+    const el = document.querySelector("#medalPickV179 .mp-card.down");
+    if (el) {
+      // a major's first tap turns both cards over
+      document.querySelectorAll("#medalPickV179 .mp-card.down").forEach(x => x.classList.remove("down"));
+      try {
+        playSfx("big");
+        haptic([20, 30, 40]);
+      } catch (_) {}
+      return;
+    }
+    const c = claimMedalV179(i);
+    if (!c) return;
+    try {
+      playSfx("good");
+      showToast(c.icon + " " + c.name);
+    } catch (_) {}
+    const M = medalStoreV179();
+    M.pending.length ? openMedalPickV179() : (document.getElementById("medalPickV179")?.remove(), render());
+  }
+  const decMedalV179 = decorateScreen;
+  decorateScreen = function () {
+    decMedalV179();
+    try {
+      if (!TU("v179G", 1) || !state || !["hub", "result", "gameover", "win", "shop"].includes(state.view)) return;
+      const t = byId("screen");
+      if (!t || t.querySelector("#medalChipV179")) return;
+      const h = medalChipV179();
+      h && t.insertAdjacentHTML("afterbegin", h);
+    } catch (_) {}
+  };
+  // a new player carries the Head Start points
+  const npMedalV179 = newPlayer;
+  newPlayer = function () {
+    const p = npMedalV179.apply(this, arguments);
+    try {
+      const n = Math.round(medalFxV179("startPointsV179"));
+      n > 0 && p && (p.points = (p.points || 0) + n);
+    } catch (_) {}
+    return p;
+  };
   window.__chaosMaxV179 = () => chaosMaxAllNowV150();
   window.__chaosTotalV179 = () => chaosTotal();
   window.__istGateV179 = e => istGateV179(e || (state && state.player));
-  window.__V179 = { gate: istGateV179, medalGate: e => medalGateV179(e || (state && state.player)), fmt: fmtBigV179, price: branchPriceV179 };
+  window.__V179 = { gate: istGateV179, medalGate: e => medalGateV179(e || (state && state.player)), fmt: fmtBigV179, price: branchPriceV179, medals: { sync: medalSyncV179, open: openMedalPickV179, tap: tapMedalV179, claim: claimMedalV179, auto: m => (autoMedalV179(typeof m === 'string' ? m : 'good'), document.getElementById('medalPickV179')?.remove(), render()), autoQuiet: autoMedalV179, close: () => document.getElementById('medalPickV179')?.remove(), newPlayer: () => newPlayer(), store: medalStoreV179, fx: medalFxV179, deal: dealMedalV179 } };
 })();
