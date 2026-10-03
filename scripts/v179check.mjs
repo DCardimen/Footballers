@@ -116,11 +116,14 @@ const D = await M(async () => {
   const next = Md.deal(40, st), nextIds = next.opts.map((c) => c.id)
   const unique = !nextIds.includes('silverSpoon') && !nextIds.includes('headStart')
   document.getElementById('medalPickV179')?.remove()
+  st.pending = []; const era0 = S.era || 0
+  let eraUp = false, eraP = null
+  if (window.__V179.medals.eraUp) { window.RIB_TUNE = Object.assign(window.RIB_TUNE || {}, { eraChaosStepV179: 0 }); eraUp = window.__V179.medals.eraUp(); delete window.RIB_TUNE.eraChaosStepV179; eraP = st.pending[0] || null }
   window.RIB_TUNE = Object.assign(window.RIB_TUNE || {}, { v179G: 0 }); st.pending = [small]
   window.go('hub'); await new Promise((r) => setTimeout(r, 300))
   const chipOff = !!document.getElementById('medalChipV179'), fxOff = Md.fx('startAll')
   delete window.RIB_TUNE.v179G
-  return { synced, small: small.opts.map((c) => c.id), smallMajor: small.major, major: major.opts.map((c) => c.id), majorFlag: major.major, chip, cards0, ctx, pp0, pp1, fx0, fx1, gotSmall, down, down2, all0, all1, pts0, pts1, nextIds, unique, chipOff, fxOff }
+  return { eraUp, eraP: eraP && { era: eraP.era, major: eraP.major, n: eraP.opts.length, name: eraP.eraName }, era0, synced, small: small.opts.map((c) => c.id), smallMajor: small.major, major: major.opts.map((c) => c.id), majorFlag: major.major, chip, cards0, ctx, pp0, pp1, fx0, fx1, gotSmall, down, down2, all0, all1, pts0, pts1, nextIds, unique, chipOff, fxOff }
 })
 console.log('D:', JSON.stringify(D))
 ok(D.synced === 0, 'an old save is not handed its whole medal history at once', D.synced)
@@ -132,6 +135,7 @@ ok(D.down === 2 && D.down2 === 0, 'the major\'s cards are face-down until the fi
 ok(D.all0 != null && D.all1 - D.all0 === 3, 'Silver Spoon lands in treeFx: +3 to every starting attribute', { before: D.all0, after: D.all1 })
 ok(D.pts1 - D.pts0 === 10, 'Head Start: a new player carries 10 upgrade points', { before: D.pts0, after: D.pts1 })
 ok(D.unique, 'an owned major is never dealt again', D.nextIds)
+ok(D.eraUp && D.eraP && D.eraP.major && D.eraP.n === 2 && D.eraP.era === D.era0 + 1, 'a new era deals a mystery major too', D.eraP)
 ok(!D.chipOff && D.fxOff === 0, 'TU v179G 0: no chip, no effects', { chip: D.chipOff, fx: D.fxOff })
 
 console.log(JSON.stringify({ pass, fail, pageErrors: errors.length }))
