@@ -7056,6 +7056,7 @@
     let t = e.cost * Math.pow(e.mult, nodeLvl(e.key));
     const a = currentPath(),
       s = (TREE_NODES[e.key] && TREE_NODES[e.key].branch) || e.branch;
+    t *= branchPriceV179(s); /* v179 E: the late branches priced for a chaos-era income */
     return (a && a.cheapBranch && s === a.cheapBranch && (t *= 0.75), Math.max(1, Math.round(t)));
   }
   const PATH_HONORS = 6;
@@ -37046,6 +37047,13 @@
    *     cap — the UFF grind, measured by `careersim --until interstellar`.
    * C — BIG NUMBERS READ. `fmtBigV179` (K, M, B, T, Qa, Qi …) on every PP figure the game prints.
    * Kill switch TU "v179" 0 (the career-count gate, the old Interstellar Call). `window.__V179`; `v179check`. */
+  // v179 E: chaos multiplies PP 3·1.16^c, so the UFF's income runs into the millions by chaos ~20 and the billions by
+  // ~60; the Apex and Impossible branches were priced for the old curve (5K–60K, 100K–10M) and fell in the first UFF
+  // careers. They are priced for the stage they belong to now: Apex ×`apexPriceV179`, Impossible ×`impossiblePriceV179`.
+  function branchPriceV179(b) {
+    if (!TU("v179", 1)) return 1;
+    return b === "impossible" ? TU("impossiblePriceV179", 100) : b === "apex" ? TU("apexPriceV179", 10) : 1;
+  }
   function medalGateV179(e) {
     const lv = e ? e.level | 0 : 0,
       need = !TU("v179", 1) ? 0 : lv === 5 ? TU("gateCombineV179", 110) : lv === 6 ? TU("gateUffV179", 210) : 0;
@@ -37076,7 +37084,7 @@
       v /= 1000;
       i++;
     }
-    return (n < 0 ? "-" : "") + (v >= 100 ? v.toFixed(0) : v >= 10 ? v.toFixed(1) : v.toFixed(2)) + U[i];
+    return (n < 0 ? "-" : "") + (Math.round(v * 100) / 100).toString() + U[i]; /* the v146 C style: 2.5M, 10M, 1.06B */
   }
   // the hub says what the scouts are waiting for
   const decV179 = decorateScreen;
@@ -37099,5 +37107,5 @@
   window.__chaosMaxV179 = () => chaosMaxAllNowV150();
   window.__chaosTotalV179 = () => chaosTotal();
   window.__istGateV179 = e => istGateV179(e || (state && state.player));
-  window.__V179 = { gate: istGateV179, medalGate: e => medalGateV179(e || (state && state.player)), fmt: fmtBigV179 };
+  window.__V179 = { gate: istGateV179, medalGate: e => medalGateV179(e || (state && state.player)), fmt: fmtBigV179, price: branchPriceV179 };
 })();

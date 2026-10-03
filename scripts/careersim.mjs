@@ -138,7 +138,7 @@ function installDriver () {
       lastView = v
       // a ring: the first UFF title
       if (until === 'ring' && ((p.nflRings || 0) > 0 || (S().uffTitleV156C && p.level >= 7))) { rec.title = true; rec.end = 'title'; break }
-      if (p.cutOutV146B && !p._settled) { window.go('gameover'); await sleep(10); continue }
+      if (p.cutOutV146B && !p._settled) { p.pendingEvent = null; document.querySelectorAll('.decision-overlay,.life-event-overlay-v12').forEach((x) => x.remove()); window.go('gameover'); await sleep(10); if (S().view !== 'gameover') { try { window.screenGameOver && window.screenGameOver() } catch (e) {} } continue }
       if (v === 'gameover') { if (!p._settled) { window.go('gameover'); await sleep(10) } rec.end = rec.end || 'cut'; break }
       if (v === 'declineResult') { rec.end = 'declare failed'; window.endCareer(); await sleep(10); continue }
       if (v === 'win') { window.continueNFL(); await sleep(10); continue }

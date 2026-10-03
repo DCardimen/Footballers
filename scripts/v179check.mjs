@@ -81,8 +81,8 @@ const C = await M(() => {
   return { a: f(999), b: f(123456), c: f(2.5e6), d: f(3.4e9), e: f(7.1e12), f: f(4e15), bar }
 })
 console.log('C:', JSON.stringify(C))
-ok(C.a === '999' && C.b === '123K' && C.c === '2.50M' && C.d === '3.40B' && C.e === '7.10T' && C.f === '4.00Qa', 'PP reads K / M / B / T / Qa', C)
-ok(C.bar === '3.40B', 'the top bar shows a billion PP as 3.40B', C.bar)
+ok(C.a === '999' && C.b === '123.46K' && C.c === '2.5M' && C.d === '3.4B' && C.e === '7.1T' && C.f === '4Qa', 'PP reads K / M / B / T / Qa (the v146 C style)', C)
+ok(C.bar === '3.4B', 'the top bar shows a billion PP as 3.4B', C.bar)
 
 console.log(JSON.stringify({ pass, fail, pageErrors: errors.length }))
 if (errors.length) console.log('page errors:', errors.slice(0, 6))
