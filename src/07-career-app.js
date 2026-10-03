@@ -37334,7 +37334,7 @@
       `<div class="mp-card${P.major ? " down" : ""}" data-i="${i}" style="--mc:${RAR_COL_V179[c.rar] || "#c8d0da"}" onclick="window.__V179.medals.tap(${i})"><div class="mp-in"><div class="mp-face"><i>${c.icon}</i><b>${escHtml(c.name)}</b><small>${String(c.rar || "").toUpperCase()}${P.major ? " · PERMANENT" : ""}</small><em>${escHtml(c.ctx)}</em></div><div class="mp-back">?</div></div></div>`;
     document.body.insertAdjacentHTML(
       "beforeend",
-      `<div class="decision-overlay" id="medalPickV179"><div class="decision-panel" style="border-color:var(--gold)"><div class="decision-kicker">${P.major ? "MAJOR MEDAL · MYSTERY" : "LEGACY MEDAL"} ${P.rank}</div><div class="decision-title">${P.major ? "🎁 Two sealed upgrades — tap to reveal, then choose one" : "Choose one"}</div><div class="small" style="color:var(--chalk-dim);margin-top:2px">${P.major ? "Every 10th medal: a unique permanent upgrade. The one you pass on can come back on a later major." : "Every medal pays one of two rewards. Permanent ones last every career from now on."}</div><div class="mp-cards">${P.opts.map(card).join("")}</div><div class="small center" style="margin-top:10px;color:var(--chalk-dim)">${M.pending.length > 1 ? M.pending.length - 1 + " more after this" : "the last one waiting"}</div><div class="btn-row" style="margin-top:10px"><button class="btn ghost" onclick="window.__V179.medals.close()">Later</button>${M.pending.length > 1 ? '<button class="btn ghost" onclick="window.__V179.medals.auto()">Pick the rest for me</button>' : ""}</div></div></div>`
+      `<div class="decision-overlay" id="medalPickV179"><div class="decision-panel" style="border-color:var(--gold)"><div class="decision-kicker">${P.era != null ? "NEW ERA · " + escHtml(P.eraName || "") : (P.major ? "MAJOR MEDAL · MYSTERY " : "LEGACY MEDAL ") + P.rank}</div><div class="decision-title">${P.major ? "🎁 Two sealed upgrades — tap to reveal, then choose one" : "Choose one"}</div><div class="small" style="color:var(--chalk-dim);margin-top:2px">${P.era != null ? "A new era pays a unique permanent upgrade — the same pool as the 10th-medal majors." : P.major ? "Every 10th medal: a unique permanent upgrade. The one you pass on can come back on a later major." : "Every medal pays one of two rewards. Permanent ones last every career from now on."}</div><div class="mp-cards">${P.opts.map(card).join("")}</div><div class="small center" style="margin-top:10px;color:var(--chalk-dim)">${M.pending.length > 1 ? M.pending.length - 1 + " more after this" : "the last one waiting"}</div><div class="btn-row" style="margin-top:10px"><button class="btn ghost" onclick="window.__V179.medals.close()">Later</button>${M.pending.length > 1 ? '<button class="btn ghost" onclick="window.__V179.medals.auto()">Pick the rest for me</button>' : ""}</div></div></div>`
     );
     return true;
   }
@@ -37369,6 +37369,21 @@
       h && t.insertAdjacentHTML("afterbegin", h);
     } catch (_) {}
   };
+  // every new era deals a mystery major too (a reward at every era, not just a bigger multiplier)
+  const eraMedalV179 = tryNextEra;
+  tryNextEra = function () {
+    const up = eraMedalV179.apply(this, arguments);
+    try {
+      if (up && TU("v179G", 1) && TU("eraRewardV179", 1)) {
+        const M = medalStoreV179(),
+          P = dealMedalV179(100000 + (state.era || 0) * 10, M);
+        P.era = state.era || 0;
+        P.eraName = eraName();
+        M.pending.unshift(P);
+      }
+    } catch (_) {}
+    return up;
+  };
   // a new player carries the Head Start points
   const npMedalV179 = newPlayer;
   newPlayer = function () {
@@ -37382,5 +37397,5 @@
   window.__chaosMaxV179 = () => chaosMaxAllNowV150();
   window.__chaosTotalV179 = () => chaosTotal();
   window.__istGateV179 = e => istGateV179(e || (state && state.player));
-  window.__V179 = { gate: istGateV179, medalGate: e => medalGateV179(e || (state && state.player)), fmt: fmtBigV179, price: branchPriceV179, medals: { sync: medalSyncV179, open: openMedalPickV179, tap: tapMedalV179, claim: claimMedalV179, auto: m => (autoMedalV179(typeof m === 'string' ? m : 'good'), document.getElementById('medalPickV179')?.remove(), render()), autoQuiet: autoMedalV179, close: () => document.getElementById('medalPickV179')?.remove(), newPlayer: () => newPlayer(), store: medalStoreV179, fx: medalFxV179, deal: dealMedalV179 } };
+  window.__V179 = { gate: istGateV179, medalGate: e => medalGateV179(e || (state && state.player)), fmt: fmtBigV179, price: branchPriceV179, medals: { sync: medalSyncV179, open: openMedalPickV179, tap: tapMedalV179, claim: claimMedalV179, auto: m => (autoMedalV179(typeof m === 'string' ? m : 'good'), document.getElementById('medalPickV179')?.remove(), render()), autoQuiet: autoMedalV179, close: () => document.getElementById('medalPickV179')?.remove(), newPlayer: () => newPlayer(), eraUp: () => tryNextEra(), store: medalStoreV179, fx: medalFxV179, deal: dealMedalV179 } };
 })();
