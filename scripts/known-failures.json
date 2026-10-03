@@ -1,29 +1,158 @@
 {
  "about": "Assertions that fail on this branch for a reason that is NOT the change you are testing. run-checks.mjs marks a failure KNOWN when EVERY failing item of that check matches one of these patterns (a regex tested against the failing line's text); anything else is NEW. `flaky: true` = it fails on some runs only (a timing budget on a loaded box) — accepted when it fails, never reported FIXED? when it passes. v150 B took the 2026-09-24 baseline (46 entries, main at ca9db0a) down to these: every other entry was a stale or under-sampled CHECK and was fixed in the check (docs/CHECKS.md, 'The baseline'), and the v110 credit fall-through was closed in the engine. What is left is the GAME being wrong in a place this pass did not own (the declare screens — another worker's; the vault; the renderer's jersey numbers) or an assertion that is a wall-clock frame rate by nature. Delete an entry when you fix it; see docs/CHECKS.md.",
  "failures": [
-  {"check": "palettecheck", "pattern": "^the profile's button reads \"The Palette\"; cosOpenStyleV151B\\(sec\\) lands on the palette at that section, in view", "note": "fails on main at 5119689 in v176's side-by-side run (alone, 1 job: open \"banner\", top 1210 — the same reading on the v176 tree): the jump to a section lands below the fold; GAME (src/28 v174 jumpV174) or the check's view bar, not the numbers", "since": "2026-10-02"},
-  {"check": "v164Acheck", "pattern": "^every man on his feet wears a silhouette, and \\(nine in ten at least\\) of the very frame his body shows", "note": "flaky on main at a8dedb4 in v175's side-by-side run (1 of 2 alone: 21 of 22 a frame behind): the silhouette samples its frame a tick after the body on a loaded box", "since": "2026-10-02", "flaky": true},
-  {"check": "v144check", "pattern": "^(E: the near end keeps going past where the painting stops|E: and that continuation is grass too|E: it is the art's own rows cycled|the broadcast is up with both elevens on the field)", "note": "flaky on main at e162691 in v171's side-by-side runs (1 of 4 on main, 3 of 7 on the v171 tree, the same lines): how many rows of the near-end continuation are on screen depends on where the unseeded live game parks the camera", "since": "2026-10-02", "flaky": true},
-  {"check": "movementcheck", "pattern": "movementcheck failed: (avgRunYpc|avgYacPerCompletion) moved", "note": "fails identically on main at e162691 in v171's side-by-side run (avgRunYpc +14.6%, avgYacPerCompletion -22.3% against the v150 calibration): the v165/v166 engine passes moved the run game and YAC after the baseline was taken; the baseline wants re-taking, not the engine", "since": "2026-10-02"},
-  {"check": "v151Acheck", "pattern": "^OFF: the ⏭ button says how many sims are left this career", "note": "fails identically on main at e162691 in v171's side-by-side run: since v164 B the button reads \"⏭ Sim to the Championship\" and the count runs into its label (\"Championship1 left\"), which the check's pattern does not read", "since": "2026-10-02"},
-  {"check": "origincheck", "pattern": "^(the draft offers its cards|the screen says the numbers are real)", "note": "fails identically on main at e162691 in v171's side-by-side run (the draft shows 0 cards in the check's setup)", "since": "2026-10-02"},
-  {"check": "v111Acheck", "pattern": "^dialling back does not bring the injury chance down", "note": "fails identically on main at e162691 in v171's side-by-side run: after the heavy arc the injury chance sits at its 55% cap, and four LIMITED weeks paying ~12 load each do not bring it under the cap (load 168 -> 133); passed on the v171 tree once since, so it is the arc's draws", "since": "2026-10-02", "flaky": true},
-  {"check": "scrollcheck", "pattern": "^every screen stays inside 1\\.35 screens of scroll .* over: settings [0-9.]+$", "note": "fails identically on main at e162691 in v173's side-by-side run (settings 4.33 screens on main, 3.84 on the v173 tree; training 1.48 on one loaded run): the settings screen grew past the budget before v173, which touches only the vault; it passed on a quieter rerun, so it is the load", "since": "2026-10-02", "flaky": true},
-  {"check": "v147Acheck", "pattern": "^DFL: the season screen shows a tappable \"Sim the Rest of the Regular Season\" from week 1", "note": "stale since v164 B: the button reads \"⏭ Sim to the Championship\" and the sim plays the earlier playoff rounds, so the check finds no button and stops (fails identically on main at f726d87 in v170's side-by-side run; matching the new name exposes three more pre-v164 B expectations — one-tap stop at the playoffs, the cut screen's pause note, RETIRE INSTEAD)", "since": "2026-10-02"},
-  {"check": "rankcheck", "pattern": "^L0: the rank card tracks the leaders board", "note": "flaky on main at ae6f260 in v169's side-by-side runs (1 of 2 alone, worst factor 4.14x): the Pee Wee rank card and the sampled leaders board drift apart on some seeds", "since": "2026-10-01", "flaky": true},
-  {"check": "v151Bcheck", "pattern": "^(and the broadcast's pixels over the bowl change|a forced touchdown by HIM plays the equipped celebration)", "note": "flaky on main at 5fb3ee3 (2 of 3 runs alone in v168's side-by-side): the frozen-frame bowl diff reads 115-178 changed pixels against a bar of 250, and the forced touchdown sometimes throws before the scene is ready", "since": "2026-10-01", "flaky": true},
-  {"check": "v153Gcheck", "pattern": "^(wings: a pair on HIS marker, drawn|a crown sits over his head, above the plumbob's depth)", "note": "fails on main at 5fb3ee3 in v168's side-by-side run, alone with 2 jobs (the wing / crown pixel counts read under their bars on the unseeded live field)", "since": "2026-10-01", "flaky": true},
-  {"check": "v149Echeck", "pattern": "^OFF: the same localStorage keys as with the file blocked", "note": "fails identically on main at 14647b1 in v167's side-by-side run: with monetization OFF the key set includes rib.legacy.v152 / rib.seasons.v1 / rib.super.v1 / the v149 backups, which the check's blocked-file baseline does not list", "since": "2026-10-01"},
-  {"check": "v159Bcheck", "pattern": "^F2P: 31 minutes later it turns off at the next play boundary", "note": "fails identically on main at 14647b1 in v167's side-by-side run (expired, but no toast and the flag never turns off within the check's play window)", "since": "2026-10-01"},
-  {"check": "v93check", "pattern": "^the far end zone on the broadcast field wears the paint", "note": "fails on main at 14647b1 in v167's side-by-side run, alone with 2 jobs (a light, near-white pixel where the paint is expected); already marked load-sensitive", "since": "2026-10-01", "flaky": true},
-  {"check": "v102check", "pattern": "^(no mast is drawn over the playing surface|the far four are clear of the paint and drawn as always)", "note": "the same camera-dependent mast reads as v98check's (which fail on main): in v165's runs main failed v102check 1 of 2 and the v165 tree 3 of 7, each time on these lines, passing alone otherwise. Where the unseeded live game parks the camera decides it", "since": "2026-10-01", "flaky": true},
-  {"check": "v109Echeck", "pattern": "^a nudged man's shadow sits as tightly under him as a man who was never nudged", "note": "intermittent on main at f988bdb (1 of 3 runs in v165's comparison) and on the v165 tree (3 of 7, max 2.9-8.5 px nudged vs 0.9-2.5 control): a max over the unseeded game's piles. v165 C's open-field reads put carriers into different piles; if it stays above main's rate, the shadow recast (shadowFollowV109) lags a nudge on some frames", "since": "2026-10-01", "flaky": true},
-  {"check": "declarecheck", "pattern": "^(the walk reached a declare|seasonLogV77 records finished seasons|the season-result declare card|a failed declare lands|the screen says the climb is over|it states there is no second attempt|the epitaph is tabbed|career totals are summarised|the best season is summarised|the level-by-level log is shown|the only way out is the career result|the odds that missed are kept|a best season resolves off the archive|the epitaph fits inside|the career result screen still follows)", "note": "fails on main at f988bdb (v165's baseline run, 15 of 21): the walk plays 0 seasons, so nothing after it can be reached. GAME or CHECK (the walk's entry into a season), not investigated in v165", "since": "2026-10-01"},
-  {"check": "v98check", "pattern": "^(the swaying masts drift a few pixels|the still masts do not move at all|the beams reach down from the heads|mid-field keeps its reading brightness|no mast is drawn over the playing surface|the far four are clear of the paint)", "note": "fails on main at f988bdb in 2 of 3 v165 runs (the same lines on the v165 tree): the mast and beam reads depend on where the unseeded live game puts the camera", "since": "2026-10-01", "flaky": true},
-  {"check": "kitsidecheck", "pattern": "^plays were watched with the ball on BOTH sides", "note": "fails on main at f988bdb in v165's baseline run (0 ours / 8 theirs): which side has the ball in the sampled window is the unseeded game's", "since": "2026-10-01", "flaky": true},
-  {"check": "v101check", "pattern": "^(the first play was choreographed while the loading chase was still running|and the door opened onto that already-built play)", "note": "fails on main at f988bdb in v165's baseline run (built 0, misses 1, door 7.2 s): the pre-build race against the loading chase", "since": "2026-10-01", "flaky": true},
-  {"check": "v112Bcheck", "pattern": "^every mast sits exactly lightDropV112 lower", "note": "fails on main at f988bdb in v165's baseline run (measured 0,0,0,0 for a drop of 44)", "since": "2026-10-01", "flaky": true},
-  {"check": "rivalcheck", "pattern": "^and so is the injury multiplier, as a multiplier", "note": "fails on main at f988bdb in v165's baseline run (injury risk +60% all season): the rival line prints a percentage where the check wants a multiplier", "since": "2026-10-01"},
+  {
+   "check": "palettecheck",
+   "pattern": "^the profile's button reads \"The Palette\"; cosOpenStyleV151B\\(sec\\) lands on the palette at that section, in view",
+   "note": "fails on main at 5119689 in v176's side-by-side run (alone, 1 job: open \"banner\", top 1210 — the same reading on the v176 tree): the jump to a section lands below the fold; GAME (src/28 v174 jumpV174) or the check's view bar, not the numbers",
+   "since": "2026-10-02"
+  },
+  {
+   "check": "v164Acheck",
+   "pattern": "^every man on his feet wears a silhouette, and \\(nine in ten at least\\) of the very frame his body shows",
+   "note": "flaky on main at a8dedb4 in v175's side-by-side run (1 of 2 alone: 21 of 22 a frame behind): the silhouette samples its frame a tick after the body on a loaded box",
+   "since": "2026-10-02",
+   "flaky": true
+  },
+  {
+   "check": "v144check",
+   "pattern": "^(E: the near end keeps going past where the painting stops|E: and that continuation is grass too|E: it is the art's own rows cycled|the broadcast is up with both elevens on the field)",
+   "note": "flaky on main at e162691 in v171's side-by-side runs (1 of 4 on main, 3 of 7 on the v171 tree, the same lines): how many rows of the near-end continuation are on screen depends on where the unseeded live game parks the camera",
+   "since": "2026-10-02",
+   "flaky": true
+  },
+  {
+   "check": "movementcheck",
+   "pattern": "movementcheck failed: (avgRunYpc|avgYacPerCompletion) moved",
+   "note": "fails identically on main at e162691 in v171's side-by-side run (avgRunYpc +14.6%, avgYacPerCompletion -22.3% against the v150 calibration): the v165/v166 engine passes moved the run game and YAC after the baseline was taken; the baseline wants re-taking, not the engine",
+   "since": "2026-10-02"
+  },
+  {
+   "check": "v151Acheck",
+   "pattern": "^OFF: the ⏭ button says how many sims are left this career",
+   "note": "fails identically on main at e162691 in v171's side-by-side run: since v164 B the button reads \"⏭ Sim to the Championship\" and the count runs into its label (\"Championship1 left\"), which the check's pattern does not read",
+   "since": "2026-10-02"
+  },
+  {
+   "check": "origincheck",
+   "pattern": "^(the draft offers its cards|the screen says the numbers are real)",
+   "note": "fails identically on main at e162691 in v171's side-by-side run (the draft shows 0 cards in the check's setup)",
+   "since": "2026-10-02"
+  },
+  {
+   "check": "v111Acheck",
+   "pattern": "^dialling back does not bring the injury chance down",
+   "note": "fails identically on main at e162691 in v171's side-by-side run: after the heavy arc the injury chance sits at its 55% cap, and four LIMITED weeks paying ~12 load each do not bring it under the cap (load 168 -> 133); passed on the v171 tree once since, so it is the arc's draws",
+   "since": "2026-10-02",
+   "flaky": true
+  },
+  {
+   "check": "scrollcheck",
+   "pattern": "^every screen stays inside 1\\.35 screens of scroll .* over: settings [0-9.]+$",
+   "note": "fails identically on main at e162691 in v173's side-by-side run (settings 4.33 screens on main, 3.84 on the v173 tree; training 1.48 on one loaded run): the settings screen grew past the budget before v173, which touches only the vault; it passed on a quieter rerun, so it is the load",
+   "since": "2026-10-02",
+   "flaky": true
+  },
+  {
+   "check": "v147Acheck",
+   "pattern": "^DFL: the season screen shows a tappable \"Sim the Rest of the Regular Season\" from week 1",
+   "note": "stale since v164 B: the button reads \"⏭ Sim to the Championship\" and the sim plays the earlier playoff rounds, so the check finds no button and stops (fails identically on main at f726d87 in v170's side-by-side run; matching the new name exposes three more pre-v164 B expectations — one-tap stop at the playoffs, the cut screen's pause note, RETIRE INSTEAD)",
+   "since": "2026-10-02"
+  },
+  {
+   "check": "rankcheck",
+   "pattern": "^L0: the rank card tracks the leaders board",
+   "note": "flaky on main at ae6f260 in v169's side-by-side runs (1 of 2 alone, worst factor 4.14x): the Pee Wee rank card and the sampled leaders board drift apart on some seeds",
+   "since": "2026-10-01",
+   "flaky": true
+  },
+  {
+   "check": "v151Bcheck",
+   "pattern": "^(and the broadcast's pixels over the bowl change|a forced touchdown by HIM plays the equipped celebration)",
+   "note": "flaky on main at 5fb3ee3 (2 of 3 runs alone in v168's side-by-side): the frozen-frame bowl diff reads 115-178 changed pixels against a bar of 250, and the forced touchdown sometimes throws before the scene is ready",
+   "since": "2026-10-01",
+   "flaky": true
+  },
+  {
+   "check": "v153Gcheck",
+   "pattern": "^(wings: a pair on HIS marker, drawn|a crown sits over his head, above the plumbob's depth)",
+   "note": "fails on main at 5fb3ee3 in v168's side-by-side run, alone with 2 jobs (the wing / crown pixel counts read under their bars on the unseeded live field)",
+   "since": "2026-10-01",
+   "flaky": true
+  },
+  {
+   "check": "v149Echeck",
+   "pattern": "^OFF: the same localStorage keys as with the file blocked",
+   "note": "fails identically on main at 14647b1 in v167's side-by-side run: with monetization OFF the key set includes rib.legacy.v152 / rib.seasons.v1 / rib.super.v1 / the v149 backups, which the check's blocked-file baseline does not list",
+   "since": "2026-10-01"
+  },
+  {
+   "check": "v159Bcheck",
+   "pattern": "^F2P: 31 minutes later it turns off at the next play boundary",
+   "note": "fails identically on main at 14647b1 in v167's side-by-side run (expired, but no toast and the flag never turns off within the check's play window)",
+   "since": "2026-10-01"
+  },
+  {
+   "check": "v93check",
+   "pattern": "^the far end zone on the broadcast field wears the paint",
+   "note": "fails on main at 14647b1 in v167's side-by-side run, alone with 2 jobs (a light, near-white pixel where the paint is expected); already marked load-sensitive",
+   "since": "2026-10-01",
+   "flaky": true
+  },
+  {
+   "check": "v102check",
+   "pattern": "^(no mast is drawn over the playing surface|the far four are clear of the paint and drawn as always)",
+   "note": "the same camera-dependent mast reads as v98check's (which fail on main): in v165's runs main failed v102check 1 of 2 and the v165 tree 3 of 7, each time on these lines, passing alone otherwise. Where the unseeded live game parks the camera decides it",
+   "since": "2026-10-01",
+   "flaky": true
+  },
+  {
+   "check": "v109Echeck",
+   "pattern": "^a nudged man's shadow sits as tightly under him as a man who was never nudged",
+   "note": "intermittent on main at f988bdb (1 of 3 runs in v165's comparison) and on the v165 tree (3 of 7, max 2.9-8.5 px nudged vs 0.9-2.5 control): a max over the unseeded game's piles. v165 C's open-field reads put carriers into different piles; if it stays above main's rate, the shadow recast (shadowFollowV109) lags a nudge on some frames",
+   "since": "2026-10-01",
+   "flaky": true
+  },
+  {
+   "check": "declarecheck",
+   "pattern": "^(the walk reached a declare|seasonLogV77 records finished seasons|the season-result declare card|a failed declare lands|the screen says the climb is over|it states there is no second attempt|the epitaph is tabbed|career totals are summarised|the best season is summarised|the level-by-level log is shown|the only way out is the career result|the odds that missed are kept|a best season resolves off the archive|the epitaph fits inside|the career result screen still follows)",
+   "note": "fails on main at f988bdb (v165's baseline run, 15 of 21): the walk plays 0 seasons, so nothing after it can be reached. GAME or CHECK (the walk's entry into a season), not investigated in v165",
+   "since": "2026-10-01"
+  },
+  {
+   "check": "v98check",
+   "pattern": "^(the swaying masts drift a few pixels|the still masts do not move at all|the beams reach down from the heads|mid-field keeps its reading brightness|no mast is drawn over the playing surface|the far four are clear of the paint)",
+   "note": "fails on main at f988bdb in 2 of 3 v165 runs (the same lines on the v165 tree): the mast and beam reads depend on where the unseeded live game puts the camera",
+   "since": "2026-10-01",
+   "flaky": true
+  },
+  {
+   "check": "kitsidecheck",
+   "pattern": "^plays were watched with the ball on BOTH sides",
+   "note": "fails on main at f988bdb in v165's baseline run (0 ours / 8 theirs): which side has the ball in the sampled window is the unseeded game's",
+   "since": "2026-10-01",
+   "flaky": true
+  },
+  {
+   "check": "v101check",
+   "pattern": "^(the first play was choreographed while the loading chase was still running|and the door opened onto that already-built play)",
+   "note": "fails on main at f988bdb in v165's baseline run (built 0, misses 1, door 7.2 s): the pre-build race against the loading chase",
+   "since": "2026-10-01",
+   "flaky": true
+  },
+  {
+   "check": "v112Bcheck",
+   "pattern": "^every mast sits exactly lightDropV112 lower",
+   "note": "fails on main at f988bdb in v165's baseline run (measured 0,0,0,0 for a drop of 44)",
+   "since": "2026-10-01",
+   "flaky": true
+  },
+  {
+   "check": "rivalcheck",
+   "pattern": "^and so is the injury multiplier, as a multiplier",
+   "note": "fails on main at f988bdb in v165's baseline run (injury risk +60% all season): the rival line prints a percentage where the check wants a multiplier",
+   "since": "2026-10-01"
+  },
   {
    "check": "readcheck",
    "pattern": "^punts: fair catches when the coverage is on him",
@@ -125,12 +254,6 @@
    "note": "a 30-minute walk of the whole first week against the coach's typing and spotlight timers; at load 20-40 a different one of these trips on each try (both tries of the v150 B after-run failed once each, on different lines). NEXT's spotlight 'inside:false' recurs in both full runs — worth a look on a quiet box",
    "since": "2026-09-25",
    "flaky": true
-  },
-  {
-   "check": "blowoutcheck",
-   "pattern": "^live: five-score blowouts are rare",
-   "note": "UNVERIFIED GAME signal: the check never finished inside the suite before v150 B (1,600 games), so it had no baseline; at BLOW_N=400 it reads 7.0% of games at |margin| >= 45. Could be the smaller sample or a real drift in the v76 margin curve since v141/v146 — run it alone at the default 1,600 before acting",
-   "since": "2026-09-25"
   }
  ]
 }
