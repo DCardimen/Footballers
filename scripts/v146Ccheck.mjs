@@ -73,7 +73,7 @@ ok(br && br.some(n => n.cost >= 1e7), 'the top of it is eight figures', br && Ma
 // ---- 4. CRACK THE WALL, bought and spent through the real functions ----
 const wall = await page.evaluate(() => {
   const A = window.__GRIDIRON_AUDIT__, S = window.S, V = window.__V146C
-  S.tree = {}; window.__V156A && window.__V156A.seed(500) /* v156 A: the medals open the branch */; S.prestige = 100; S.pp = 5e6
+  S.tree = {}; window.__V156A && window.__V156A.seed(500) /* v156 A: the medals open the branch */; S.prestige = 100; S.pp = 5e9 /* v179 E: the Impossible branch is priced ×100 */
   const p = A.newPlayer(S, 'RB'); p.pos = 'RB'; S.player = p; p.points = 5000
   const spend = () => { p.attrs.speed = 260; window.go('upgrade'); const b = p.points; window.alloc('speed', 1); return b - p.points }
   const mult0 = V.wallMult(), soft = V.softCap(p, 'speed'), c0 = spend(), cost0 = A.nodeCost(A.TREE_NODES.wallCrack)
@@ -85,7 +85,8 @@ const wall = await page.evaluate(() => {
 })
 console.log('wall:', JSON.stringify(wall))
 ok(wall.mult0 === 5 && wall.mult1 === 4, 'the wall multiplier is ×5, and ×4 after one level of Crack the Wall', `${wall.mult0} → ${wall.mult1}`)
-ok(wall.paid === 100000 && wall.cost0 === 100000, 'window.buy charged the 100,000 PP the card says', wall.paid)
+const wallPrice = 100000 * (await page.evaluate(() => (window.__V179 ? window.__V179.price('impossible') : 1)))
+ok(wall.paid === wallPrice && wall.cost0 === wallPrice, 'window.buy charged the price the card says (100,000 × the v179 Impossible price)', wall.paid)
 ok(wall.c0 > 0 && wall.c1 * 5 === wall.c0 * 4, 'a point past the wall through window.alloc costs 4/5 of what it did', `${wall.c0} → ${wall.c1} pts (soft cap ${wall.soft})`)
 ok(wall.mult3 === 2 && wall.floor === 2, 'Lv 3 is ×2, and nothing goes under the floor', `${wall.mult3} / ${wall.floor}`)
 
@@ -149,11 +150,13 @@ const ui = await page.evaluate(() => {
 })
 console.log('ui:', JSON.stringify(ui))
 ok(ui.tab && ui.n === br.length, 'the prestige screen has the Impossible tab and draws every node', `${ui.n} nodes`)
-ok(ui.btns.includes('100K PP') && ui.btns.includes('1M PP') && ui.btns.includes('10M PP'), 'the buy buttons read 100K / 1M / 10M, not a wall of digits', ui.btns.join(' | '))
+const IK = await page.evaluate(() => (window.__V179 ? window.__V179.price('impossible') : 1)) // v179 E: the branch is priced ×IK
+const fmtK = (n) => page.evaluate((n) => window.__V146C.fmt(n), n)
+ok(ui.btns.includes((await fmtK(1e5 * IK)) + ' PP') && ui.btns.includes((await fmtK(1e6 * IK)) + ' PP') && ui.btns.includes((await fmtK(1e7 * IK)) + ' PP'), 'the buy buttons read short numbers (100K / 1M / 10M × the v179 price), not a wall of digits', ui.btns.join(' | '))
 ok(ui.banner === '12,345,678', 'the balance is printed with commas', ui.banner)
 ok(ui.fmt.join() === '1,234,100K,2.5M,10M', 'ppFmtV146', ui.fmt.join(' | '))
 // the vault: tap the 10M node, pour the rest, and the bridge commits through window.buy
-const vd = await page.evaluate(() => { const S = window.S; S.pp = 2e7; const d = window.__RIB_VAULT_BRIDGE && window.__RIB_VAULT_BRIDGE.describe('priceCeiling'); window.vaultBuy('priceCeiling'); return d && { cost: d.cost, locked: d.locked } })
+const vd = await page.evaluate((IK) => { const S = window.S; S.pp = 2e7 * IK; const d = window.__RIB_VAULT_BRIDGE && window.__RIB_VAULT_BRIDGE.describe('priceCeiling'); window.vaultBuy('priceCeiling'); return d && { cost: d.cost, locked: d.locked } }, IK)
 await page.waitForTimeout(2500)
 const v0 = await page.evaluate(() => window.__RIB_VAULT_DEV && window.__RIB_VAULT_DEV.state())
 await page.evaluate(() => window.__RIB_VAULT_DEV && window.__RIB_VAULT_DEV.skip())
@@ -161,8 +164,8 @@ await page.waitForTimeout(1500)
 const v1 = await page.evaluate(() => ({ lv: window.__GRIDIRON_AUDIT__.nodeLvl('priceCeiling'), pp: window.S.pp, st: window.__RIB_VAULT_DEV && window.__RIB_VAULT_DEV.state() }))
 try { await page.evaluate(() => window.__RIB_VAULT && window.__RIB_VAULT.close('back')) } catch (_) {}
 console.log('vault:', JSON.stringify({ vd, target: v0 && v0.target, balance: v0 && v0.balance, lv: v1.lv, pp: v1.pp, committed: v1.st && v1.st.committed }))
-ok(vd && vd.cost === 1e7 && !vd.locked && v0 && v0.target && v0.target.cost === 1e7 && v0.balance === 2e7, 'the vault opens on a 10,000,000 PP node with a 20,000,000 PP hoard', JSON.stringify(v0 && { target: v0.target, balance: v0.balance }))
-ok(v1.lv === 1 && v1.pp === 1e7, 'and funding it in the vault buys Lv 1 for exactly 10,000,000 PP', JSON.stringify({ lv: v1.lv, pp: v1.pp }))
+ok(vd && vd.cost === 1e7 * IK && !vd.locked && v0 && v0.target && v0.target.cost === 1e7 * IK && v0.balance === 2e7 * IK, 'the vault opens on the Price Ceiling node (10,000,000 × the v179 price) with twice that in the hoard', JSON.stringify(v0 && { target: v0.target, balance: v0.balance }))
+ok(v1.lv === 1 && v1.pp === 1e7 * IK, 'and funding it in the vault buys Lv 1 for exactly its price', JSON.stringify({ lv: v1.lv, pp: v1.pp }))
 
 await page.evaluate(() => { window.S.tree = {}; window.S.pp = 0; window.S.player = null })
 console.log('page errors:', errs.length ? errs.join('\n') : 'none')
