@@ -43,7 +43,7 @@ const errors = []
 async function open (tag) {
   const ctx = await browser.newContext({ viewport: { width: 400, height: 860 } })
   await ctx.addInitScript((tune) => {
-    window.RIB_TUNE = Object.assign(window.RIB_TUNE || {}, { v156Bplayoffs: 0, speedGateV151A: 0, v156Cspeed: 0 }, tune || {})
+    window.RIB_TUNE = Object.assign(window.RIB_TUNE || {}, { v156Bplayoffs: 0, v164Bsim: 0, speedGateV151A: 0, v156Cspeed: 0 }, tune || {})
     try { localStorage.setItem('rib.coachTour.v119', 'off'); localStorage.setItem('rib.debriefOff.v122', 'off') } catch {}
     setInterval(() => {
       try { if (window.S) window.S.tutorialSeen = true } catch {}

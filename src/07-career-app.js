@@ -12970,7 +12970,7 @@
             showToast("💍 Ring earned. Chaos still requires: " + chaosUnlockReq(e)),
         state.chaosUnlocked &&
           chaosMaxed() &&
-          ((state.chaosCap = (state.chaosCap || 0) + (R ? 10 : 6)),
+          ((state.chaosCap = (state.chaosCap || 0) + (TU("v179", 1) ? (R ? TU("chaosCapIslV179", 2) : TU("chaosCapUffV179", 1)) : R ? 10 : 6)) /* v179 D: capacity grows a point a ring, not six */,
           typeof document < "u" &&
             byId("toast") &&
             showToast("⛓️ CHAOS CLEARANCE — capacity raised to " + state.chaosCap + "!")),
@@ -20142,7 +20142,7 @@
     return Math.pow(1.2, state.era || 0);
   }
   function nextEraChaos() {
-    return (state.era || 0) * 15;
+    return (state.era || 0) * (TU("v179", 1) ? TU("eraChaosStepV179", 15) : 15); /* v179 D */
   }
   function tryNextEra() {
     return chaosTotal() >= nextEraChaos() && (state.era || 0) < 999 ? ((state.era = (state.era || 0) + 1), !0) : !1;
