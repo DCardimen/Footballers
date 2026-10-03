@@ -37048,7 +37048,7 @@
    * Kill switch TU "v179" 0 (the career-count gate, the old Interstellar Call). `window.__V179`; `v179check`. */
   function medalGateV179(e) {
     const lv = e ? e.level | 0 : 0,
-      need = !TU("v179", 1) ? 0 : lv === 5 ? TU("gateCombineV179", 60) : lv === 6 ? TU("gateUffV179", 120) : 0;
+      need = !TU("v179", 1) ? 0 : lv === 5 ? TU("gateCombineV179", 110) : lv === 6 ? TU("gateUffV179", 210) : 0;
     let m = 0;
     try {
       m = medalsV156A();
