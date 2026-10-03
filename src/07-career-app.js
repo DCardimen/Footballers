@@ -35489,6 +35489,21 @@
     if (title) items.push({ k: "title", label: "Championship", v: Math.round((4 + Math.round(lv * 0.8)) * titleXpMultV164C()) });
     return { items, raw: items.reduce((s, i) => s + i.v, 0), title };
   }
+  // the sheets carry no decimals (v92): a multiplier reads as a percentage, a part of a point as a fraction glyph
+  function pctV178(m) {
+    return "+" + Math.round((m - 1) * 100) + "%";
+  }
+  function fracV178(v) {
+    const sg = v < 0 ? "−" : "+",
+      a = Math.abs(v),
+      w = Math.floor(a + 1e-9),
+      f = a - w,
+      G = [[0, ""], [0.25, "¼"], [1 / 3, "⅓"], [0.5, "½"], [2 / 3, "⅔"], [0.75, "¾"], [1, ""]];
+    let best = G[0];
+    for (const g of G) if (Math.abs(f - g[0]) < Math.abs(f - best[0])) best = g;
+    const whole = w + (best[0] === 1 ? 1 : 0);
+    return whole === 0 && !best[1] ? "±0" : sg + (whole ? whole : "") + best[1];
+  }
   function heatV178(streak) {
     if (!on178("heat") || !(streak >= 3)) return { mult: 1, tier: 0, label: "" };
     return streak >= 8
@@ -35655,8 +35670,9 @@
     v = clamp99(v, 1, 99);
     const lv = e.level | 0;
     if (lv <= 4) {
-      const st = Math.min(5, 1 + (v / 100) * 4.6);
-      return { kind: "RECRUITING", txt: st.toFixed(1) + "★", tier: Math.floor(st), tierTxt: Math.floor(st) + "-STAR RECRUIT" };
+      const st = Math.min(5, 1 + (v / 100) * 4.6),
+        n = Math.floor(st);
+      return { kind: "RECRUITING", txt: "★".repeat(n) + "☆".repeat(5 - n), tier: n, tierTxt: n + "-STAR RECRUIT" };
     }
     if (lv <= 6) {
       const r = v >= 88 ? 0 : v >= 78 ? 1 : v >= 68 ? 2 : v >= 58 ? 3 : v >= 50 ? 4 : v >= 42 ? 5 : v >= 35 ? 6 : v >= 28 ? 7 : 8,
@@ -35665,7 +35681,7 @@
     }
     const m = Math.round((0.8 + Math.pow(v / 100, 2) * 44) * 10) / 10,
       tier = m >= 30 ? 4 : m >= 18 ? 3 : m >= 8 ? 2 : m >= 3 ? 1 : 0;
-    return { kind: "MARKET VALUE", txt: "$" + m.toFixed(1) + "M/yr", tier, tierTxt: ["MINIMUM DEAL", "ROLE-PLAYER MONEY", "STARTER MONEY", "PRO BOWL MONEY", "MAX CONTRACT"][tier] };
+    return { kind: "MARKET VALUE", txt: "$" + Math.max(1, Math.round(m)) + "M/yr", tier, tierTxt: ["MINIMUM DEAL", "ROLE-PLAYER MONEY", "STARTER MONEY", "PRO BOWL MONEY", "MAX CONTRACT"][tier] };
   }
   function stockV178(e, perf, won) {
     if (!on178("stock")) return null;
@@ -35838,7 +35854,7 @@
     V178.paid++;
     V178.lastPay = P;
     // the big beats, queued and said once the card is gone (the highest one wins)
-    if (heat.tier && streak === [0, 3, 5, 8][heat.tier]) V178.moments.push({ p: 3 + heat.tier, t: "🔥 " + heat.label, s: streak + " straight wins · every game pays ×" + heat.mult, tone: "good" });
+    if (heat.tier && streak === [0, 3, 5, 8][heat.tier]) V178.moments.push({ p: 3 + heat.tier, t: "🔥 " + heat.label, s: streak + " straight wins · every game pays " + pctV178(heat.mult), tone: "good" });
     if (snapped) V178.moments.push({ p: 2, t: "STREAK SNAPPED", s: "The run ends at " + snapped + ". Start a new one.", tone: "bad" });
     if (pace && pace.hit.length) V178.moments.push({ p: 6, t: "🏁 " + pace.hit[pace.hit.length - 1].toLocaleString() + " " + pace.unit.toUpperCase(), s: "Season mark reached · bonus points", tone: "good" });
     if (P.stock && (P.stock.up || P.stock.down)) V178.moments.push({ p: P.stock.up ? 4 : 1, t: (P.stock.up ? "📈 " : "📉 ") + P.stock.to.tierTxt, s: P.stock.to.kind + " " + (P.stock.up ? "climbs" : "slips"), tone: P.stock.up ? "good" : "bad" });
@@ -35941,14 +35957,14 @@
     // 1 — the paycheck
     const tags =
       (P.watched ? `<span class="rv-tag" style="color:var(--cyan)">×${P.wmul} WATCHED</span>` : "") +
-      (P.heat.tier ? `<span class="rv-tag" style="color:#ff9d4a"><span class="rv-flame">🔥</span> ×${P.heat.mult}</span>` : "");
+      (P.heat.tier ? `<span class="rv-tag" style="color:#ff9d4a"><span class="rv-flame">🔥</span> ${pctV178(P.heat.mult)}</span>` : "");
     const lines = P.pot.items
-      .map(i => `${escHtml(i.label)} <b>${sgnV178(i.v, 1)}</b>`)
-      .concat(P.ordPts ? [`Orders ${P.hits}/${(P.orders || []).length} <b>${sgnV178(P.ordPts, 1)}</b>`] : [])
-      .concat(P.milePts ? [`Season mark <b>${sgnV178(P.milePts, 1)}</b>`] : []);
+      .map(i => `${escHtml(i.label)} <b>${fracV178(i.v)}</b>`)
+      .concat(P.ordPts ? [`Orders ${P.hits}/${(P.orders || []).length} <b>${fracV178(P.ordPts)}</b>`] : [])
+      .concat(P.milePts ? [`Season mark <b>${fracV178(P.milePts)}</b>`] : []);
     rows.push(
       `<div class="rv-row"><div class="rv-head"><span class="rv-k">PAYCHECK</span><b style="color:var(--gold)">+<span data-count="${P.whole}">0</span></b><small style="color:var(--chalk-dim)">upgrade pts</small>${tags}<em style="color:var(--chalk-dim)">${Math.round(e.points || 0)} to spend</em></div>` +
-        `<div class="rv-list">${lines.join(" · ")}${P.wmul > 1 || P.heat.tier ? ` · <b>${P.raw.toFixed(1)}</b> after ${P.wmul > 1 ? "×" + P.wmul + " watched" : ""}${P.wmul > 1 && P.heat.tier ? " " : ""}${P.heat.tier ? "×" + P.heat.mult + " streak" : ""}` : ""}</div>` +
+        `<div class="rv-list">${lines.join(" · ")}${P.wmul > 1 || P.heat.tier ? ` · <b>${fracV178(P.raw).replace("+", "")}</b> after ${P.wmul > 1 ? "×" + P.wmul + " watched" : ""}${P.wmul > 1 && P.heat.tier ? " " : ""}${P.heat.tier ? pctV178(P.heat.mult) + " streak" : ""}` : ""}</div>` +
         `<div class="rv-bar"><i data-w="${Math.round(P.bank * 100)}"></i></div><div class="rv-list" style="font-size:11px">Next point ${Math.round(P.bank * 100)}%</div></div>`
     );
     // 2 — the cards, right under the paycheck: the slot machine is played while the rest lands
@@ -35975,7 +35991,7 @@
     // 4 — the streak
     const st = P.streak;
     rows.push(
-      `<div class="rv-row"><div class="rv-head"><span class="rv-k">STREAK</span><b style="color:${st > 0 ? "var(--good)" : "#e08a8a"}">${st > 0 ? (st >= 3 ? '<span class="rv-flame">🔥</span>' : "") + "W" + st : "L" + Math.abs(st)}</b>${P.heat.tier ? `<em style="color:#ff9d4a">${P.heat.label} · ×${P.heat.mult}</em>` : P.snapped ? `<em style="color:#e08a8a">SNAPPED AT ${P.snapped}</em>` : `<em style="color:var(--chalk-dim)">${st > 0 && st < 3 ? 3 - st + " more for ×" + TU("heat3V178", 1.2) : "win 3 straight for ×" + TU("heat3V178", 1.2)}</em>`}</div></div>`
+      `<div class="rv-row"><div class="rv-head"><span class="rv-k">STREAK</span><b style="color:${st > 0 ? "var(--good)" : "#e08a8a"}">${st > 0 ? (st >= 3 ? '<span class="rv-flame">🔥</span>' : "") + "W" + st : "L" + Math.abs(st)}</b>${P.heat.tier ? `<em style="color:#ff9d4a">${P.heat.label} · ${pctV178(P.heat.mult)}</em>` : P.snapped ? `<em style="color:#e08a8a">SNAPPED AT ${P.snapped}</em>` : `<em style="color:var(--chalk-dim)">${st > 0 && st < 3 ? 3 - st + " more for " + pctV178(TU("heat3V178", 1.2)) : "win 3 straight for " + pctV178(TU("heat3V178", 1.2))}</em>`}</div></div>`
     );
     // 5 — the coach's receipt
     if (on178("receipt") && P.coach)
@@ -35990,7 +36006,7 @@
         `<div class="rv-row"><div class="rv-head"><span class="rv-k">PRACTICE REPS</span>${P.wmul > 1 ? `<span class="rv-tag" style="color:var(--cyan)">×${P.wmul}</span>` : ""}${P.reps.some(r => r.up) ? '<em style="color:var(--good)">LEVEL UP!</em>' : ""}</div>${P.reps
           .map(
             r =>
-              `<div class="rv-list">${escHtml(r.name)} <b>${Math.round(r.now)}</b> <small class="rv-pos">+${r.gain.toFixed(2)}</small>${r.up ? ` <b class="rv-pos rv-pop">+${r.up}!</b>` : ""}<div class="rv-bar" style="height:4px;margin-top:2px"><i data-w="${Math.round(r.bank * 100)}"></i></div></div>`
+              `<div class="rv-list">${escHtml(r.name)} <b>${Math.round(r.now)}</b> <small class="rv-pos">+${Math.max(1, Math.round(r.gain * 100))}%</small> <small>${Math.round(r.bank * 100)}% to +1</small>${r.up ? ` <b class="rv-pos rv-pop">+${r.up}!</b>` : ""}<div class="rv-bar" style="height:4px;margin-top:2px"><i data-w="${Math.round(r.bank * 100)}"></i></div></div>`
           )
           .join("")}</div>`
       );
@@ -35998,7 +36014,7 @@
     if (P.stock) {
       const d = P.stock.after - P.stock.before;
       rows.push(
-        `<div class="rv-row"><div class="rv-head"><span class="rv-k">${P.stock.to.kind}</span><b style="color:var(--gold)">${P.stock.to.txt}</b><em class="${d >= 0 ? "rv-pos" : "rv-neg"}">${d >= 0 ? "▲" : "▼"} ${Math.abs(d).toFixed(1)}</em></div><div class="rv-list">Scouts saw: ${P.stock.why
+        `<div class="rv-row"><div class="rv-head"><span class="rv-k">${P.stock.to.kind}</span><b style="color:var(--gold)">${P.stock.to.txt}</b><em class="${d >= 0 ? "rv-pos" : "rv-neg"}">${Math.round(Math.abs(d)) ? (d >= 0 ? "▲ " : "▼ ") + Math.round(Math.abs(d)) : "▶ steady"}</em></div><div class="rv-list">Scouts saw: ${P.stock.why
           .map(x => `${escHtml(x.txt)} <b class="${x.v >= 0 ? "rv-pos" : "rv-neg"}">${x.v >= 0 ? "▲" : "▼"}</b>`)
           .join(" · ")}${P.stock.up ? " · <b class='rv-pos'>NEW TIER</b>" : P.stock.down ? " · <b class='rv-neg'>TIER LOST</b>" : ""} · season end pays +${stockBonusV178(e)}</div></div>`
       );
@@ -36119,7 +36135,10 @@
     el.classList.add("go");
     playSfx("coin");
     clearTimeout(V178.stripTimer);
-    V178.stripTimer = setTimeout(() => el && el.classList.remove("go"), TU("stripMsV178", 4200));
+    V178.stripTimer = setTimeout(() => {
+      el.classList.remove("go");
+      setTimeout(() => !el.classList.contains("go") && el.remove(), 450); /* gone from the page, not just faded */
+    }, TU("stripMsV178", 4200));
     V178.strips++;
   }
   function momentsV178() {
@@ -36148,7 +36167,7 @@
     const hot = heatV178(st),
       need = 3 - Math.max(0, st);
     rows.push(
-      `<div class="wk-row"><span class="ic">${st >= 3 ? '<span class="rv-flame">🔥</span>' : st > 0 ? "✅" : st < 0 ? "❄️" : "➖"}</span><span>${st > 0 ? "W" + st + " streak" : st < 0 ? "L" + Math.abs(st) + " slide" : "No streak"} · ${hot.tier ? `<b style="color:#ff9d4a">${hot.label}</b> · a win pays <b style="color:#ff9d4a">×${heat.mult}</b>` : heat.tier ? `a win makes it <b style="color:#ff9d4a">${heat.label} ×${heat.mult}</b>` : `${need} more win${need > 1 ? "s" : ""} in a row for ×${TU("heat3V178", 1.2)}`}</span></div>`
+      `<div class="wk-row"><span class="ic">${st >= 3 ? '<span class="rv-flame">🔥</span>' : st > 0 ? "✅" : st < 0 ? "❄️" : "➖"}</span><span>${st > 0 ? "W" + st + " streak" : st < 0 ? "L" + Math.abs(st) + " slide" : "No streak"} · ${hot.tier ? `<b style="color:#ff9d4a">${hot.label}</b> · a win pays <b style="color:#ff9d4a">${pctV178(heat.mult)}</b>` : heat.tier ? `a win makes it <b style="color:#ff9d4a">${heat.label} ${pctV178(heat.mult)}</b>` : `${need} more win${need > 1 ? "s" : ""} in a row for ${pctV178(TU("heat3V178", 1.2))}`}</span></div>`
     );
     if (orders && orders.length)
       rows.push(

@@ -36,7 +36,7 @@ const M = (fn, arg) => page.evaluate(fn, arg)
 const seed = (o = {}) => M((o) => {
   const A = window.__GRIDIRON_AUDIT__, S = A.freshState(); S.tutorialSeen = true; S.tree = S.tree || {}; A.setState(S)
   S.player = A.newPlayer(); const p = S.player; p.name = 'Pay Man'; p.pos = o.pos || 'RB'; p.age = 14; p.originV11 = 'walk-on'; p._wonShown = true
-  p.level = o.level != null ? o.level : 2; p.training = 'balanced'; p.points = 0; A.startSeasonGames()
+  p.level = o.level != null ? o.level : 2; p.training = 'balanced'; p.points = 0; p.traits = [] /* no Coach's Son / Big Game Hunter: the slice is the bare formula */; A.startSeasonGames()
   document.getElementById('growthV42')?.remove(); document.getElementById('gv139gate')?.remove()
   window.go('season'); window.GridironStorage.save(S)
   return { level: p.level, weeks: p.weekResults.length, games: p.weekResults.filter((w) => !w.playoff).length }

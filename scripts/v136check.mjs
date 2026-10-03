@@ -122,8 +122,10 @@ const pre = await ev(() => { const o = window.__GRIDIRON_AUDIT__.getState(); ret
 await ev(() => window.go('gameover')); await page.waitForTimeout(500)
 const set = await ev(() => { const o = window.__GRIDIRON_AUDIT__.getState(), L = o.lineageV136; const earned = (document.querySelector('.statbox .n') && [...document.querySelectorAll('.statbox')].find(b => /PP Earned/.test(b.textContent)) || {}).textContent || ''
   return { view: o.view, pp: o.pp, bank: o.ppBankV136, gain: o.player._ppBankV136, settled: o.player._settled, note: !!document.querySelector('.bank-note-v136'), earned: earned.replace(/\s+/g, ' ').trim(), fathers: L && L.fathers, gen: L && L.gen, son: /His son picks it up/.test(document.getElementById('screen').textContent), btn: [...document.querySelectorAll('#dock button')].map(b => b.innerText).join(' | ') } })
-const r = set.pp - pre.pp - 7
-ok(set.settled && set.gain === 7 && set.bank === 0 && r >= 1 && set.note && new RegExp('\\+' + (r + 7) + '(?!\\d)').test(set.earned), 'the settle pays the bank with the career payout, and the card says how much was banked', JSON.stringify({ pp: [pre.pp, set.pp], gain: set.gain, bank: set.bank, earned: set.earned, note: set.note }))
+// v178: a card flip can bank PP during the week this check plays, so the bank is what it stood at, 7 and up
+const banked = pre.bank || 0
+const r = set.pp - pre.pp - banked
+ok(set.settled && banked >= 7 && set.gain === banked && set.bank === 0 && r >= 1 && set.note && new RegExp('\\+' + (r + banked) + '(?!\\d)').test(set.earned), 'the settle pays the bank with the career payout, and the card says how much was banked', JSON.stringify({ pp: [pre.pp, set.pp], gain: set.gain, bank: set.bank, earned: set.earned, note: set.note }))
 ok(set.fathers && set.fathers.length === 1 && set.fathers[0].name === pre.name && set.fathers[0].fate === 'cut' && set.fathers[0].level === pre.level && set.fathers[0].gen === 1 && set.gen === 1, 'the settle writes the father: his name, position, the league he reached, how it ended', JSON.stringify(set.fathers && set.fathers[0]))
 ok(set.son, 'and the career-end card says his son picks it up', set.btn)
 await ev(() => window.prestigeReset()); await page.waitForTimeout(800)
