@@ -10,6 +10,24 @@ Names in older entries are the career app's pre-v149 C minified names (`q`, `ms`
 `index.html` + `src/` (`docs/LAYOUT.md`).
 
 <!-- new entries go here, newest first -->
+- **v178 K — the week flows.** (`src/07-career-app.js`.) The owner: "On simmed days show the scorecard too, and after the
+  recap page go directly to upgrade skills, then after that go to a continue week option. I want that to be seamless."
+  A tapped Quick Play (or the ⏭ season sim) now opens the same scorecard a watched game gets — the result and the
+  animated reel, the card picks included — and Continue on any scorecard goes straight to the skill sheet when there are
+  points to spend, with a SPEND YOUR PAYCHECK banner and a dock that IS the next week: "▶ Play Week N Live" and
+  "⏩ Quick Play Week N" (the season dock's own gates: Live Sim Only, playoff weeks, the season's end). No points → the
+  season screen as before. `playWeek(false)` from code is untouched (the strip). Kill switch `TU("v178flow", 0)`.
+  `v178check`.
+- **v178 J — the scorecard moves.** (`src/07-career-app.js`.) The owner: "Make the scorecard waaay more animated and
+  visually appealing, satisfying bar movement." The post-game reel now plays row by row: the paycheck's next-point bar
+  fills, overflows, pops "+1" and throws a coin into the to-spend counter for every point, then settles on the
+  remainder while the big number ticks up; the multipliers stamp in; the cards are dealt with a shimmer and glow their
+  rarity when flipped (confetti and a shake for epic and legendary); the orders slide in and their verdicts are
+  stamped; the streak's pips light one by one; the coach's trust meter steps by each line of the receipt with a ghost
+  bar trailing the change; rep bars fill from where they stood and overflow on a level-up; the stock's marker glides
+  over its tier ticks while the stars light; the pace bar fills past the season marks. Flowing, striped meters; a
+  shine on every row; confetti on a sweep, a level-up, a new tier, a mark. A tap finishes it; reduced motion shows
+  the end state. `v178check`.
 - **v178 — the weekly paycheck.** (`src/07-career-app.js`, `scripts/v178check.mjs`.) The owner: "I would like game
   rewards to be more instant, satisfying… instead of the upgrade points at the end of the season, split it up and give
   them a game. Show in a satisfying way the coach trust change and why. Show any win streaks. Any game watched should grant
