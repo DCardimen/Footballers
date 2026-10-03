@@ -7272,6 +7272,7 @@
     return nodeLvl("bornStar") * TU("bornStarStepV146", 1);
   }
   function ppFmtV146(n) {
+    if (TU("v179", 1)) return fmtBigV179(n); /* v179 C: one formatter, past B too */
     n = Math.round(Number(n) || 0);
     const t = (v, s) => (Math.round(v * 100) / 100).toString() + s;
     return n >= 1e9
@@ -10948,7 +10949,7 @@
   function syncCounters() {
     ((byId("prestigeCount").textContent = medalsOnV156A() ? medalsV156A() : Math.round((state.prestige || 0) * 10) / 10) /* v156 A */,
       chipSyncV156A(),
-      (byId("ppCount").textContent = state.pp));
+      (byId("ppCount").textContent = TU("v179", 1) ? fmtBigV179(state.pp) : state.pp)); /* v179 C */
     const b = byId("ppBankChipV139"),
       n = bankedV136();
     if (b) {
@@ -10963,6 +10964,7 @@
   }
   /* the topbar is one nowrap line on a phone, so the bank is compact and the tooltip has the number */
   function ppShortV139(n) {
+    if (TU("v179", 1) && n >= 1e6) return fmtBigV179(n); /* v179 C */
     return n < 1e3
       ? String(n)
       : n < 1e6
@@ -14419,7 +14421,7 @@
     const e = state.player,
       t = LEVELS[e.level],
       a = playerOvr(e),
-      s = e.level >= 8 || (t.key === "nfl" && !((e.nflRings || 0) >= 1));
+      s = e.level >= 8 || (t.key === "nfl" && (!((e.nflRings || 0) >= 1) || !istGateV179(e).ok)) /* v179 B: the Interstellar Call waits on the era */;
     t.key === "nfl" && (e.nflRings || 0) >= 1;
     const n = maxSeasons() - e.seasonsAtLevel,
       i = minSeasons(),
@@ -14604,7 +14606,9 @@
         e.lastSeasonLine.level === e.level &&
         e.lastSeasonLine.pos === e.pos;
     const base = fresh ? s.chance : advanceChance(playerOvr(e), e.level);
-    return Math.max(Math.min(TU("declareCeilV139", 99), base + (e.declareBonus || 0)), rankChanceV88(e));
+    const ch = Math.max(Math.min(TU("declareCeilV139", 99), base + (e.declareBonus || 0)), rankChanceV88(e));
+    const G = medalGateV179(e);
+    return G.short ? Math.min(ch, TU("gateCapV179", 2)) : ch; /* v179 A: the scouts wait on the Legacy medals */
   } /* v139: a stellar season tops out at 99, not 97 */
   window.__V88 = {
     curve: rankCurveV88,
@@ -14614,6 +14618,10 @@
   };
   function declareFromHub() {
     const e = state.player;
+    if (e && e.level === 7 && !istGateV179(e).ok) {
+      showToast("🛸 " + istGateV179(e).say); /* v179 B */
+      return;
+    }
     if (e.seasonsAtLevel < minSeasons()) {
       showToast("You must finish this level first!");
       return;
@@ -24726,7 +24734,7 @@
       <div class="statline">
         <div class="statbox"><div class="n">${LEVELS[a].name.split(" ")[0]}</div><div class="l">Reached</div></div>
         ${medalsOnV156A() ? `<div class="statbox"><div class="n">${MEDAL_ICON_V156A}${medalsV156A()}</div><div class="l">Medals</div></div>` : `<div class="statbox"><div class="n">+${l}</div><div class="l">Honors ${HONOR_ICON_V130}</div></div>` /* v156 A */}
-        <div class="statbox"><div class="n">+${r + (e._ppBankV136 || 0) + (e._ppDoubledV149E || 0)}</div><div class="l">PP Earned</div></div>
+        <div class="statbox"><div class="n">+${bigOrRawV179(r + (e._ppBankV136 || 0) + (e._ppDoubledV149E || 0))}</div><div class="l">PP Earned</div></div>
       </div>
       ${u > 0 ? `<div class="threshold-note" style="margin-top:8px;text-align:center">💰 Your legacy bonuses boosted PP earnings by <b style="color:var(--gold)">+${u}%</b></div>` : ""}
       ${e._ppBankV136 ? `<div class="threshold-note bank-note-v136" style="margin-top:6px;text-align:center">🏦 <b style="color:var(--gold)">+${e._ppBankV136} PP</b> of that was banked during the career — goals, titles, seasons — and paid now, at the end.</div>` : ""}
@@ -24805,7 +24813,7 @@
       <div class="statline">
         <div class="statbox"><div class="n">${t}</div><div class="l">Final OVR</div></div>
         <div class="statbox"><div class="n">${e.totalSeasons}</div><div class="l">Seasons</div></div>
-        <div class="statbox"><div class="n">+${e._ppGain + (e._ppBankV136 || 0) + (e._ppDoubledV149E || 0)}</div><div class="l">PP Earned</div></div>
+        <div class="statbox"><div class="n">+${bigOrRawV179(e._ppGain + (e._ppBankV136 || 0) + (e._ppDoubledV149E || 0))}</div><div class="l">PP Earned</div></div>
       </div>
     </div>
     ${legacyCardV152("career")}
@@ -37022,4 +37030,74 @@
     document.head.appendChild(st);
   } catch (_) {}
   window.__V178.hold = HOLD_V178;
+
+  /* ===== v179 THE LONG ROAD =====
+   * The owner: "a genuine prestige balancing patch. Say a season takes around 7 minutes. ~100 hours to reach the UFF
+   * and another ~400 to reach the Interstellar League. Knowledgeable, fast players: the UFF in ~30 hours and ~200 of
+   * UFF grinding. Another 1k hours to mid game. Prestige and chaos gains in the millions / billions."
+   * A — THE SCOUTS WAIT ON THE MEDALS. Measured (careersim, the knowledgeable policy): the first UFF in 3 careers, ~44
+   *     seasons (~5 h). The `lo()` career-count penalty never bound — `declareChanceV88` floors on the national rank, and a
+   *     player with a hundred cheap nodes is top of the nation. The last two climbs now ask for Legacy medals
+   *     (`medalGateV179`: College → Combine `gateCombineV179`, Combine → UFF `gateUffV179`); short of them the declare is
+   *     capped at `gateCapV179`%. Medals come from Legacy XP, which pays for the level reached and the season's grade, so
+   *     the player who plays well earns them several times faster than one who does not.
+   * B — THE INTERSTELLAR CALL WAITS ON THE ERA. It was one UFF ring and a roll. It needs era `istEraV179` now
+   *     (`istGateV179`): eras come from UFF titles won with chaos at era × 15, chaos capacity from titles won at the
+   *     cap — the UFF grind, measured by `careersim --until interstellar`.
+   * C — BIG NUMBERS READ. `fmtBigV179` (K, M, B, T, Qa, Qi …) on every PP figure the game prints.
+   * Kill switch TU "v179" 0 (the career-count gate, the old Interstellar Call). `window.__V179`; `v179check`. */
+  function medalGateV179(e) {
+    const lv = e ? e.level | 0 : 0,
+      need = !TU("v179", 1) ? 0 : lv === 5 ? TU("gateCombineV179", 60) : lv === 6 ? TU("gateUffV179", 120) : 0;
+    let m = 0;
+    try {
+      m = medalsV156A();
+    } catch (_) {}
+    return { need, medals: m, short: need > 0 && m < need };
+  }
+  function istGateV179(e) {
+    const need = Math.round(TU("istEraV179", 6)),
+      era = (state && state.era) | 0;
+    if (!TU("v179", 1) || era >= need) return { ok: true, need, era, say: "" };
+    return { ok: false, need, era, say: "The Interstellar League scouts only the legends of era " + need + " — you are in era " + era + ". Win UFF titles with chaos at era × 15 to climb." };
+  }
+  // the career-end cards: a raw number until it is big, then K / M / B … (a check reads "+N" off the card)
+  function bigOrRawV179(n) {
+    return TU("v179", 1) && Math.abs(n) >= 1e5 ? fmtBigV179(n) : n;
+  }
+  function fmtBigV179(n) {
+    n = Number(n) || 0;
+    const a = Math.abs(n);
+    if (a < 1e5) return Math.round(n).toLocaleString("en-US");
+    const U = ["K", "M", "B", "T", "Qa", "Qi", "Sx", "Sp", "Oc", "No", "Dc"];
+    let i = -1,
+      v = a;
+    while (v >= 1000 && i < U.length - 1) {
+      v /= 1000;
+      i++;
+    }
+    return (n < 0 ? "-" : "") + (v >= 100 ? v.toFixed(0) : v >= 10 ? v.toFixed(1) : v.toFixed(2)) + U[i];
+  }
+  // the hub says what the scouts are waiting for
+  const decV179 = decorateScreen;
+  decorateScreen = function () {
+    decV179();
+    try {
+      const e = state && state.player,
+        d = byId("dock");
+      if (!e || !d || state.view !== "hub" || !TU("v179", 1) || d.querySelector(".gate-v179")) return;
+      const G = medalGateV179(e),
+        I = e.level === 7 && (e.nflRings || 0) >= 1 ? istGateV179(e) : null;
+      const msg = G.short
+        ? `🎖️ Scouts want <b>${G.need}</b> Legacy medals before they call — you have <b>${G.medals}</b>. Every season and career earns them; better grades and higher levels earn more.`
+        : I && !I.ok
+          ? "🛸 " + I.say
+          : "";
+      msg && d.insertAdjacentHTML("afterbegin", `<div class="small center gate-v179" style="margin-bottom:8px;color:var(--gold)">${msg}</div>`);
+    } catch (_) {}
+  };
+  window.__chaosMaxV179 = () => chaosMaxAllNowV150();
+  window.__chaosTotalV179 = () => chaosTotal();
+  window.__istGateV179 = e => istGateV179(e || (state && state.player));
+  window.__V179 = { gate: istGateV179, medalGate: e => medalGateV179(e || (state && state.player)), fmt: fmtBigV179 };
 })();

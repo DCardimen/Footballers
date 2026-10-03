@@ -30,6 +30,11 @@ const arg = (k, d) => { const i = argv.indexOf('--' + k); return i >= 0 ? argv[i
 const RUNS = +arg('runs', 5), MAX_CAREERS = +arg('maxCareers', 30), PAGES = Math.max(1, +arg('pages', 3))
 const DECLARE_AT = +arg('declareAt', 70), TRAINING = arg('training', 'balanced'), TIMING = arg('timing', '1') !== '0'
 const OUT = arg('out', 'docs/CAREERSIM.md'), CAREER_MS = +arg('careerMs', 240000), VERBOSE = arg('v', '0') !== '0'
+// v179: WHO plays (--policy smart = the knowledgeable player above; casual = a random fit position, a random program,
+// random affordable nodes, an early declare) and HOW FAR (--until ring = the first UFF title, as before; uff = the first
+// arrival in the UFF; interstellar = UFF careers ground on — chaos maxed whenever it is unlocked (smart) — until the
+// Interstellar Call is answered). Every run reports the SEASONS to each milestone, and hours at --seasonMin (7) a season.
+const POLICY = arg('policy', 'smart'), UNTIL = arg('until', 'ring'), SEASON_MIN = +arg('seasonMin', 7), TUNE = JSON.parse(arg('tune', '{}'))
 const url = gameUrl('index.html')
 const U = (...q) => url + (url.includes('?') ? '&' : '?') + ['stayStale', 'noFilmV114', 'noGrowV132'].concat(q).join('&')
 
@@ -37,14 +42,14 @@ const browser = await launch()
 const errors = []
 async function open (tag) {
   const ctx = await browser.newContext({ viewport: { width: 400, height: 860 } })
-  await ctx.addInitScript(() => {
-    window.RIB_TUNE = Object.assign(window.RIB_TUNE || {}, { v156Bplayoffs: 0, speedGateV151A: 0, v156Cspeed: 0 })
+  await ctx.addInitScript((tune) => {
+    window.RIB_TUNE = Object.assign(window.RIB_TUNE || {}, { v156Bplayoffs: 0, speedGateV151A: 0, v156Cspeed: 0 }, tune || {})
     try { localStorage.setItem('rib.coachTour.v119', 'off'); localStorage.setItem('rib.debriefOff.v122', 'off') } catch {}
     setInterval(() => {
       try { if (window.S) window.S.tutorialSeen = true } catch {}
       for (const s of ['.onboard', '#growthV42', '#gv139gate', '#ribDlgV149', '.lgm-v152']) document.querySelector(s)?.remove()
     }, 80)
-  })
+  }, TUNE)
   const page = await ctx.newPage()
   page.on('pageerror', (e) => errors.push(tag + ': ' + (e.message || e)))
   await page.goto(U(), { waitUntil: 'networkidle', timeout: 60000 })
@@ -75,13 +80,13 @@ function installDriver () {
         .filter((n) => A.nodeLvl(n.key) < n.max && A.nodeUnlocked(n) && A.nodeCost(n) <= s.pp)
         .sort((a, b) => A.nodeCost(a) - A.nodeCost(b))
       if (!nodes.length) break
-      const n = nodes[0], pp0 = s.pp
+      const n = CS.casual ? nodes[Math.floor(Math.random() * Math.min(nodes.length, 12))] : nodes[0], pp0 = s.pp
       try { window.buy(n.key) } catch (e) { break }
       if (S().pp >= pp0) break
       bought.push(n.key + ':' + A.nodeLvl(n.key) + '@' + (pp0 - S().pp))
     }
     let path = null
-    try { if (!S().path && typeof window.choosePath === 'function') { window.choosePath('prodigy'); path = S().path || null } } catch (e) {}
+    try { if (!S().path && typeof window.choosePath === 'function') { window.choosePath(CS.casual ? ['prodigy', 'magnate', 'grinder'][Math.floor(Math.random() * 3)] : 'prodigy'); path = S().path || null } } catch (e) {}
     return { bought, path, ppLeft: S().pp, tree: Object.assign({}, S().tree) }
   }
 
@@ -92,7 +97,10 @@ function installDriver () {
   // one career, from the menu to the career-end screen (or the first ring). Returns the record.
   CS.runCareer = async (o) => {
     o = o || {}
-    const declareAt = o.declareAt == null ? 70 : o.declareAt, training = o.training || 'balanced', budget = o.ms || 240000
+    const casual = o.policy === 'casual', until = o.until || 'ring'
+    CS.casual = casual
+    const declareAt = o.declareAt == null ? 70 : o.declareAt, budget = o.ms || 240000
+    const progs = Object.keys(A.TRAINING || { balanced: 1 }), training = casual ? progs[Math.floor(Math.random() * progs.length)] : o.training || 'balanced'
     const t0 = Date.now(), rec = { seasons: [], level: 0, maxLevel: 0, title: false, end: null, views: [], steps: 0, ms: 0, pos: null, uffSeasons: 0, skips: null }
     const trail = (v) => { if (rec.views[rec.views.length - 1] !== v) rec.views.push(v); if (rec.views.length > 400) rec.views.splice(0, 100) }
     const dump = (why) => { const s = S(), p = s.player; rec.end = why; rec.stuck = { view: s.view, level: p && p.level, weeks: p && p.weekResults ? p.weekResults.map((w) => (w.played ? 'P' : '.') + (w.playoff ? 'p' : '')).join('') : null, lastSim: (window.__V147A && window.__V147A.lastSim) || (window.__V164B && window.__V164B.lastSim) || null, offers: !!(p && p.offersV146B), cutOut: !!(p && p.cutOutV146B), pending: p && p.pendingEvent, screen: ((document.getElementById('screen') || {}).innerText || '').replace(/\s+/g, ' ').slice(0, 160) }; return rec }
@@ -109,7 +117,7 @@ function installDriver () {
       try { window.__personaConfirmV13 && window.__personaConfirmV13() } catch (e) {}
       if (!p.originV11) { try { window.chooseOriginV11((p.originOptionsV11 || [])[0] || 'walk-on') } catch (e) {} }
       if (!p.originV11) p.originV11 = 'walk-on'
-      const best = A.suggestPositions(p.attrs, p.body)[0]; rec.pos = best.pos; rec.origin = p.originV11; window.pickPos(best.pos); await sleep(20)
+      const sug = A.suggestPositions(p.attrs, p.body), best = casual ? sug[Math.floor(Math.random() * Math.min(4, sug.length))] : sug[0]; rec.pos = best.pos; rec.origin = p.originV11; window.pickPos(best.pos); await sleep(20)
       if (S().view === 'choosePos') return dump('pickPos did not leave choosePos')
     }
     let sameView = 0, lastView = null, lastKey = ''
@@ -121,11 +129,15 @@ function installDriver () {
       if (!p) return dump('no player')
       trail(v)
       rec.level = p.level; rec.maxLevel = Math.max(rec.maxLevel, p.level)
+      if (p.level >= 7 && rec.uffAt == null) rec.uffAt = p.totalSeasons
+      if ((p.nflRings || 0) > 0 && rec.ringAt == null) rec.ringAt = p.totalSeasons
+      if (p.level >= 8 && rec.istAt == null) { rec.istAt = p.totalSeasons; rec.end = 'interstellar'; break }
+      if (until === 'uff' && p.level >= 7) { rec.end = 'uff'; break }
       const key = v + '|' + p.totalSeasons + '|' + unplayed(p).length + '|' + (p.pendingEvent || '') + '|' + !!p.offersV146B
       if (key === lastKey) { if (++sameView > 12) return dump('stuck on ' + v) } else { sameView = 0; lastKey = key }
       lastView = v
       // a ring: the first UFF title
-      if ((p.nflRings || 0) > 0 || (S().uffTitleV156C && p.level >= 7)) { rec.title = true; rec.end = 'title'; break }
+      if (until === 'ring' && ((p.nflRings || 0) > 0 || (S().uffTitleV156C && p.level >= 7))) { rec.title = true; rec.end = 'title'; break }
       if (p.cutOutV146B && !p._settled) { window.go('gameover'); await sleep(10); continue }
       if (v === 'gameover') { if (!p._settled) { window.go('gameover'); await sleep(10) } rec.end = rec.end || 'cut'; break }
       if (v === 'declineResult') { rec.end = 'declare failed'; window.endCareer(); await sleep(10); continue }
@@ -136,11 +148,19 @@ function installDriver () {
         if (p.retirementPending) { window.endCareer(); await sleep(10); continue }
         try { p.points > 0 && window.autoAllocKey() } catch (e) {}
         const lv = p.level, nfl = lv >= 7
+        // v179: the smart player keeps chaos at its cap the moment it is unlocked (the PP and the eras are there)
+        if (!casual && s.chaosUnlocked && window.__chaosMaxV179) { try { if (window.__chaosTotalV179() < (s.chaosCap || 0)) window.__chaosMaxV179() } catch (e) {} }
+        // v179: the Interstellar Call — answered when its odds clear the bar (it ends the career if it fails)
+        if (until === 'interstellar' && lv === 7 && (p.nflRings || 0) >= 1 && p.seasonsAtLevel >= A.minSeasonsRequired()) {
+          let ch = 0, ok = true
+          try { ok = !window.__istGateV179 || window.__istGateV179(p).ok; ch = ok ? window.__V88.declareChance(p) : 0 } catch (e) {}
+          if (ok && ch >= (casual ? 30 : declareAt)) { rec.declares = (rec.declares || []).concat([lv + ':' + Math.round(ch)]); window.declareFromHub(); await sleep(10); continue }
+        }
         if (!nfl) {
           const min = A.minSeasonsRequired(), max = A.maxSeasonsAllowed(), left = max - p.seasonsAtLevel
           if (p.seasonsAtLevel >= min) {
             const ch = window.__V88.declareChance(p)
-            if (left <= 0 || ch >= declareAt || lv === 6) { rec.declares = (rec.declares || []).concat([lv + ':' + Math.round(ch)]); window.declareFromHub(); await sleep(10); continue }
+            if (left <= 0 || ch >= (casual ? Math.min(declareAt, 35) : declareAt) || lv === 6) { rec.declares = (rec.declares || []).concat([lv + ':' + Math.round(ch)]); window.declareFromHub(); await sleep(10); continue }
           }
         }
         window.startSeason(); await sleep(10); continue
@@ -189,7 +209,7 @@ function installDriver () {
     rec.games = rec.seasons.reduce((a, c) => a + c.games, 0)
     // settle it (the ring's career is settled through the life screen's retire so the account gets its PP)
     if (rec.title && p && !p._settled) { try { p.retirementPending = true; window.endCareer(); await sleep(10) } catch (e) {} }
-    rec.settled = !!(P() && P()._settled); rec.pp = S().pp; rec.medals = (() => { try { return window.__V156B.medals() } catch (e) { return null } })()
+    rec.settled = !!(P() && P()._settled); rec.pp = S().pp; rec.chaos = (() => { try { return window.__chaosTotalV179 ? window.__chaosTotalV179() : null } catch (e) { return null } })(); rec.medals2 = (() => { try { return window.__V156B.medals() } catch (e) { return null } })(); rec.era = S().era || 0; rec.medals = (() => { try { return window.__V156B.medals() } catch (e) { return null } })()
     return rec
   }
 
@@ -220,7 +240,7 @@ async function playRun (page, runNo) {
     const spend = await page.evaluate(() => window.__CS.spendPP())
     let rec
     try {
-      rec = await page.evaluate((o) => window.__CS.runCareer(o), { declareAt: DECLARE_AT, training: TRAINING, ms: CAREER_MS })
+      rec = await page.evaluate((o) => window.__CS.runCareer(o), { declareAt: DECLARE_AT, training: TRAINING, ms: CAREER_MS, policy: POLICY, until: UNTIL })
     } catch (e) { rec = { end: 'evaluate threw: ' + (e.message || e).slice(0, 160), seasons: [], level: -1, maxLevel: -1, games: 0 } }
     rec.no = c; rec.spend = spend
     out.careers.push(rec)
@@ -228,7 +248,18 @@ async function playRun (page, runNo) {
     console.log(`run ${runNo} career ${c}: ${rec.pos || '?'} → ${lvName} · ${rec.totalSeasons || 0} seasons · ${rec.games || 0} games · ${rec.end}${rec.uffSeasons ? ' · UFF seasons ' + rec.uffSeasons : ''} · ${((rec.ms || 0) / 1000).toFixed(1)}s · pp ${rec.pp} · medals ${rec.medals} · sims ${rec.skips && rec.skips.allowed}${rec.declares ? ' · declares ' + rec.declares.join(',') : ''}${spend.bought.length ? ' · bought ' + spend.bought.length + ' nodes (' + spend.bought.slice(-3).join(',') + ')' : ''}${VERBOSE && spend.bought.length ? ' · bought ' + spend.bought.join(',') : ''}${VERBOSE ? ' · views ' + (rec.views || []).slice(-12).join('>') : ''}`)
     if (rec.stuck) console.log('   stuck:', JSON.stringify(rec.stuck))
     if (rec.stack) console.log('   stack:', rec.stack)
+    // v179: the seasons to each milestone, counted across the whole account
+    const before = out.careers.slice(0, -1).reduce((a, x) => a + (x.totalSeasons || 0), 0)
+    if (rec.uffAt != null && out.seasonsToUff == null) out.seasonsToUff = before + rec.uffAt
+    if (rec.ringAt != null && out.seasonsToRing == null) out.seasonsToRing = before + rec.ringAt
+    if (rec.istAt != null && out.seasonsToIst == null) out.seasonsToIst = before + rec.istAt
+    const hrs = (n) => (n == null ? '—' : n + ' seasons (' + ((n * SEASON_MIN) / 60).toFixed(1) + ' h)')
+    out.traj = (out.traj || []).concat([[before + (rec.totalSeasons || 0), rec.medals2 != null ? rec.medals2 : rec.medals, rec.maxLevel]])
+    console.log(`   traj: seasons ${before + (rec.totalSeasons || 0)} medals ${rec.medals2 != null ? rec.medals2 : rec.medals} level ${rec.maxLevel}`)
+    console.log(`   milestones: UFF ${hrs(out.seasonsToUff)} · ring ${hrs(out.seasonsToRing)} · Interstellar ${hrs(out.seasonsToIst)} · pp ${rec.pp} · chaos ${rec.chaos || 0} · era ${rec.era || 0}`)
     if (rec.title) { out.title = true; break }
+    if (UNTIL === 'uff' && out.seasonsToUff != null) { out.title = true; break }
+    if (UNTIL === 'interstellar' && out.seasonsToIst != null) { out.title = true; break }
     if (/evaluate threw|watchdog/.test(rec.end)) { /* a page that cannot go on: reload it and continue on the same save */ try { await page.reload({ waitUntil: 'networkidle', timeout: 60000 }); await page.waitForFunction(() => !!window.__GRIDIRON_AUDIT__ && !!window.__V164B, null, { timeout: 60000 }); await page.evaluate(() => document.getElementById('splash')?.remove()); await page.evaluate(installDriver); await page.evaluate(() => { const A = window.__GRIDIRON_AUDIT__, S = A.getState(); if (S.player && !S.player._settled) { S.player._settled = true; S.player = null; window.GridironStorage.save(S) } }) } catch (e) { console.log('   reload failed: ' + e.message) } }
   }
   out.careersToTitle = out.title ? out.careers.length : null
