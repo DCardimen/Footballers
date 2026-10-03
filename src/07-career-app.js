@@ -15837,18 +15837,29 @@
     }[e] || [1, 99];
     return randInt(a[0], a[1]);
   }
+  // v178 O: the per-level team baseline every roster is built on (live rosters, the quick sim's ratings, the displays).
+  // Interstellar (8) had no entry and fell back to 55 — weaker than Varsity — so it sits above the UFF now. Hoisted.
+  function levelBaseV178(lv) {
+    return [18, 30, 42, 54, 66, 78, 86, 90, TU("v178O", 1) ? TU("aiBaseIstV178", 100) : 55][lv | 0] || 55;
+  }
+  window.__levelBaseV178 = levelBaseV178;
   // v178 N: how much of the badge gap the sim plays, by level (Pee Wee … Interstellar), measured to the v76 0.7 a point
-  var SIM_GAP_V178 = [0.5, 0.5, 0.42, 0.32, 0.36, 0.36, 0.45, 1, 1];
+  var SIM_GAP_V178 = [0.62, 0.62, 0.55, 0.45, 0.48, 0.48, 0.58, 0.36, 0.36];
   function buildGameRosters(e, t, a, s, n, i, r) {
     const l = ["QB", "RB", "RB", "WR", "WR", "TE", "OL", "OL", "OL", "OL", "OL"],
       d = ["DL", "DL", "DL", "DL", "LB", "LB", "LB", "CB", "CB", "S", "S"],
       c = ["QB", "RB", "WR", "TE", "OL"].includes(e);
     ((i = i || (state.player ? state.player.level : 0)), (r = r || (state.player ? playerOvr(state.player) : 40)));
-    const u = [18, 30, 42, 54, 66, 78, 86, 90][i] || 55;
+    /* v178 O: Interstellar (level 8) had no entry and fell back to 55 — a roster weaker than Varsity's in the top
+     * league there is. It sits above the UFF now (`aiBaseIstV178`). */
+    const u = levelBaseV178(i);
     let C0V178 = 1,
       V0V178 = 1; /* v178 N: the two quality factors, read when the rosters are drawn */
     function h(Y, _) {
-      const ie = clamp99(_, 5, 99),
+      /* v178 O: an AI player's attributes follow his OVR past 99, as the you-player's already do (the sim reads every
+       * attribute against the league average, so both sides sit on one scale). TU "v178O" 0 = the old 99 clamp. */
+      const HI_V178 = TU("v178O", 1) ? TU("aiAttrCapV178", 999) : 99;
+      const ie = clamp99(_, 5, HI_V178),
         B = () => ie + randRange(-14, 14),
         b = {
           speed: B(),
@@ -15873,41 +15884,41 @@
           ballControl: B(),
           injuryResist: B()
         };
-      for (const Q in b) b[Q] = clamp99(Math.round(b[Q]), 5, 99);
+      for (const Q in b) b[Q] = clamp99(Math.round(b[Q]), 5, HI_V178);
       const pe = Math.random();
       (Y === "RB" &&
         (pe < 0.4
-          ? ((b.speed = clamp99(b.speed + 14, 5, 99)),
-            (b.burst = clamp99(b.burst + 12, 5, 99)),
-            (b.strength = clamp99(b.strength - 8, 5, 99)))
+          ? ((b.speed = clamp99(b.speed + 14, 5, HI_V178)),
+            (b.burst = clamp99(b.burst + 12, 5, HI_V178)),
+            (b.strength = clamp99(b.strength - 8, 5, HI_V178)))
           : pe < 0.7 &&
-            ((b.strength = clamp99(b.strength + 15, 5, 99)),
-            (b.power = clamp99(b.power + 12, 5, 99)),
-            (b.speed = clamp99(b.speed - 8, 5, 99)))),
+            ((b.strength = clamp99(b.strength + 15, 5, HI_V178)),
+            (b.power = clamp99(b.power + 12, 5, HI_V178)),
+            (b.speed = clamp99(b.speed - 8, 5, HI_V178)))),
         Y === "WR" &&
           (pe < 0.45
-            ? ((b.speed = clamp99(b.speed + 16, 5, 99)), (b.burst = clamp99(b.burst + 12, 5, 99)))
-            : ((b.catching = clamp99(b.catching + 12, 5, 99)),
-              (b.hands = clamp99(b.hands + 12, 5, 99)),
-              (b.strength = clamp99(b.strength + 6, 5, 99)))),
+            ? ((b.speed = clamp99(b.speed + 16, 5, HI_V178)), (b.burst = clamp99(b.burst + 12, 5, HI_V178)))
+            : ((b.catching = clamp99(b.catching + 12, 5, HI_V178)),
+              (b.hands = clamp99(b.hands + 12, 5, HI_V178)),
+              (b.strength = clamp99(b.strength + 6, 5, HI_V178)))),
         Y === "QB" &&
-          ((b.awareness = clamp99(b.awareness + 8, 5, 99)),
-          pe < 0.4 && ((b.speed = clamp99(b.speed + 16, 5, 99)), (b.agility = clamp99(b.agility + 12, 5, 99)))),
-        Y === "TE" && ((b.strength = clamp99(b.strength + 10, 5, 99)), (b.blocking = clamp99(b.blocking + 10, 5, 99))),
+          ((b.awareness = clamp99(b.awareness + 8, 5, HI_V178)),
+          pe < 0.4 && ((b.speed = clamp99(b.speed + 16, 5, HI_V178)), (b.agility = clamp99(b.agility + 12, 5, HI_V178)))),
+        Y === "TE" && ((b.strength = clamp99(b.strength + 10, 5, HI_V178)), (b.blocking = clamp99(b.blocking + 10, 5, HI_V178))),
         Y === "OL" &&
-          ((b.blocking = clamp99(b.blocking + 18, 5, 99)),
-          (b.strength = clamp99(b.strength + 14, 5, 99)),
-          (b.speed = clamp99(b.speed - 16, 5, 99))),
-        Y === "DL" && ((b.strength = clamp99(b.strength + 16, 5, 99)), (b.power = clamp99(b.power + 12, 5, 99))),
-        Y === "LB" && ((b.tackling = clamp99(b.tackling + 14, 5, 99)), (b.strength = clamp99(b.strength + 8, 5, 99))),
+          ((b.blocking = clamp99(b.blocking + 18, 5, HI_V178)),
+          (b.strength = clamp99(b.strength + 14, 5, HI_V178)),
+          (b.speed = clamp99(b.speed - 16, 5, HI_V178))),
+        Y === "DL" && ((b.strength = clamp99(b.strength + 16, 5, HI_V178)), (b.power = clamp99(b.power + 12, 5, HI_V178))),
+        Y === "LB" && ((b.tackling = clamp99(b.tackling + 14, 5, HI_V178)), (b.strength = clamp99(b.strength + 8, 5, HI_V178))),
         Y === "CB" &&
-          ((b.speed = clamp99(b.speed + 14, 5, 99)),
-          (b.coverage = clamp99(b.coverage + 16, 5, 99)),
-          (b.agility = clamp99(b.agility + 10, 5, 99))),
-        Y === "S" && ((b.coverage = clamp99(b.coverage + 10, 5, 99)), (b.tackling = clamp99(b.tackling + 10, 5, 99))));
+          ((b.speed = clamp99(b.speed + 14, 5, HI_V178)),
+          (b.coverage = clamp99(b.coverage + 16, 5, HI_V178)),
+          (b.agility = clamp99(b.agility + 10, 5, HI_V178))),
+        Y === "S" && ((b.coverage = clamp99(b.coverage + 10, 5, HI_V178)), (b.tackling = clamp99(b.tackling + 10, 5, HI_V178))));
       /* v141: the nine keys the roster never carried, shaped by position like the twelve above */
       const K = (k, d) => {
-        b[k] = clamp99(b[k] + d, 5, 99);
+        b[k] = clamp99(b[k] + d, 5, HI_V178);
       };
       Y === "QB" && (K("throwing", TU("aiQbThrowBumpV141", 18)), K("vision", 8), K("discipline", 6), K("grit", 4));
       Y === "RB" && (K("vision", 10), K("ballControl", 10), K("quickness", 6), K("jumping", 4), K("stamina", 4));
@@ -19972,7 +19983,7 @@
    * live engine's rather than flat. ===== */
   function teamPairV76(e, opts) {
     opts = opts || {};
-    const u = [18, 30, 42, 54, 66, 78, 86, 90][e.level] || 55;
+    const u = levelBaseV178(e.level); /* v178 O: Interstellar has its own base */
     const prF = Math.min(
       1,
       (state.prestige || 0) / 15 +
@@ -34577,7 +34588,7 @@
     return (Number(prF) || 0) * 1.05 * teamNodeKV153B();
   }
   function levelRatingV153B(e) {
-    return [18, 30, 42, 54, 66, 78, 86, 90][(e && e.level) | 0] || 55;
+    return levelBaseV178((e && e.level) | 0); /* v178 O */
   }
   function chemOfV153B(e) {
     const c = e && e.worldState && e.worldState.teamChemistry;
