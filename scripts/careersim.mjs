@@ -80,7 +80,10 @@ function installDriver () {
         .filter((n) => A.nodeLvl(n.key) < n.max && A.nodeUnlocked(n) && A.nodeCost(n) <= s.pp)
         .sort((a, b) => A.nodeCost(a) - A.nodeCost(b))
       if (!nodes.length) break
-      const n = CS.casual ? nodes[Math.floor(Math.random() * Math.min(nodes.length, 12))] : nodes[0], pp0 = s.pp
+      // v179: good = the power nodes first (growth, ceilings, starting attributes, the climb); bad = everything else first
+      const POWER = /^(genetics|fastTwitch|frame|iron|nimble|lungs|motor|explosive|freak|primeGenes|superhuman|springs|anchor|engine|juggernaut|evolution|talent|coachable|filmrat|clutch|handsy|cannon|wrap|quickstudy|vet|prodigy|genius|mastermind|zen|silverTongue|visionary|bigStage|recruited|goodProgram|gym|headstart|spotlight|combineKing|phenom|unstoppable|boosters|iron_sched|dynastyTeam|camp[A-Z].*|privateCoach|allStarCamp|megaCamp|proDay|etGrowth|etCeiling|etForm|trashTalk|legendAura|primetime|perfectFrame|idealBody)$/
+      const pref = CS.policy === 'good' ? nodes.filter((x) => POWER.test(x.key)) : CS.policy === 'bad' ? nodes.filter((x) => !POWER.test(x.key)) : []
+      const n = pref.length ? pref[0] : CS.casual ? nodes[Math.floor(Math.random() * Math.min(nodes.length, 12))] : nodes[0], pp0 = s.pp
       try { window.buy(n.key) } catch (e) { break }
       if (S().pp >= pp0) break
       bought.push(n.key + ':' + A.nodeLvl(n.key) + '@' + (pp0 - S().pp))
@@ -98,7 +101,7 @@ function installDriver () {
   CS.runCareer = async (o) => {
     o = o || {}
     const casual = o.policy === 'casual', until = o.until || 'ring'
-    CS.casual = casual
+    CS.casual = casual; CS.policy = o.policy
     const declareAt = o.declareAt == null ? 70 : o.declareAt, budget = o.ms || 240000
     const progs = Object.keys(A.TRAINING || { balanced: 1 }), training = casual ? progs[Math.floor(Math.random() * progs.length)] : o.training || 'balanced'
     const t0 = Date.now(), rec = { seasons: [], level: 0, maxLevel: 0, title: false, end: null, views: [], steps: 0, ms: 0, pos: null, uffSeasons: 0, skips: null }
@@ -241,7 +244,7 @@ function installDriver () {
 const runs = []
 async function playRun (page, runNo) {
   const out = { run: runNo, careers: [], title: false }
-  await page.evaluate(() => window.__CS.freshAccount())
+  await page.evaluate((pol) => { window.__CS.freshAccount(); window.__CS.policy = pol; window.__CS.casual = pol === 'casual' }, POLICY)
   for (let c = 1; c <= MAX_CAREERS; c++) {
     const spend = await page.evaluate(() => window.__CS.spendPP())
     let rec
