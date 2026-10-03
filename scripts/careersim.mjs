@@ -144,6 +144,8 @@ function installDriver () {
       lastView = v
       // a ring: the first UFF title
       if (until === 'ring' && ((p.nflRings || 0) > 0 || (S().uffTitleV156C && p.level >= 7))) { rec.title = true; rec.end = 'title'; break }
+      // a pending event left on the season screen (a role battle mid-playoffs): play it through the event screen; a second time round, settle it
+      if (v === 'season' && p.pendingEvent && sameView > 2) { if (sameView > 6) { p.pendingEvent = null; document.querySelectorAll('.decision-overlay,.life-event-overlay-v12').forEach((x) => x.remove()) } else window.go('event'); await sleep(10); continue }
       if (p.cutOutV146B && !p._settled) { p.pendingEvent = null; document.querySelectorAll('.decision-overlay,.life-event-overlay-v12').forEach((x) => x.remove()); window.go('gameover'); await sleep(10); if (S().view !== 'gameover') { try { window.screenGameOver && window.screenGameOver() } catch (e) {} } continue }
       if (v === 'gameover') { if (!p._settled) { window.go('gameover'); await sleep(10) } rec.end = rec.end || 'cut'; break }
       if (v === 'declineResult') { rec.end = 'declare failed'; window.endCareer(); await sleep(10); continue }
