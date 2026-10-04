@@ -37167,7 +37167,7 @@
     if (!document.getElementById("verdictCssV179")) {
       const st = document.createElement("style");
       st.id = "verdictCssV179";
-      st.textContent = `#verdictV179{position:fixed;inset:0;z-index:99990;background:rgba(6,9,15,.97);display:flex;align-items:center;justify-content:center;padding:16px;cursor:pointer;animation:vrIn .25s ease-out}
+      st.textContent = `#verdictV179{position:fixed;inset:0;z-index:99990;background:#06090f;display:flex;align-items:center;justify-content:center;padding:16px;cursor:pointer;animation:vrIn .25s ease-out}
 #verdictV179 .vr-panel{width:100%;max-width:420px}
 #verdictV179 .vr-k{font:700 13px Oswald,sans-serif;letter-spacing:3px;color:var(--gold);text-align:center;margin-bottom:16px}
 #verdictV179 .vr-row{display:grid;grid-template-columns:1fr;gap:6px;margin:0 0 16px;opacity:0;animation:vrIn .3s ease-out var(--d) forwards}
