@@ -12891,20 +12891,7 @@
       (a.focus && a.focus.includes(R) && (Pe += Tt), (J[R] = Math.max(0, Pe)));
     });
     const w = Object.values(state.tree || {}).reduce((R, O) => R + O, 0),
-      k = clamp99(
-        30 +
-          effectivePrestige(state.prestige) * 1.9 +
-          ceilLevelsV179(w) /* v179 I */ +
-          nodeLvl("freak") * 12 +
-          nodeLvl("superhuman") * 20 +
-          nodeLvl("primeGenes") * 9 +
-          treeFx("ceilPlus") +
-          chaosTotal() * 1.6 +
-          (pathVal("growthMult", 1) - 1) * 36 +
-          (state.path === "phenom" ? 30 : 0),
-        30,
-        attrCap()
-      );
+      k = clamp99(rawCeilingV179(w), 30, attrCap()); /* v179 I: one sum (`rawCeilingV179`) */
     e.growthBank = e.growthBank || {};
     const T = {};
     for (const R of ATTR_KEYS) {
@@ -14610,7 +14597,7 @@
     const ch = Math.max(Math.min(TU("declareCeilV139", 99), base + (e.declareBonus || 0)), rankChanceV88(e));
     const G = medalGateV179(e),
       B = scoutBarV179(e);
-    const ch2 = B.bar > 0 ? Math.max(0.3, ch * B.k) : ch; /* v179 H: the scouts' OVR bar — a soft gate the build decides */
+    const ch2 = B.bar > 0 || B.potBar > 0 ? Math.max(0.3, ch * B.k) : ch; /* v179 H: the scouts' OVR bar — a soft gate the build decides */
     return G.short ? Math.min(ch2, TU("gateCapV179", 2)) : ch2; /* v179 A: the scouts wait on the Legacy medals */
   } /* v139: a stellar season tops out at 99, not 97 */
   window.__V88 = {
@@ -14926,20 +14913,7 @@
         Ye = POSITIONS[e.pos].w,
         $ = Math.max(...Object.values(Ye));
       const w = Object.values(state.tree || {}).reduce((R, O) => R + O, 0),
-        k = clamp99(
-          30 +
-            effectivePrestige(state.prestige) * 1.9 +
-            ceilLevelsV179(w) /* v179 I */ +
-            nodeLvl("freak") * 12 +
-            nodeLvl("superhuman") * 20 +
-            nodeLvl("primeGenes") * 9 +
-            treeFx("ceilPlus") +
-            chaosTotal() * 1.6 +
-            (pathVal("growthMult", 1) - 1) * 36 +
-            (state.path === "phenom" ? 30 : 0),
-          30,
-          attrCap()
-        );
+        k = clamp99(rawCeilingV179(w), 30, attrCap()); /* v179 I: one sum (`rawCeilingV179`) */
       const bank = e.growthBank || {};
       for (const R of ATTR_KEYS) {
         const O = e.attrs[R] || 1,
@@ -37087,26 +37061,39 @@
    * ceilings from the tree and the medal rewards — so good prestige choices clear it careers sooner than bad ones. The
    * bar falls with the careers already played at that level (`scoutBarDecayV179` an attempt), so a stuck account still
    * gets there. The hub names the bar. Kill switch TU "v179H" 0. `window.__V179.bar`; `v179check`. */
+  function potentialV179() {
+    try {
+      return Math.min(attrCap(), rawCeilingV179());
+    } catch (_) {
+      return 0;
+    }
+  }
   function scoutBarV179(e) {
     const lv = e ? e.level | 0 : 0,
       on = TU("v179", 1) && TU("v179H", 1),
-      base = !on ? 0 : lv === 5 ? TU("scoutBarCombineV179", 0) : lv === 6 ? TU("scoutBarUffV179", 140) : 0;
-    if (!base) return { bar: 0, ovr: 0, k: 1 };
+      base = !on ? 0 : lv === 5 ? TU("scoutBarCombineV179", 0) : lv === 6 ? TU("scoutBarUffV179", 140) : 0,
+      potBase = !on ? 0 : lv === 6 ? TU("scoutPotUffV179", 0) : 0;
+    if (!base && !potBase) return { bar: 0, ovr: 0, k: 1, potBar: 0, pot: 0 };
     let ovr = 0;
     try {
       ovr = playerOvr(e);
     } catch (_) {}
-    const tries = ((state && state.scoutTriesV179) || {})[lv] | 0,
-      bar = Math.max(0, base - tries * TU("scoutBarDecayV179", 0.5)),
-      k = 1 / (1 + Math.exp(-(ovr - bar) / Math.max(0.5, TU("scoutBarSoftV179", 4))));
-    return { bar: Math.round(bar), ovr: Math.round(ovr), k };
+    const pot = potentialV179(),
+      tries = ((state && state.scoutTriesV179) || {})[lv] | 0,
+      ease = tries * TU("scoutBarDecayV179", 0.5),
+      bar = base ? Math.max(0, base - ease) : 0,
+      potBar = potBase ? Math.max(0, potBase - ease * TU("scoutPotDecayMultV179", 2)) : 0,
+      kO = bar ? 1 / (1 + Math.exp(-(ovr - bar) / Math.max(0.5, TU("scoutBarSoftV179", 4)))) : 1,
+      kP = potBar ? 1 / (1 + Math.exp(-(pot - potBar) / Math.max(0.5, TU("scoutPotSoftV179", 6)))) : 1;
+    return { bar: Math.round(bar), ovr: Math.round(ovr), potBar: Math.round(potBar), pot: Math.round(pot), kO, kP, k: kO * kP };
   }
   // every declare at a barred level is an attempt: the bar eases for the next one
   const dfhBarV179 = declareFromHub;
   declareFromHub = function () {
     try {
       const e = state && state.player;
-      if (e && scoutBarV179(e).bar > 0) {
+      const B0 = e && scoutBarV179(e);
+      if (B0 && (B0.bar > 0 || B0.potBar > 0)) {
         const T = state.scoutTriesV179 || (state.scoutTriesV179 = {});
         T[e.level] = (T[e.level] | 0) + 1;
       }
@@ -37120,6 +37107,22 @@
    * stacks (`max` 999) pay `ceilEternalV179`; the ceiling nodes themselves (Freak, Prime Genes, Superhuman, ceilPlus) are
    * worth `ceilNodeMultV179`×, so the build decides how high a player can grow. Kill switch TU "v179I" 0 (0.68 a level,
    * eternals too, the ceiling nodes 1×). */
+  // the growth ceiling every attribute grows toward — the sum both growth paths used to spell out
+  function rawCeilingV179(w) {
+    if (w == null) w = Object.values(state.tree || {}).reduce((R, O) => R + O, 0);
+    return (
+      30 +
+      effectivePrestige(state.prestige) * 1.9 +
+      ceilLevelsV179(w) +
+      nodeLvl("freak") * 12 +
+      nodeLvl("superhuman") * 20 +
+      nodeLvl("primeGenes") * 9 +
+      treeFx("ceilPlus") +
+      chaosTotal() * 1.6 +
+      (pathVal("growthMult", 1) - 1) * 36 +
+      (state.path === "phenom" ? 30 : 0)
+    );
+  }
   function ceilLevelsV179(w) {
     if (!TU("v179", 1) || !TU("v179I", 1)) return w * 0.68;
     let et = 0;
@@ -37167,7 +37170,9 @@
       const G = medalGateV179(e),
         I = e.level === 7 && (e.nflRings || 0) >= 1 ? istGateV179(e) : null;
       const B = scoutBarV179(e);
-      const msg = B.bar > 0 && B.k < 0.85
+      const msg = B.potBar > 0 && B.kP < 0.85
+        ? `🔭 The scouts judge <b>POTENTIAL</b>: they want <b>${B.potBar}</b>, your bloodline shows <b>${B.pot}</b> — the declare odds are cut to ${Math.round(B.k * 100)}% of what your season earned. Potential is the growth ceiling the prestige tree gives every player: Freak, Prime Genes, Superhuman, the ceiling nodes, chaos and your Path raise it; a tree of everything else barely moves it.`
+        : B.bar > 0 && B.kO < 0.85
         ? `🔭 The scouts' bar is <b>${B.bar} OVR</b> — you are <b>${B.ovr}</b>, so the declare odds are cut to ${Math.round(B.k * 100)}% of what your season earned. Starting attributes, growth and ceilings in the prestige tree (and the medal rewards) raise every future player.`
         : G.short
         ? `🎖️ Scouts want <b>${G.need}</b> Legacy medals before they call — you have <b>${G.medals}</b>. Every season and career earns them; better grades and higher levels earn more.`
@@ -37461,5 +37466,5 @@
   window.__chaosMaxV179 = () => chaosMaxAllNowV150();
   window.__chaosTotalV179 = () => chaosTotal();
   window.__istGateV179 = e => istGateV179(e || (state && state.player));
-  window.__V179 = { bar: e => scoutBarV179(e || (state && state.player)), gate: istGateV179, medalGate: e => medalGateV179(e || (state && state.player)), fmt: fmtBigV179, price: branchPriceV179, medals: { sync: medalSyncV179, open: openMedalPickV179, tap: tapMedalV179, claim: claimMedalV179, auto: m => (autoMedalV179(typeof m === 'string' ? m : 'good'), document.getElementById('medalPickV179')?.remove(), render()), autoQuiet: autoMedalV179, close: () => document.getElementById('medalPickV179')?.remove(), newPlayer: () => newPlayer(), eraUp: () => tryNextEra(), store: medalStoreV179, fx: medalFxV179, deal: dealMedalV179 } };
+  window.__V179 = { bar: e => scoutBarV179(e || (state && state.player)), potential: potentialV179, gate: istGateV179, medalGate: e => medalGateV179(e || (state && state.player)), fmt: fmtBigV179, price: branchPriceV179, medals: { sync: medalSyncV179, open: openMedalPickV179, tap: tapMedalV179, claim: claimMedalV179, auto: m => (autoMedalV179(typeof m === 'string' ? m : 'good'), document.getElementById('medalPickV179')?.remove(), render()), autoQuiet: autoMedalV179, close: () => document.getElementById('medalPickV179')?.remove(), newPlayer: () => newPlayer(), eraUp: () => tryNextEra(), store: medalStoreV179, fx: medalFxV179, deal: dealMedalV179 } };
 })();
