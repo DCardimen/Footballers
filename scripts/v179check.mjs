@@ -13,6 +13,9 @@
 //   F: the scouts judge POTENTIAL (`scoutPotUffV179`): the growth ceiling the tree gives (`rawCeilingV179`) — a bloodline
 //      far under the bar is single digits at the Combine and the hub explains what raises it; the ceiling nodes count
 //      `ceilNodeMultV179`×, a plain level only `ceilPerLevelV179`
+//   K: the scouts' verdict (TU v179K): a declare is two rolls — the season, then the verdict (a coin flip at the potential
+//      bar, diminishing returns over it toward a ceiling the declare-odds prestige raises), and the GM's second look when
+//      the verdict says no; College → Combine has its own bar; a full-screen reveal plays the rolls; v179K 0 = one roll
 //   TU v179 0: no medal cap, the old Interstellar Call
 // No page errors.  GAME_URL=http://localhost:5173/ node scripts/v179check.mjs
 import { gameUrl, launch } from './lib/env.mjs'
@@ -206,7 +209,42 @@ const J = await M(async () => {
 console.log('J:', JSON.stringify(J))
 ok(J.gate.ok && J.potBar > J.pot && J.low <= Math.max(0.3, J.base * 0.01), 'the Interstellar Call is open in any era, but a bloodline far under its potential bar is single digits', J)
 ok(/Interstellar League/.test(J.note) && /POTENTIAL/.test(J.note), 'the hub says the Interstellar League judges potential', J.note)
-ok(J.high >= J.base * 0.98 && J.high <= J.base, 'over the bar the call is the game\'s own odds', { high: J.high, base: J.base })
+ok(J.high > J.base * 0.5 && J.high < J.base, 'over the bar the call is the season\'s odds times the scouts\' verdict', { high: J.high, base: J.base })
+
+// K: the scouts' verdict
+const K = await M(async () => {
+  const AU = window.__GRIDIRON_AUDIT__, S = AU.freshState(); S.tutorialSeen = true; AU.setState(S)
+  S.player = AU.newPlayer(); const p = S.player; p.pos = 'QB'; p.level = 6; p._wonShown = true; p.seasonsAtLevel = 1
+  for (const k in p.attrs) p.attrs[k] = 300
+  const T = window.RIB_TUNE, pot = window.__V179.potential()
+  const at = (bar) => { T.scoutPotUffV179 = bar; return window.__V179.bar(p) }
+  const atBar = at(pot).v, over35 = at(pot / 1.35).v, over2 = at(pot / 2).v, over4 = at(pot / 4).v, vMax = at(pot / 4).vMax
+  const st = window.__V179.medals.store(); st.fx.advFlat = 10
+  const B10 = at(pot / 2); delete st.fx.advFlat
+  p.level = 5; delete T.scoutPotUffV179; const col = window.__V179.bar(p); p.level = 6
+  // the rolls, with the dice fixed: season ✓ · verdict ✗ · second look ✓ → in
+  T.scoutPotUffV179 = pot / 2
+  const R0 = Math.random, seq = (a) => { let i = 0; Math.random = () => a[Math.min(i++, a.length - 1)] }
+  seq([0.01, 0.99, 0.01]); window.declareFromHub(); Math.random = R0
+  const lvA = p.level, last1 = window.__V179.verdict && window.__V179.verdict(), rows1 = document.querySelectorAll('#verdictV179 .vr-row').length, end1 = (document.querySelector('#verdictV179 .vr-end') || {}).textContent || ''
+  document.getElementById('verdictV179')?.remove()
+  // season ✓ · verdict ✗ · second look ✗ → not this year
+  const S2 = AU.freshState(); S2.tutorialSeen = true; AU.setState(S2); S2.player = AU.newPlayer(); const q = S2.player; q.pos = 'QB'; q.level = 6; q._wonShown = true; q.seasonsAtLevel = 1
+  for (const k in q.attrs) q.attrs[k] = 300
+  seq([0.01, 0.99, 0.99]); window.declareFromHub(); Math.random = R0
+  const lvB = q.level, rows2 = document.querySelectorAll('#verdictV179 .vr-row').length, end2 = (document.querySelector('#verdictV179 .vr-end') || {}).textContent || ''
+  document.getElementById('verdictV179')?.remove()
+  T.v179K = 0; const off = window.__V179.bar(q); delete T.v179K; delete T.scoutPotUffV179
+  return { atBar, over35, over2, over4, vMax, v10: B10.v, vMax10: B10.vMax, sl: B10.sl, col: col.potBar, lvA, rows1, end1, lvB, rows2, end2, offV: off.v, offSl: off.sl, colOff: null }
+})
+console.log('K:', JSON.stringify(K))
+ok(Math.abs(K.atBar - 0.5) < 0.01, 'at the potential bar the scouts\' verdict is a coin flip', K.atBar)
+ok(K.over35 > 0.65 && K.over2 > K.over35 && K.over4 > K.over2 && K.over4 < K.vMax && K.vMax < 0.85, 'over the bar: diminishing returns toward a ceiling (80% with no declare-odds prestige)', { over35: K.over35, over2: K.over2, over4: K.over4, vMax: K.vMax })
+ok(K.vMax10 > K.vMax && K.v10 > K.over2 && K.sl > 0.15, 'declare-odds prestige raises the ceiling and the GM\'s second look', { vMax10: K.vMax10, v10: K.v10, secondLook: K.sl })
+ok(K.col > 0 && K.col < 150, 'College → Combine has its own (lower) potential bar', K.col)
+ok(K.lvA === 7 && K.rows1 === 3 && /IN/.test(K.end1), 'season ✓ · verdict ✗ · second look ✓: he is in, and the reveal plays all three rolls', { level: K.lvA, rows: K.rows1, end: K.end1 })
+ok(K.lvB === 6 && K.rows2 === 3 && /NOT THIS YEAR/.test(K.end2), 'season ✓ · verdict ✗ · second look ✗: not this year', { level: K.lvB, rows: K.rows2, end: K.end2 })
+ok(K.offSl === 0, 'TU v179K 0: no second look (the one-roll declare)', { v: K.offV, sl: K.offSl })
 
 console.log(JSON.stringify({ pass, fail, pageErrors: errors.length }))
 if (errors.length) console.log('page errors:', errors.slice(0, 6))
