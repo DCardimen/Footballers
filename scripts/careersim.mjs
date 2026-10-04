@@ -162,13 +162,13 @@ function installDriver () {
         if (until === 'interstellar' && lv === 7 && (p.nflRings || 0) >= 1 && p.seasonsAtLevel >= A.minSeasonsRequired()) {
           let ch = 0, ok = true
           try { ok = !window.__istGateV179 || window.__istGateV179(p).ok; ch = ok ? window.__V88.declareChance(p) : 0 } catch (e) {}
-          if (ok && ch >= (casual ? 30 : declareAt)) { rec.declares = (rec.declares || []).concat([lv + ':' + Math.round(ch)]); window.declareFromHub(); await sleep(10); continue }
+          if (ok && ch >= (casual ? 30 : declareAt)) { rec.declares = (rec.declares || []).concat([lv + ':' + Math.round(ch) + '@' + Math.round(A.playerOVR(p))]); window.declareFromHub(); await sleep(10); continue }
         }
         if (!nfl) {
           const min = A.minSeasonsRequired(), max = A.maxSeasonsAllowed(), left = max - p.seasonsAtLevel
           if (p.seasonsAtLevel >= min) {
             const ch = window.__V88.declareChance(p)
-            if (left <= 0 || ch >= (casual ? Math.min(declareAt, 35) : declareAt) || lv === 6) { rec.declares = (rec.declares || []).concat([lv + ':' + Math.round(ch)]); window.declareFromHub(); await sleep(10); continue }
+            if (left <= 0 || ch >= (casual ? Math.min(declareAt, 35) : declareAt) || lv === 6) { rec.declares = (rec.declares || []).concat([lv + ':' + Math.round(ch) + '@' + Math.round(A.playerOVR(p))]); window.declareFromHub(); await sleep(10); continue }
           }
         }
         window.startSeason(); await sleep(10); continue
