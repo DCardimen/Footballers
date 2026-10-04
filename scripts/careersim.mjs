@@ -77,7 +77,7 @@ function installDriver () {
     const bought = []
     // v179 G: the medal rewards first (they pay PP and permanent boosts) — good takes the stronger card, bad the weaker
     let medals = 0
-    try { if (window.__V179 && window.__V179.medals) medals = window.__V179.medals.autoQuiet(CS.policy === 'good' ? 'good' : CS.policy === 'bad' ? 'bad' : 'random') } catch (e) {}
+    try { if (window.__V179 && window.__V179.medals) medals = window.__V179.medals.autoQuiet(CS.policy === 'good' || CS.policy === 'expert' ? 'good' : CS.policy === 'bad' ? 'bad' : 'random') } catch (e) {}
     for (let g = 0; g < 200; g++) {
       const s = S(), nodes = Object.values(A.TREE_NODES)
         .filter((n) => A.nodeLvl(n.key) < n.max && A.nodeUnlocked(n) && A.nodeCost(n) <= s.pp)
@@ -85,6 +85,17 @@ function installDriver () {
       if (!nodes.length) break
       // v179: good = the power nodes first (growth, ceilings, starting attributes, the climb); bad = everything else first
       const POWER = /^(genetics|fastTwitch|frame|iron|nimble|lungs|motor|explosive|freak|primeGenes|superhuman|springs|anchor|engine|juggernaut|evolution|talent|coachable|filmrat|clutch|handsy|cannon|wrap|quickstudy|vet|prodigy|genius|mastermind|zen|silverTongue|visionary|bigStage|recruited|goodProgram|gym|headstart|spotlight|combineKing|phenom|unstoppable|boosters|iron_sched|dynastyTeam|camp[A-Z].*|privateCoach|allStarCamp|megaCamp|proDay|etGrowth|etCeiling|etForm|trashTalk|legendAura|primetime|perfectFrame|idealBody)$/
+      // v179 expert: potential first — the ceiling nodes are bought the moment they are affordable and SAVED for when not
+      // (nothing else is bought below the next ceiling node's price)
+      if (CS.policy === 'expert') {
+        const CEIL = /^(freak|primeGenes|superhuman|juggernaut|iron_sched|evolution|etCeiling|apexCeiling|ceilLift)$/
+        const all = Object.values(A.TREE_NODES).filter((n) => A.nodeLvl(n.key) < n.max && A.nodeUnlocked(n) && CEIL.test(n.key)).sort((a, b) => A.nodeCost(a) - A.nodeCost(b))
+        const want = all[0]
+        if (want && A.nodeCost(want) <= s.pp) { const pp0 = s.pp; try { window.buy(want.key) } catch (e) { break } if (S().pp >= pp0) break; bought.push(want.key + ':' + A.nodeLvl(want.key) + '@' + (pp0 - S().pp)); continue }
+        const spare = s.pp - (want ? A.nodeCost(want) : 0), other = nodes.filter((x) => !CEIL.test(x.key) && A.nodeCost(x) <= spare)
+        if (!other.length) break
+        const pp0 = s.pp; try { window.buy(other[0].key) } catch (e) { break } if (S().pp >= pp0) break; bought.push(other[0].key + ':' + A.nodeLvl(other[0].key) + '@' + (pp0 - S().pp)); continue
+      }
       const pref = CS.policy === 'good' ? nodes.filter((x) => POWER.test(x.key)) : CS.policy === 'bad' ? nodes.filter((x) => !POWER.test(x.key)) : []
       const n = pref.length ? pref[0] : CS.casual ? nodes[Math.floor(Math.random() * Math.min(nodes.length, 12))] : nodes[0], pp0 = s.pp
       try { window.buy(n.key) } catch (e) { break }
