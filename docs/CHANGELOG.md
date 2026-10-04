@@ -15,11 +15,15 @@ Names in older entries are the career app's pre-v149 C minified names (`q`, `ms`
   and chaos gains in the millions / billions"; then "a mystery reward per 10 medals"; then "major differences based on
   poor decision making". Measured first (whole careers headless, `careersim --policy smart|good|bad`): every declare
   roll sat near 98% and the growth ceiling paid 0.68 for ANY tree level, so a careless tree reached the UFF in 60–72
-  seasons, the same as a sharp one. Now: **I** — the ceiling pays 0.2 a tree level (`ceilPerLevelV179`) and 0.1 an
-  eternal stack (`ceilEternalV179`); Freak, Prime Genes, Superhuman and ceilPlus carry it, so the build decides how high
-  a player grows (measured Combine OVR by career 12: sharp 171, power-first 135, careless stuck at 120–133). **H** — the
-  scouts' bar: the Combine → UFF declare is scaled by a logistic of (OVR − 140) / 4, easing 0.5 an attempt; the hub names
-  it. **F** — the core tree costs ×6, Apex ×10 and Impossible ×100 (**E**), so what you buy first matters. Modelled from
+  seasons, the same as a sharp one. Now: **I** — the growth ceiling (one sum, `rawCeilingV179`) is the BUILD: Freak,
+  Prime Genes, Superhuman and every +ceiling count ×3 (`ceilNodeMultV179`), a plain tree level 0.05 (`ceilPerLevelV179`),
+  an eternal stack nothing (`ceilEternalV179`). **H** — the scouts judge POTENTIAL (that ceiling): the Combine → UFF
+  declare is scaled by a logistic of (potential − 150) / 6, the bar easing 0.25 an attempt; the hub says what they want
+  and what raises it (an OVR bar, `scoutBarUffV179`, is there and off). Measured to the first UFF at 7 min a season
+  (`careersim --policy`): a balanced expert (potential first until it clears the bar, then everything) 76 seasons ≈ 9 h
+  (two runs); sharp / power-first / casual 104–121 ≈ 12–14 h; a careless tree (everything but the power nodes first)
+  403 ≈ 47 h — the expert ~30% faster than the field, the careless ~3.5× slower. Potential alone is not enough: an
+  expert that starved its OVR for it took 125 seasons, failing the College declare. **F** — the core tree costs ×6, Apex ×10 and Impossible ×100 (**E**), so what you buy first matters. Modelled from
   the measured curves at 7 min a season: sharp ≈ 9 h to the first UFF, power-first ≈ 17 h, careless ≈ 60 h. **D / B** —
   chaos capacity +1 a UFF ring (+2 Interstellar); the Interstellar Call waits for era `istEraV179` (6). **E** — big
   numbers read K / M / B / T / Qa everywhere PP shows. **G** — every Legacy medal deals two reward cards (PP, +1% PP,
