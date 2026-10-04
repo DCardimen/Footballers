@@ -8,6 +8,8 @@
 //   D: the medal rewards (TU v179G): a medal deals two cards, each with its context line; the 10th is a MAJOR — two face-down
 //      unique permanent upgrades; a claim lands in treeFx (the game's own readers), a major is owned once, Head Start
 //      points reach a new player, an old save is not handed its whole history, the hub carries the 🎁 chip; v179G 0 = none
+//   E: the scouts' bar (TU v179H): at the Combine, an OVR well under `scoutBarUffV179` cuts the declare odds to single
+//      digits and the hub names the bar; over it the odds are the game's own; every attempt eases it by `scoutBarDecayV179`
 //   TU v179 0: no medal cap, the old Interstellar Call
 // No page errors.  GAME_URL=http://localhost:5173/ node scripts/v179check.mjs
 import { gameUrl, launch } from './lib/env.mjs'
@@ -137,6 +139,30 @@ ok(D.pts1 - D.pts0 === 10, 'Head Start: a new player carries 10 upgrade points',
 ok(D.unique, 'an owned major is never dealt again', D.nextIds)
 ok(D.eraUp && D.eraP && D.eraP.major && D.eraP.n === 2 && D.eraP.era === D.era0 + 1, 'a new era deals a mystery major too', D.eraP)
 ok(!D.chipOff && D.fxOff === 0, 'TU v179G 0: no chip, no effects', { chip: D.chipOff, fx: D.fxOff })
+
+// E: the scouts' bar
+const E = await M(async () => {
+  const AU = window.__GRIDIRON_AUDIT__, S = AU.freshState(); S.tutorialSeen = true; AU.setState(S)
+  S.player = AU.newPlayer(); const p = S.player; p.pos = 'QB'; p.level = 6; p._wonShown = true; p.seasonsAtLevel = 1
+  for (const k in p.attrs) p.attrs[k] = 300
+  const ovr = window.__V179.bar(p).ovr || Math.round(AU.playerOVR(p)), T = window.RIB_TUNE = Object.assign(window.RIB_TUNE || {}, {})
+  const free = window.__V88.declareChance(p)
+  T.scoutBarUffV179 = ovr + 30; T.scoutBarDecayV179 = 2
+  const under = window.__V88.declareChance(p), B = window.__V179.bar(p)
+  window.go('hub'); await new Promise((r) => setTimeout(r, 300))
+  const note = (document.querySelector('#dock .gate-v179') || {}).textContent || ''
+  S.scoutTriesV179 = { 6: 5 }; const eased = window.__V179.bar(p).bar
+  S.scoutTriesV179 = {}
+  T.scoutBarUffV179 = ovr - 30; const over = window.__V88.declareChance(p)
+  T.scoutBarUffV179 = ovr + 30; T.v179H = 0; const off = window.__V88.declareChance(p)
+  delete T.v179H; delete T.scoutBarUffV179; delete T.scoutBarDecayV179
+  return { ovr, free, under, bar: B.bar, note, eased, over, off }
+})
+console.log('E:', JSON.stringify(E))
+ok(E.under < 10 && E.free > 50, 'well under the scouts\' bar the Combine declare is single digits', { free: E.free, under: E.under })
+ok(/scouts' bar/.test(E.note) && E.note.includes(String(E.bar)), 'the hub names the bar', E.note)
+ok(E.eased === E.bar - 10, 'every attempt eases the bar', { bar: E.bar, after5: E.eased })
+ok(E.over > 50 && E.off > 50, 'over the bar (or TU v179H 0) the odds are the game\'s own', { over: E.over, off: E.off })
 
 console.log(JSON.stringify({ pass, fail, pageErrors: errors.length }))
 if (errors.length) console.log('page errors:', errors.slice(0, 6))
