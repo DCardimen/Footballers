@@ -2,7 +2,7 @@
 //   A: the last two climbs CAN ask for Legacy medals (off by default since v179 F) — College → Combine `gateCombineV179`, Combine → UFF `gateUffV179`; short
 //      of them the declare is capped at `gateCapV179`% and the hub says how many medals the scouts want; with them the
 //      odds are the game's own
-//   B: the Interstellar Call waits on the era (`istEraV179`): a UFF ring in an early era cannot answer it (the hub says so,
+//   B: the Interstellar Call CAN wait on the era (`istEraV179`, off by default since v179 J): a UFF ring in an early era cannot answer it (the hub says so,
 //      declareFromHub refuses); in the era it can
 //   C: big PP reads K / M / B / T (`fmtBigV179`) on the top bar; the career-end card keeps a raw number under 100,000
 //   D: the medal rewards (TU v179G): a medal deals two cards, each with its context line; the 10th is a MAJOR — two face-down
@@ -64,6 +64,7 @@ ok(A.open > 2 && A.off > 2, 'with the medals (or TU v179 0) the odds are the gam
 const B = await M(async () => {
   const S = window.__GRIDIRON_AUDIT__.getState(), p = S.player
   p.level = 7; p.nflRings = 1; p.seasonsAtLevel = 3; S.era = 1
+  window.RIB_TUNE.istEraV179 = 6; window.RIB_TUNE.istPotV179 = 0 // the optional era gate (off by default since v179 J)
   const g1 = window.__V179.gate(p)
   window.go('hub'); await new Promise((r) => setTimeout(r, 300))
   const btn = [...document.querySelectorAll('#dock button')].some((b) => /Interstellar Call/.test(b.textContent))
@@ -74,6 +75,7 @@ const B = await M(async () => {
   window.go('hub'); await new Promise((r) => setTimeout(r, 300))
   const btn2 = [...document.querySelectorAll('#dock button')].some((b) => /Interstellar Call/.test(b.textContent))
   window.RIB_TUNE.v179 = 0; S.era = 1; const g0 = window.__V179.gate(p); delete window.RIB_TUNE.v179
+  delete window.RIB_TUNE.istEraV179; delete window.RIB_TUNE.istPotV179
   return { g1, btn, note, lv0, lv1, g2, btn2, g0 }
 })
 console.log('B:', JSON.stringify(B))
@@ -188,6 +190,23 @@ ok(F.potBar > F.pot0 + 30 && F.low < 10, 'a fresh bloodline far under the scouts
 ok(/POTENTIAL/.test(F.note) && /Freak/.test(F.note), 'the hub says the scouts judge potential and what raises it', F.note)
 ok(F.potEt - F.pot0 < 2 && F.potFreak - F.pot0 >= 70, 'forty levels of an eternal stack barely move potential; two levels of Freak move it by 72', { base: F.pot0, eternal40: F.potEt, freak2: F.potFreak })
 ok(F.high > 50, 'over the potential bar the odds are the game\'s own', F.high)
+
+// J: the Interstellar Call judges potential
+const J = await M(async () => {
+  const AU = window.__GRIDIRON_AUDIT__, S = AU.freshState(); S.tutorialSeen = true; AU.setState(S)
+  S.player = AU.newPlayer(); const p = S.player; p.pos = 'QB'; p.level = 7; p._wonShown = true; p.nflRings = 1; p.seasonsAtLevel = 3
+  for (const k in p.attrs) p.attrs[k] = 300
+  const B = window.__V179.bar(p), low = window.__V88.declareChance(p), gate = window.__V179.gate(p)
+  window.go('hub'); await new Promise((r) => setTimeout(r, 300))
+  const note = (document.querySelector('#dock .gate-v179') || {}).textContent || ''
+  window.RIB_TUNE.istPotV179 = Math.round(B.pot) - 60; const high = window.__V88.declareChance(p)
+  window.RIB_TUNE.istPotV179 = 0; const base = window.__V88.declareChance(p); delete window.RIB_TUNE.istPotV179
+  return { potBar: B.potBar, pot: B.pot, low, gate, note, high, base }
+})
+console.log('J:', JSON.stringify(J))
+ok(J.gate.ok && J.potBar > J.pot && J.low <= Math.max(0.3, J.base * 0.01), 'the Interstellar Call is open in any era, but a bloodline far under its potential bar is single digits', J)
+ok(/Interstellar League/.test(J.note) && /POTENTIAL/.test(J.note), 'the hub says the Interstellar League judges potential', J.note)
+ok(J.high >= J.base * 0.98 && J.high <= J.base, 'over the bar the call is the game\'s own odds', { high: J.high, base: J.base })
 
 console.log(JSON.stringify({ pass, fail, pageErrors: errors.length }))
 if (errors.length) console.log('page errors:', errors.slice(0, 6))

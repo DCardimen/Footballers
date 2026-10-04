@@ -37063,7 +37063,7 @@
    * gets there. The hub names the bar. Kill switch TU "v179H" 0. `window.__V179.bar`; `v179check`. */
   function potentialV179() {
     try {
-      return Math.min(attrCap(), rawCeilingV179());
+      return rawCeilingV179(); /* uncapped: the late tree keeps moving it (the growth itself still stops at attrCap) */
     } catch (_) {
       return 0;
     }
@@ -37072,7 +37072,7 @@
     const lv = e ? e.level | 0 : 0,
       on = TU("v179", 1) && TU("v179H", 1),
       base = !on ? 0 : lv === 5 ? TU("scoutBarCombineV179", 0) : lv === 6 ? TU("scoutBarUffV179", 0) : 0,
-      potBase = !on ? 0 : lv === 6 ? TU("scoutPotUffV179", 150) : 0;
+      potBase = !on ? 0 : lv === 6 ? TU("scoutPotUffV179", 150) : lv === 7 ? TU("istPotV179", 2000) : 0; /* v179 J: the Interstellar Call too */
     if (!base && !potBase) return { bar: 0, ovr: 0, k: 1, potBar: 0, pot: 0 };
     let ovr = 0;
     try {
@@ -37137,7 +37137,7 @@
     return (w - et) * TU("ceilPerLevelV179", 0.05) + et * TU("ceilEternalV179", 0) + nodes * (TU("ceilNodeMultV179", 3) - 1);
   }
   function istGateV179(e) {
-    const need = Math.round(TU("istEraV179", 6)),
+    const need = Math.round(TU("istEraV179", 0)) /* v179 J: the era gate is off — the scouts judge potential (scoutBarV179) */,
       era = (state && state.era) | 0;
     if (!TU("v179", 1) || era >= need) return { ok: true, need, era, say: "" };
     return { ok: false, need, era, say: "The Interstellar League scouts only the legends of era " + need + " — you are in era " + era + ". Win UFF titles with chaos at era × 15 to climb." };
@@ -37171,7 +37171,7 @@
         I = e.level === 7 && (e.nflRings || 0) >= 1 ? istGateV179(e) : null;
       const B = scoutBarV179(e);
       const msg = B.potBar > 0 && B.kP < 0.85
-        ? `🔭 The scouts judge <b>POTENTIAL</b>: they want <b>${B.potBar}</b>, your bloodline shows <b>${B.pot}</b> — the declare odds are cut to ${Math.round(B.k * 100)}% of what your season earned. Potential is the growth ceiling the prestige tree gives every player: Freak, Prime Genes, Superhuman, the ceiling nodes, chaos and your Path raise it; a tree of everything else barely moves it.`
+        ? `${e.level >= 7 ? "🛸 The Interstellar League judges" : "🔭 The scouts judge"} <b>POTENTIAL</b>: they want <b>${fmtBigV179(B.potBar)}</b>, your bloodline shows <b>${fmtBigV179(B.pot)}</b> — the declare odds are cut to ${Math.round(B.k * 100)}% of what your season earned. Potential is the growth ceiling the prestige tree gives every player: Freak, Prime Genes, Superhuman, the ceiling nodes, chaos and your Path raise it; a tree of everything else barely moves it.`
         : B.bar > 0 && B.kO < 0.85
         ? `🔭 The scouts' bar is <b>${B.bar} OVR</b> — you are <b>${B.ovr}</b>, so the declare odds are cut to ${Math.round(B.k * 100)}% of what your season earned. Starting attributes, growth and ceilings in the prestige tree (and the medal rewards) raise every future player.`
         : G.short

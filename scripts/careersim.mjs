@@ -34,7 +34,7 @@ const OUT = arg('out', 'docs/CAREERSIM.md'), CAREER_MS = +arg('careerMs', 240000
 // random affordable nodes, an early declare) and HOW FAR (--until ring = the first UFF title, as before; uff = the first
 // arrival in the UFF; interstellar = UFF careers ground on — chaos maxed whenever it is unlocked (smart) — until the
 // Interstellar Call is answered). Every run reports the SEASONS to each milestone, and hours at --seasonMin (7) a season.
-const POLICY = arg('policy', 'smart'), UNTIL = arg('until', 'ring'), SEASON_MIN = +arg('seasonMin', 7), TUNE = JSON.parse(arg('tune', '{}'))
+const CHAOS = arg('chaos', '1') !== '0', POLICY = arg('policy', 'smart'), UNTIL = arg('until', 'ring'), SEASON_MIN = +arg('seasonMin', 7), TUNE = JSON.parse(arg('tune', '{}'))
 const url = gameUrl('index.html')
 const U = (...q) => url + (url.includes('?') ? '&' : '?') + ['stayStale', 'noFilmV114', 'noGrowV132'].concat(q).join('&')
 
@@ -173,7 +173,7 @@ function installDriver () {
         try { p.points > 0 && window.autoAllocKey() } catch (e) {}
         const lv = p.level, nfl = lv >= 7
         // v179: the smart player keeps chaos at its cap the moment it is unlocked (the PP and the eras are there)
-        if (!casual && s.chaosUnlocked && window.__chaosMaxV179) { try { if (window.__chaosTotalV179() < (s.chaosCap || 0)) window.__chaosMaxV179() } catch (e) {} }
+        if (!casual && o.chaos !== false && s.chaosUnlocked && window.__chaosMaxV179) { try { if (window.__chaosTotalV179() < (s.chaosCap || 0)) window.__chaosMaxV179() } catch (e) {} }
         // v179: the Interstellar Call — answered when its odds clear the bar (it ends the career if it fails)
         if (until === 'interstellar' && lv === 7 && (p.nflRings || 0) >= 1 && p.seasonsAtLevel >= A.minSeasonsRequired()) {
           let ch = 0, ok = true
@@ -270,7 +270,7 @@ async function playRun (page, runNo) {
     const spend = await page.evaluate(() => window.__CS.spendPP())
     let rec
     try {
-      rec = await page.evaluate((o) => window.__CS.runCareer(o), { declareAt: DECLARE_AT, training: TRAINING, ms: CAREER_MS, policy: POLICY, until: UNTIL })
+      rec = await page.evaluate((o) => window.__CS.runCareer(o), { declareAt: DECLARE_AT, training: TRAINING, ms: CAREER_MS, policy: POLICY, until: UNTIL, chaos: CHAOS })
     } catch (e) { rec = { end: 'evaluate threw: ' + (e.message || e).slice(0, 160), seasons: [], level: -1, maxLevel: -1, games: 0 } }
     rec.no = c; rec.spend = spend
     out.careers.push(rec)
