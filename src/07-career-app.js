@@ -37063,7 +37063,7 @@
         ? TU("apexPriceV179", 10)
         : b === "eternal"
           ? 1
-          : TU("corePriceV179", 1); /* the early branches: PP scarce enough that what you buy first matters */
+          : TU("corePriceV179", 6); /* the early branches: PP scarce enough that what you buy first matters */
   }
   function medalGateV179(e) {
     const lv = e ? e.level | 0 : 0,
@@ -37085,14 +37085,14 @@
   function scoutBarV179(e) {
     const lv = e ? e.level | 0 : 0,
       on = TU("v179", 1) && TU("v179H", 1),
-      base = !on ? 0 : lv === 5 ? TU("scoutBarCombineV179", 0) : lv === 6 ? TU("scoutBarUffV179", 0) : 0;
+      base = !on ? 0 : lv === 5 ? TU("scoutBarCombineV179", 0) : lv === 6 ? TU("scoutBarUffV179", 140) : 0;
     if (!base) return { bar: 0, ovr: 0, k: 1 };
     let ovr = 0;
     try {
       ovr = playerOvr(e);
     } catch (_) {}
     const tries = ((state && state.scoutTriesV179) || {})[lv] | 0,
-      bar = Math.max(0, base - tries * TU("scoutBarDecayV179", 0)),
+      bar = Math.max(0, base - tries * TU("scoutBarDecayV179", 0.5)),
       k = 1 / (1 + Math.exp(-(ovr - bar) / Math.max(0.5, TU("scoutBarSoftV179", 4))));
     return { bar: Math.round(bar), ovr: Math.round(ovr), k };
   }
@@ -37120,7 +37120,7 @@
     try {
       for (const k in state.tree || {}) if (TREE_NODES[k] && TREE_NODES[k].max >= 999) et += state.tree[k] | 0;
     } catch (_) {}
-    return (w - et) * TU("ceilPerLevelV179", 0.68) + et * TU("ceilEternalV179", 0.68);
+    return (w - et) * TU("ceilPerLevelV179", 0.2) + et * TU("ceilEternalV179", 0.1);
   }
   function istGateV179(e) {
     const need = Math.round(TU("istEraV179", 6)),
