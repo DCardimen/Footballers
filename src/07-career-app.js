@@ -37061,6 +37061,10 @@
    * ceilings from the tree and the medal rewards — so good prestige choices clear it careers sooner than bad ones. The
    * bar falls with the careers already played at that level (`scoutBarDecayV179` an attempt), so a stuck account still
    * gets there. The hub names the bar. Kill switch TU "v179H" 0. `window.__V179.bar`; `v179check`. */
+  /* ===== v179 J THE INTERSTELLAR CALL JUDGES POTENTIAL =====
+   * The era gate put chaos ×15 between a UFF ring and the call; chaos puts +22 +1.05 a point on every opponent, so the
+   * chaos era 6 asked for made the title (and the call) out of reach. The call now judges POTENTIAL — `potentialV179()`,
+   * the uncapped growth ceiling — against `istPotV179` (see `scoutBarV179` level 7); the era gate defaults off. */
   function potentialV179() {
     try {
       return rawCeilingV179(); /* uncapped: the late tree keeps moving it (the growth itself still stops at attrCap) */
@@ -37114,6 +37118,11 @@
     const vt = v + (1 - v) * sl;
     return { bar: Math.round(bar), ovr: Math.round(ovr), potBar: Math.round(potBar), pot: Math.round(pot), kO, kP: v, v, sl, vt, vMax, k: kO * vt };
   }
+  /* ===== v179 K THE SCOUTS' VERDICT =====
+   * The owner: "diminishing returns for going above the potential bar, so there's still some nervousness in college and
+   * UFF declaration … influenced by prestige … maybe a second roll". A barred declare is the season roll, then the
+   * scouts' verdict (`scoutBarV179` → v: a coin flip at the bar, diminishing returns toward vMax over it), then the GM's
+   * second look on a close call (sl); the result is applied at once and `verdictRevealV179` plays the rolls. */
   // every declare at a barred level is an attempt: the bar eases for the next one
   const dfhBarV179 = declareFromHub;
   declareFromHub = function () {
