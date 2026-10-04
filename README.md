@@ -51,6 +51,10 @@ Every gameplay dial reads through `TU(key, default)`, so values can be retuned l
 
 The full history, newest first, is [`docs/CHANGELOG.md`](docs/CHANGELOG.md) — add new entries there.
 
+- **v179 — the long road.** Prestige paced for a long game, with choices that matter: the growth ceiling comes from
+  the ceiling nodes, not from any level bought, and the UFF scouts want a 140 OVR (easing each try), so a sharp tree
+  reaches the UFF in about 9 hours and a careless one in about 60. Every Legacy medal deals a choice of two rewards;
+  every 10th medal and every new era a face-down choice of two unique permanent upgrades. PP reads K / M / B / T. `v179check`.
 - **v178 — the weekly paycheck.** Upgrade points are paid every game (simmed ×1, watched ×2) instead of all at the
   season end, with a reward reel on the post-game card: the coach's receipt (why trust moved), win-streak heat, weekly
   orders, practice reps, a card flip, the scouts' stock and the season pace; THIS WEEK on the season screen. `v178check`.
