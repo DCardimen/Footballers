@@ -10,6 +10,41 @@ Names in older entries are the career app's pre-v149 C minified names (`q`, `ms`
 `index.html` + `src/` (`docs/LAYOUT.md`).
 
 <!-- new entries go here, newest first -->
+- **v179 J / K — the Interstellar League judges potential; the scouts' verdict.** (`src/07-career-app.js`,
+  `scripts/careersim.mjs`, `scripts/careerreplay.mjs`.) The owner: "diminishing returns for going above the potential bar,
+  so there's still some nervousness in college and UFF declaration … influenced by prestige … maybe a second roll". **K**
+  — a declare at College (a bar of 90), the Combine (150) and the Interstellar Call is TWO rolls: the season (the odds the
+  year earned), then the scouts' verdict — a coin flip at the potential bar, diminishing returns over it toward a ceiling
+  of 80% that declare-odds prestige raises (+1 a point, to 96%) — and on a close call (potential ≥ 80% of the bar) the
+  GM's second look (10% + 1.5 a declare-odds point, to 50%). The hub shows the verdict before you declare; a full-screen
+  reveal plays the rolls (`verdictRevealV179`). **J** — the Interstellar Call no longer waits on an era (chaos at era 6 put
+  +125 on every opponent; maxing chaos got a 160-OVR player waived in his first UFF season): it judges potential, uncapped
+  (`istPotV179` 1,600 — every finite ceiling node, the 1B-PP Ceiling Lift included, then chaos or the eternal ceiling
+  stack). Pacing, replayed offline (`careerreplay.mjs`, 20,000 accounts over measured careers, 7 min a season): first UFF
+  — balanced expert 84 seasons ≈ 9.8 h, casual 114 ≈ 13 h, cheapest-first 154 ≈ 18 h, careless ≈ 400+ ≈ 47 h. The
+  Interstellar bar is reasoned, not yet measured to its ~200 h (a 1,700-season run). Kill switches `v179K` / `istPotV179` 0.
+- **v179 A–I — the long road (prestige pacing).** (`src/07-career-app.js`, `scripts/careersim.mjs`.) The owner: "a genuine
+  prestige balancing patch … ~7 minutes a season … good prestige decisions 30% faster, bad ones 3 to 4× longer … prestige
+  and chaos gains in the millions / billions"; then "a mystery reward per 10 medals"; then "major differences based on
+  poor decision making". Measured first (whole careers headless, `careersim --policy smart|good|bad`): every declare
+  roll sat near 98% and the growth ceiling paid 0.68 for ANY tree level, so a careless tree reached the UFF in 60–72
+  seasons, the same as a sharp one. Now: **I** — the growth ceiling (one sum, `rawCeilingV179`) is the BUILD: Freak,
+  Prime Genes, Superhuman and every +ceiling count ×3 (`ceilNodeMultV179`), a plain tree level 0.05 (`ceilPerLevelV179`),
+  an eternal stack nothing (`ceilEternalV179`). **H** — the scouts judge POTENTIAL (that ceiling): the Combine → UFF
+  declare is scaled by a logistic of (potential − 150) / 6, the bar easing 0.25 an attempt; the hub says what they want
+  and what raises it (an OVR bar, `scoutBarUffV179`, is there and off). Measured to the first UFF at 7 min a season
+  (`careersim --policy`): a balanced expert (potential first until it clears the bar, then everything) 76 seasons ≈ 9 h
+  (two runs); sharp / power-first / casual 104–121 ≈ 12–14 h; a careless tree (everything but the power nodes first)
+  403 ≈ 47 h — the expert ~30% faster than the field, the careless ~3.5× slower. Potential alone is not enough: an
+  expert that starved its OVR for it took 125 seasons, failing the College declare. **F** — the core tree costs ×6, Apex ×10 and Impossible ×100 (**E**), so what you buy first matters. Modelled from
+  the measured curves at 7 min a season: sharp ≈ 9 h to the first UFF, power-first ≈ 17 h, careless ≈ 60 h. **D / B** —
+  chaos capacity +1 a UFF ring (+2 Interstellar); the Interstellar Call waits for era `istEraV179` (6). **E** — big
+  numbers read K / M / B / T / Qa everywhere PP shows. **G** — every Legacy medal deals two reward cards (PP, +1% PP,
+  +1 starting attribute, coach trust, growth, declare odds, luckier flips, an upgrade point a season, an earned look),
+  each saying what it does; every 10th medal and every new era deal two face-down MAJOR cards of unique permanent
+  upgrades (Silver Spoon +3 every starting attribute, Fortune +10% PP, the Scout's Eye, the Extra Card, Head Start …);
+  the 🎁 chip on the hub opens the chooser. **A** — optional medal walls (`gateCombineV179` / `gateUffV179`, off).
+  Kill switches `v179` / `v179G` / `v179H` / `v179I`. `v179check`.
 - **v178 L / M / N / O — hold to spend; the gap plays to its size; the league above 99.** (`src/07-career-app.js`,
   `src/10-season-rosters-v158.js`.) The owner: "Add a way to hold down the skills for the upgrade menu"; "games are
   returning to blowouts … only 10 to 20 overall higher … my guy only has 100 to 159 throwing yards and I'm winning 80 to

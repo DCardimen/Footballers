@@ -1815,7 +1815,20 @@
     "v164Bcheck",
     "v85check",
     "v146Ccheck",
-    "v168check"
+    "v168check",
+    "v179check"
+   ]
+  },
+  "prestige-pacing": {
+   "desc": "v179 — the long road: medal gates on the last climbs, the Interstellar Call waits on the era, big numbers",
+   "anchors": [
+    "v179"
+   ],
+   "files": [],
+   "checks": [
+    "v179check",
+    "v136check",
+    "v178check"
    ]
   }
  },
@@ -4731,6 +4744,18 @@
     "season"
    ],
    "runtimeSec": 60,
+   "slow": false,
+   "needsServer": true,
+   "pureNode": false,
+   "flaky": []
+  },
+  "v179check": {
+   "file": "scripts/v179check.mjs",
+   "desc": "v179 — the long road: the last two climbs ask for Legacy medals (College → Combine fewer than Combine → UFF); short of them the declare is capped at 2% and the hub says how many medals the scouts want; with them (or TU v179 0) the odds are the game's own; a UFF ring in an early era cannot answer the Interstellar Call (the hub names the era, declareFromHub refuses), in the era it can, TU v179 0 restores the ring-only call; big PP reads K / M / B / T / Qa and the top bar shows 3.40B. No page errors.",
+   "areas": [
+    "season"
+   ],
+   "runtimeSec": 30,
    "slow": false,
    "needsServer": true,
    "pureNode": false,

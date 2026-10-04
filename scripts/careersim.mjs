@@ -30,6 +30,11 @@ const arg = (k, d) => { const i = argv.indexOf('--' + k); return i >= 0 ? argv[i
 const RUNS = +arg('runs', 5), MAX_CAREERS = +arg('maxCareers', 30), PAGES = Math.max(1, +arg('pages', 3))
 const DECLARE_AT = +arg('declareAt', 70), TRAINING = arg('training', 'balanced'), TIMING = arg('timing', '1') !== '0'
 const OUT = arg('out', 'docs/CAREERSIM.md'), CAREER_MS = +arg('careerMs', 240000), VERBOSE = arg('v', '0') !== '0'
+// v179: WHO plays (--policy smart = the knowledgeable player above; casual = a random fit position, a random program,
+// random affordable nodes, an early declare) and HOW FAR (--until ring = the first UFF title, as before; uff = the first
+// arrival in the UFF; interstellar = UFF careers ground on — chaos maxed whenever it is unlocked (smart) — until the
+// Interstellar Call is answered). Every run reports the SEASONS to each milestone, and hours at --seasonMin (7) a season.
+const POT_TARGET = +arg('potTarget', 150), FAST = arg('fast', '0') !== '0', CHAOS = arg('chaos', '1') !== '0', POLICY = arg('policy', 'smart'), UNTIL = arg('until', 'ring'), SEASON_MIN = +arg('seasonMin', 7), TUNE = JSON.parse(arg('tune', '{}'))
 const url = gameUrl('index.html')
 const U = (...q) => url + (url.includes('?') ? '&' : '?') + ['stayStale', 'noFilmV114', 'noGrowV132'].concat(q).join('&')
 
@@ -37,18 +42,19 @@ const browser = await launch()
 const errors = []
 async function open (tag) {
   const ctx = await browser.newContext({ viewport: { width: 400, height: 860 } })
-  await ctx.addInitScript(() => {
-    window.RIB_TUNE = Object.assign(window.RIB_TUNE || {}, { v156Bplayoffs: 0, speedGateV151A: 0, v156Cspeed: 0 })
+  await ctx.addInitScript((tune) => {
+    window.RIB_TUNE = Object.assign(window.RIB_TUNE || {}, { v156Bplayoffs: 0, speedGateV151A: 0, v156Cspeed: 0 }, tune || {})
     try { localStorage.setItem('rib.coachTour.v119', 'off'); localStorage.setItem('rib.debriefOff.v122', 'off') } catch {}
     setInterval(() => {
       try { if (window.S) window.S.tutorialSeen = true } catch {}
       for (const s of ['.onboard', '#growthV42', '#gv139gate', '#ribDlgV149', '.lgm-v152']) document.querySelector(s)?.remove()
     }, 80)
-  })
+  }, TUNE)
   const page = await ctx.newPage()
   page.on('pageerror', (e) => errors.push(tag + ': ' + (e.message || e)))
   await page.goto(U(), { waitUntil: 'networkidle', timeout: 60000 })
   await page.waitForFunction(() => !!window.__GRIDIRON_AUDIT__ && !!window.__V156B && !!window.__V164B && !!window.__V147A, null, { timeout: 60000 })
+  if (FAST) await page.evaluate(() => { window.__RIB_SIM_FAST = true })
   await page.waitForFunction(() => { const sp = document.getElementById('splash'); return !sp || sp.classList.contains('gone') }, null, { timeout: 30000 }).catch(() => null)
   await page.evaluate(() => document.getElementById('splash')?.remove())
   await page.evaluate(installDriver)
@@ -70,19 +76,39 @@ function installDriver () {
   // between careers: the cheapest affordable prestige node, again and again; then a Path when the medals allow
   CS.spendPP = () => {
     const bought = []
+    // v179 G: the medal rewards first (they pay PP and permanent boosts) — good takes the stronger card, bad the weaker
+    let medals = 0
+    try { if (window.__V179 && window.__V179.medals) medals = window.__V179.medals.autoQuiet(CS.policy === 'good' || CS.policy === 'expert' ? 'good' : CS.policy === 'bad' ? 'bad' : 'random') } catch (e) {}
     for (let g = 0; g < 200; g++) {
       const s = S(), nodes = Object.values(A.TREE_NODES)
         .filter((n) => A.nodeLvl(n.key) < n.max && A.nodeUnlocked(n) && A.nodeCost(n) <= s.pp)
         .sort((a, b) => A.nodeCost(a) - A.nodeCost(b))
       if (!nodes.length) break
-      const n = nodes[0], pp0 = s.pp
+      // v179: good = the power nodes first (growth, ceilings, starting attributes, the climb); bad = everything else first
+      const POWER = /^(genetics|fastTwitch|frame|iron|nimble|lungs|motor|explosive|freak|primeGenes|superhuman|springs|anchor|engine|juggernaut|evolution|talent|coachable|filmrat|clutch|handsy|cannon|wrap|quickstudy|vet|prodigy|genius|mastermind|zen|silverTongue|visionary|bigStage|recruited|goodProgram|gym|headstart|spotlight|combineKing|phenom|unstoppable|boosters|iron_sched|dynastyTeam|camp[A-Z].*|privateCoach|allStarCamp|megaCamp|proDay|etGrowth|etCeiling|etForm|trashTalk|legendAura|primetime|perfectFrame|idealBody)$/
+      // v179 expert: potential first — the ceiling nodes are bought the moment they are affordable and SAVED for when not
+      // (nothing else is bought below the next ceiling node's price)
+      // …until the bloodline clears the scouts' potential bar with room (the hub says what they want); then the cheapest, as smart
+      let potOk = false
+      try { const B = window.__V179.bar(Object.assign({}, S().player || {}, { level: 6 })); potOk = window.__V179.potential() >= (B.potBar || CS.potTarget || 150) + 15 } catch (e) {} // curve mode turns the bars off: aim at the shipped one
+      if (CS.policy === 'expert' && !potOk) {
+        const CEIL = /^(freak|primeGenes|superhuman|juggernaut|iron_sched|evolution|etCeiling|apexCeiling|ceilLift)$/
+        const all = Object.values(A.TREE_NODES).filter((n) => A.nodeLvl(n.key) < n.max && A.nodeUnlocked(n) && CEIL.test(n.key)).sort((a, b) => A.nodeCost(a) - A.nodeCost(b))
+        const want = all[0]
+        if (want && A.nodeCost(want) <= s.pp) { const pp0 = s.pp; try { window.buy(want.key) } catch (e) { break } if (S().pp >= pp0) break; bought.push(want.key + ':' + A.nodeLvl(want.key) + '@' + (pp0 - S().pp)); continue }
+        const spare = s.pp - (want ? A.nodeCost(want) : 0), other = nodes.filter((x) => !CEIL.test(x.key) && A.nodeCost(x) <= spare)
+        if (!other.length) break
+        const pp0 = s.pp; try { window.buy(other[0].key) } catch (e) { break } if (S().pp >= pp0) break; bought.push(other[0].key + ':' + A.nodeLvl(other[0].key) + '@' + (pp0 - S().pp)); continue
+      }
+      const pref = CS.policy === 'good' ? nodes.filter((x) => POWER.test(x.key)) : CS.policy === 'bad' ? nodes.filter((x) => !POWER.test(x.key)) : []
+      const n = pref.length ? pref[0] : CS.casual ? nodes[Math.floor(Math.random() * Math.min(nodes.length, 12))] : nodes[0], pp0 = s.pp
       try { window.buy(n.key) } catch (e) { break }
       if (S().pp >= pp0) break
       bought.push(n.key + ':' + A.nodeLvl(n.key) + '@' + (pp0 - S().pp))
     }
     let path = null
-    try { if (!S().path && typeof window.choosePath === 'function') { window.choosePath('prodigy'); path = S().path || null } } catch (e) {}
-    return { bought, path, ppLeft: S().pp, tree: Object.assign({}, S().tree) }
+    try { if (!S().path && typeof window.choosePath === 'function') { window.choosePath(CS.casual ? ['prodigy', 'magnate', 'grinder'][Math.floor(Math.random() * 3)] : 'prodigy'); path = S().path || null } } catch (e) {}
+    return { bought, path, medals, ppLeft: S().pp, tree: Object.assign({}, S().tree) }
   }
 
   const bestOffer = (O) => { let bi = 0, bs = -1e9; (O.list || []).forEach((c, i) => { const v = (c.rating || 0) + (c.security || 0) * 0.5 + (c.role === 'starter' ? 8 : c.role === 'rotation' ? 3 : 0); if (v > bs) { bs = v; bi = i } }); return bi }
@@ -92,7 +118,10 @@ function installDriver () {
   // one career, from the menu to the career-end screen (or the first ring). Returns the record.
   CS.runCareer = async (o) => {
     o = o || {}
-    const declareAt = o.declareAt == null ? 70 : o.declareAt, training = o.training || 'balanced', budget = o.ms || 240000
+    const casual = o.policy === 'casual', until = o.until || 'ring'
+    CS.casual = casual; CS.policy = o.policy
+    const declareAt = o.declareAt == null ? 70 : o.declareAt, budget = o.ms || 240000
+    const progs = Object.keys(A.TRAINING || { balanced: 1 }), training = casual ? progs[Math.floor(Math.random() * progs.length)] : o.training || 'balanced'
     const t0 = Date.now(), rec = { seasons: [], level: 0, maxLevel: 0, title: false, end: null, views: [], steps: 0, ms: 0, pos: null, uffSeasons: 0, skips: null }
     const trail = (v) => { if (rec.views[rec.views.length - 1] !== v) rec.views.push(v); if (rec.views.length > 400) rec.views.splice(0, 100) }
     const dump = (why) => { const s = S(), p = s.player; rec.end = why; rec.stuck = { view: s.view, level: p && p.level, weeks: p && p.weekResults ? p.weekResults.map((w) => (w.played ? 'P' : '.') + (w.playoff ? 'p' : '')).join('') : null, lastSim: (window.__V147A && window.__V147A.lastSim) || (window.__V164B && window.__V164B.lastSim) || null, offers: !!(p && p.offersV146B), cutOut: !!(p && p.cutOutV146B), pending: p && p.pendingEvent, screen: ((document.getElementById('screen') || {}).innerText || '').replace(/\s+/g, ' ').slice(0, 160) }; return rec }
@@ -109,7 +138,7 @@ function installDriver () {
       try { window.__personaConfirmV13 && window.__personaConfirmV13() } catch (e) {}
       if (!p.originV11) { try { window.chooseOriginV11((p.originOptionsV11 || [])[0] || 'walk-on') } catch (e) {} }
       if (!p.originV11) p.originV11 = 'walk-on'
-      const best = A.suggestPositions(p.attrs, p.body)[0]; rec.pos = best.pos; rec.origin = p.originV11; window.pickPos(best.pos); await sleep(20)
+      const sug = A.suggestPositions(p.attrs, p.body), best = casual ? sug[Math.floor(Math.random() * Math.min(4, sug.length))] : sug[0]; rec.pos = best.pos; rec.origin = p.originV11; window.pickPos(best.pos); await sleep(20)
       if (S().view === 'choosePos') return dump('pickPos did not leave choosePos')
     }
     let sameView = 0, lastView = null, lastKey = ''
@@ -121,13 +150,21 @@ function installDriver () {
       if (!p) return dump('no player')
       trail(v)
       rec.level = p.level; rec.maxLevel = Math.max(rec.maxLevel, p.level)
+      if (p.level >= 7 && rec.uffAt == null) rec.uffAt = p.totalSeasons
+      if ((p.nflRings || 0) > 0 && rec.ringAt == null) rec.ringAt = p.totalSeasons
+      if (p.level >= 8 && rec.istAt == null) { rec.istAt = p.totalSeasons; rec.end = 'interstellar'; break }
+      if (until === 'uff' && p.level >= 7) { rec.end = 'uff'; break }
       const key = v + '|' + p.totalSeasons + '|' + unplayed(p).length + '|' + (p.pendingEvent || '') + '|' + !!p.offersV146B
       if (key === lastKey) { if (++sameView > 12) return dump('stuck on ' + v) } else { sameView = 0; lastKey = key }
       lastView = v
       // a ring: the first UFF title
-      if ((p.nflRings || 0) > 0 || (S().uffTitleV156C && p.level >= 7)) { rec.title = true; rec.end = 'title'; break }
-      if (p.cutOutV146B && !p._settled) { window.go('gameover'); await sleep(10); continue }
-      if (v === 'gameover') { if (!p._settled) { window.go('gameover'); await sleep(10) } rec.end = rec.end || 'cut'; break }
+      if (until === 'ring' && ((p.nflRings || 0) > 0 || (S().uffTitleV156C && p.level >= 7))) { rec.title = true; rec.end = 'title'; break }
+      // a pending event left on the season screen (a role battle mid-playoffs): play it through the event screen; a second time round, settle it
+      if (v === 'season' && p.pendingEvent && sameView > 2) { if (sameView > 6) { p.pendingEvent = null; document.querySelectorAll('.decision-overlay,.life-event-overlay-v12').forEach((x) => x.remove()) } else window.go('event'); await sleep(10); continue }
+      if (p.cutOutV146B && !p._settled) { p.pendingEvent = null; document.querySelectorAll('.decision-overlay,.life-event-overlay-v12').forEach((x) => x.remove()); window.go('gameover'); await sleep(10); if (S().view !== 'gameover') { try { window.screenGameOver && window.screenGameOver() } catch (e) {} } continue }
+      const cutInfo = () => { const st = p.nflStateV11 || {}; return 'cut: ' + p.cutOutV146B.why + ' · ovr ' + Math.round(A.playerOVR(p)) + ' · age ' + p.age + ' · trust ' + Math.round(p.coachTrust || 0) + ' · sec ' + Math.round(st.security || 0) + ' · exp ' + st.expectation + ' · status ' + st.status + ' · perf ' + (p.weekResults || []).filter((w) => w.played).map((w) => (w.satOut ? 'x' : Math.round(w.perf || 0))).join(',') }
+      if (p.cutOutV146B && p._settled) { rec.end = rec.end || cutInfo(); break } // settled already: an event left behind is not a career
+      if (v === 'gameover') { if (!p._settled) { window.go('gameover'); await sleep(10) } rec.end = rec.end || (p.cutOutV146B ? cutInfo() : 'cut'); break }
       if (v === 'declineResult') { rec.end = 'declare failed'; window.endCareer(); await sleep(10); continue }
       if (v === 'win') { window.continueNFL(); await sleep(10); continue }
       if (v === 'club') { const O = p.offersV146B; if (!O) { window.go('hub'); continue } window.__V146B.sign(bestOffer(O)); await sleep(10); continue }
@@ -136,11 +173,21 @@ function installDriver () {
         if (p.retirementPending) { window.endCareer(); await sleep(10); continue }
         try { p.points > 0 && window.autoAllocKey() } catch (e) {}
         const lv = p.level, nfl = lv >= 7
+        // v179: the smart player keeps chaos at its cap the moment it is unlocked (the PP and the eras are there)
+        if (!casual && o.chaos !== false && s.chaosUnlocked && window.__chaosMaxV179) { try { if (window.__chaosTotalV179() < (s.chaosCap || 0)) window.__chaosMaxV179() } catch (e) {} }
+        // v179: the Interstellar Call — answered when its odds clear the bar (it ends the career if it fails)
+        if (until === 'interstellar' && lv === 7 && (p.nflRings || 0) >= 1 && p.seasonsAtLevel >= A.minSeasonsRequired()) {
+          let ch = 0, ok = true
+          try { ok = !window.__istGateV179 || window.__istGateV179(p).ok; ch = ok ? window.__V88.declareChance(p) : 0 } catch (e) {}
+          if (ok && ch >= (casual ? 30 : declareAt)) { rec.declares = (rec.declares || []).concat([lv + ':' + Math.round(ch) + '@' + Math.round(A.playerOVR(p)) + '/' + Math.round((window.__V179 && window.__V179.potential) ? window.__V179.potential() : 0) + '/' + Math.round(window.__V88.declareChance(p, true))]); window.declareFromHub(); await sleep(10); continue }
+        }
         if (!nfl) {
           const min = A.minSeasonsRequired(), max = A.maxSeasonsAllowed(), left = max - p.seasonsAtLevel
           if (p.seasonsAtLevel >= min) {
             const ch = window.__V88.declareChance(p)
-            if (left <= 0 || ch >= declareAt || lv === 6) { rec.declares = (rec.declares || []).concat([lv + ':' + Math.round(ch)]); window.declareFromHub(); await sleep(10); continue }
+            // v179 curve mode: log the Combine declare and end the career there (the account keeps cycling; odds replayed offline)
+            if (until === 'combine' && lv === 6) { rec.declares = (rec.declares || []).concat([lv + ':' + Math.round(ch) + '@' + Math.round(A.playerOVR(p)) + '/' + Math.round(window.__V179.potential()) + '/' + Math.round(window.__V88.declareChance(p, true))]); rec.end = 'combine'; p.retirementPending = true; window.endCareer(); await sleep(10); break }
+            if (left <= 0 || ch >= (casual ? Math.min(declareAt, 35) : declareAt) || lv === 6) { rec.declares = (rec.declares || []).concat([lv + ':' + Math.round(ch) + '@' + Math.round(A.playerOVR(p)) + '/' + Math.round((window.__V179 && window.__V179.potential) ? window.__V179.potential() : 0) + '/' + Math.round(window.__V88.declareChance(p, true))]); window.declareFromHub(); await sleep(10); continue }
           }
         }
         window.startSeason(); await sleep(10); continue
@@ -172,8 +219,14 @@ function installDriver () {
         const n0 = unplayed(p).length
         window.simRemainingWeeks(); await sleep(10)
         if (S().view === 'season' && unplayed(P()).length === n0 && !P().offersV146B) {
-          // nothing moved: a stale offer list, or a stuck silent week — play one week the quick way, then give up
-          window.playWeek(false); await sleep(10)
+          if (P().cutOutV146B || P().retirementPending) continue // v179: cut mid-season — the top of the loop settles it
+          // nothing moved: the season sims are spent, a stale offer list, or a stuck silent week — Quick Play week by week
+          for (let k = 0; k < 30 && S().view === 'season' && unplayed(P()).length && !P().cutOutV146B; k++) {
+            const m0 = unplayed(P()).length
+            window.playWeek(false); await sleep(10)
+            if (unplayed(P()).length === m0) break
+          }
+          if (P().cutOutV146B || P().retirementPending) continue
           if (S().view === 'season' && unplayed(P()).length === n0) return dump('the season sim cannot play the next week')
         }
         continue
@@ -189,7 +242,7 @@ function installDriver () {
     rec.games = rec.seasons.reduce((a, c) => a + c.games, 0)
     // settle it (the ring's career is settled through the life screen's retire so the account gets its PP)
     if (rec.title && p && !p._settled) { try { p.retirementPending = true; window.endCareer(); await sleep(10) } catch (e) {} }
-    rec.settled = !!(P() && P()._settled); rec.pp = S().pp; rec.medals = (() => { try { return window.__V156B.medals() } catch (e) { return null } })()
+    rec.settled = !!(P() && P()._settled); rec.pp = S().pp; rec.chaos = (() => { try { return window.__chaosTotalV179 ? window.__chaosTotalV179() : null } catch (e) { return null } })(); rec.medals2 = (() => { try { return window.__V156B.medals() } catch (e) { return null } })(); rec.era = S().era || 0; rec.medals = (() => { try { return window.__V156B.medals() } catch (e) { return null } })()
     return rec
   }
 
@@ -215,12 +268,12 @@ function installDriver () {
 const runs = []
 async function playRun (page, runNo) {
   const out = { run: runNo, careers: [], title: false }
-  await page.evaluate(() => window.__CS.freshAccount())
+  await page.evaluate(([pol, pt]) => { window.__CS.freshAccount(); window.__CS.policy = pol; window.__CS.casual = pol === 'casual'; window.__CS.potTarget = pt }, [POLICY, POT_TARGET])
   for (let c = 1; c <= MAX_CAREERS; c++) {
     const spend = await page.evaluate(() => window.__CS.spendPP())
     let rec
     try {
-      rec = await page.evaluate((o) => window.__CS.runCareer(o), { declareAt: DECLARE_AT, training: TRAINING, ms: CAREER_MS })
+      rec = await page.evaluate((o) => window.__CS.runCareer(o), { declareAt: DECLARE_AT, training: TRAINING, ms: CAREER_MS, policy: POLICY, until: UNTIL, chaos: CHAOS })
     } catch (e) { rec = { end: 'evaluate threw: ' + (e.message || e).slice(0, 160), seasons: [], level: -1, maxLevel: -1, games: 0 } }
     rec.no = c; rec.spend = spend
     out.careers.push(rec)
@@ -228,7 +281,18 @@ async function playRun (page, runNo) {
     console.log(`run ${runNo} career ${c}: ${rec.pos || '?'} → ${lvName} · ${rec.totalSeasons || 0} seasons · ${rec.games || 0} games · ${rec.end}${rec.uffSeasons ? ' · UFF seasons ' + rec.uffSeasons : ''} · ${((rec.ms || 0) / 1000).toFixed(1)}s · pp ${rec.pp} · medals ${rec.medals} · sims ${rec.skips && rec.skips.allowed}${rec.declares ? ' · declares ' + rec.declares.join(',') : ''}${spend.bought.length ? ' · bought ' + spend.bought.length + ' nodes (' + spend.bought.slice(-3).join(',') + ')' : ''}${VERBOSE && spend.bought.length ? ' · bought ' + spend.bought.join(',') : ''}${VERBOSE ? ' · views ' + (rec.views || []).slice(-12).join('>') : ''}`)
     if (rec.stuck) console.log('   stuck:', JSON.stringify(rec.stuck))
     if (rec.stack) console.log('   stack:', rec.stack)
+    // v179: the seasons to each milestone, counted across the whole account
+    const before = out.careers.slice(0, -1).reduce((a, x) => a + (x.totalSeasons || 0), 0)
+    if (rec.uffAt != null && out.seasonsToUff == null) out.seasonsToUff = before + rec.uffAt
+    if (rec.ringAt != null && out.seasonsToRing == null) out.seasonsToRing = before + rec.ringAt
+    if (rec.istAt != null && out.seasonsToIst == null) out.seasonsToIst = before + rec.istAt
+    const hrs = (n) => (n == null ? '—' : n + ' seasons (' + ((n * SEASON_MIN) / 60).toFixed(1) + ' h)')
+    out.traj = (out.traj || []).concat([[before + (rec.totalSeasons || 0), rec.medals2 != null ? rec.medals2 : rec.medals, rec.maxLevel]])
+    console.log(`   traj: seasons ${before + (rec.totalSeasons || 0)} medals ${rec.medals2 != null ? rec.medals2 : rec.medals} level ${rec.maxLevel}`)
+    console.log(`   milestones: UFF ${hrs(out.seasonsToUff)} · ring ${hrs(out.seasonsToRing)} · Interstellar ${hrs(out.seasonsToIst)} · pp ${rec.pp} · chaos ${rec.chaos || 0} · era ${rec.era || 0}`)
     if (rec.title) { out.title = true; break }
+    if (UNTIL === 'uff' && out.seasonsToUff != null) { out.title = true; break }
+    if (UNTIL === 'interstellar' && out.seasonsToIst != null) { out.title = true; break }
     if (/evaluate threw|watchdog/.test(rec.end)) { /* a page that cannot go on: reload it and continue on the same save */ try { await page.reload({ waitUntil: 'networkidle', timeout: 60000 }); await page.waitForFunction(() => !!window.__GRIDIRON_AUDIT__ && !!window.__V164B, null, { timeout: 60000 }); await page.evaluate(() => document.getElementById('splash')?.remove()); await page.evaluate(installDriver); await page.evaluate(() => { const A = window.__GRIDIRON_AUDIT__, S = A.getState(); if (S.player && !S.player._settled) { S.player._settled = true; S.player = null; window.GridironStorage.save(S) } }) } catch (e) { console.log('   reload failed: ' + e.message) } }
   }
   out.careersToTitle = out.title ? out.careers.length : null

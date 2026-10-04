@@ -5157,8 +5157,8 @@
   window.statInfoCloseV142 = statInfoCloseV142;
 
   function treeFx(e) {
-    let t = 0;
-    if (!state || !state.tree) return 0;
+    let t = medalFxV179(e); /* v179 G: the medal rewards are permanent tree effects */
+    if (!state || !state.tree) return t;
     for (const a in state.tree) {
       const s = TREE_NODES[a];
       s && s.fx && s.fx[e] && (t += s.fx[e] * (state.tree[a] || 0));
@@ -7056,6 +7056,7 @@
     let t = e.cost * Math.pow(e.mult, nodeLvl(e.key));
     const a = currentPath(),
       s = (TREE_NODES[e.key] && TREE_NODES[e.key].branch) || e.branch;
+    t *= branchPriceV179(s); /* v179 E: the late branches priced for a chaos-era income */
     return (a && a.cheapBranch && s === a.cheapBranch && (t *= 0.75), Math.max(1, Math.round(t)));
   }
   const PATH_HONORS = 6;
@@ -7272,6 +7273,7 @@
     return nodeLvl("bornStar") * TU("bornStarStepV146", 1);
   }
   function ppFmtV146(n) {
+    if (TU("v179", 1)) return fmtBigV179(n); /* v179 C: one formatter, past B too */
     n = Math.round(Number(n) || 0);
     const t = (v, s) => (Math.round(v * 100) / 100).toString() + s;
     return n >= 1e9
@@ -10948,7 +10950,7 @@
   function syncCounters() {
     ((byId("prestigeCount").textContent = medalsOnV156A() ? medalsV156A() : Math.round((state.prestige || 0) * 10) / 10) /* v156 A */,
       chipSyncV156A(),
-      (byId("ppCount").textContent = state.pp));
+      (byId("ppCount").textContent = TU("v179", 1) ? fmtBigV179(state.pp) : state.pp)); /* v179 C */
     const b = byId("ppBankChipV139"),
       n = bankedV136();
     if (b) {
@@ -10963,6 +10965,7 @@
   }
   /* the topbar is one nowrap line on a phone, so the bank is compact and the tooltip has the number */
   function ppShortV139(n) {
+    if (TU("v179", 1) && n >= 1e6) return fmtBigV179(n); /* v179 C */
     return n < 1e3
       ? String(n)
       : n < 1e6
@@ -12888,20 +12891,7 @@
       (a.focus && a.focus.includes(R) && (Pe += Tt), (J[R] = Math.max(0, Pe)));
     });
     const w = Object.values(state.tree || {}).reduce((R, O) => R + O, 0),
-      k = clamp99(
-        30 +
-          effectivePrestige(state.prestige) * 1.9 +
-          w * 0.68 +
-          nodeLvl("freak") * 12 +
-          nodeLvl("superhuman") * 20 +
-          nodeLvl("primeGenes") * 9 +
-          treeFx("ceilPlus") +
-          chaosTotal() * 1.6 +
-          (pathVal("growthMult", 1) - 1) * 36 +
-          (state.path === "phenom" ? 30 : 0),
-        30,
-        attrCap()
-      );
+      k = clamp99(rawCeilingV179(w), 30, attrCap()); /* v179 I: one sum (`rawCeilingV179`) */
     e.growthBank = e.growthBank || {};
     const T = {};
     for (const R of ATTR_KEYS) {
@@ -12968,7 +12958,7 @@
             showToast("💍 Ring earned. Chaos still requires: " + chaosUnlockReq(e)),
         state.chaosUnlocked &&
           chaosMaxed() &&
-          ((state.chaosCap = (state.chaosCap || 0) + (R ? 10 : 6)),
+          ((state.chaosCap = (state.chaosCap || 0) + (TU("v179", 1) ? (R ? TU("chaosCapIslV179", 2) : TU("chaosCapUffV179", 1)) : R ? 10 : 6)) /* v179 D: capacity grows a point a ring, not six */,
           typeof document < "u" &&
             byId("toast") &&
             showToast("⛓️ CHAOS CLEARANCE — capacity raised to " + state.chaosCap + "!")),
@@ -14419,7 +14409,7 @@
     const e = state.player,
       t = LEVELS[e.level],
       a = playerOvr(e),
-      s = e.level >= 8 || (t.key === "nfl" && !((e.nflRings || 0) >= 1));
+      s = e.level >= 8 || (t.key === "nfl" && (!((e.nflRings || 0) >= 1) || !istGateV179(e).ok)) /* v179 B: the Interstellar Call waits on the era */;
     t.key === "nfl" && (e.nflRings || 0) >= 1;
     const n = maxSeasons() - e.seasonsAtLevel,
       i = minSeasons(),
@@ -14595,7 +14585,7 @@
   function __natAdvFloor(e) {
     return rankChanceV88(e);
   }
-  function declareChanceV88(e) {
+  function declareChanceV88(e, seasonOnly) {
     const s = e.seasonStats,
       fresh =
         s &&
@@ -14604,16 +14594,24 @@
         e.lastSeasonLine.level === e.level &&
         e.lastSeasonLine.pos === e.pos;
     const base = fresh ? s.chance : advanceChance(playerOvr(e), e.level);
-    return Math.max(Math.min(TU("declareCeilV139", 99), base + (e.declareBonus || 0)), rankChanceV88(e));
+    const ch = Math.max(Math.min(TU("declareCeilV139", 99), base + (e.declareBonus || 0)), rankChanceV88(e));
+    const G = medalGateV179(e),
+      B = scoutBarV179(e);
+    const ch2 = seasonOnly ? ch : B.bar > 0 || B.potBar > 0 ? Math.max(0.3, ch * B.k) : ch; /* v179 H: the scouts' bar — a soft gate the build decides (v179 K: `seasonOnly` is the first of the two rolls) */
+    return G.short ? Math.min(ch2, TU("gateCapV179", 2)) : ch2; /* v179 A: the scouts wait on the Legacy medals */
   } /* v139: a stellar season tops out at 99, not 97 */
   window.__V88 = {
     curve: rankCurveV88,
     rankChance: e => rankChanceV88(e || state.player),
-    declareChance: e => declareChanceV88(e || state.player),
+    declareChance: (e, seasonOnly) => declareChanceV88(e || state.player, seasonOnly),
     ADV: ADV_V88
   };
   function declareFromHub() {
     const e = state.player;
+    if (e && e.level === 7 && !istGateV179(e).ok) {
+      showToast("🛸 " + istGateV179(e).say); /* v179 B */
+      return;
+    }
     if (e.seasonsAtLevel < minSeasons()) {
       showToast("You must finish this level first!");
       return;
@@ -14915,20 +14913,7 @@
         Ye = POSITIONS[e.pos].w,
         $ = Math.max(...Object.values(Ye));
       const w = Object.values(state.tree || {}).reduce((R, O) => R + O, 0),
-        k = clamp99(
-          30 +
-            effectivePrestige(state.prestige) * 1.9 +
-            w * 0.68 +
-            nodeLvl("freak") * 12 +
-            nodeLvl("superhuman") * 20 +
-            nodeLvl("primeGenes") * 9 +
-            treeFx("ceilPlus") +
-            chaosTotal() * 1.6 +
-            (pathVal("growthMult", 1) - 1) * 36 +
-            (state.path === "phenom" ? 30 : 0),
-          30,
-          attrCap()
-        );
+        k = clamp99(rawCeilingV179(w), 30, attrCap()); /* v179 I: one sum (`rawCeilingV179`) */
       const bank = e.growthBank || {};
       for (const R of ATTR_KEYS) {
         const O = e.attrs[R] || 1,
@@ -20134,7 +20119,7 @@
     return Math.pow(1.2, state.era || 0);
   }
   function nextEraChaos() {
-    return (state.era || 0) * 15;
+    return (state.era || 0) * (TU("v179", 1) ? TU("eraChaosStepV179", 15) : 15); /* v179 D */
   }
   function tryNextEra() {
     return chaosTotal() >= nextEraChaos() && (state.era || 0) < 999 ? ((state.era = (state.era || 0) + 1), !0) : !1;
@@ -24726,7 +24711,7 @@
       <div class="statline">
         <div class="statbox"><div class="n">${LEVELS[a].name.split(" ")[0]}</div><div class="l">Reached</div></div>
         ${medalsOnV156A() ? `<div class="statbox"><div class="n">${MEDAL_ICON_V156A}${medalsV156A()}</div><div class="l">Medals</div></div>` : `<div class="statbox"><div class="n">+${l}</div><div class="l">Honors ${HONOR_ICON_V130}</div></div>` /* v156 A */}
-        <div class="statbox"><div class="n">+${r + (e._ppBankV136 || 0) + (e._ppDoubledV149E || 0)}</div><div class="l">PP Earned</div></div>
+        <div class="statbox"><div class="n">+${bigOrRawV179(r + (e._ppBankV136 || 0) + (e._ppDoubledV149E || 0))}</div><div class="l">PP Earned</div></div>
       </div>
       ${u > 0 ? `<div class="threshold-note" style="margin-top:8px;text-align:center">💰 Your legacy bonuses boosted PP earnings by <b style="color:var(--gold)">+${u}%</b></div>` : ""}
       ${e._ppBankV136 ? `<div class="threshold-note bank-note-v136" style="margin-top:6px;text-align:center">🏦 <b style="color:var(--gold)">+${e._ppBankV136} PP</b> of that was banked during the career — goals, titles, seasons — and paid now, at the end.</div>` : ""}
@@ -24805,7 +24790,7 @@
       <div class="statline">
         <div class="statbox"><div class="n">${t}</div><div class="l">Final OVR</div></div>
         <div class="statbox"><div class="n">${e.totalSeasons}</div><div class="l">Seasons</div></div>
-        <div class="statbox"><div class="n">+${e._ppGain + (e._ppBankV136 || 0) + (e._ppDoubledV149E || 0)}</div><div class="l">PP Earned</div></div>
+        <div class="statbox"><div class="n">+${bigOrRawV179(e._ppGain + (e._ppBankV136 || 0) + (e._ppDoubledV149E || 0))}</div><div class="l">PP Earned</div></div>
       </div>
     </div>
     ${legacyCardV152("career")}
@@ -35695,9 +35680,12 @@
   function deckV178(e, w) {
     const rng = seededRng(e.seasonSeed || 0, e.level || 0, e.totalSeasons || 0, w.week || 0, w.opp || "", w.playoff ? "p" : "r", "flipV178"),
       tot = FLIPS_V178.reduce((s, c) => s + c.w, 0);
+    const luck = 1 + medalFxV179("flipLuckV179"), /* v179 G: Loaded Deck / luckier flips weigh the rare cards up */
+      wOf = c => (c.rar === "common" || c.rar === "uncommon" ? c.w : c.w * luck),
+      totL = FLIPS_V178.reduce((s, c) => s + wOf(c), 0);
     return [0, 1, 2].map(() => {
-      let r = rng() * tot;
-      for (const c of FLIPS_V178) if ((r -= c.w) <= 0) return c.id;
+      let r = rng() * (luck === 1 ? tot : totL);
+      for (const c of FLIPS_V178) if ((r -= luck === 1 ? c.w : wOf(c)) <= 0) return c.id;
       return "pt1";
     });
   }
@@ -35894,7 +35882,7 @@
       ordPts = orders ? hits * TU("orderPtsV178", 0.2) * worth + (orders.length && hits === orders.length ? TU("sweepPtsV178", 0.4) * worth : 0) : 0,
       pace = paceV178(e, w, stat),
       milePts = pace && pace.hit.length ? pace.hit.length * TU("milePtsV178", 0.75) * worth : 0,
-      raw = (pot.raw + ordPts + milePts) * wmul * heat.mult,
+      raw = (pot.raw + ordPts + milePts) * wmul * heat.mult * (1 + medalFxV179("payMultV179")) /* v179 G: Golden Paycheck */,
       bank0 = e.payBankV178 || 0,
       bank = bank0 + raw,
       whole = Math.floor(bank + 1e-9);
@@ -35923,7 +35911,7 @@
       coach: coachReceiptV178(e, w, perf, won, ctx.live),
       reps: practiceV178(e, perf, wmul, hits),
       stock: stockV178(e, perf, won),
-      flip: on178("flip") ? { deck: deckV178(e, w), n: watched ? 2 : 1, picked: [] } : null,
+      flip: on178("flip") ? { deck: deckV178(e, w), n: Math.min(3, (watched ? 2 : 1) + Math.round(medalFxV179("flipPicksV179"))), picked: [] } : null,
       title: pot.title,
       shown: !!ctx.card
     });
@@ -36871,6 +36859,11 @@
       if (!e || !e.pos || state.view !== "season") return;
       if (document.querySelector(".decision-overlay,.life-event-overlay-v12,#growthV42,#pregameV1513")) return;
       if (!((e.points || 0) > 0)) return momentsV178();
+      // the coach's first-week walk ends on the season screen (its RECOVERY stop): let him finish before the flow takes over
+      try {
+        const C = window.__RIB_COACH;
+        if (C && C.enabled && !C.seen.includes("recovery")) return;
+      } catch (_) {}
       V178.flow = { at: Date.now() };
       window.go("upgrade");
     }, 40);
@@ -37022,4 +37015,567 @@
     document.head.appendChild(st);
   } catch (_) {}
   window.__V178.hold = HOLD_V178;
+
+  /* ===== v179 THE LONG ROAD =====
+   * The owner: "a genuine prestige balancing patch. Say a season takes around 7 minutes. ~100 hours to reach the UFF
+   * and another ~400 to reach the Interstellar League. Knowledgeable, fast players: the UFF in ~30 hours and ~200 of
+   * UFF grinding. Another 1k hours to mid game. Prestige and chaos gains in the millions / billions."
+   * A — THE SCOUTS WAIT ON THE MEDALS. Measured (careersim, the knowledgeable policy): the first UFF in 3 careers, ~44
+   *     seasons (~5 h). The `lo()` career-count penalty never bound — `declareChanceV88` floors on the national rank, and a
+   *     player with a hundred cheap nodes is top of the nation. The last two climbs now ask for Legacy medals
+   *     (`medalGateV179`: College → Combine `gateCombineV179`, Combine → UFF `gateUffV179`); short of them the declare is
+   *     capped at `gateCapV179`%. Medals come from Legacy XP, which pays for the level reached and the season's grade, so
+   *     the player who plays well earns them several times faster than one who does not.
+   * B — THE INTERSTELLAR CALL WAITS ON THE ERA. It was one UFF ring and a roll. It needs era `istEraV179` now
+   *     (`istGateV179`): eras come from UFF titles won with chaos at era × 15, chaos capacity from titles won at the
+   *     cap — the UFF grind, measured by `careersim --until interstellar`.
+   * C — BIG NUMBERS READ. `fmtBigV179` (K, M, B, T, Qa, Qi …) on every PP figure the game prints.
+   * Kill switch TU "v179" 0 (the career-count gate, the old Interstellar Call). `window.__V179`; `v179check`. */
+  // v179 E: chaos multiplies PP 3·1.16^c, so the UFF's income runs into the millions by chaos ~20 and the billions by
+  // ~60; the Apex and Impossible branches were priced for the old curve (5K–60K, 100K–10M) and fell in the first UFF
+  // careers. They are priced for the stage they belong to now: Apex ×`apexPriceV179`, Impossible ×`impossiblePriceV179`.
+  function branchPriceV179(b) {
+    if (!TU("v179", 1)) return 1;
+    return b === "impossible"
+      ? TU("impossiblePriceV179", 100)
+      : b === "apex"
+        ? TU("apexPriceV179", 10)
+        : b === "eternal"
+          ? 1
+          : TU("corePriceV179", 6); /* the early branches: PP scarce enough that what you buy first matters */
+  }
+  function medalGateV179(e) {
+    const lv = e ? e.level | 0 : 0,
+      need = !TU("v179", 1) ? 0 : lv === 5 ? TU("gateCombineV179", 0) : lv === 6 ? TU("gateUffV179", 0) : 0;
+    let m = 0;
+    try {
+      m = medalsV156A();
+    } catch (_) {}
+    return { need, medals: m, short: need > 0 && m < need };
+  }
+  /* ===== v179 H THE SCOUTS' BAR =====
+   * Measured: with every declare roll near 98% (the national-rank floor), the first UFF came at 60-72 seasons whatever
+   * the prestige tree held. The College → Combine and Combine → UFF declares now ask for an OVR (`scoutBarCombineV179`,
+   * `scoutBarUffV179`): the odds are scaled by a logistic of (OVR − bar) / `scoutBarSoftV179`, so a player at the bar is a
+   * coin flip and well under it is single digits. It is a soft wall the BUILD climbs — starting attributes, growth and
+   * ceilings from the tree and the medal rewards — so good prestige choices clear it careers sooner than bad ones. The
+   * bar falls with the careers already played at that level (`scoutBarDecayV179` an attempt), so a stuck account still
+   * gets there. The hub names the bar. Kill switch TU "v179H" 0. `window.__V179.bar`; `v179check`. */
+  /* ===== v179 J THE INTERSTELLAR CALL JUDGES POTENTIAL =====
+   * The era gate put chaos ×15 between a UFF ring and the call; chaos puts +22 +1.05 a point on every opponent, so the
+   * chaos era 6 asked for made the title (and the call) out of reach. The call now judges POTENTIAL — `potentialV179()`,
+   * the uncapped growth ceiling — against `istPotV179` (see `scoutBarV179` level 7); the era gate defaults off. */
+  function potentialV179() {
+    try {
+      return rawCeilingV179(); /* uncapped: the late tree keeps moving it (the growth itself still stops at attrCap) */
+    } catch (_) {
+      return 0;
+    }
+  }
+  function scoutBarV179(e) {
+    const lv = e ? e.level | 0 : 0,
+      on = TU("v179", 1) && TU("v179H", 1),
+      K = TU("v179K", 1),
+      base = !on ? 0 : lv === 5 ? TU("scoutBarCombineV179", 0) : lv === 6 ? TU("scoutBarUffV179", 0) : 0,
+      potBase = !on
+        ? 0
+        : lv === 5
+          ? (K ? TU("scoutPotCombineV179", 90) : 0)
+          : lv === 6
+            ? TU("scoutPotUffV179", 150)
+            : lv === 7
+              ? TU("istPotV179", 1600)
+              : 0; /* v179 J: the Interstellar Call too; v179 K: College → Combine */
+    if (!base && !potBase) return { bar: 0, ovr: 0, k: 1, potBar: 0, pot: 0, v: 1, sl: 0, vt: 1 };
+    let ovr = 0;
+    try {
+      ovr = playerOvr(e);
+    } catch (_) {}
+    const pot = potentialV179(),
+      tries = ((state && state.scoutTriesV179) || {})[lv] | 0,
+      ease = tries * TU("scoutBarDecayV179", 0.5),
+      bar = base ? Math.max(0, base - ease) : 0,
+      potBar = potBase ? Math.max(1, potBase - ease * TU("scoutPotDecayMultV179", 0.5) * (potBase / 150)) : 0,
+      kO = bar ? 1 / (1 + Math.exp(-(ovr - bar) / Math.max(0.5, TU("scoutBarSoftV179", 4)))) : 1;
+    // the verdict: a logistic under the bar (a coin flip AT it); over it, diminishing returns toward a ceiling prestige raises
+    let v = 1,
+      sl = 0,
+      vMax = 1;
+    if (potBar) {
+      const soft = Math.max(0.5, potBar * TU("scoutPotSoftPctV179", 0.04));
+      if (!K) v = 1 / (1 + Math.exp(-(pot - potBar) / soft));
+      else {
+        let adv = 0;
+        try {
+          adv = Math.max(0, treeFx("advFlat"));
+        } catch (_) {}
+        vMax = Math.min(TU("verdictCapV179", 96), TU("verdictBaseV179", 80) + adv * TU("verdictPerOddsV179", 1)) / 100;
+        v = pot <= potBar ? 1 / (1 + Math.exp(-(pot - potBar) / soft)) : 0.5 + (vMax - 0.5) * (1 - Math.exp(-(pot - potBar) / (potBar * TU("verdictTauV179", 0.35))));
+        // the GM overrules on a close call, not a long shot: only within `secondLookFloorV179` of the bar
+        sl = pot >= potBar * TU("secondLookFloorV179", 0.8) ? Math.min(TU("secondLookCapV179", 50), TU("secondLookBaseV179", 10) + adv * TU("secondLookPerOddsV179", 1.5)) / 100 : 0;
+      }
+    }
+    const vt = v + (1 - v) * sl;
+    return { bar: Math.round(bar), ovr: Math.round(ovr), potBar: Math.round(potBar), pot: Math.round(pot), kO, kP: v, v, sl, vt, vMax, k: kO * vt };
+  }
+  /* ===== v179 K THE SCOUTS' VERDICT =====
+   * The owner: "diminishing returns for going above the potential bar, so there's still some nervousness in college and
+   * UFF declaration … influenced by prestige … maybe a second roll". A barred declare is the season roll, then the
+   * scouts' verdict (`scoutBarV179` → v: a coin flip at the bar, diminishing returns toward vMax over it), then the GM's
+   * second look on a close call (sl); the result is applied at once and `verdictRevealV179` plays the rolls. */
+  // every declare at a barred level is an attempt: the bar eases for the next one
+  const dfhBarV179 = declareFromHub;
+  declareFromHub = function () {
+    const e = state && state.player;
+    let B0 = null;
+    try {
+      B0 = e && scoutBarV179(e);
+      if (B0 && (B0.bar > 0 || B0.potBar > 0)) {
+        const T = state.scoutTriesV179 || (state.scoutTriesV179 = {});
+        T[e.level] = (T[e.level] | 0) + 1;
+      }
+    } catch (_) {}
+    /* v179 K: two rolls — the season, then the scouts' verdict (and the GM's second look) */
+    if (!e || !B0 || !(B0.potBar > 0) || !TU("v179K", 1)) return dfhBarV179.apply(this, arguments);
+    if (e.level === 7 && !istGateV179(e).ok) return dfhBarV179.apply(this, arguments);
+    if (e.seasonsAtLevel < minSeasons()) return dfhBarV179.apply(this, arguments);
+    const season = declareChanceV88(e, true),
+      total = declareChanceV88(e),
+      r1 = Math.random() * 100,
+      r2 = Math.random() * 100,
+      r3 = Math.random() * 100,
+      ok1 = r1 < season,
+      ok2 = ok1 && r2 < B0.v * 100,
+      ok3 = ok1 && !ok2 && r3 < B0.sl * 100,
+      win = ok1 && (ok2 || ok3),
+      lv = e.level;
+    e.seasonStats || (e.seasonStats = {});
+    e.seasonStats.chance = total;
+    V179K.last = { lv, season, v: B0.v * 100, sl: B0.sl * 100, total, ok1, ok2, ok3, win, pot: B0.pot, potBar: B0.potBar };
+    win ? advanceLevel() : failDeclareV77(e, total);
+    try {
+      verdictRevealV179(V179K.last);
+    } catch (_) {}
+  };
+  const V179K = { last: null };
+  function verdictRevealV179(R) {
+    if (!TU("verdictRevealV179", 1)) return;
+    document.getElementById("verdictV179")?.remove();
+    const to = R.lv === 5 ? "THE COMBINE" : R.lv === 6 ? "THE UFF" : "THE INTERSTELLAR LEAGUE",
+      pct = n => Math.round(n) + "%",
+      row = (i, label, ch, ok, sub) =>
+        `<div class="vr-row" style="--d:${0.35 + i * 1.05}s"><div class="vr-l"><b>${label}</b><small>${sub}</small></div><div class="vr-bar"><i style="--w:${Math.max(2, Math.min(100, ch))}%"></i></div><div class="vr-res ${ok ? "ok" : "no"}">${pct(ch)} · ${ok ? "✓" : "✗"}</div></div>`;
+    let rows = row(0, "THE SEASON", R.season, R.ok1, "your year and your national rank");
+    let n = 1;
+    if (R.ok1) {
+      rows += row(n++, "THE SCOUTS' VERDICT", R.v, R.ok2, `potential ${fmtBigV179(R.pot)} vs the bar ${fmtBigV179(R.potBar)}`);
+      if (!R.ok2 && R.sl > 0) rows += row(n++, "THE GM'S SECOND LOOK", R.sl, R.ok3, "the front office can overrule the scouts");
+    }
+    const end = 0.35 + n * 1.05 + 0.2;
+    const html = `<div id="verdictV179" onclick="this.remove()"><div class="vr-panel"><div class="vr-k">DECLARING FOR ${to}</div>${rows}<div class="vr-end ${R.win ? "ok" : "no"}" style="--d:${end}s">${R.win ? "🎉 YOU'RE IN" : "✋ NOT THIS YEAR"}</div><div class="vr-tap" style="--d:${end + 0.3}s">tap to continue</div></div></div>`;
+    if (!document.getElementById("verdictCssV179")) {
+      const st = document.createElement("style");
+      st.id = "verdictCssV179";
+      st.textContent = `#verdictV179{position:fixed;inset:0;z-index:99990;background:#06090f;display:flex;align-items:center;justify-content:center;padding:16px;cursor:pointer;animation:vrIn .25s ease-out}
+#verdictV179 .vr-panel{width:100%;max-width:420px}
+#verdictV179 .vr-k{font:700 13px Oswald,sans-serif;letter-spacing:3px;color:var(--gold);text-align:center;margin-bottom:16px}
+#verdictV179 .vr-row{display:grid;grid-template-columns:1fr;gap:6px;margin:0 0 16px;opacity:0;animation:vrIn .3s ease-out var(--d) forwards}
+#verdictV179 .vr-l b{display:block;font:700 16px Oswald,sans-serif;color:var(--chalk);letter-spacing:1px}
+#verdictV179 .vr-l small{font:500 12px 'Barlow Condensed',sans-serif;color:var(--chalk-dim)}
+#verdictV179 .vr-bar{height:14px;border-radius:7px;background:rgba(255,255,255,.08);overflow:hidden}
+#verdictV179 .vr-bar i{display:block;height:100%;width:0;background:linear-gradient(90deg,#5ab0ff,#f2c94c);animation:vrFill .7s cubic-bezier(.3,1,.4,1) calc(var(--d) + .1s) forwards}
+#verdictV179 .vr-res{font:700 18px Oswald,sans-serif;text-align:right;opacity:0;animation:vrIn .2s ease-out calc(var(--d) + .85s) forwards}
+#verdictV179 .vr-res.ok{color:#57e07a}#verdictV179 .vr-res.no{color:#ff6b6b}
+#verdictV179 .vr-end{font:700 30px Oswald,sans-serif;text-align:center;margin-top:8px;opacity:0;animation:vrPop .45s cubic-bezier(.3,1.6,.5,1) var(--d) forwards}
+#verdictV179 .vr-end.ok{color:#57e07a}#verdictV179 .vr-end.no{color:#ff6b6b}
+#verdictV179 .vr-tap{font:500 12px 'Barlow Condensed',sans-serif;color:var(--chalk-dim);text-align:center;margin-top:10px;opacity:0;animation:vrIn .3s ease-out var(--d) forwards}
+@keyframes vrIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+@keyframes vrFill{to{width:var(--w)}}
+@keyframes vrPop{0%{opacity:0;transform:scale(.6)}100%{opacity:1;transform:scale(1)}}`;
+      document.head.appendChild(st);
+    }
+    document.body.insertAdjacentHTML("beforeend", html);
+    const el = document.getElementById("verdictV179");
+    setTimeout(() => el && el.isConnected && el.remove(), (end + TU("verdictHoldSV179", 2.5)) * 1000);
+    try {
+      playSfx(R.win ? "big" : "bad");
+    } catch (_) {}
+  }
+  window.declareFromHub = declareFromHub;
+  /* ===== v179 I THE CEILING IS BUILT =====
+   * The growth ceiling paid 0.68 for EVERY tree level — a level of injury insurance or an eternal stack raised it as much
+   * as Genetics — so a careless tree climbed as fast as a sharp one. Now a level pays `ceilPerLevelV179` and the eternal
+   * stacks (`max` 999) pay `ceilEternalV179`; the ceiling nodes themselves (Freak, Prime Genes, Superhuman, ceilPlus) are
+   * worth `ceilNodeMultV179`×, so the build decides how high a player can grow. Kill switch TU "v179I" 0 (0.68 a level,
+   * eternals too, the ceiling nodes 1×). */
+  // the growth ceiling every attribute grows toward — the sum both growth paths used to spell out
+  function rawCeilingV179(w) {
+    if (w == null) w = Object.values(state.tree || {}).reduce((R, O) => R + O, 0);
+    return (
+      30 +
+      effectivePrestige(state.prestige) * 1.9 +
+      ceilLevelsV179(w) +
+      nodeLvl("freak") * 12 +
+      nodeLvl("superhuman") * 20 +
+      nodeLvl("primeGenes") * 9 +
+      treeFx("ceilPlus") +
+      chaosTotal() * 1.6 +
+      (pathVal("growthMult", 1) - 1) * 36 +
+      (state.path === "phenom" ? 30 : 0)
+    );
+  }
+  function ceilLevelsV179(w) {
+    if (!TU("v179", 1) || !TU("v179I", 1)) return w * 0.68;
+    let et = 0;
+    try {
+      for (const k in state.tree || {}) if (TREE_NODES[k] && TREE_NODES[k].max >= 999) et += state.tree[k] | 0;
+    } catch (_) {}
+    // the ceiling nodes count `ceilNodeMultV179`× (their own terms in the sum are the 1×; this adds the rest)
+    let nodes = 0;
+    try {
+      nodes = nodeLvl("freak") * 12 + nodeLvl("superhuman") * 20 + nodeLvl("primeGenes") * 9 + treeFx("ceilPlus");
+    } catch (_) {}
+    return (w - et) * TU("ceilPerLevelV179", 0.05) + et * TU("ceilEternalV179", 0) + nodes * (TU("ceilNodeMultV179", 3) - 1);
+  }
+  function istGateV179(e) {
+    const need = Math.round(TU("istEraV179", 0)) /* v179 J: the era gate is off — the scouts judge potential (scoutBarV179) */,
+      era = (state && state.era) | 0;
+    if (!TU("v179", 1) || era >= need) return { ok: true, need, era, say: "" };
+    return { ok: false, need, era, say: "The Interstellar League scouts only the legends of era " + need + " — you are in era " + era + ". Win UFF titles with chaos at era × 15 to climb." };
+  }
+  // the career-end cards: a raw number until it is big, then K / M / B … (a check reads "+N" off the card)
+  function bigOrRawV179(n) {
+    return TU("v179", 1) && Math.abs(n) >= 1e5 ? fmtBigV179(n) : n;
+  }
+  function fmtBigV179(n) {
+    n = Number(n) || 0;
+    const a = Math.abs(n);
+    if (a < 1e5) return Math.round(n).toLocaleString("en-US");
+    const U = ["K", "M", "B", "T", "Qa", "Qi", "Sx", "Sp", "Oc", "No", "Dc"];
+    let i = -1,
+      v = a;
+    while (v >= 1000 && i < U.length - 1) {
+      v /= 1000;
+      i++;
+    }
+    return (n < 0 ? "-" : "") + (Math.round(v * 100) / 100).toString() + U[i]; /* the v146 C style: 2.5M, 10M, 1.06B */
+  }
+  // the hub says what the scouts are waiting for
+  const decV179 = decorateScreen;
+  decorateScreen = function () {
+    decV179();
+    try {
+      const e = state && state.player,
+        d = byId("dock");
+      if (!e || !d || state.view !== "hub" || !TU("v179", 1) || d.querySelector(".gate-v179")) return;
+      const G = medalGateV179(e),
+        I = e.level === 7 && (e.nflRings || 0) >= 1 ? istGateV179(e) : null;
+      const B = scoutBarV179(e);
+      const verdict = B.potBar > 0 && B.pot >= B.potBar && TU("v179K", 1) && e.seasonsAtLevel >= minSeasons()
+        ? `🔭 Scouts' verdict <b>${Math.round(B.v * 100)}%</b> (potential ${fmtBigV179(B.pot)} vs ${fmtBigV179(B.potBar)}, tops out at ${Math.round(B.vMax * 100)}%)${B.sl > 0 ? ` · GM's second look <b>${Math.round(B.sl * 100)}%</b>` : ""} — on top of the season roll. Declare-odds nodes and medals raise both.`
+        : "";
+      const msg = verdict ? verdict : B.potBar > 0 && B.pot < B.potBar
+        ? `${e.level >= 7 ? "🛸 The Interstellar League judges" : "🔭 The scouts judge"} <b>POTENTIAL</b>: they want <b>${fmtBigV179(B.potBar)}</b>, your bloodline shows <b>${fmtBigV179(B.pot)}</b> — the declare odds are cut to ${Math.round(B.k * 100)}% of what your season earned. Potential is the growth ceiling the prestige tree gives every player: Freak, Prime Genes, Superhuman, the ceiling nodes, chaos and your Path raise it; a tree of everything else barely moves it.`
+        : B.bar > 0 && B.kO < 0.85
+        ? `🔭 The scouts' bar is <b>${B.bar} OVR</b> — you are <b>${B.ovr}</b>, so the declare odds are cut to ${Math.round(B.k * 100)}% of what your season earned. Starting attributes, growth and ceilings in the prestige tree (and the medal rewards) raise every future player.`
+        : G.short
+        ? `🎖️ Scouts want <b>${G.need}</b> Legacy medals before they call — you have <b>${G.medals}</b>. Every season and career earns them; better grades and higher levels earn more.`
+        : I && !I.ok
+          ? "🛸 " + I.say
+          : "";
+      msg && d.insertAdjacentHTML("afterbegin", `<div class="small center gate-v179" style="margin-bottom:8px;color:var(--gold)">${msg}</div>`);
+    } catch (_) {}
+  };
+
+  /* ===== v179 G THE MEDAL REWARDS =====
+   * The owner: "a mystery reward per 10 medals — prestige gained, skins, PP multipliers, permanent start boosts, roll
+   * odds — with context. Each smaller medal gives you a 2-choice option; larger medals grant the choice between 2 more
+   * unique permanent upgrades." Every Legacy medal earned from here on queues a choice (`state.medalRewardsV179.pending`,
+   * found lazily: `medalSyncV179` compares the medal count with the last one seen, so every source of medals counts and
+   * an old save is not handed its whole history at once). A medal deals two cards from `MEDAL_SMALL_V179` (seeded by the
+   * medal number and the account — no Math.random): PP now, +1% PP forever, +1 to a starting attribute, growth, declare
+   * odds, coach trust, an upgrade point a season, luckier card flips, an earned look. Every 10th medal is a MAJOR — two
+   * face-down cards from `MEDAL_MAJOR_V179`, unique permanent upgrades you can own once (+3 every starting attribute, +10%
+   * PP, a 4th flip card, …); when they run out the major deals the greater stacking ones. A choice is never forced: the
+   * hub, the season report, the career-end screen and the prestige tree carry a "🎁 N medal rewards" button
+   * (`medalChipV179`) that opens the chooser (`openMedalPickV179`). Every effect is a tree effect (`medalFxV179` inside
+   * `treeFx`), so the game's own readers apply it; the card names the stat, the size and where it shows up. Kill switch
+   * TU "v179G" 0. `window.__V179.medals`; `v179check`. */
+  const MEDAL_SMALL_V179 = [
+    { id: "pp", w: 26, rar: "common", icon: "💰", name: "Prestige windfall", ctx: "Prestige Points paid into your balance now — spend them in the tree." },
+    { id: "ppPct", w: 16, rar: "common", icon: "📈", name: "+1% Prestige Points", fx: { ppMult: 0.01 }, ctx: "Every PP you earn from now on, forever: career ends, titles, bounties." },
+    { id: "start", w: 22, rar: "common", icon: "🧬", name: "+1 starting ATTR", ctx: "Every future player is born with it — your next career starts ahead." },
+    { id: "trust", w: 10, rar: "common", icon: "🤝", name: "+2 starting coach trust", fx: { coachStart: 2 }, ctx: "Every new player starts with a little more of the coach's faith — more snaps early." },
+    { id: "growth", w: 8, rar: "uncommon", icon: "🌱", name: "+1% attribute growth", fx: { eGrowth: 0.05 }, ctx: "Every season's development is a little bigger, every career." },
+    { id: "odds", w: 8, rar: "uncommon", icon: "🎯", name: "+1% declare odds", fx: { advFlat: 1 }, ctx: "Every declare roll — to the next level, the draft, the UFF — is a point likelier." },
+    { id: "luck", w: 6, rar: "rare", icon: "🍀", name: "Luckier card flips", fx: { flipLuckV179: 0.1 }, ctx: "The post-game cards turn up rare, epic and legendary 10% more often." },
+    { id: "points", w: 4, rar: "rare", icon: "⭐", name: "+1 upgrade point a season", fx: { pointsFlat: 1 }, ctx: "One more skill point at the end of every season, every career." },
+    { id: "skin", w: 4, rar: "epic", icon: "🎨", name: "A new look", ctx: "An earned look from the Locker — yours to wear." }
+  ];
+  const MEDAL_MAJOR_V179 = [
+    { id: "silverSpoon", icon: "🥄", name: "Silver Spoon", fx: { startAll: 3 }, ctx: "+3 to EVERY starting attribute, every future career." },
+    { id: "fortune", icon: "🏦", name: "Fortune's Favourite", fx: { ppMult: 0.1 }, ctx: "+10% Prestige Points from every source, forever." },
+    { id: "scoutsEye", icon: "🔭", name: "The Scout's Eye", fx: { advFlat: 3 }, ctx: "+3% on every declare roll, forever." },
+    { id: "fourthCard", icon: "🃏", name: "The Extra Card", fx: { flipPicksV179: 1 }, ctx: "One more card pick after EVERY game (two simmed, three watched)." },
+    { id: "luckyDeck", icon: "🎲", name: "Loaded Deck", fx: { flipLuckV179: 1 }, ctx: "Rare, epic and legendary post-game cards turn up twice as often." },
+    { id: "prodigy", icon: "🌟", name: "Born for It", fx: { eGrowth: 0.25 }, ctx: "+5% to every season's attribute growth, every career." },
+    { id: "ironBody", icon: "🦴", name: "Iron Body", fx: { injDown: 0.08 }, ctx: "8% fewer injuries, every game, every career." },
+    { id: "pedigree", icon: "🏛️", name: "Program Pedigree", fx: { teamQual: 0.05 }, ctx: "Every team you join is a little better around you." },
+    { id: "headStart", icon: "🚀", name: "Head Start", fx: { startPointsV179: 10 }, ctx: "Every new player starts with 10 upgrade points to spend." },
+    { id: "paycheck", icon: "💵", name: "Golden Paycheck", fx: { payMultV179: 0.1 }, ctx: "+10% to every game's paycheck (the per-game upgrade points)." },
+    { id: "titleHunter", icon: "🏆", name: "Title Hunter", fx: { titleMult: 0.15 }, ctx: "+15% Prestige Points from every championship." },
+    { id: "ceiling", icon: "📐", name: "Higher Ceiling", fx: { ceilPlus: 3 }, ctx: "+3 to your potential ceiling — every attribute can grow further." },
+    { id: "clutch", icon: "🧊", name: "Clutch Gene", fx: { playoffPerf: 2 }, ctx: "+2 performance in every playoff game." },
+    { id: "secondLife", icon: "❤️‍🩹", name: "Second Life", fx: { cutLives: 1 }, ctx: "One more UFF cut forgiven before your career is over." },
+    { id: "favour", icon: "🫡", name: "Coach's Favourite", fx: { coachStart: 8 }, ctx: "+8 starting coach trust — the staff believes in you from day one." },
+    { id: "skinMajor", icon: "👑", name: "A legendary look", ctx: "A legendary or mythic look from the Locker." }
+  ];
+  const MEDAL_GREATER_V179 = [
+    { id: "gPP", icon: "🏦", name: "Greater Fortune", fx: { ppMult: 0.05 }, ctx: "+5% Prestige Points, forever (stacks)." },
+    { id: "gStart", icon: "🧬", name: "Greater Pedigree", fx: { startAll: 1 }, ctx: "+1 to every starting attribute (stacks)." },
+    { id: "gOdds", icon: "🔭", name: "Greater Scouting", fx: { advFlat: 1 }, ctx: "+1% on every declare roll (stacks)." },
+    { id: "gGrowth", icon: "🌱", name: "Greater Growth", fx: { eGrowth: 0.1 }, ctx: "+2% to every season's growth (stacks)." }
+  ];
+  const RAR_COL_V179 = { common: "#c8d0da", uncommon: "#6bbf59", rare: "#5ab0ff", epic: "#b07cff", legendary: "#f2c94c", mythic: "#ff7a7a" };
+  function medalStoreV179() {
+    if (!state) return null;
+    const M = state.medalRewardsV179 || (state.medalRewardsV179 = { seen: null, pending: [], fx: {}, owned: {}, log: [], seed: randInt(1, 2e9) });
+    M.pending || (M.pending = []);
+    M.fx || (M.fx = {});
+    M.owned || (M.owned = {});
+    M.log || (M.log = []);
+    return M;
+  }
+  function medalFxV179(k) {
+    if (!state || !state.medalRewardsV179 || !TU("v179G", 1)) return 0;
+    return Number(state.medalRewardsV179.fx[k]) || 0;
+  }
+  function medalCountV179() {
+    try {
+      return medalsV156A() | 0;
+    } catch (_) {
+      return 0;
+    }
+  }
+  function earnedLooksV179(minRar) {
+    try {
+      const C = window.RIB_COSMETICS;
+      if (!C || !C.catalog) return [];
+      const order = ["common", "rare", "epic", "legendary", "mythic"],
+        lo = order.indexOf(minRar || "common");
+      return (C.catalog() || []).filter(it => it && it.source === "earned" && !C.owned(it.id) && order.indexOf(it.rarity) >= lo);
+    } catch (_) {
+      return [];
+    }
+  }
+  function dealMedalV179(rank, M) {
+    const rng = seededRng("medalV179", M.seed, rank),
+      major = rank % 10 === 0,
+      pickW = (pool, n) => {
+        const out = [],
+          left = pool.slice();
+        while (out.length < n && left.length) {
+          const tot = left.reduce((a, c) => a + (c.w || 1), 0);
+          let r = rng() * tot,
+            k = 0;
+          for (; k < left.length - 1; k++) if ((r -= left[k].w || 1) <= 0) break;
+          out.push(left.splice(k, 1)[0]);
+        }
+        return out;
+      },
+      dress = c => {
+        const o = Object.assign({}, c, { fx: Object.assign({}, c.fx || {}) });
+        if (c.id === "pp") {
+          o.amt = Math.round((20 + rank * 6) * eraMult() * Math.max(1, Math.sqrt(chaosPPMult())));
+          o.name = "+" + fmtBigV179(o.amt) + " Prestige Points";
+        }
+        if (c.id === "start") {
+          const keys = ATTR_KEYS.filter(k => k !== "injuryResist"),
+            k = keys[Math.floor(rng() * keys.length)];
+          o.fx = { ["start_" + k]: 1 };
+          o.name = "+1 starting " + ((ATTR_INFO[k] && ATTR_INFO[k].name) || k);
+        }
+        if (c.id === "skin" || c.id === "skinMajor") {
+          const L = earnedLooksV179(c.id === "skinMajor" ? "legendary" : "rare");
+          if (!L.length) return null;
+          const it = L[Math.floor(rng() * L.length)];
+          o.look = it.id;
+          o.rar = it.rarity;
+          o.name = (c.id === "skinMajor" ? "👑 " : "") + it.name + " (" + it.cat + ")";
+        }
+        return o;
+      };
+    let opts;
+    if (major) {
+      const left = MEDAL_MAJOR_V179.filter(c => !M.owned[c.id]).map(c => Object.assign({ w: 1, rar: "legendary" }, c));
+      opts = pickW(left.length >= 2 ? left : left.concat(MEDAL_GREATER_V179.map(c => Object.assign({ w: 1, rar: "epic" }, c))), 2);
+    } else opts = pickW(MEDAL_SMALL_V179, 3);
+    opts = opts.map(dress).filter(Boolean).slice(0, 2);
+    while (opts.length < 2) opts.push(dress(MEDAL_SMALL_V179[0]));
+    return { rank, major, opts };
+  }
+  // new medals → pending choices (lazy: any medal source counts; an old save starts from where it is)
+  function medalSyncV179() {
+    if (!TU("v179G", 1) || !state) return 0;
+    const M = medalStoreV179(),
+      now = medalCountV179();
+    if (M.seen == null) M.seen = state.player || (state.careers || 0) > 0 ? now : Math.min(now, 1);
+    for (let r = M.seen + 1; r <= now; r++) M.pending.push(dealMedalV179(r, M));
+    M.seen = Math.max(M.seen, now);
+    return M.pending.length;
+  }
+  function claimMedalV179(i) {
+    const M = medalStoreV179(),
+      P = M && M.pending[0],
+      c = P && P.opts[i];
+    if (!c) return null;
+    for (const k in c.fx || {}) M.fx[k] = (Number(M.fx[k]) || 0) + c.fx[k];
+    if (c.amt) state.pp = (state.pp || 0) + c.amt;
+    if (c.look)
+      try {
+        window.RIB_COSMETICS.grant(c.look, "earned");
+      } catch (_) {}
+    if (P.major && MEDAL_MAJOR_V179.some(x => x.id === c.id)) M.owned[c.id] = true;
+    M.pending.shift();
+    M.log.push({ rank: P.rank, major: P.major, id: c.id, name: c.name });
+    M.log.length > 60 && M.log.splice(0, M.log.length - 60);
+    try {
+      syncCounters();
+      saveGame();
+    } catch (_) {}
+    return c;
+  }
+  // the simulator's (and a "pick for me") choice: the stronger card by a plain value table, or the weaker
+  function autoMedalV179(mode) {
+    const V = { silverSpoon: 9, scoutsEye: 9, prodigy: 8, ceiling: 8, headStart: 7, pedigree: 7, fortune: 6, paycheck: 6, clutch: 5, fourthCard: 5, secondLife: 5, ironBody: 4, titleHunter: 4, luckyDeck: 4, favour: 4, skinMajor: 1, gStart: 6, gOdds: 6, gGrowth: 5, gPP: 4, odds: 6, points: 6, start: 5, growth: 5, trust: 3, ppPct: 3, pp: 2, luck: 2, skin: 1 };
+    let n = 0;
+    medalSyncV179();
+    const M = medalStoreV179();
+    while (M && M.pending.length && n < 1000) {
+      const o = M.pending[0].opts,
+        a = V[o[0].id] || 0,
+        b = V[(o[1] || o[0]).id] || 0,
+        i = mode === "bad" ? (a <= b ? 0 : 1) : mode === "random" ? (seededRng("medalAuto", M.seed, M.pending[0].rank)() < 0.5 ? 0 : 1) : a >= b ? 0 : 1;
+      claimMedalV179(i);
+      n++;
+    }
+    return n;
+  }
+  function cssMedalV179() {
+    if (document.getElementById("medalCssV179")) return;
+    const s = document.createElement("style");
+    s.id = "medalCssV179";
+    s.textContent = `
+.medal-chip-v179{display:flex;align-items:center;gap:8px;width:100%;margin:0 0 10px;padding:10px 12px;border-radius:13px;border:1px solid var(--gold);background:linear-gradient(135deg,rgba(242,201,76,.22),rgba(13,18,28,.9));color:var(--chalk);font:700 14px Oswald,sans-serif;letter-spacing:.6px;cursor:pointer;animation:mcPulse 1.6s ease-in-out infinite}
+.medal-chip-v179 b{color:var(--gold)}
+@keyframes mcPulse{0%,100%{box-shadow:0 0 0 0 rgba(242,201,76,.0)}50%{box-shadow:0 0 18px 2px rgba(242,201,76,.45)}}
+#medalPickV179 .mp-cards{display:flex;gap:10px;margin-top:12px}
+#medalPickV179 .mp-card{flex:1;min-height:190px;perspective:800px;cursor:pointer}
+#medalPickV179 .mp-in{position:relative;width:100%;height:100%;min-height:190px;transition:transform .6s cubic-bezier(.3,1.5,.5,1);transform-style:preserve-3d}
+#medalPickV179 .mp-card.down .mp-in{transform:rotateY(180deg)}
+#medalPickV179 .mp-face,#medalPickV179 .mp-back{position:absolute;inset:0;border-radius:13px;backface-visibility:hidden;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:10px;border:2px solid var(--mc,#c8d0da);background:radial-gradient(circle at 50% 25%,color-mix(in srgb,var(--mc,#c8d0da) 26%,#0d121c),#0d121c 72%);box-shadow:0 0 18px -4px var(--mc,#c8d0da)}
+#medalPickV179 .mp-back{transform:rotateY(180deg);background:repeating-linear-gradient(45deg,#1b2433,#1b2433 7px,#222d3f 7px,#222d3f 14px);font:700 40px Oswald,sans-serif;color:var(--gold)}
+#medalPickV179 .mp-face i{font-style:normal;font-size:34px}
+#medalPickV179 .mp-face b{font:700 15px Oswald,sans-serif;margin-top:6px;color:var(--chalk)}
+#medalPickV179 .mp-face small{font:700 9px Oswald,sans-serif;letter-spacing:1.4px;color:var(--mc);margin-top:3px}
+#medalPickV179 .mp-face em{font-style:normal;font:500 12px 'Barlow Condensed',sans-serif;color:var(--chalk-dim);margin-top:6px;line-height:1.35}
+#medalPickV179 .mp-card:not(.down):hover .mp-in{transform:translateY(-4px)}
+`;
+    document.head.appendChild(s);
+  }
+  function medalChipV179() {
+    if (!TU("v179G", 1)) return "";
+    const n = medalSyncV179();
+    if (!n) return "";
+    const M = medalStoreV179(),
+      majors = M.pending.filter(p => p.major).length;
+    try {
+      cssMedalV179();
+    } catch (_) {}
+    return `<button class="medal-chip-v179" id="medalChipV179" onclick="window.__V179.medals.open()">🎁 <span><b>${n}</b> medal reward${n > 1 ? "s" : ""} to choose${majors ? ` · <b>${majors}</b> MYSTERY` : ""}</span><span style="margin-left:auto">OPEN ▸</span></button>`;
+  }
+  function openMedalPickV179() {
+    medalSyncV179();
+    const M = medalStoreV179(),
+      P = M && M.pending[0];
+    document.getElementById("medalPickV179")?.remove();
+    if (!P) return false;
+    try {
+      cssMedalV179();
+    } catch (_) {}
+    const card = (c, i) =>
+      `<div class="mp-card${P.major ? " down" : ""}" data-i="${i}" style="--mc:${RAR_COL_V179[c.rar] || "#c8d0da"}" onclick="window.__V179.medals.tap(${i})"><div class="mp-in"><div class="mp-face"><i>${c.icon}</i><b>${escHtml(c.name)}</b><small>${String(c.rar || "").toUpperCase()}${P.major ? " · PERMANENT" : ""}</small><em>${escHtml(c.ctx)}</em></div><div class="mp-back">?</div></div></div>`;
+    document.body.insertAdjacentHTML(
+      "beforeend",
+      `<div class="decision-overlay" id="medalPickV179"><div class="decision-panel" style="border-color:var(--gold)"><div class="decision-kicker">${P.era != null ? "NEW ERA · " + escHtml(P.eraName || "") : (P.major ? "MAJOR MEDAL · MYSTERY " : "LEGACY MEDAL ") + P.rank}</div><div class="decision-title">${P.major ? "🎁 Two sealed upgrades — tap to reveal, then choose one" : "Choose one"}</div><div class="small" style="color:var(--chalk-dim);margin-top:2px">${P.era != null ? "A new era pays a unique permanent upgrade — the same pool as the 10th-medal majors." : P.major ? "Every 10th medal: a unique permanent upgrade. The one you pass on can come back on a later major." : "Every medal pays one of two rewards. Permanent ones last every career from now on."}</div><div class="mp-cards">${P.opts.map(card).join("")}</div><div class="small center" style="margin-top:10px;color:var(--chalk-dim)">${M.pending.length > 1 ? M.pending.length - 1 + " more after this" : "the last one waiting"}</div><div class="btn-row" style="margin-top:10px"><button class="btn ghost" onclick="window.__V179.medals.close()">Later</button>${M.pending.length > 1 ? '<button class="btn ghost" onclick="window.__V179.medals.auto()">Pick the rest for me</button>' : ""}</div></div></div>`
+    );
+    return true;
+  }
+  function tapMedalV179(i) {
+    const el = document.querySelector("#medalPickV179 .mp-card.down");
+    if (el) {
+      // a major's first tap turns both cards over
+      document.querySelectorAll("#medalPickV179 .mp-card.down").forEach(x => x.classList.remove("down"));
+      try {
+        playSfx("big");
+        haptic([20, 30, 40]);
+      } catch (_) {}
+      return;
+    }
+    const c = claimMedalV179(i);
+    if (!c) return;
+    try {
+      playSfx("good");
+      showToast(c.icon + " " + c.name);
+    } catch (_) {}
+    const M = medalStoreV179();
+    M.pending.length ? openMedalPickV179() : (document.getElementById("medalPickV179")?.remove(), render());
+  }
+  const decMedalV179 = decorateScreen;
+  decorateScreen = function () {
+    decMedalV179();
+    try {
+      if (!TU("v179G", 1) || !state || !["hub", "result", "gameover", "win", "shop"].includes(state.view)) return;
+      const t = byId("screen");
+      if (!t || t.querySelector("#medalChipV179")) return;
+      const h = medalChipV179();
+      h && t.insertAdjacentHTML("afterbegin", h);
+    } catch (_) {}
+  };
+  // every new era deals a mystery major too (a reward at every era, not just a bigger multiplier)
+  const eraMedalV179 = tryNextEra;
+  tryNextEra = function () {
+    const up = eraMedalV179.apply(this, arguments);
+    try {
+      if (up && TU("v179G", 1) && TU("eraRewardV179", 1)) {
+        const M = medalStoreV179(),
+          P = dealMedalV179(100000 + (state.era || 0) * 10, M);
+        P.era = state.era || 0;
+        P.eraName = eraName();
+        M.pending.unshift(P);
+      }
+    } catch (_) {}
+    return up;
+  };
+  // a new player carries the Head Start points
+  const npMedalV179 = newPlayer;
+  newPlayer = function () {
+    const p = npMedalV179.apply(this, arguments);
+    try {
+      const n = Math.round(medalFxV179("startPointsV179"));
+      n > 0 && p && (p.points = (p.points || 0) + n);
+    } catch (_) {}
+    return p;
+  };
+  /* the headless career simulator (scripts/careersim.mjs --fast) skips drawing the display-only screens it passes
+   * through every week: `window.__RIB_SIM_FAST` is set by the simulator only, so this is a no-op in the game. */
+  const renderSimV179 = render;
+  render = function () {
+    if (window.__RIB_SIM_FAST && state && /^(season|upgrade|shop|stats|profile|challenges)$/.test(state.view)) return; // display-only screens; the rest still draw (some set state up)
+    return renderSimV179.apply(this, arguments);
+  };
+  window.__chaosMaxV179 = () => chaosMaxAllNowV150();
+  window.__chaosTotalV179 = () => chaosTotal();
+  window.__istGateV179 = e => istGateV179(e || (state && state.player));
+  window.__V179 = { bar: e => scoutBarV179(e || (state && state.player)), potential: potentialV179, verdict: () => V179K.last, gate: istGateV179, medalGate: e => medalGateV179(e || (state && state.player)), fmt: fmtBigV179, price: branchPriceV179, medals: { sync: medalSyncV179, open: openMedalPickV179, tap: tapMedalV179, claim: claimMedalV179, auto: m => (autoMedalV179(typeof m === 'string' ? m : 'good'), document.getElementById('medalPickV179')?.remove(), render()), autoQuiet: autoMedalV179, close: () => document.getElementById('medalPickV179')?.remove(), newPlayer: () => newPlayer(), eraUp: () => tryNextEra(), store: medalStoreV179, fx: medalFxV179, deal: dealMedalV179 } };
 })();

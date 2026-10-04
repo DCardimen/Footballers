@@ -52,7 +52,8 @@ ok(await page.evaluate(() => !window.__GRIDIRON_AUDIT__.TREE_NODES.evergreen), '
 const nodes = await page.evaluate(() => {
   const A = window.__GRIDIRON_AUDIT__
   return ['secondWind', 'earlyDeclare', 'apexOutput', 'apexCeiling', 'goldenAge', 'inevitable']
-    .map(k => { const n = A.TREE_NODES[k]; return n ? { k, cost: A.nodeCost(n), max: n.max } : { k, missing: true } })
+    // v179 prices the Apex branch ×apexPriceV179 (10): the base prices are what this check pins
+    .map(k => { const n = A.TREE_NODES[k], x = (window.__V179 && window.__V179.price('apex')) || 1; return n ? { k, cost: Math.round(A.nodeCost(n) / x), max: n.max } : { k, missing: true } })
 })
 console.log('nodes:', JSON.stringify(nodes))
 ok(nodes.every(n => !n.missing), 'every endgame node is on the tree', nodes.map(n => n.k).join(' · '))
