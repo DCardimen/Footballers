@@ -14603,7 +14603,7 @@
   window.__V88 = {
     curve: rankCurveV88,
     rankChance: e => rankChanceV88(e || state.player),
-    declareChance: e => declareChanceV88(e || state.player),
+    declareChance: (e, seasonOnly) => declareChanceV88(e || state.player, seasonOnly),
     ADV: ADV_V88
   };
   function declareFromHub() {
@@ -37558,11 +37558,11 @@
     } catch (_) {}
     return p;
   };
-  /* the headless career simulator (scripts/careersim.mjs --fast) skips drawing: `window.__RIB_SIM_FAST` set by the
-   * simulator only — a player's page never sets it, so this is a no-op in the game. */
+  /* the headless career simulator (scripts/careersim.mjs --fast) skips drawing the display-only screens it passes
+   * through every week: `window.__RIB_SIM_FAST` is set by the simulator only, so this is a no-op in the game. */
   const renderSimV179 = render;
   render = function () {
-    if (window.__RIB_SIM_FAST && !(state && /^(gameover|win|life|result|menu)$/.test(state.view))) return; // the career-end screens settle the career
+    if (window.__RIB_SIM_FAST && state && /^(season|upgrade|shop|stats|profile|challenges)$/.test(state.view)) return; // display-only screens; the rest still draw (some set state up)
     return renderSimV179.apply(this, arguments);
   };
   window.__chaosMaxV179 = () => chaosMaxAllNowV150();

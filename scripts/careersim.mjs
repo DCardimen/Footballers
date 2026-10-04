@@ -179,13 +179,15 @@ function installDriver () {
         if (until === 'interstellar' && lv === 7 && (p.nflRings || 0) >= 1 && p.seasonsAtLevel >= A.minSeasonsRequired()) {
           let ch = 0, ok = true
           try { ok = !window.__istGateV179 || window.__istGateV179(p).ok; ch = ok ? window.__V88.declareChance(p) : 0 } catch (e) {}
-          if (ok && ch >= (casual ? 30 : declareAt)) { rec.declares = (rec.declares || []).concat([lv + ':' + Math.round(ch) + '@' + Math.round(A.playerOVR(p)) + '/' + Math.round((window.__V179 && window.__V179.potential) ? window.__V179.potential() : 0)]); window.declareFromHub(); await sleep(10); continue }
+          if (ok && ch >= (casual ? 30 : declareAt)) { rec.declares = (rec.declares || []).concat([lv + ':' + Math.round(ch) + '@' + Math.round(A.playerOVR(p)) + '/' + Math.round((window.__V179 && window.__V179.potential) ? window.__V179.potential() : 0) + '/' + Math.round(window.__V88.declareChance(p, true))]); window.declareFromHub(); await sleep(10); continue }
         }
         if (!nfl) {
           const min = A.minSeasonsRequired(), max = A.maxSeasonsAllowed(), left = max - p.seasonsAtLevel
           if (p.seasonsAtLevel >= min) {
             const ch = window.__V88.declareChance(p)
-            if (left <= 0 || ch >= (casual ? Math.min(declareAt, 35) : declareAt) || lv === 6) { rec.declares = (rec.declares || []).concat([lv + ':' + Math.round(ch) + '@' + Math.round(A.playerOVR(p)) + '/' + Math.round((window.__V179 && window.__V179.potential) ? window.__V179.potential() : 0)]); window.declareFromHub(); await sleep(10); continue }
+            // v179 curve mode: log the Combine declare and end the career there (the account keeps cycling; odds replayed offline)
+            if (until === 'combine' && lv === 6) { rec.declares = (rec.declares || []).concat([lv + ':' + Math.round(ch) + '@' + Math.round(A.playerOVR(p)) + '/' + Math.round(window.__V179.potential()) + '/' + Math.round(window.__V88.declareChance(p, true))]); rec.end = 'combine'; p.retirementPending = true; window.endCareer(); await sleep(10); break }
+            if (left <= 0 || ch >= (casual ? Math.min(declareAt, 35) : declareAt) || lv === 6) { rec.declares = (rec.declares || []).concat([lv + ':' + Math.round(ch) + '@' + Math.round(A.playerOVR(p)) + '/' + Math.round((window.__V179 && window.__V179.potential) ? window.__V179.potential() : 0) + '/' + Math.round(window.__V88.declareChance(p, true))]); window.declareFromHub(); await sleep(10); continue }
           }
         }
         window.startSeason(); await sleep(10); continue
