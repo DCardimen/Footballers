@@ -10,6 +10,19 @@ Names in older entries are the career app's pre-v149 C minified names (`q`, `ms`
 `index.html` + `src/` (`docs/LAYOUT.md`).
 
 <!-- new entries go here, newest first -->
+- **v179 J / K — the Interstellar League judges potential; the scouts' verdict.** (`src/07-career-app.js`,
+  `scripts/careersim.mjs`, `scripts/careerreplay.mjs`.) The owner: "diminishing returns for going above the potential bar,
+  so there's still some nervousness in college and UFF declaration … influenced by prestige … maybe a second roll". **K**
+  — a declare at College (a bar of 90), the Combine (150) and the Interstellar Call is TWO rolls: the season (the odds the
+  year earned), then the scouts' verdict — a coin flip at the potential bar, diminishing returns over it toward a ceiling
+  of 80% that declare-odds prestige raises (+1 a point, to 96%) — and on a close call (potential ≥ 80% of the bar) the
+  GM's second look (10% + 1.5 a declare-odds point, to 50%). The hub shows the verdict before you declare; a full-screen
+  reveal plays the rolls (`verdictRevealV179`). **J** — the Interstellar Call no longer waits on an era (chaos at era 6 put
+  +125 on every opponent; maxing chaos got a 160-OVR player waived in his first UFF season): it judges potential, uncapped
+  (`istPotV179` 1,600 — every finite ceiling node, the 1B-PP Ceiling Lift included, then chaos or the eternal ceiling
+  stack). Pacing, replayed offline (`careerreplay.mjs`, 20,000 accounts over measured careers, 7 min a season): first UFF
+  — balanced expert 84 seasons ≈ 9.8 h, casual 114 ≈ 13 h, cheapest-first 154 ≈ 18 h, careless ≈ 400+ ≈ 47 h. The
+  Interstellar bar is reasoned, not yet measured to its ~200 h (a 1,700-season run). Kill switches `v179K` / `istPotV179` 0.
 - **v179 A–I — the long road (prestige pacing).** (`src/07-career-app.js`, `scripts/careersim.mjs`.) The owner: "a genuine
   prestige balancing patch … ~7 minutes a season … good prestige decisions 30% faster, bad ones 3 to 4× longer … prestige
   and chaos gains in the millions / billions"; then "a mystery reward per 10 medals"; then "major differences based on

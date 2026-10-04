@@ -37080,7 +37080,7 @@
           : lv === 6
             ? TU("scoutPotUffV179", 150)
             : lv === 7
-              ? TU("istPotV179", 2000)
+              ? TU("istPotV179", 1600)
               : 0; /* v179 J: the Interstellar Call too; v179 K: College → Combine */
     if (!base && !potBase) return { bar: 0, ovr: 0, k: 1, potBar: 0, pot: 0, v: 1, sl: 0, vt: 1 };
     let ovr = 0;
