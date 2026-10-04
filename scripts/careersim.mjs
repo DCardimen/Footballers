@@ -34,7 +34,7 @@ const OUT = arg('out', 'docs/CAREERSIM.md'), CAREER_MS = +arg('careerMs', 240000
 // random affordable nodes, an early declare) and HOW FAR (--until ring = the first UFF title, as before; uff = the first
 // arrival in the UFF; interstellar = UFF careers ground on — chaos maxed whenever it is unlocked (smart) — until the
 // Interstellar Call is answered). Every run reports the SEASONS to each milestone, and hours at --seasonMin (7) a season.
-const FAST = arg('fast', '0') !== '0', CHAOS = arg('chaos', '1') !== '0', POLICY = arg('policy', 'smart'), UNTIL = arg('until', 'ring'), SEASON_MIN = +arg('seasonMin', 7), TUNE = JSON.parse(arg('tune', '{}'))
+const POT_TARGET = +arg('potTarget', 150), FAST = arg('fast', '0') !== '0', CHAOS = arg('chaos', '1') !== '0', POLICY = arg('policy', 'smart'), UNTIL = arg('until', 'ring'), SEASON_MIN = +arg('seasonMin', 7), TUNE = JSON.parse(arg('tune', '{}'))
 const url = gameUrl('index.html')
 const U = (...q) => url + (url.includes('?') ? '&' : '?') + ['stayStale', 'noFilmV114', 'noGrowV132'].concat(q).join('&')
 
@@ -90,7 +90,7 @@ function installDriver () {
       // (nothing else is bought below the next ceiling node's price)
       // …until the bloodline clears the scouts' potential bar with room (the hub says what they want); then the cheapest, as smart
       let potOk = false
-      try { const B = window.__V179.bar(Object.assign({}, S().player || {}, { level: 6 })); potOk = !B.potBar || window.__V179.potential() >= B.potBar + 15 } catch (e) {}
+      try { const B = window.__V179.bar(Object.assign({}, S().player || {}, { level: 6 })); potOk = window.__V179.potential() >= (B.potBar || CS.potTarget || 150) + 15 } catch (e) {} // curve mode turns the bars off: aim at the shipped one
       if (CS.policy === 'expert' && !potOk) {
         const CEIL = /^(freak|primeGenes|superhuman|juggernaut|iron_sched|evolution|etCeiling|apexCeiling|ceilLift)$/
         const all = Object.values(A.TREE_NODES).filter((n) => A.nodeLvl(n.key) < n.max && A.nodeUnlocked(n) && CEIL.test(n.key)).sort((a, b) => A.nodeCost(a) - A.nodeCost(b))
@@ -268,7 +268,7 @@ function installDriver () {
 const runs = []
 async function playRun (page, runNo) {
   const out = { run: runNo, careers: [], title: false }
-  await page.evaluate((pol) => { window.__CS.freshAccount(); window.__CS.policy = pol; window.__CS.casual = pol === 'casual' }, POLICY)
+  await page.evaluate(([pol, pt]) => { window.__CS.freshAccount(); window.__CS.policy = pol; window.__CS.casual = pol === 'casual'; window.__CS.potTarget = pt }, [POLICY, POT_TARGET])
   for (let c = 1; c <= MAX_CAREERS; c++) {
     const spend = await page.evaluate(() => window.__CS.spendPP())
     let rec
