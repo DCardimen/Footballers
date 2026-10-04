@@ -37071,8 +37071,8 @@
   function scoutBarV179(e) {
     const lv = e ? e.level | 0 : 0,
       on = TU("v179", 1) && TU("v179H", 1),
-      base = !on ? 0 : lv === 5 ? TU("scoutBarCombineV179", 0) : lv === 6 ? TU("scoutBarUffV179", 140) : 0,
-      potBase = !on ? 0 : lv === 6 ? TU("scoutPotUffV179", 0) : 0;
+      base = !on ? 0 : lv === 5 ? TU("scoutBarCombineV179", 0) : lv === 6 ? TU("scoutBarUffV179", 0) : 0,
+      potBase = !on ? 0 : lv === 6 ? TU("scoutPotUffV179", 150) : 0;
     if (!base && !potBase) return { bar: 0, ovr: 0, k: 1, potBar: 0, pot: 0 };
     let ovr = 0;
     try {
@@ -37082,7 +37082,7 @@
       tries = ((state && state.scoutTriesV179) || {})[lv] | 0,
       ease = tries * TU("scoutBarDecayV179", 0.5),
       bar = base ? Math.max(0, base - ease) : 0,
-      potBar = potBase ? Math.max(0, potBase - ease * TU("scoutPotDecayMultV179", 2)) : 0,
+      potBar = potBase ? Math.max(0, potBase - ease * TU("scoutPotDecayMultV179", 0.5)) : 0,
       kO = bar ? 1 / (1 + Math.exp(-(ovr - bar) / Math.max(0.5, TU("scoutBarSoftV179", 4)))) : 1,
       kP = potBar ? 1 / (1 + Math.exp(-(pot - potBar) / Math.max(0.5, TU("scoutPotSoftV179", 6)))) : 1;
     return { bar: Math.round(bar), ovr: Math.round(ovr), potBar: Math.round(potBar), pot: Math.round(pot), kO, kP, k: kO * kP };
@@ -37134,7 +37134,7 @@
     try {
       nodes = nodeLvl("freak") * 12 + nodeLvl("superhuman") * 20 + nodeLvl("primeGenes") * 9 + treeFx("ceilPlus");
     } catch (_) {}
-    return (w - et) * TU("ceilPerLevelV179", 0.2) + et * TU("ceilEternalV179", 0.1) + nodes * (TU("ceilNodeMultV179", 1) - 1);
+    return (w - et) * TU("ceilPerLevelV179", 0.05) + et * TU("ceilEternalV179", 0) + nodes * (TU("ceilNodeMultV179", 3) - 1);
   }
   function istGateV179(e) {
     const need = Math.round(TU("istEraV179", 6)),

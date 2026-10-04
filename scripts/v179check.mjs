@@ -10,6 +10,9 @@
 //      points reach a new player, an old save is not handed its whole history, the hub carries the 🎁 chip; v179G 0 = none
 //   E: the scouts' bar (TU v179H): at the Combine, an OVR well under `scoutBarUffV179` cuts the declare odds to single
 //      digits and the hub names the bar; over it the odds are the game's own; every attempt eases it by `scoutBarDecayV179`
+//   F: the scouts judge POTENTIAL (`scoutPotUffV179`): the growth ceiling the tree gives (`rawCeilingV179`) — a bloodline
+//      far under the bar is single digits at the Combine and the hub explains what raises it; the ceiling nodes count
+//      `ceilNodeMultV179`×, a plain level only `ceilPerLevelV179`
 //   TU v179 0: no medal cap, the old Interstellar Call
 // No page errors.  GAME_URL=http://localhost:5173/ node scripts/v179check.mjs
 import { gameUrl, launch } from './lib/env.mjs'
@@ -31,6 +34,7 @@ await page.waitForFunction(() => !!window.__GRIDIRON_AUDIT__ && !!window.__V179 
 await page.waitForFunction(() => { const sp = document.getElementById('splash'); return !sp || sp.classList.contains('gone') }, null, { timeout: 30000 }).catch(() => null)
 await page.evaluate(() => document.getElementById('splash')?.remove())
 const M = (fn, arg) => page.evaluate(fn, arg)
+await M(() => { window.RIB_TUNE = Object.assign(window.RIB_TUNE || {}, { scoutPotUffV179: 0 }) })
 
 // A: the medal gate on the Combine → UFF climb
 const A = await M(async () => {
@@ -163,6 +167,27 @@ ok(E.under < 10 && E.free > 50, 'well under the scouts\' bar the Combine declare
 ok(/scouts' bar/.test(E.note) && E.note.includes(String(E.bar)), 'the hub names the bar', E.note)
 ok(E.eased === E.bar - 10, 'every attempt eases the bar', { bar: E.bar, after5: E.eased })
 ok(E.over > 50 && E.off > 50, 'over the bar (or TU v179H 0) the odds are the game\'s own', { over: E.over, off: E.off })
+
+// F: potential
+const F = await M(async () => {
+  delete window.RIB_TUNE.scoutPotUffV179
+  const AU = window.__GRIDIRON_AUDIT__, S = AU.freshState(); S.tutorialSeen = true; AU.setState(S)
+  S.player = AU.newPlayer(); const p = S.player; p.pos = 'QB'; p.level = 6; p._wonShown = true; p.seasonsAtLevel = 1
+  for (const k in p.attrs) p.attrs[k] = 300
+  const pot0 = window.__V179.potential(), B = window.__V179.bar(p), low = window.__V88.declareChance(p)
+  window.go('hub'); await new Promise((r) => setTimeout(r, 300))
+  const note = (document.querySelector('#dock .gate-v179') || {}).textContent || ''
+  S.tree = Object.assign({}, S.tree, { etFortune: 40 }); const potEt = window.__V179.potential()
+  S.tree = { freak: 2 }; const potFreak = window.__V179.potential()
+  S.tree = {}; window.RIB_TUNE.scoutPotUffV179 = Math.round(pot0) - 40; const high = window.__V88.declareChance(p)
+  delete window.RIB_TUNE.scoutPotUffV179
+  return { pot0, potBar: B.potBar, low, note, potEt, potFreak, high }
+})
+console.log('F:', JSON.stringify(F))
+ok(F.potBar > F.pot0 + 30 && F.low < 10, 'a fresh bloodline far under the scouts\' potential bar is single digits at the Combine', F)
+ok(/POTENTIAL/.test(F.note) && /Freak/.test(F.note), 'the hub says the scouts judge potential and what raises it', F.note)
+ok(F.potEt - F.pot0 < 2 && F.potFreak - F.pot0 >= 70, 'forty levels of an eternal stack barely move potential; two levels of Freak move it by 72', { base: F.pot0, eternal40: F.potEt, freak2: F.potFreak })
+ok(F.high > 50, 'over the potential bar the odds are the game\'s own', F.high)
 
 console.log(JSON.stringify({ pass, fail, pageErrors: errors.length }))
 if (errors.length) console.log('page errors:', errors.slice(0, 6))
