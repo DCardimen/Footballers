@@ -36885,6 +36885,11 @@
       if (!e || !e.pos || state.view !== "season") return;
       if (document.querySelector(".decision-overlay,.life-event-overlay-v12,#growthV42,#pregameV1513")) return;
       if (!((e.points || 0) > 0)) return momentsV178();
+      // the coach's first-week walk ends on the season screen (its RECOVERY stop): let him finish before the flow takes over
+      try {
+        const C = window.__RIB_COACH;
+        if (C && C.enabled && !C.seen.includes("recovery")) return;
+      } catch (_) {}
       V178.flow = { at: Date.now() };
       window.go("upgrade");
     }, 40);
@@ -37113,14 +37118,20 @@
    * The growth ceiling paid 0.68 for EVERY tree level — a level of injury insurance or an eternal stack raised it as much
    * as Genetics — so a careless tree climbed as fast as a sharp one. Now a level pays `ceilPerLevelV179` and the eternal
    * stacks (`max` 999) pay `ceilEternalV179`; the ceiling nodes themselves (Freak, Prime Genes, Superhuman, ceilPlus) are
-   * untouched, so the build decides how high a player can grow. Kill switch TU "v179I" 0 (0.68 a level, eternals too). */
+   * worth `ceilNodeMultV179`×, so the build decides how high a player can grow. Kill switch TU "v179I" 0 (0.68 a level,
+   * eternals too, the ceiling nodes 1×). */
   function ceilLevelsV179(w) {
     if (!TU("v179", 1) || !TU("v179I", 1)) return w * 0.68;
     let et = 0;
     try {
       for (const k in state.tree || {}) if (TREE_NODES[k] && TREE_NODES[k].max >= 999) et += state.tree[k] | 0;
     } catch (_) {}
-    return (w - et) * TU("ceilPerLevelV179", 0.2) + et * TU("ceilEternalV179", 0.1);
+    // the ceiling nodes count `ceilNodeMultV179`× (their own terms in the sum are the 1×; this adds the rest)
+    let nodes = 0;
+    try {
+      nodes = nodeLvl("freak") * 12 + nodeLvl("superhuman") * 20 + nodeLvl("primeGenes") * 9 + treeFx("ceilPlus");
+    } catch (_) {}
+    return (w - et) * TU("ceilPerLevelV179", 0.2) + et * TU("ceilEternalV179", 0.1) + nodes * (TU("ceilNodeMultV179", 1) - 1);
   }
   function istGateV179(e) {
     const need = Math.round(TU("istEraV179", 6)),
