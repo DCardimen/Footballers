@@ -38,7 +38,7 @@ const A = await M(async () => {
   S.player = AU.newPlayer(); const p = S.player; p.pos = 'QB'; p.level = 6; p._wonShown = true; p.seasonsAtLevel = 1
   for (const k in p.attrs) p.attrs[k] = 300
   const G = window.__V179.medalGate(p)
-  window.RIB_TUNE = Object.assign(window.RIB_TUNE || {}, { gateUffV179: 999999 })
+  window.RIB_TUNE = Object.assign(window.RIB_TUNE || {}, { gateUffV179: 999999, scoutBarUffV179: 0 })
   const short = window.__V88.declareChance(p), Gs = window.__V179.medalGate(p)
   window.go('hub'); await new Promise((r) => setTimeout(r, 300))
   const note = (document.querySelector('#dock .gate-v179') || {}).textContent || ''
@@ -46,7 +46,7 @@ const A = await M(async () => {
   const open = window.__V88.declareChance(p)
   window.RIB_TUNE.v179 = 0; window.RIB_TUNE.gateUffV179 = 999999
   const off = window.__V88.declareChance(p)
-  delete window.RIB_TUNE.v179; delete window.RIB_TUNE.gateUffV179
+  delete window.RIB_TUNE.v179; delete window.RIB_TUNE.gateUffV179; delete window.RIB_TUNE.scoutBarUffV179
   const col = (() => { p.level = 5; const g = window.__V179.medalGate(p); p.level = 6; return g })()
   return { need: G.need, colNeed: col.need, short, open, off, gs: Gs, note }
 })
