@@ -87,7 +87,10 @@ function installDriver () {
       const POWER = /^(genetics|fastTwitch|frame|iron|nimble|lungs|motor|explosive|freak|primeGenes|superhuman|springs|anchor|engine|juggernaut|evolution|talent|coachable|filmrat|clutch|handsy|cannon|wrap|quickstudy|vet|prodigy|genius|mastermind|zen|silverTongue|visionary|bigStage|recruited|goodProgram|gym|headstart|spotlight|combineKing|phenom|unstoppable|boosters|iron_sched|dynastyTeam|camp[A-Z].*|privateCoach|allStarCamp|megaCamp|proDay|etGrowth|etCeiling|etForm|trashTalk|legendAura|primetime|perfectFrame|idealBody)$/
       // v179 expert: potential first — the ceiling nodes are bought the moment they are affordable and SAVED for when not
       // (nothing else is bought below the next ceiling node's price)
-      if (CS.policy === 'expert') {
+      // …until the bloodline clears the scouts' potential bar with room (the hub says what they want); then the cheapest, as smart
+      let potOk = false
+      try { const B = window.__V179.bar(Object.assign({}, S().player || {}, { level: 6 })); potOk = !B.potBar || window.__V179.potential() >= B.potBar + 15 } catch (e) {}
+      if (CS.policy === 'expert' && !potOk) {
         const CEIL = /^(freak|primeGenes|superhuman|juggernaut|iron_sched|evolution|etCeiling|apexCeiling|ceilLift)$/
         const all = Object.values(A.TREE_NODES).filter((n) => A.nodeLvl(n.key) < n.max && A.nodeUnlocked(n) && CEIL.test(n.key)).sort((a, b) => A.nodeCost(a) - A.nodeCost(b))
         const want = all[0]
