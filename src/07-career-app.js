@@ -14608,8 +14608,10 @@
         e.lastSeasonLine.pos === e.pos;
     const base = fresh ? s.chance : advanceChance(playerOvr(e), e.level);
     const ch = Math.max(Math.min(TU("declareCeilV139", 99), base + (e.declareBonus || 0)), rankChanceV88(e));
-    const G = medalGateV179(e);
-    return G.short ? Math.min(ch, TU("gateCapV179", 2)) : ch; /* v179 A: the scouts wait on the Legacy medals */
+    const G = medalGateV179(e),
+      B = scoutBarV179(e);
+    const ch2 = B.bar > 0 ? Math.max(0.3, ch * B.k) : ch; /* v179 H: the scouts' OVR bar — a soft gate the build decides */
+    return G.short ? Math.min(ch2, TU("gateCapV179", 2)) : ch2; /* v179 A: the scouts wait on the Legacy medals */
   } /* v139: a stellar season tops out at 99, not 97 */
   window.__V88 = {
     curve: rankCurveV88,
@@ -37072,6 +37074,41 @@
     } catch (_) {}
     return { need, medals: m, short: need > 0 && m < need };
   }
+  /* ===== v179 H THE SCOUTS' BAR =====
+   * Measured: with every declare roll near 98% (the national-rank floor), the first UFF came at 60-72 seasons whatever
+   * the prestige tree held. The College → Combine and Combine → UFF declares now ask for an OVR (`scoutBarCombineV179`,
+   * `scoutBarUffV179`): the odds are scaled by a logistic of (OVR − bar) / `scoutBarSoftV179`, so a player at the bar is a
+   * coin flip and well under it is single digits. It is a soft wall the BUILD climbs — starting attributes, growth and
+   * ceilings from the tree and the medal rewards — so good prestige choices clear it careers sooner than bad ones. The
+   * bar falls with the careers already played at that level (`scoutBarDecayV179` an attempt), so a stuck account still
+   * gets there. The hub names the bar. Kill switch TU "v179H" 0. `window.__V179.bar`; `v179check`. */
+  function scoutBarV179(e) {
+    const lv = e ? e.level | 0 : 0,
+      on = TU("v179", 1) && TU("v179H", 1),
+      base = !on ? 0 : lv === 5 ? TU("scoutBarCombineV179", 0) : lv === 6 ? TU("scoutBarUffV179", 0) : 0;
+    if (!base) return { bar: 0, ovr: 0, k: 1 };
+    let ovr = 0;
+    try {
+      ovr = playerOvr(e);
+    } catch (_) {}
+    const tries = ((state && state.scoutTriesV179) || {})[lv] | 0,
+      bar = Math.max(0, base - tries * TU("scoutBarDecayV179", 0)),
+      k = 1 / (1 + Math.exp(-(ovr - bar) / Math.max(0.5, TU("scoutBarSoftV179", 4))));
+    return { bar: Math.round(bar), ovr: Math.round(ovr), k };
+  }
+  // every declare at a barred level is an attempt: the bar eases for the next one
+  const dfhBarV179 = declareFromHub;
+  declareFromHub = function () {
+    try {
+      const e = state && state.player;
+      if (e && scoutBarV179(e).bar > 0) {
+        const T = state.scoutTriesV179 || (state.scoutTriesV179 = {});
+        T[e.level] = (T[e.level] | 0) + 1;
+      }
+    } catch (_) {}
+    return dfhBarV179.apply(this, arguments);
+  };
+  window.declareFromHub = declareFromHub;
   function istGateV179(e) {
     const need = Math.round(TU("istEraV179", 6)),
       era = (state && state.era) | 0;
@@ -37105,7 +37142,10 @@
       if (!e || !d || state.view !== "hub" || !TU("v179", 1) || d.querySelector(".gate-v179")) return;
       const G = medalGateV179(e),
         I = e.level === 7 && (e.nflRings || 0) >= 1 ? istGateV179(e) : null;
-      const msg = G.short
+      const B = scoutBarV179(e);
+      const msg = B.bar > 0 && B.k < 0.85
+        ? `🔭 The scouts' bar is <b>${B.bar} OVR</b> — you are <b>${B.ovr}</b>, so the declare odds are cut to ${Math.round(B.k * 100)}% of what your season earned. Starting attributes, growth and ceilings in the prestige tree (and the medal rewards) raise every future player.`
+        : G.short
         ? `🎖️ Scouts want <b>${G.need}</b> Legacy medals before they call — you have <b>${G.medals}</b>. Every season and career earns them; better grades and higher levels earn more.`
         : I && !I.ok
           ? "🛸 " + I.say
@@ -37397,5 +37437,5 @@
   window.__chaosMaxV179 = () => chaosMaxAllNowV150();
   window.__chaosTotalV179 = () => chaosTotal();
   window.__istGateV179 = e => istGateV179(e || (state && state.player));
-  window.__V179 = { gate: istGateV179, medalGate: e => medalGateV179(e || (state && state.player)), fmt: fmtBigV179, price: branchPriceV179, medals: { sync: medalSyncV179, open: openMedalPickV179, tap: tapMedalV179, claim: claimMedalV179, auto: m => (autoMedalV179(typeof m === 'string' ? m : 'good'), document.getElementById('medalPickV179')?.remove(), render()), autoQuiet: autoMedalV179, close: () => document.getElementById('medalPickV179')?.remove(), newPlayer: () => newPlayer(), eraUp: () => tryNextEra(), store: medalStoreV179, fx: medalFxV179, deal: dealMedalV179 } };
+  window.__V179 = { bar: e => scoutBarV179(e || (state && state.player)), gate: istGateV179, medalGate: e => medalGateV179(e || (state && state.player)), fmt: fmtBigV179, price: branchPriceV179, medals: { sync: medalSyncV179, open: openMedalPickV179, tap: tapMedalV179, claim: claimMedalV179, auto: m => (autoMedalV179(typeof m === 'string' ? m : 'good'), document.getElementById('medalPickV179')?.remove(), render()), autoQuiet: autoMedalV179, close: () => document.getElementById('medalPickV179')?.remove(), newPlayer: () => newPlayer(), eraUp: () => tryNextEra(), store: medalStoreV179, fx: medalFxV179, deal: dealMedalV179 } };
 })();
