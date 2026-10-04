@@ -34,7 +34,7 @@ const OUT = arg('out', 'docs/CAREERSIM.md'), CAREER_MS = +arg('careerMs', 240000
 // random affordable nodes, an early declare) and HOW FAR (--until ring = the first UFF title, as before; uff = the first
 // arrival in the UFF; interstellar = UFF careers ground on — chaos maxed whenever it is unlocked (smart) — until the
 // Interstellar Call is answered). Every run reports the SEASONS to each milestone, and hours at --seasonMin (7) a season.
-const CHAOS = arg('chaos', '1') !== '0', POLICY = arg('policy', 'smart'), UNTIL = arg('until', 'ring'), SEASON_MIN = +arg('seasonMin', 7), TUNE = JSON.parse(arg('tune', '{}'))
+const FAST = arg('fast', '0') !== '0', CHAOS = arg('chaos', '1') !== '0', POLICY = arg('policy', 'smart'), UNTIL = arg('until', 'ring'), SEASON_MIN = +arg('seasonMin', 7), TUNE = JSON.parse(arg('tune', '{}'))
 const url = gameUrl('index.html')
 const U = (...q) => url + (url.includes('?') ? '&' : '?') + ['stayStale', 'noFilmV114', 'noGrowV132'].concat(q).join('&')
 
@@ -54,6 +54,7 @@ async function open (tag) {
   page.on('pageerror', (e) => errors.push(tag + ': ' + (e.message || e)))
   await page.goto(U(), { waitUntil: 'networkidle', timeout: 60000 })
   await page.waitForFunction(() => !!window.__GRIDIRON_AUDIT__ && !!window.__V156B && !!window.__V164B && !!window.__V147A, null, { timeout: 60000 })
+  if (FAST) await page.evaluate(() => { window.__RIB_SIM_FAST = true })
   await page.waitForFunction(() => { const sp = document.getElementById('splash'); return !sp || sp.classList.contains('gone') }, null, { timeout: 30000 }).catch(() => null)
   await page.evaluate(() => document.getElementById('splash')?.remove())
   await page.evaluate(installDriver)

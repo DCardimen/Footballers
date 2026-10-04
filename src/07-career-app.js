@@ -37558,6 +37558,13 @@
     } catch (_) {}
     return p;
   };
+  /* the headless career simulator (scripts/careersim.mjs --fast) skips drawing: `window.__RIB_SIM_FAST` set by the
+   * simulator only — a player's page never sets it, so this is a no-op in the game. */
+  const renderSimV179 = render;
+  render = function () {
+    if (window.__RIB_SIM_FAST && !(state && /^(gameover|win|life|result|menu)$/.test(state.view))) return; // the career-end screens settle the career
+    return renderSimV179.apply(this, arguments);
+  };
   window.__chaosMaxV179 = () => chaosMaxAllNowV150();
   window.__chaosTotalV179 = () => chaosTotal();
   window.__istGateV179 = e => istGateV179(e || (state && state.player));
