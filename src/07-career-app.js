@@ -12894,7 +12894,7 @@
       k = clamp99(
         30 +
           effectivePrestige(state.prestige) * 1.9 +
-          w * 0.68 +
+          ceilLevelsV179(w) /* v179 I */ +
           nodeLvl("freak") * 12 +
           nodeLvl("superhuman") * 20 +
           nodeLvl("primeGenes") * 9 +
@@ -14929,7 +14929,7 @@
         k = clamp99(
           30 +
             effectivePrestige(state.prestige) * 1.9 +
-            w * 0.68 +
+            ceilLevelsV179(w) /* v179 I */ +
             nodeLvl("freak") * 12 +
             nodeLvl("superhuman") * 20 +
             nodeLvl("primeGenes") * 9 +
@@ -37109,6 +37109,19 @@
     return dfhBarV179.apply(this, arguments);
   };
   window.declareFromHub = declareFromHub;
+  /* ===== v179 I THE CEILING IS BUILT =====
+   * The growth ceiling paid 0.68 for EVERY tree level — a level of injury insurance or an eternal stack raised it as much
+   * as Genetics — so a careless tree climbed as fast as a sharp one. Now a level pays `ceilPerLevelV179` and the eternal
+   * stacks (`max` 999) pay `ceilEternalV179`; the ceiling nodes themselves (Freak, Prime Genes, Superhuman, ceilPlus) are
+   * untouched, so the build decides how high a player can grow. Kill switch TU "v179I" 0 (0.68 a level, eternals too). */
+  function ceilLevelsV179(w) {
+    if (!TU("v179", 1) || !TU("v179I", 1)) return w * 0.68;
+    let et = 0;
+    try {
+      for (const k in state.tree || {}) if (TREE_NODES[k] && TREE_NODES[k].max >= 999) et += state.tree[k] | 0;
+    } catch (_) {}
+    return (w - et) * TU("ceilPerLevelV179", 0.68) + et * TU("ceilEternalV179", 0.68);
+  }
   function istGateV179(e) {
     const need = Math.round(TU("istEraV179", 6)),
       era = (state && state.era) | 0;
