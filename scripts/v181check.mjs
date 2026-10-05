@@ -113,6 +113,18 @@ ok(E.e1.uff < E.e0.uff && E.e1.ist < E.e0.ist && E.changed, 'cheaper prices shor
 ok(E.e2.ist > E.e1.ist && Math.abs(E.e2.uff - E.e1.uff) < 0.01, 'a higher Interstellar bar moves only the Interstellar times', { ist: [Math.round(E.e1.ist), Math.round(E.e2.ist)] })
 ok(E.trust === 10 && E.ppGot === 50, 'the post-game card dials scale the cards (trust +10, PP +50)', { trust: E.trust, pp: E.ppGot })
 
+// 5. v183: the Interstellar League is a league of legends (team base 400), its dial, and the estimate's title gap follows it
+const I = await page.evaluate(() => {
+  const lb = window.__levelBaseV178 ? window.__levelBaseV178(8) : null
+  window.RIB_TUNE.v183IST = 0; const old = window.__levelBaseV178 ? window.__levelBaseV178(8) : null; delete window.RIB_TUNE.v183IST
+  const g0 = window.__V182.eta(false); const gap0 = g0.title - g0.ist
+  window.__V181.set('aiBaseIstV178', 700, 0); const g1 = window.__V182.eta(false); const gap1 = g1.title - g1.ist; const lb1 = window.__levelBaseV178 ? window.__levelBaseV178(8) : null
+  window.__V181.reset()
+  return { lb, old, lb1, gap0: Math.round(gap0), gap1: Math.round(gap1) }
+})
+ok(I.lb === 400 && I.old === 100 && I.lb1 === 700, 'the Interstellar League\'s teams are rated 400 (TU v183IST 0: 100), and the beta dial moves it', I)
+ok(I.gap1 > I.gap0 && I.gap0 >= 25, 'the estimate\'s gap from entering the Interstellar League to its title grows with the league\'s strength', { at400: I.gap0, at700: I.gap1 })
+
 console.log(JSON.stringify({ pass, fail, pageErrors: errors.length }))
 if (errors.length) console.log('page errors:', errors.slice(0, 6))
 await browser.close()

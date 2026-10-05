@@ -15907,7 +15907,7 @@
   // v178 O: the per-level team baseline every roster is built on (live rosters, the quick sim's ratings, the displays).
   // Interstellar (8) had no entry and fell back to 55 — weaker than Varsity — so it sits above the UFF now. Hoisted.
   function levelBaseV178(lv) {
-    return [18, 30, 42, 54, 66, 78, 86, 90, TU("v178O", 1) ? TU("aiBaseIstV178", 100) : 55][lv | 0] || 55;
+    return [18, 30, 42, 54, 66, 78, 86, 90, TU("v178O", 1) ? TU("aiBaseIstV178", TU("v183IST", 1) ? 400 : 100) : 55 /* v183: the Interstellar League is a league of legends — a newcomer (~OVR 350) wins ~55%, a title wants ~OVR 600 */][lv | 0] || 55;
   }
   window.__levelBaseV178 = levelBaseV178;
   // v178 N: the scale S of the square-root gap the sim plays, by level (Pee Wee … Interstellar), fitted to the v76 0.7 a point
@@ -37935,6 +37935,7 @@
     ["flipTrustV182", "Coach trust card", 0, 20, 1, 3, "post"],
     ["flipRepsV182", "Reps card (attribute points)", 0, 5, 0.5, 0.5, "post"],
     ["flipAttrV182", "Permanent card (+attribute)", 0, 10, 1, 1, "post"],
+    ["aiBaseIstV178", "Interstellar League strength (team OVR)", 100, 1000, 10, 400, "ist"],
     ["etaMinPerSeasonV182", "Minutes per season (the estimate)", 2, 20, 1, 7, "eta"]
   ];
   const BETA_KEY_V181 = "rib.betaTune.v181";
@@ -37999,7 +38000,7 @@
     if (!TU("v181", 1)) return "";
     const o = betaReadV181(),
       moved = Object.keys(o).length,
-      head = { cost: "PRESTIGE COSTS", gain: "PRESTIGE GAINS", bar: "POTENTIAL & THE SCOUTS", card: "CARDS & GRADES", post: "POST-GAME CARDS", eta: "THE ESTIMATE" };
+      head = { cost: "PRESTIGE COSTS", gain: "PRESTIGE GAINS", bar: "POTENTIAL & THE SCOUTS", card: "CARDS & GRADES", post: "POST-GAME CARDS", ist: "THE INTERSTELLAR LEAGUE", eta: "THE ESTIMATE" };
     let last = "";
     const rows = BETA_DIALS_V181.map(d => {
       const v = window.RIB_TUNE && window.RIB_TUNE[d[0]] != null ? +window.RIB_TUNE[d[0]] : d[5],
@@ -38093,7 +38094,10 @@
       sLate = (Math.max(0, Math.min(fin, barI) - potAtU) / (3 * g)) + Math.max(0, barI - Math.max(fin, potAtU)) / (1.2 * g),
       ist = uff + Math.max(10, sLate) + climb * (1 / Math.max(0.05, verdictAt(0.6)) - 1),
       // an Interstellar title: a few seasons to settle in, quicker with a rich economy
-      title = ist + 30 / Math.pow(Math.max(0.2, econ), 0.3);
+      /* v183: the title waits on outgrowing a league rated `aiBaseIstV178` (400: a newcomer at ~OVR 350 wins ~55% of games,
+       * ~OVR 600 makes the title likely) — about 6 seasons plus one for every 10 points of league strength over 100 */
+      lg = TU("aiBaseIstV178", TU("v183IST", 1) ? 400 : 100),
+      title = ist + (6 + Math.max(0, lg - 100) / 10) / Math.pow(Math.max(0.2, econ), 0.3);
     return { uff, ist, title, g, pot0, gear: gr };
   }
   function etaHtmlV182() {

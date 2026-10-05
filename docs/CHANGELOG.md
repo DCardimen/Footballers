@@ -10,6 +10,15 @@ Names in older entries are the career app's pre-v149 C minified names (`q`, `ms`
 `index.html` + `src/` (`docs/LAYOUT.md`).
 
 <!-- new entries go here, newest first -->
+- **v183 — gear in the pacing; the Interstellar League is a league of legends.** (`src/07-career-app.js`,
+  `scripts/careersim.mjs`.) The owner asked whether the pacing runs counted items (they did not — drops went to the bag
+  and nothing was ever equipped) and for "a larger gap between entering the interstellar league and winning a
+  championship". `careersim` now equips the best item in each slot between careers (rarity, then mods; a careless player
+  wears the first thing in the bag; `--gear 0` off), and the beta estimate's "your account now" counts the gear worn (its
+  PP gain, growth and call-up). Measured with `simSeason`: Interstellar teams were rated 100 — a newcomer at ~OVR 230–360
+  won 88–90% of games and had the title in a season or two. They are now rated 400 (`aiBaseIstV178`; TU `v183IST` 0 →
+  100): a newcomer (~OVR 356) wins ~55%, ~OVR 500 ~71%, ~OVR 700 ~95% — the title waits on outgrowing the league. A beta
+  dial sets it (100–1,000), and the estimate's title gap follows (≈6 seasons + 1 per 10 points over 100). `v181check` 5.
 - **v182 — the estimate.** (`src/07-career-app.js`.) The owner: "add ways to scale the post game card amounts in [the beta]
   menu. Add [the] estimated time to hit [the] UFF, interstellar, winning [the] interstellar … update dynamically. Doesn't
   need to be 100 percent accurate". POST-GAME CARDS dials on 🧪 BETA TUNING: the weekly paycheck ×, the big points card,
