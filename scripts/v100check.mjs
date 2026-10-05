@@ -38,7 +38,7 @@ ok(row, 'a lighting slider is on the settings screen')
 ok(row && /FIELD VIEW/.test(row.section || ''), 'it sits in the FIELD VIEW card with the other field dials', row && row.section)
 ok(row && /light/i.test(row.label), 'it is labelled for what it does', row && row.label)
 ok(row && row.min === '0' && row.max === '2' && row.step === '0.05', 'it runs from off to double, in 5% steps', row && `${row.min}..${row.max} step ${row.step}`)
-ok(row && row.val === '100%' && !/\./.test(row.val), 'it starts at 100% and reads as a whole percent', row && row.val)
+ok(row && row.val === '60%' && !/\./.test(row.val), 'it starts at 60% (v180 B) and reads as a whole percent', row && row.val)
 
 // moving it lands on the live dial, persists, and resets
 const moved = await page.evaluate(() => { window.fieldFxSet('fxLight', '1.6', 1)
@@ -51,7 +51,7 @@ const reloaded = await page.evaluate(async () => { const st = window.__getGridir
 ok(reloaded === 1.6, 'the setting survives in state for the next game', String(reloaded))
 const reset = await page.evaluate(() => { window.fieldFxReset(); const st = window.__getGridironState ? window.__getGridironState() : window.o
   return { fx: window.__FIELD_FX.light, saved: st.settings.fxLight, label: (document.getElementById('fxLight_val') || {}).textContent } })
-ok(reset.fx === 1 && reset.saved == null, 'Reset to defaults puts the lights back to 100%', JSON.stringify(reset))
+ok(reset.fx === 0.6 && reset.saved == null, 'Reset to defaults puts the lights back to the 60% default (v180 B)', JSON.stringify(reset))
 
 // ================= Part 2: the dial on the live field =================
 await page.evaluate(() => { try { window.go('hub') } catch (e) {} }); await page.waitForTimeout(900)
