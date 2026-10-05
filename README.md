@@ -51,6 +51,9 @@ Every gameplay dial reads through `TU(key, default)`, so values can be retuned l
 
 The full history, newest first, is [`docs/CHANGELOG.md`](docs/CHANGELOG.md) — add new entries there.
 
+- **v180 — the board at any speed.** The jumbotron's celebration plays its whole course at 4× (the next snap used to cut
+  it off); the floodlights default to 60%; the camera keeps the play in the middle of the frame wherever the snap; a
+  gang tackle is half a tackle each. `v180check`.
 - **v179 — the long road.** Prestige paced for a long game, with choices that matter: the UFF scouts judge POTENTIAL —
   the growth ceiling your prestige tree builds (Freak, Prime Genes, Superhuman, the ceiling nodes) — so a balanced
   expert reaches the UFF in about 9 hours, most players in 12–14, a careless tree in about 47. Every Legacy medal deals a

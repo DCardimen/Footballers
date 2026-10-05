@@ -1819,6 +1819,21 @@
     "v179check"
    ]
   },
+  "board-and-frame": {
+   "desc": "v180 — the board plays at any speed, the 60% floodlights, the play in the middle of the frame, half tackles",
+   "anchors": [
+    "v180"
+   ],
+   "files": [],
+   "checks": [
+    "v180check",
+    "jumboPartycheck",
+    "screenpancheck",
+    "v147Dcheck",
+    "creditcheck",
+    "v100check"
+   ]
+  },
   "prestige-pacing": {
    "desc": "v179 — the long road: medal gates on the last climbs, the Interstellar Call waits on the era, big numbers",
    "anchors": [
@@ -4744,6 +4759,19 @@
     "season"
    ],
    "runtimeSec": 60,
+   "slow": false,
+   "needsServer": true,
+   "pureNode": false,
+   "flaky": []
+  },
+  "v180check": {
+   "file": "scripts/v180check.mjs",
+   "desc": "v180 — the board plays at any speed (at 4× the board's party plays its whole course, not cut off by the next snap); the floodlights default to 60%; live Broadcast frames keep the ball in the middle of the frame's height; half tackles (a gang tackle is half a tackle each, the line says so, totals read 4.5, simulated games credit whole and half tackles only). No page errors.",
+   "areas": [
+    "live",
+    "season"
+   ],
+   "runtimeSec": 90,
    "slow": false,
    "needsServer": true,
    "pureNode": false,

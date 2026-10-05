@@ -3589,6 +3589,17 @@
       score: r
     };
   }
+  /* ===== v180 D HALF TACKLES =====
+   * The owner: "implement half tackles for gang tackles". FieldSim names the man who made a stop (`X.tackler`) and, on a
+   * gang tackle, the man in on it with him (`X.assist`). Both used to count a whole tackle for the you-player; now a stop
+   * two men made is half a tackle each (solo stops and sacks stay whole), the play line says "½ tackle", and the totals
+   * read 4.5. Stat-credit truth is untouched — the credit still traces to the play's named actors. Kill switch v180D 0. */
+  function tkCreditV180(X) {
+    return TU("v180D", 1) && X && X.tackler != null && X.assist != null ? 0.5 : 1;
+  }
+  function tkNoteV180(X) {
+    return tkCreditV180(X) === 0.5 ? " (½ tackle — shared)" : "";
+  }
   /* ===== v179 M THE FAIR GRADE =====
    * The owner: "the season ratings seem off … fix the season grading and add a brief explanation at that time, especially
    * later on". The expectation (`Va`) was the highest of the level's standard, 45 + (OVR − need) × 0.85, a prestige term
@@ -12755,6 +12766,7 @@
     return (state.player && state.player.pos) || "RB";
   }
   function fmtLeadVal(e, t) {
+    if (e && e.key === "tackles" && Math.round(+t * 2) % 2) return (Math.round(+t * 2) / 2).toFixed(1); /* v180 D: a half tackle reads 4.5 */
     return Math.round(+t);
   }
   function gr(e, t) {
@@ -13932,7 +13944,7 @@
           0,
           2,
           0.05,
-          1
+          TU("fxLightDefaultV180", 0.6) /* v180 B */
         ]
       ]
         .map(function (r) {
@@ -19095,9 +19107,9 @@
                   : `${nm(qb2)} sees the lane and SCRAMBLES for ${de}.`
                 : `${nm(qb2)} tucks it and scrambles for ${de}.`;
             if (!usDrive && ce && !_e && (pe(X.tackler) || pe(X.assist))) {
-              P.tackle++;
+              P.tackle += tkCreditV180(X);
               me = !0;
-              ue += pe(X.tackler) ? " 🔨 You run him down." : " 🤝 You're in on the stop.";
+              ue += (pe(X.tackler) ? " 🔨 You run him down." : " 🤝 You're in on the stop.") + tkNoteV180(X);
             }
           } else if (X.complete) {
             de = X.yards;
@@ -19164,9 +19176,9 @@
               }
               usDrive && Ye(me, !0, de, !1);
               if (!usDrive && ce && (pe(X.tackler) || pe(X.assist))) {
-                P.tackle++;
+                P.tackle += tkCreditV180(X);
                 me = !0;
-                ue += pe(X.tackler) ? " 🔨 You bring him down." : " 🤝 You're in on the stop.";
+                ue += (pe(X.tackler) ? " 🔨 You bring him down." : " 🤝 You're in on the stop.") + tkNoteV180(X);
               }
             }
           } else if (X.intercepted) {
@@ -19483,12 +19495,12 @@
                 _asst = !_solo && pe(X.assist);
               if (_solo || _asst) {
                 ["DL", "LB"].includes(t) && de <= 1 && Math.random() < 0.3
-                  ? (P.tackle++, (me = !0), (Pt = !0), (ue = "💥 TACKLE FOR LOSS — you blow up the run!"))
-                  : (P.tackle++,
+                  ? ((P.tackle += tkCreditV180(X)), (me = !0), (Pt = !0), (ue = "💥 TACKLE FOR LOSS — you blow up the run!" + tkNoteV180(X)))
+                  : ((P.tackle += tkCreditV180(X)),
                     (me = !0),
-                    (ue = _asst
+                    (ue = (_asst
                       ? "🤝 You rally to the ball — in on the gang tackle."
-                      : "🔨 You read it and make the tackle."));
+                      : "🔨 You read it and make the tackle.") + tkNoteV180(X)));
               }
             }
           }
@@ -26924,7 +26936,7 @@
       spread: s.fxSpread == null ? 1 : s.fxSpread,
       radius: s.fxRadius == null ? 300 : s.fxRadius,
       zoom: s.fxZoom == null ? 1.16 : s.fxZoom,
-      light: s.fxLight == null ? 1 : s.fxLight,
+      light: s.fxLight == null ? TU("fxLightDefaultV180", 0.6) : s.fxLight, /* v180 B: the floodlights default to 60% */
       cam: s.fxCam == null ? 0 : s.fxCam,
       camZoom: s.fxCamZoom == null ? 1 : s.fxCamZoom,
       wx: s.fxWx == null ? 0 : s.fxWx
@@ -37874,6 +37886,7 @@
     } catch (_) {}
     return h;
   };
+  window.__V180 = { tkCredit: tkCreditV180, tkNote: tkNoteV180, fmtLead: fmtLeadVal };
   window.__chaosMaxV179 = () => chaosMaxAllNowV150();
   window.__chaosTotalV179 = () => chaosTotal();
   window.__istGateV179 = e => istGateV179(e || (state && state.player));
