@@ -10,6 +10,14 @@ Names in older entries are the career app's pre-v149 C minified names (`q`, `ms`
 `index.html` + `src/` (`docs/LAYOUT.md`).
 
 <!-- new entries go here, newest first -->
+- **v181 — the beta bench.** (`src/07-career-app.js`.) The owner: "Add [a] beta slider menu to adjust prestige cost [and]
+  gains. Add 10 to 20 little fine tuning sliders for testing purposes. Add a beta skip game button for the championship
+  games." Settings carries 🧪 BETA TUNING — eighteen dials over the live `TU()` values: the tree's prices (core, Apex,
+  Impossible), the PP gains (career end / titles / medals through `eraMult`, in-season through `bankPPV136`), chaos per ring
+  and per era, the three potential bars, the ceiling weights, the verdict and the second look, the points card, Lucky
+  Draw, the grade bar and its ease. A moved dial applies at once and is kept on the device (`rib.betaTune.v181`), never in
+  the save; "Reset all" restores the game's values. The championship's play-it-live lock carries a 🧪 BETA skip that sims
+  the game (the lock lifted for that one call). Kill switch `v181`. `v181check`.
 - **v180 — the board at any speed, the 60% lights, the play in the middle, half tackles.** (`src/05-field-renderer.js`,
   `src/07-career-app.js`.) The owner: "ensure at 4x speed the celebration on the jumbotron plays, default lighting to 60
   percent, make sure the field doesn't [drift] towards the bottom of live play no matter where you are on the field.

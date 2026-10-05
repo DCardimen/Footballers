@@ -9073,7 +9073,7 @@
   }
   function bankPPV136(n, why) {
     /* v150 C H6: deliberately no payout boost here — season PP is never doubled, only the settle (H4/H5) */
-    n = Math.round(n || 0);
+    n = Math.round((n || 0) * TU("betaSeasonPPV181", 1)); /* v181: the beta in-season dial (1 = off) */
     if (!(n > 0)) return 0;
     if (!bankingV136()) {
       state.pp += n;
@@ -9910,7 +9910,7 @@
         <div class="statbox"><div class="n">${state.careersCompleted || 0}</div><div class="l">Enshrined</div></div>
         <div class="statbox"><div class="n" style="color:#57e07a">+${a * 5}%</div><div class="l">Museum PP</div></div>
       </div>
-      ${t > 0 ? `<div class="threshold-note" style="margin-top:8px;color:#c9b8ff">🌌 Era bonus: permanent <b>+${Math.round((eraMult() - 1) * 100)}% PP</b>. Next era: win the UFF title at <b>${nextEraChaos()}+ total chaos</b>.</div>` : '<div class="threshold-note" style="margin-top:8px">🌌 Win the UFF title to begin your first Era.</div>'}
+      ${t > 0 ? `<div class="threshold-note" style="margin-top:8px;color:#c9b8ff">🌌 Era bonus: permanent <b>+${Math.round((Math.pow(1.2, state.era || 0) - 1) * 100)}% PP</b>. Next era: win the UFF title at <b>${nextEraChaos()}+ total chaos</b>.</div>` : '<div class="threshold-note" style="margin-top:8px">🌌 Win the UFF title to begin your first Era.</div>'}
     </div>
 
     ${lineageHofV136()}
@@ -13887,6 +13887,7 @@
       ${toggleRow("haptics", "Haptic feedback", "Vibration for touchdowns, setbacks, and major choices")}
     </div>
     ${experienceRowV158B() /* v158 B: EXPERIENCE — Off (current build) · Free-to-play · Member (a preview); the GAME tab */}
+    ${betaCardV181() /* v181: the beta tuning sliders */}
     ${soundCardV151E() /* v151 E: the SOUND tab (music, effects, the coach's voice, mute all) */}
     <div class="card">
       <div class="l" style="font-size:11px;color:var(--gold);letter-spacing:2px;margin-bottom:4px">📐 FIELD VIEW</div>
@@ -20197,7 +20198,7 @@
     return e < ERA_NAMES.length ? ERA_NAMES[e] : "ERA " + (e + 1) + " — BEYOND";
   }
   function eraMult() {
-    return Math.pow(1.2, state.era || 0);
+    return Math.pow(1.2, state.era || 0) * TU("betaPPGainV181", 1); /* v181: the beta gain dial (1 = off) */
   }
   function nextEraChaos() {
     return (state.era || 0) * (TU("v179", 1) ? TU("eraChaosStepV179", 15) : 15); /* v179 D */
@@ -21213,7 +21214,7 @@
         V = a.filter(P => !P.played).length;
       byId("dock").innerHTML = `
       <button class="btn" onclick="playWeek(true)">▶ Play ${C} Live</button>
-      ${liveOnlyV164D(e) ? liveOnlyNoteV164D() /* v164 D: a Live Sim Only career — no Quick Play, no sim */ : playoffLockV156B(e, y) ? playoffNoteV156B() /* v156 B: the playoffs are played live — no Quick Play, no sim */ : `<div style="height:8px"></div>
+      ${liveOnlyV164D(e) ? liveOnlyNoteV164D() /* v164 D: a Live Sim Only career — no Quick Play, no sim */ : playoffLockV156B(e, y) ? playoffNoteV156B() + betaSkipBtnV181(e, y) /* v156 B: the playoffs are played live — no Quick Play, no sim; v181: the beta skip */ : `<div style="height:8px"></div>
       <button class="btn secondary" onclick="playWeek(false)">⏩ Quick Play ${C}${gameSimTagV158B() /* v158 B: "" while the store is off */}</button>${watchNoteV164C()}`}
       ${!liveOnlyV164D(e) && simDockV164B(e, y, V) ? '<div style="height:8px"></div><button class="btn ghost" onclick="seasonSkipV151A()">' + skipBtnV151A(TU("v164Bsim", 1) ? "⏭ Sim to the Championship" : "⏭ Sim Remaining Regular Season") + "</button>" : ""}
       <div style="height:8px"></div>
@@ -36986,7 +36987,7 @@
       y = a.find(w => !w.played);
     if (!y) return `<button class="btn" onclick="window.__V178.leave();finishSeasonGames()">Finish Season &amp; See Results ▸</button>`;
     const C = y.playoff ? y.round : "Week " + (reg.findIndex(w => !w.played) + 1);
-    const quick = liveOnlyV164D(e) || playoffLockV156B(e, y) ? "" : `<button class="btn secondary" onclick="window.__V178.leave();window.__V178.quick()">⏩ Quick Play ${C}${gameSimTagV158B()}</button>`;
+    const quick = liveOnlyV164D(e) || playoffLockV156B(e, y) ? betaSkipBtnV181(e, y) /* v181 */ : `<button class="btn secondary" onclick="window.__V178.leave();window.__V178.quick()">⏩ Quick Play ${C}${gameSimTagV158B()}</button>`;
     return (
       `<button class="btn" style="width:100%" onclick="window.__V178.leave();playWeek(true)">▶ Play ${C} Live</button><div style="height:8px"></div>` +
       `<div class="btn-row">${quick}<button class="btn secondary" onclick="autoAllocKey()">⚡ Auto: Key Stats</button></div>`
@@ -37887,6 +37888,141 @@
     return h;
   };
   window.__V180 = { tkCredit: tkCreditV180, tkNote: tkNoteV180, fmtLead: fmtLeadVal };
+  /* ===== v181 THE BETA BENCH =====
+   * The owner: "Add [a] beta slider menu to adjust prestige cost [and] gains. Add 10 to 20 little fine tuning sliders for
+   * testing purposes. Add a beta skip game button for the championship games." Settings carries 🧪 BETA TUNING: eighteen
+   * sliders over the live `TU()` dials (`BETA_DIALS_V181`) — the tree's prices, the PP gains (`betaPPGainV181` rides
+   * `eraMult` — every career-end, title and medal payout; `betaSeasonPPV181` rides `bankPPV136`), chaos, the scouts' bars,
+   * the ceiling, the verdict, the cards and the grade. A moved dial is written into `window.RIB_TUNE` at once and kept on
+   * THIS DEVICE (`localStorage` "rib.betaTune.v181", applied at boot) — never in the save; "Reset all" clears them. The
+   * championship's "play it live" lock gets a 🧪 BETA skip (`betaSkipTitleV181`): the week is Quick Played with the lock
+   * lifted for that one call (the paid sim gate, when the store is on, still applies). Kill switch TU "v181" 0 hides both.
+   * `window.__V181`; `v181check`. */
+  const BETA_DIALS_V181 = [
+    ["corePriceV179", "Core tree price ×", 0.1, 20, 0.1, 6, "cost"],
+    ["apexPriceV179", "Apex price ×", 0.1, 50, 0.1, 10, "cost"],
+    ["impossiblePriceV179", "Impossible price ×", 1, 500, 1, 100, "cost"],
+    ["betaPPGainV181", "PP gains × (career end, titles, medals)", 0.1, 20, 0.1, 1, "gain"],
+    ["betaSeasonPPV181", "In-season PP ×", 0.1, 20, 0.1, 1, "gain"],
+    ["chaosCapUffV179", "Chaos capacity per UFF ring", 0, 10, 1, 1, "gain"],
+    ["eraChaosStepV179", "Chaos per era", 1, 40, 1, 15, "gain"],
+    ["scoutPotCombineV179", "College → Combine potential bar", 0, 400, 5, 90, "bar"],
+    ["scoutPotUffV179", "Combine → UFF potential bar", 0, 600, 5, 150, "bar"],
+    ["istPotV179", "Interstellar potential bar", 0, 5000, 50, 1600, "bar"],
+    ["ceilNodeMultV179", "Ceiling nodes ×", 1, 6, 0.5, 3, "bar"],
+    ["ceilPerLevelV179", "Ceiling per plain tree level", 0, 1, 0.05, 0.05, "bar"],
+    ["verdictBaseV179", "Scouts' verdict ceiling %", 50, 96, 1, 80, "bar"],
+    ["secondLookBaseV179", "GM's second look %", 0, 50, 1, 10, "bar"],
+    ["flipPctV179", "Points card (% of the week)", 0, 0.5, 0.01, 0.1, "card"],
+    ["luckyDrawPerLvlV179", "Lucky Draw chance per level", 0, 0.5, 0.05, 0.2, "card"],
+    ["gradeBarCapV179", "Season grade bar cap", 60, 95, 1, 86, "card"],
+    ["gradeRatchetEaseV179", "Grade: last season eased by", 0, 20, 1, 6, "card"]
+  ];
+  const BETA_KEY_V181 = "rib.betaTune.v181";
+  function betaReadV181() {
+    try {
+      const o = JSON.parse(localStorage.getItem(BETA_KEY_V181) || "{}");
+      return o && typeof o === "object" ? o : {};
+    } catch (_) {
+      return {};
+    }
+  }
+  function betaWriteV181(o) {
+    try {
+      Object.keys(o).length ? localStorage.setItem(BETA_KEY_V181, JSON.stringify(o)) : localStorage.removeItem(BETA_KEY_V181);
+    } catch (_) {}
+  }
+  // at boot: the device's dials into the live tune (only the keys this menu owns)
+  (function betaBootV181() {
+    try {
+      const o = betaReadV181(),
+        T = window.RIB_TUNE || (window.RIB_TUNE = {});
+      for (const d of BETA_DIALS_V181) if (o[d[0]] != null && isFinite(o[d[0]])) T[d[0]] = +o[d[0]];
+    } catch (_) {}
+  })();
+  function betaSetV181(k, v, save) {
+    const d = BETA_DIALS_V181.find(x => x[0] === k);
+    if (!d) return;
+    v = Math.min(d[3], Math.max(d[2], +v));
+    (window.RIB_TUNE || (window.RIB_TUNE = {}))[k] = v;
+    const el = document.getElementById("bt_" + k + "_val");
+    el && (el.textContent = betaFmtV181(d, v));
+    if (save) {
+      const o = betaReadV181();
+      v === d[5] ? delete o[k] : (o[k] = v);
+      betaWriteV181(o);
+    }
+  }
+  function betaResetV181() {
+    betaWriteV181({});
+    const T = window.RIB_TUNE || {};
+    for (const d of BETA_DIALS_V181) delete T[d[0]];
+    try {
+      showToast("🧪 Beta dials reset to the game's values");
+    } catch (_) {}
+    render();
+  }
+  function betaFmtV181(d, v) {
+    return d[0] === "flipPctV179" || d[0] === "luckyDrawPerLvlV179" ? Math.round(v * 100) + "%" : d[4] < 1 ? (+v).toFixed(d[4] < 0.1 ? 2 : 1).replace(/\.0+$/, "") : fmtBigV179(v);
+  }
+  function betaCardV181() {
+    try {
+      return betaCardHtmlV181();
+    } catch (_) {
+      return ""; // v140: the boot can draw Settings before this block's consts exist — never throw from a screen
+    }
+  }
+  function betaCardHtmlV181() {
+    if (!TU("v181", 1)) return "";
+    const o = betaReadV181(),
+      moved = Object.keys(o).length,
+      head = { cost: "PRESTIGE COSTS", gain: "PRESTIGE GAINS", bar: "POTENTIAL & THE SCOUTS", card: "CARDS & GRADES" };
+    let last = "";
+    const rows = BETA_DIALS_V181.map(d => {
+      const v = window.RIB_TUNE && window.RIB_TUNE[d[0]] != null ? +window.RIB_TUNE[d[0]] : d[5],
+        h = d[6] !== last ? `<div class="l" style="font-size:10px;color:var(--chalk-dim);letter-spacing:1.5px;margin:10px 0 2px">${head[d[6]]}</div>` : "";
+      last = d[6];
+      return `${h}<div class="fx-row"><div class="fx-head"><span class="fx-label">${escHtml(d[1])}</span><span class="fx-val" id="bt_${d[0]}_val" style="${v !== d[5] ? "color:var(--gold)" : ""}">${betaFmtV181(d, v)}</span></div><input class="fx-slider" id="bt_${d[0]}" type="range" min="${d[2]}" max="${d[3]}" step="${d[4]}" value="${v}" oninput="window.__V181.set('${d[0]}',this.value,0)" onchange="window.__V181.set('${d[0]}',this.value,1)"></div>`;
+    }).join("");
+    return `<div class="card" id="betaCardV181" style="border-color:#b07cff"><details${moved ? " open" : ""}><summary style="cursor:pointer;list-style:none"><div class="l" style="font-size:11px;color:#b07cff;letter-spacing:2px">🧪 BETA TUNING — FOR TESTING${moved ? ` · <b style="color:var(--gold)">${moved} moved</b>` : ""} ▸</div><div class="small" style="margin-top:4px">Fine-tune prestige costs, gains, the scouts' bars and the rewards while you test. Changes apply now and stay on this device only — never in your save.</div></summary>${rows}<div class="btn-row" style="margin-top:10px"><button class="btn ghost" onclick="window.__V181.reset()">↺ Reset all to the game's values</button></div></details></div>`;
+  }
+  // the championship's beta skip
+  function betaSkipBtnV181(e, y) {
+    if (!TU("v181", 1) || !TU("betaSkipTitleV181", 1) || !y || !y.playoff) return "";
+    return `<div style="height:8px"></div><button class="btn ghost" id="betaSkipV181" style="border-color:#b07cff;color:#c9b8ff" onclick="window.__V181.skip()">🧪 BETA · Skip ${escHtml(y.round || "the game")} (sim it)</button>`;
+  }
+  function betaSkipTitleV181() {
+    const e = state && state.player;
+    if (!e) return false;
+    const w = (e.weekResults || []).find(x => !x.played);
+    if (!w || !w.playoff) return false;
+    const T = window.RIB_TUNE || (window.RIB_TUNE = {}),
+      had = Object.prototype.hasOwnProperty.call(T, "v156Bplayoffs"),
+      keep = T.v156Bplayoffs,
+      lo = e.liveOnlyV164D;
+    T.v156Bplayoffs = 0;
+    e.liveOnlyV164D = false;
+    const restore = () => {
+      had ? (T.v156Bplayoffs = keep) : delete T.v156Bplayoffs;
+      lo != null && (e.liveOnlyV164D = lo);
+    };
+    try {
+      window.playWeek(false);
+    } catch (_) {
+      restore();
+      return false;
+    }
+    // the week may close on a later tick (the scorecard, the paycheck): lift the lock until it has
+    const idx = (e.weekResults || []).indexOf(w),
+      t0 = Date.now(),
+      done = () => { const p = state && state.player, x = p && p.weekResults && p.weekResults[idx]; return !x || !!x.played; },
+      wait = () => (done() || Date.now() - t0 > 15000 ? restore() : setTimeout(wait, 120));
+    wait();
+    V181.skips++;
+    return true;
+  }
+  const V181 = { skips: 0 };
+  window.__V181 = { dials: BETA_DIALS_V181, set: betaSetV181, reset: betaResetV181, read: betaReadV181, skip: betaSkipTitleV181, state: V181 };
   window.__chaosMaxV179 = () => chaosMaxAllNowV150();
   window.__chaosTotalV179 = () => chaosTotal();
   window.__istGateV179 = e => istGateV179(e || (state && state.player));

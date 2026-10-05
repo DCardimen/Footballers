@@ -1827,6 +1827,7 @@
    "files": [],
    "checks": [
     "v180check",
+    "v181check",
     "jumboPartycheck",
     "screenpancheck",
     "v147Dcheck",
@@ -4759,6 +4760,18 @@
     "season"
    ],
    "runtimeSec": 60,
+   "slow": false,
+   "needsServer": true,
+   "pureNode": false,
+   "flaky": []
+  },
+  "v181check": {
+   "file": "scripts/v181check.mjs",
+   "desc": "v181 — the beta bench: Settings carries 🧪 BETA TUNING with 18 dials; a dial moves the live tune at once (the core price ×12 doubles a core node, the gain ×2 doubles the era payout), the device keeps it (localStorage, never the save) and applies it at boot, Reset all clears it; the locked championship carries a 🧪 BETA skip that sims it and puts the lock back; TU v181 0 hides it. No page errors.",
+   "areas": [
+    "season"
+   ],
+   "runtimeSec": 40,
    "slow": false,
    "needsServer": true,
    "pureNode": false,
