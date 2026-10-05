@@ -10,6 +10,15 @@ Names in older entries are the career app's pre-v149 C minified names (`q`, `ms`
 `index.html` + `src/` (`docs/LAYOUT.md`).
 
 <!-- new entries go here, newest first -->
+- **v179 L — the bloodline on the tree.** (`src/07-career-app.js`.) The owner: "include [the potential bar] in the
+  prestige tree … add more detail to the medals and what stats each one gives". The prestige tree opens with the
+  BLOODLINE POTENTIAL card — the number, its parts (base, ceiling nodes, other tree levels, chaos, the Path, prestige),
+  a meter with the College / UFF / Interstellar bars and what is left to each — and every node that moves potential says
+  what its next level adds ("📐 +36 POTENTIAL next level", measured with that level bought). Under it, the MEDAL REWARDS
+  card: every permanent bonus the medal rewards hold, totalled in plain stats ("+12% Prestige Points from every source",
+  "+3 to every starting attribute (all 17)", "+4% declare odds · +4 on the scouts' verdict ceiling · +6% GM's second
+  look"), the unique majors owned and still to find with what each gives, the next major's medal. The medal chooser's
+  cards carry the same stat lines. Kill switch `v179L`. `v179check` L.
 - **v179 J / K — the Interstellar League judges potential; the scouts' verdict.** (`src/07-career-app.js`,
   `scripts/careersim.mjs`, `scripts/careerreplay.mjs`.) The owner: "diminishing returns for going above the potential bar,
   so there's still some nervousness in college and UFF declaration … influenced by prestige … maybe a second roll". **K**
