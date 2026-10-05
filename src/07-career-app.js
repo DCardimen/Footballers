@@ -37936,6 +37936,8 @@
     ["flipRepsV182", "Reps card (attribute points)", 0, 5, 0.5, 0.5, "post"],
     ["flipAttrV182", "Permanent card (+attribute)", 0, 10, 1, 1, "post"],
     ["aiBaseIstV178", "Interstellar League strength (team OVR)", 100, 1000, 10, 400, "ist"],
+    ["etaChaosShareV184", "Chaos you run (% of capacity — the estimate)", 0, 1, 0.05, 0.7, "eta"],
+    ["etaOvrPerPotV184", "OVR per point of potential (the estimate)", 0.1, 0.5, 0.01, 0.22, "eta"],
     ["etaMinPerSeasonV182", "Minutes per season (the estimate)", 2, 20, 1, 7, "eta"]
   ];
   const BETA_KEY_V181 = "rib.betaTune.v181";
@@ -37987,7 +37989,7 @@
     render();
   }
   function betaFmtV181(d, v) {
-    return d[0] === "flipPctV179" || d[0] === "flipPct2V179" || d[0] === "luckyDrawPerLvlV179" ? Math.round(v * 100) + "%" : d[0] === "etaMinPerSeasonV182" ? v + " min" : d[4] < 1 ? (+v).toFixed(d[4] < 0.1 ? 2 : 1).replace(/\.0+$/, "") : fmtBigV179(v);
+    return d[0] === "flipPctV179" || d[0] === "flipPct2V179" || d[0] === "luckyDrawPerLvlV179" || d[0] === "etaChaosShareV184" ? Math.round(v * 100) + "%" : d[0] === "etaMinPerSeasonV182" ? v + " min" : d[4] < 1 ? (+v).toFixed(d[4] < 0.1 ? 2 : 1).replace(/\.0+$/, "") : fmtBigV179(v);
   }
   function betaCardV181() {
     try {
@@ -38056,9 +38058,8 @@
    * Read for a fresh account and for this account now (its potential), as a range (an expert ~0.7×, a careless tree
    * ~1.6×+), in hours at `etaMinPerSeasonV182` minutes a season; redrawn on every dial move. `window.__V182`. */
   function etaV182(fromNow) {
+    /* v184: a season-by-season projection (milliseconds) — the climb, then chaos, rings, eras and the league of legends */
     const price = (TU("corePriceV179", 6) / 6) * 0.7 + (TU("apexPriceV179", 10) / 10) * 0.2 + (TU("impossiblePriceV179", 100) / 100) * 0.1,
-      /* v183: "your account now" counts the gear it wears — its PP gain feeds the economy, its growth the potential,
-       * its call-up the scouts' odds (the fresh account wears nothing) */
       gr = (() => {
         if (!fromNow) return { pp: 0, growth: 0, call: 0 };
         try {
@@ -38068,37 +38069,82 @@
         }
       })(),
       gain = (TU("betaPPGainV181", 1) * 0.75 + TU("betaSeasonPPV181", 1) * 0.25) * (1 + gr.pp),
-      econ = Math.pow(Math.max(0.01, gain / Math.max(0.01, price)), 0.6),
-      g = (1.4 * econ * (TU("ceilNodeMultV179", 3) / 3) + TU("ceilPerLevelV179", 0.05) * 2) * (1 + gr.growth * 0.5),
+      econ0 = Math.max(0.01, gain / Math.max(0.01, price)),
+      gBase = (1.4 * (TU("ceilNodeMultV179", 3) / 3) + TU("ceilPerLevelV179", 0.05) * 2) * (1 + gr.growth * 0.5),
       climb = 14 / Math.pow(Math.max(0.1, TU("betaPayV182", 1)), 0.15),
       vMax = Math.min(TU("verdictCapV179", 96), TU("verdictBaseV179", 80)) / 100,
       sl = TU("secondLookBaseV179", 10) / 100,
       verdictAt = v => v + (1 - v) * sl,
       barC = TU("scoutPotCombineV179", 90),
       barU = TU("scoutPotUffV179", 150),
-      barI = TU("istPotV179", 1600);
-    let pot0 = 30;
+      barI = TU("istPotV179", 1600),
+      lg = TU("aiBaseIstV178", TU("v183IST", 1) ? 400 : 100),
+      share = TU("etaChaosShareV184", 0.7),
+      capPerRing = TU("chaosCapUffV179", 1),
+      eraStep = Math.max(1, TU("eraChaosStepV179", 15)),
+      ovrPerPot = TU("etaOvrPerPotV184", 0.22),
+      potTitle = Math.max(barI, (lg * 1.5) / ovrPerPot);
+    // where the projection starts
+    let pot = 30,
+      chaos = 0,
+      cap = 0,
+      era = 0,
+      rings = 0;
     if (fromNow) {
       try {
-        pot0 = potentialV179();
+        pot = potentialV179();
+        chaos = chaosTotal();
+        cap = state.chaosCap || 0;
+        era = state.era || 0;
+        rings = state.rings || 0;
       } catch (_) {}
     }
-    // to the UFF: grow potential to a little over the bar, then a career's climb; each verdict that fails costs a career
+    const chaosPP = c => (c > 0 ? 3 * Math.pow(1.16, c) : 1),
+      grow = (late, c, e) => {
+        // the PP economy (prices, gains, chaos, eras) buys the ceiling; its pull is a power — the tree's prices climb
+        const econ = econ0 * Math.pow(chaosPP(c), 0.35) * Math.pow(1.2, e * 0.6);
+        return gBase * Math.pow(econ, 0.6) * (late ? (pot < 1100 ? 3 : 1.2) : 1);
+      };
+    // 1. to the UFF
     const targetU = Math.max(barU, barC) * 1.08,
-      sPotU = Math.max(0, targetU - pot0) / Math.max(0.05, g),
       vU = Math.min(0.99, verdictAt(0.5 + (vMax - 0.5) * 0.25) * Math.min(0.99, 0.95 + gr.call / 100)),
-      uff = Math.max(fromNow ? climb : 45, sPotU + climb * 0.5) + climb * (1 / Math.max(0.05, vU) - 1);
-    // to the Interstellar League: a UFF ring (~10 seasons), potential to its bar (fast until ~1,100, slow past it), the call
-    const potAtU = Math.max(pot0, targetU),
-      fin = 1100,
-      sLate = (Math.max(0, Math.min(fin, barI) - potAtU) / (3 * g)) + Math.max(0, barI - Math.max(fin, potAtU)) / (1.2 * g),
-      ist = uff + Math.max(10, sLate) + climb * (1 / Math.max(0.05, verdictAt(0.6)) - 1),
-      // an Interstellar title: a few seasons to settle in, quicker with a rich economy
-      /* v183: the title waits on outgrowing a league rated `aiBaseIstV178` (400: a newcomer at ~OVR 350 wins ~55% of games,
-       * ~OVR 600 makes the title likely) — about 6 seasons plus one for every 10 points of league strength over 100 */
-      lg = TU("aiBaseIstV178", TU("v183IST", 1) ? 400 : 100),
-      title = ist + (6 + Math.max(0, lg - 100) / 10) / Math.pow(Math.max(0.2, econ), 0.3);
-    return { uff, ist, title, g, pot0, gear: gr };
+      retryU = climb * (1 / Math.max(0.05, vU) - 1);
+    let s = 0;
+    const reachedUff = fromNow && rings > 0;
+    if (!reachedUff) {
+      while (pot < targetU && s < 20000) {
+        pot += grow(false, 0, era);
+        s++;
+      }
+      s = Math.max(fromNow ? climb : 45, s + climb * 0.5) + retryU;
+    }
+    const uff = s;
+    // 2. the UFF years: rings (harder the more chaos is run), chaos capacity, chaos, eras; to the Interstellar bar
+    let ist = null,
+      title = null,
+      maxChaos = chaos;
+    const vI = verdictAt(0.6);
+    for (let k = 0; k < 40000 && title == null; k++) {
+      // chaos puts 22 + 1.05 a point on every opponent; a bloodline strong enough (~0.08 a point of potential) shrugs it off,
+      // one that is not loses its rings (measured: chaos 25–31 on a ~160-OVR player — waived every season)
+      const boost = chaos > 0 ? 22 + chaos * 1.05 : 0,
+        ringRate = 0.25 * Math.max(0.05, Math.min(1, 1 - Math.max(0, boost - pot * TU("etaChaosCarryV184", 0.08)) / 40));
+      rings += ringRate;
+      cap = Math.min(170, cap + ringRate * capPerRing + (rings >= 1 && cap < 6 ? 6 - cap : 0)); // the first ring opens chaos (6)
+      const c1 = Math.min(cap, cap * share);
+      pot += grow(true, c1, era) + Math.max(0, c1 - chaos) * 1.6;
+      chaos = c1;
+      maxChaos = Math.max(maxChaos, chaos);
+      while (chaos >= (era + 1) * eraStep && era < 999) era++;
+      s++;
+      if (ist == null && rings >= 1 && pot >= barI) {
+        s += Math.max(0, climb * (1 / Math.max(0.05, vI) - 1));
+        ist = s;
+      }
+      // 3. the Interstellar title: outgrow a league rated `lg` (OVR ≈ ovrPerPot × potential; the title wants ~1.5× the league)
+      if (ist != null && pot >= potTitle) title = s + 3;
+    }
+    return { uff, ist: ist == null ? 40000 : ist, title: title == null ? 40000 : title, g: grow(false, 0, 0), pot0: fromNow ? (() => { try { return potentialV179(); } catch (_) { return 30; } })() : 30, gear: gr, chaos: Math.round(maxChaos), era, potTitle: Math.round(potTitle) };
   }
   function etaHtmlV182() {
     if (!TU("v181", 1)) return "";
@@ -38114,7 +38160,7 @@
       N = state && state.player ? etaV182(true) : null;
     } catch (_) {}
     const row = (lab, f, n) => `<tr><td>${lab}</td><td>${rng(f)}</td>${N ? `<td>${rng(n)}</td>` : ""}</tr>`;
-    return `<div class="eta-v182" style="margin:10px 0 4px;padding:8px 10px;border-radius:10px;background:rgba(176,124,255,.10);border:1px solid rgba(176,124,255,.35)"><div class="l" style="font-size:10px;color:#c9b8ff;letter-spacing:1.5px">⏱️ ESTIMATED TIME · updates as you move the dials</div><table style="width:100%;margin-top:6px;font:500 12.5px 'Barlow Condensed',sans-serif;color:var(--chalk);border-collapse:collapse"><tr style="color:var(--chalk-dim);font-size:11px"><td></td><td>fresh account</td>${N ? "<td>your account now</td>" : ""}</tr>${row("🏈 Reach the UFF", F.uff, N && N.uff)}${row("🛸 Reach the Interstellar League", F.ist, N && N.ist)}${row("🏆 Win the Interstellar title", F.title, N && N.title)}</table><div class="small" style="margin-top:4px;color:var(--chalk-dim)">A rough model from measured careers: the low end is a sharp tree, the high end a careless one. Potential grows ~${(+F.g).toFixed(1)} a season at these dials${N ? ` · yours is ${fmtBigV179(Math.round(N.pot0))}` : ""}${N && (N.gear.pp || N.gear.growth || N.gear.call) ? ` · your gear counts: +${Math.round(N.gear.pp * 100)}% PP, +${Math.round(N.gear.growth * 100)}% growth, +${Math.round(N.gear.call)}% call-up` : ""}.</div></div>`;
+    return `<div class="eta-v182" style="margin:10px 0 4px;padding:8px 10px;border-radius:10px;background:rgba(176,124,255,.10);border:1px solid rgba(176,124,255,.35)"><div class="l" style="font-size:10px;color:#c9b8ff;letter-spacing:1.5px">⏱️ ESTIMATED TIME · updates as you move the dials</div><table style="width:100%;margin-top:6px;font:500 12.5px 'Barlow Condensed',sans-serif;color:var(--chalk);border-collapse:collapse"><tr style="color:var(--chalk-dim);font-size:11px"><td></td><td>fresh account</td>${N ? "<td>your account now</td>" : ""}</tr>${row("🏈 Reach the UFF", F.uff, N && N.uff)}${row("🛸 Reach the Interstellar League", F.ist, N && N.ist)}${row("🏆 Win the Interstellar title", F.title, N && N.title)}</table><div class="small" style="margin-top:4px;color:var(--chalk-dim)">A rough model from measured careers: the low end is a sharp tree, the high end a careless one. Potential grows ~${(+F.g).toFixed(1)} a season early; running ${Math.round(TU("etaChaosShareV184", 0.7) * 100)}% of chaos capacity the UFF years reach ~${F.chaos} chaos (era ${F.era}); the Interstellar title wants ~${fmtBigV179(F.potTitle)} potential (OVR ≈ 1.5× the league's ${fmtBigV179(TU("aiBaseIstV178", 400))})${N ? ` · yours is ${fmtBigV179(Math.round(N.pot0))}` : ""}${N && (N.gear.pp || N.gear.growth || N.gear.call) ? ` · your gear counts: +${Math.round(N.gear.pp * 100)}% PP, +${Math.round(N.gear.growth * 100)}% growth, +${Math.round(N.gear.call)}% call-up` : ""}.</div></div>`;
   }
   const V181 = { skips: 0 };
   window.__V182 = { eta: etaV182, etaHtml: etaHtmlV182 };

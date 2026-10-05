@@ -10,6 +10,15 @@ Names in older entries are the career app's pre-v149 C minified names (`q`, `ms`
 `index.html` + `src/` (`docs/LAYOUT.md`).
 
 <!-- new entries go here, newest first -->
+- **v184 — the estimate, second pass.** (`src/07-career-app.js`.) The owner: "the chaos I would have thought would have
+  more of an impact … and this one doesn't include [the] new interstellar difficulty". `etaV182` is now a season-by-season
+  projection (well under a millisecond): the climb to the UFF as before; then each UFF season rings come in (fewer when
+  the chaos run outweighs the bloodline — chaos puts 22 + 1.05 a point on every opponent, a bloodline carries ~0.08 a
+  point of potential), each ring raises the chaos capacity, the player runs a share of it (dial, 70%), chaos multiplies
+  the PP economy (3 × 1.16^chaos, felt as a power) and adds 1.6 potential a point, eras open every 15 chaos (×1.2 PP);
+  the Interstellar title waits until OVR (~0.22 × potential, dial) outgrows the league (~1.5 × its rating). Defaults:
+  UFF ~12 h, Interstellar ~35 h, its title ~47 h; with no chaos 70 h / 143 h; the title follows entry at league 100 and
+  trails it by ~24 h at 700. "Your account now" starts from its potential, chaos, capacity, era and rings. `v181check` 6.
 - **v183 — gear in the pacing; the Interstellar League is a league of legends.** (`src/07-career-app.js`,
   `scripts/careersim.mjs`.) The owner asked whether the pacing runs counted items (they did not — drops went to the bag
   and nothing was ever equipped) and for "a larger gap between entering the interstellar league and winning a
