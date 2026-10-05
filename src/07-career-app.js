@@ -35792,7 +35792,17 @@
     });
   }
   function flipCardV178(id) {
-    return FLIPS_V178.find(c => c.id === id) || FLIPS_V178[0];
+    const c = FLIPS_V178.find(x => x.id === id) || FLIPS_V178[0];
+    /* v182: the beta dials scale the cards — the card's face says what it pays now */
+    try {
+      const nf = v => (Math.abs(v - Math.round(v)) < 0.01 ? String(Math.round(v)) : (+v).toFixed(1));
+      if (c.id === "pt1" && TU("flipPctV179", 0.1) !== 0.1) return Object.assign({}, c, { name: "+" + Math.round(TU("flipPctV179", 0.1) * 100) + "% Upgrade Points" });
+      if (c.id === "pt2" && TU("flipPct2V179", 0.2) !== 0.2) return Object.assign({}, c, { name: "+" + Math.round(TU("flipPct2V179", 0.2) * 100) + "% Upgrade Points" });
+      if (c.id === "trust" && TU("flipTrustV182", 3) !== 3) return Object.assign({}, c, { name: "+" + nf(TU("flipTrustV182", 3)) + " Coach Trust" });
+      if (c.id === "pp" && TU("flipPPV182", 3) !== 3) return Object.assign({}, c, { name: "+" + fmtBigV179(TU("flipPPV182", 3)) + " Prestige Points" });
+      if (c.id === "attr" && TU("flipAttrV182", 1) !== 1) return Object.assign({}, c, { name: "+" + nf(TU("flipAttrV182", 1)) + " Permanent" });
+    } catch (_) {}
+    return c;
   }
   function applyFlipV178(e, id, w) {
     const keys = keyAttrsV178(e);
@@ -35810,10 +35820,11 @@
       e.paidV178 = (e.paidV178 || 0) + n;
       applyFlipV178.pts = n;
     } else if (id === "reps") {
-      const r = repAttrV178(e, keys[0] || "speed", 0.5);
-      say = "Extra reps · " + r.name + (r.up ? " +1!" : " +0.5");
-    } else if (id === "trust") e.coachTrust = clamp99((e.coachTrust != null ? e.coachTrust : 50) + 3, 0, 100);
-    else if (id === "pp") bankPPV136(3, "flipV178");
+      const g = TU("flipRepsV182", 0.5),
+        r = repAttrV178(e, keys[0] || "speed", g);
+      say = "Extra reps · " + r.name + (r.up ? " +1!" : " +" + g);
+    } else if (id === "trust") e.coachTrust = clamp99((e.coachTrust != null ? e.coachTrust : 50) + TU("flipTrustV182", 3), 0, 100);
+    else if (id === "pp") bankPPV136(TU("flipPPV182", 3), "flipV178");
     else if (id === "gear") {
       try {
         const g = dropGear(1, "Card flip");
@@ -35821,8 +35832,9 @@
       } catch (_) {}
     } else if (id === "attr") {
       const k = keys.slice().sort((a, b) => (e.attrs[a] || 0) - (e.attrs[b] || 0))[0] || "speed";
-      e.attrs[k] = clamp99((e.attrs[k] || 1) + 1, 1, attrCap());
-      say = "+1 " + ((ATTR_INFO[k] && ATTR_INFO[k].name) || k) + " · permanent";
+      const a182 = TU("flipAttrV182", 1);
+      e.attrs[k] = clamp99((e.attrs[k] || 1) + a182, 1, attrCap());
+      say = "+" + a182 + " " + ((ATTR_INFO[k] && ATTR_INFO[k].name) || k) + " · permanent";
     }
     return say;
   }
@@ -35994,7 +36006,7 @@
       ordPts = orders ? hits * TU("orderPtsV178", 0.2) * worth + (orders.length && hits === orders.length ? TU("sweepPtsV178", 0.4) * worth : 0) : 0,
       pace = paceV178(e, w, stat),
       milePts = pace && pace.hit.length ? pace.hit.length * TU("milePtsV178", 0.75) * worth : 0,
-      raw = (pot.raw + ordPts + milePts) * wmul * heat.mult * (1 + medalFxV179("payMultV179")) /* v179 G: Golden Paycheck */,
+      raw = (pot.raw + ordPts + milePts) * wmul * heat.mult * (1 + medalFxV179("payMultV179")) * TU("betaPayV182", 1) /* v179 G: Golden Paycheck; v182: the beta paycheck dial */,
       bank0 = e.payBankV178 || 0,
       bank = bank0 + raw,
       whole = Math.floor(bank + 1e-9);
@@ -37916,7 +37928,14 @@
     ["flipPctV179", "Points card (% of the week)", 0, 0.5, 0.01, 0.1, "card"],
     ["luckyDrawPerLvlV179", "Lucky Draw chance per level", 0, 0.5, 0.05, 0.2, "card"],
     ["gradeBarCapV179", "Season grade bar cap", 60, 95, 1, 86, "card"],
-    ["gradeRatchetEaseV179", "Grade: last season eased by", 0, 20, 1, 6, "card"]
+    ["gradeRatchetEaseV179", "Grade: last season eased by", 0, 20, 1, 6, "card"],
+    ["betaPayV182", "Weekly paycheck ×", 0.1, 10, 0.1, 1, "post"],
+    ["flipPct2V179", "Big points card (% of the week)", 0, 1, 0.01, 0.2, "post"],
+    ["flipPPV182", "PP card amount", 0, 100000, 1, 3, "post"],
+    ["flipTrustV182", "Coach trust card", 0, 20, 1, 3, "post"],
+    ["flipRepsV182", "Reps card (attribute points)", 0, 5, 0.5, 0.5, "post"],
+    ["flipAttrV182", "Permanent card (+attribute)", 0, 10, 1, 1, "post"],
+    ["etaMinPerSeasonV182", "Minutes per season (the estimate)", 2, 20, 1, 7, "eta"]
   ];
   const BETA_KEY_V181 = "rib.betaTune.v181";
   function betaReadV181() {
@@ -37947,6 +37966,10 @@
     (window.RIB_TUNE || (window.RIB_TUNE = {}))[k] = v;
     const el = document.getElementById("bt_" + k + "_val");
     el && (el.textContent = betaFmtV181(d, v));
+    try {
+      const eta = document.getElementById("betaEtaV182");
+      eta && (eta.innerHTML = etaHtmlV182()); /* v182: the estimate follows the dials */
+    } catch (_) {}
     if (save) {
       const o = betaReadV181();
       v === d[5] ? delete o[k] : (o[k] = v);
@@ -37963,7 +37986,7 @@
     render();
   }
   function betaFmtV181(d, v) {
-    return d[0] === "flipPctV179" || d[0] === "luckyDrawPerLvlV179" ? Math.round(v * 100) + "%" : d[4] < 1 ? (+v).toFixed(d[4] < 0.1 ? 2 : 1).replace(/\.0+$/, "") : fmtBigV179(v);
+    return d[0] === "flipPctV179" || d[0] === "flipPct2V179" || d[0] === "luckyDrawPerLvlV179" ? Math.round(v * 100) + "%" : d[0] === "etaMinPerSeasonV182" ? v + " min" : d[4] < 1 ? (+v).toFixed(d[4] < 0.1 ? 2 : 1).replace(/\.0+$/, "") : fmtBigV179(v);
   }
   function betaCardV181() {
     try {
@@ -37976,7 +37999,7 @@
     if (!TU("v181", 1)) return "";
     const o = betaReadV181(),
       moved = Object.keys(o).length,
-      head = { cost: "PRESTIGE COSTS", gain: "PRESTIGE GAINS", bar: "POTENTIAL & THE SCOUTS", card: "CARDS & GRADES" };
+      head = { cost: "PRESTIGE COSTS", gain: "PRESTIGE GAINS", bar: "POTENTIAL & THE SCOUTS", card: "CARDS & GRADES", post: "POST-GAME CARDS", eta: "THE ESTIMATE" };
     let last = "";
     const rows = BETA_DIALS_V181.map(d => {
       const v = window.RIB_TUNE && window.RIB_TUNE[d[0]] != null ? +window.RIB_TUNE[d[0]] : d[5],
@@ -37984,7 +38007,7 @@
       last = d[6];
       return `${h}<div class="fx-row"><div class="fx-head"><span class="fx-label">${escHtml(d[1])}</span><span class="fx-val" id="bt_${d[0]}_val" style="${v !== d[5] ? "color:var(--gold)" : ""}">${betaFmtV181(d, v)}</span></div><input class="fx-slider" id="bt_${d[0]}" type="range" min="${d[2]}" max="${d[3]}" step="${d[4]}" value="${v}" oninput="window.__V181.set('${d[0]}',this.value,0)" onchange="window.__V181.set('${d[0]}',this.value,1)"></div>`;
     }).join("");
-    return `<div class="card" id="betaCardV181" style="border-color:#b07cff"><details${moved ? " open" : ""}><summary style="cursor:pointer;list-style:none"><div class="l" style="font-size:11px;color:#b07cff;letter-spacing:2px">🧪 BETA TUNING — FOR TESTING${moved ? ` · <b style="color:var(--gold)">${moved} moved</b>` : ""} ▸</div><div class="small" style="margin-top:4px">Fine-tune prestige costs, gains, the scouts' bars and the rewards while you test. Changes apply now and stay on this device only — never in your save.</div></summary>${rows}<div class="btn-row" style="margin-top:10px"><button class="btn ghost" onclick="window.__V181.reset()">↺ Reset all to the game's values</button></div></details></div>`;
+    return `<div class="card" id="betaCardV181" style="border-color:#b07cff"><details${moved ? " open" : ""}><summary style="cursor:pointer;list-style:none"><div class="l" style="font-size:11px;color:#b07cff;letter-spacing:2px">🧪 BETA TUNING — FOR TESTING${moved ? ` · <b style="color:var(--gold)">${moved} moved</b>` : ""} ▸</div><div class="small" style="margin-top:4px">Fine-tune prestige costs, gains, the scouts' bars and the rewards while you test. Changes apply now and stay on this device only — never in your save.</div></summary><div id="betaEtaV182">${etaHtmlV182()}</div>${rows}<div class="btn-row" style="margin-top:10px"><button class="btn ghost" onclick="window.__V181.reset()">↺ Reset all to the game's values</button></div></details></div>`;
   }
   // the championship's beta skip
   function betaSkipBtnV181(e, y) {
@@ -38021,7 +38044,66 @@
     V181.skips++;
     return true;
   }
+  /* ===== v182 THE ESTIMATE =====
+   * The owner: "add ways to scale the post game card amounts in [the beta] menu. Add [the] estimated time it would [take]
+   * to hit [the] UFF, interstellar, winning [the] interstellar … make it update dynamically. Doesn't need to be 100
+   * percent accurate". Six POST-GAME CARDS dials (the weekly paycheck ×, the big points card, the PP / trust / reps /
+   * permanent cards — the card's face reads the dial) and `etaV182`: a model built on v179's measured pacing — potential
+   * grows ~1.4 a season early (×(gains ÷ prices)^0.6 × the ceiling nodes' weight), ~3× that after the UFF until the finite
+   * ceiling nodes run out (~1,100), ~1.2× past them (chaos and the eternal stack); a career climbs to the Combine in ~14
+   * seasons; every failed scouts' verdict costs another career; a ring and the Interstellar title take their seasons.
+   * Read for a fresh account and for this account now (its potential), as a range (an expert ~0.7×, a careless tree
+   * ~1.6×+), in hours at `etaMinPerSeasonV182` minutes a season; redrawn on every dial move. `window.__V182`. */
+  function etaV182(fromNow) {
+    const price = (TU("corePriceV179", 6) / 6) * 0.7 + (TU("apexPriceV179", 10) / 10) * 0.2 + (TU("impossiblePriceV179", 100) / 100) * 0.1,
+      gain = TU("betaPPGainV181", 1) * 0.75 + TU("betaSeasonPPV181", 1) * 0.25,
+      econ = Math.pow(Math.max(0.01, gain / Math.max(0.01, price)), 0.6),
+      g = 1.4 * econ * (TU("ceilNodeMultV179", 3) / 3) + TU("ceilPerLevelV179", 0.05) * 2,
+      climb = 14 / Math.pow(Math.max(0.1, TU("betaPayV182", 1)), 0.15),
+      vMax = Math.min(TU("verdictCapV179", 96), TU("verdictBaseV179", 80)) / 100,
+      sl = TU("secondLookBaseV179", 10) / 100,
+      verdictAt = v => v + (1 - v) * sl,
+      barC = TU("scoutPotCombineV179", 90),
+      barU = TU("scoutPotUffV179", 150),
+      barI = TU("istPotV179", 1600);
+    let pot0 = 30;
+    if (fromNow) {
+      try {
+        pot0 = potentialV179();
+      } catch (_) {}
+    }
+    // to the UFF: grow potential to a little over the bar, then a career's climb; each verdict that fails costs a career
+    const targetU = Math.max(barU, barC) * 1.08,
+      sPotU = Math.max(0, targetU - pot0) / Math.max(0.05, g),
+      vU = verdictAt(0.5 + (vMax - 0.5) * 0.25) * 0.95,
+      uff = Math.max(fromNow ? climb : 45, sPotU + climb * 0.5) + climb * (1 / Math.max(0.05, vU) - 1);
+    // to the Interstellar League: a UFF ring (~10 seasons), potential to its bar (fast until ~1,100, slow past it), the call
+    const potAtU = Math.max(pot0, targetU),
+      fin = 1100,
+      sLate = (Math.max(0, Math.min(fin, barI) - potAtU) / (3 * g)) + Math.max(0, barI - Math.max(fin, potAtU)) / (1.2 * g),
+      ist = uff + Math.max(10, sLate) + climb * (1 / Math.max(0.05, verdictAt(0.6)) - 1),
+      // an Interstellar title: a few seasons to settle in, quicker with a rich economy
+      title = ist + 30 / Math.pow(Math.max(0.2, econ), 0.3);
+    return { uff, ist, title, g, pot0 };
+  }
+  function etaHtmlV182() {
+    if (!TU("v181", 1)) return "";
+    const m = TU("etaMinPerSeasonV182", 7),
+      hrs = s => {
+        const h = (s * m) / 60;
+        return h < 1 ? Math.round(h * 60) + " min" : h < 100 ? h.toFixed(h < 10 ? 1 : 0) + " h" : fmtBigV179(Math.round(h)) + " h";
+      },
+      rng = s => `<b>${hrs(s * 0.7)} – ${hrs(s * 1.6)}</b> <small>(~${hrs(s)})</small>`,
+      F = etaV182(false);
+    let N = null;
+    try {
+      N = state && state.player ? etaV182(true) : null;
+    } catch (_) {}
+    const row = (lab, f, n) => `<tr><td>${lab}</td><td>${rng(f)}</td>${N ? `<td>${rng(n)}</td>` : ""}</tr>`;
+    return `<div class="eta-v182" style="margin:10px 0 4px;padding:8px 10px;border-radius:10px;background:rgba(176,124,255,.10);border:1px solid rgba(176,124,255,.35)"><div class="l" style="font-size:10px;color:#c9b8ff;letter-spacing:1.5px">⏱️ ESTIMATED TIME · updates as you move the dials</div><table style="width:100%;margin-top:6px;font:500 12.5px 'Barlow Condensed',sans-serif;color:var(--chalk);border-collapse:collapse"><tr style="color:var(--chalk-dim);font-size:11px"><td></td><td>fresh account</td>${N ? "<td>your account now</td>" : ""}</tr>${row("🏈 Reach the UFF", F.uff, N && N.uff)}${row("🛸 Reach the Interstellar League", F.ist, N && N.ist)}${row("🏆 Win the Interstellar title", F.title, N && N.title)}</table><div class="small" style="margin-top:4px;color:var(--chalk-dim)">A rough model from measured careers: the low end is a sharp tree, the high end a careless one. Potential grows ~${(+F.g).toFixed(1)} a season at these dials${N ? ` · yours is ${fmtBigV179(Math.round(N.pot0))}` : ""}.</div></div>`;
+  }
   const V181 = { skips: 0 };
+  window.__V182 = { eta: etaV182, etaHtml: etaHtmlV182 };
   window.__V181 = { dials: BETA_DIALS_V181, set: betaSetV181, reset: betaResetV181, read: betaReadV181, skip: betaSkipTitleV181, state: V181 };
   window.__chaosMaxV179 = () => chaosMaxAllNowV150();
   window.__chaosTotalV179 = () => chaosTotal();

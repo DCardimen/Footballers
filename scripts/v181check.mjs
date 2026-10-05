@@ -3,6 +3,8 @@
 //   2. a dial moves the live tune at once: the core tree price doubles a core node's cost; the PP gain dial multiplies
 //      the era payout; the device keeps a moved dial (localStorage, not the save) and applies it at the next boot;
 //      "Reset all" clears them
+//   4. (v182) the POST-GAME CARDS dials scale the cards (the face reads the dial), and THE ESTIMATE (time to the UFF, the
+//      Interstellar League, its title) sits on the card and moves with the dials
 //   3. the championship, locked to "play it live", carries a 🧪 BETA skip that sims it (the week is played, the lock is
 //      back afterwards); TU v181 0 hides both
 // No page errors.  GAME_URL=http://localhost:5173/ node scripts/v181check.mjs
@@ -35,7 +37,7 @@ const C = await page.evaluate(async () => {
   const card = document.getElementById('betaCardV181')
   return { card: !!card, sliders: card ? card.querySelectorAll('input[type=range]').length : 0, text: card ? card.textContent.replace(/\s+/g, ' ').slice(0, 160) : '' }
 })
-ok(C.card && C.sliders >= 10 && C.sliders <= 20 && /PRESTIGE COSTS/.test(C.text) || (C.card && C.sliders === 18), 'Settings carries 🧪 BETA TUNING with its dials', { sliders: C.sliders })
+ok(C.card && C.sliders >= 18, 'Settings carries 🧪 BETA TUNING with its dials', { sliders: C.sliders })
 
 // 2. a dial moves the live tune; the device keeps it
 const D = await page.evaluate(() => {
@@ -87,6 +89,29 @@ ok(T.next && T.next.playoff && /BETA/.test(T.label), 'the locked championship we
 ok(T.played && T.skips === 1, 'the beta skip sims the championship', { played: T.played })
 ok(T.lockAfter === T.lockBefore, 'and the play-it-live lock is back afterwards', { before: T.lockBefore, after: T.lockAfter })
 ok(T.hidden, 'TU v181 0: no beta skip', T.hidden)
+
+// 4. v182: the post-game cards and the estimate
+const E = await page.evaluate(async () => {
+  const A = window.__GRIDIRON_AUDIT__, S = A.freshState(); S.tutorialSeen = true; A.setState(S)
+  S.player = A.newPlayer(); const p = S.player; p.pos = 'WR'; p.level = 3; p._wonShown = true; p.originV11 = 'walk-on'; p.coachTrust = 50
+  window.go('settings'); await new Promise((r) => setTimeout(r, 300))
+  const panel0 = (document.getElementById('betaEtaV182') || {}).textContent || ''
+  const e0 = window.__V182.eta(false)
+  window.__V181.set('corePriceV179', 2, 0); const e1 = window.__V182.eta(false)
+  const panel1 = (document.getElementById('betaEtaV182') || {}).textContent || ''
+  window.__V181.set('istPotV179', 3000, 0); const e2 = window.__V182.eta(false)
+  window.__V181.set('flipTrustV182', 10, 0); window.__V181.set('flipPPV182', 50, 0)
+  const t0 = p.coachTrust; window.__V178 && window.__V179.applyFlip('trust', {}); const t1 = p.coachTrust
+  const pp0 = S.pp || 0, bank0 = S.ppBankV136 || 0; window.__V179.applyFlip('pp', {}); const ppGot = (S.pp || 0) - pp0 + ((S.ppBankV136 || 0) - bank0)
+  const html = window.__V178.reel ? '' : ''
+  window.__V181.reset()
+  return { panel0: panel0.slice(0, 600), changed: panel0 !== panel1, e0, e1, e2, trust: t1 - t0, ppGot }
+})
+console.log('E:', JSON.stringify(E).slice(0, 600))
+ok(/Reach the UFF/.test(E.panel0) && /Interstellar title/.test(E.panel0), 'the beta card shows the estimated time to the UFF, the Interstellar League and its title', E.panel0)
+ok(E.e1.uff < E.e0.uff && E.e1.ist < E.e0.ist && E.changed, 'cheaper prices shorten the estimate, and the panel redraws as the dial moves', { before: Math.round(E.e0.uff), after: Math.round(E.e1.uff) })
+ok(E.e2.ist > E.e1.ist && Math.abs(E.e2.uff - E.e1.uff) < 0.01, 'a higher Interstellar bar moves only the Interstellar times', { ist: [Math.round(E.e1.ist), Math.round(E.e2.ist)] })
+ok(E.trust === 10 && E.ppGot === 50, 'the post-game card dials scale the cards (trust +10, PP +50)', { trust: E.trust, pp: E.ppGot })
 
 console.log(JSON.stringify({ pass, fail, pageErrors: errors.length }))
 if (errors.length) console.log('page errors:', errors.slice(0, 6))

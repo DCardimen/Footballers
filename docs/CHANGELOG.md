@@ -10,6 +10,15 @@ Names in older entries are the career app's pre-v149 C minified names (`q`, `ms`
 `index.html` + `src/` (`docs/LAYOUT.md`).
 
 <!-- new entries go here, newest first -->
+- **v182 — the estimate.** (`src/07-career-app.js`.) The owner: "add ways to scale the post game card amounts in [the beta]
+  menu. Add [the] estimated time to hit [the] UFF, interstellar, winning [the] interstellar … update dynamically. Doesn't
+  need to be 100 percent accurate". POST-GAME CARDS dials on 🧪 BETA TUNING: the weekly paycheck ×, the big points card,
+  the PP / coach-trust / reps / permanent cards (the card's face reads the dial). ⏱️ ESTIMATED TIME on the same card —
+  to the UFF, the Interstellar League and its title, for a fresh account and for this account now, as a range (a sharp
+  tree to a careless one) in hours at a minutes-per-season dial (7) — from a model on v179's measured pacing (potential
+  ~1.4 a season early × (gains ÷ prices)^0.6 × the ceiling nodes' weight; ~3× after the UFF until the finite ceiling
+  nodes run out; a career's climb; the verdict's misses), redrawn as any dial moves. Defaults read ~12 h to the UFF and
+  ~70 h to the Interstellar League. `v181check` 4.
 - **v181 — the beta bench.** (`src/07-career-app.js`.) The owner: "Add [a] beta slider menu to adjust prestige cost [and]
   gains. Add 10 to 20 little fine tuning sliders for testing purposes. Add a beta skip game button for the championship
   games." Settings carries 🧪 BETA TUNING — eighteen dials over the live `TU()` values: the tree's prices (core, Apex,
