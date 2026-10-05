@@ -1843,6 +1843,7 @@
    "files": [],
    "checks": [
     "v179check",
+    "medalrewardscheck",
     "v136check",
     "v178check"
    ]
@@ -4768,6 +4769,18 @@
   "v181check": {
    "file": "scripts/v181check.mjs",
    "desc": "v181 — the beta bench: Settings carries 🧪 BETA TUNING with 18 dials; a dial moves the live tune at once (the core price ×12 doubles a core node, the gain ×2 doubles the era payout), the device keeps it (localStorage, never the save) and applies it at boot, Reset all clears it; the locked championship carries a 🧪 BETA skip that sims it and puts the lock back; TU v181 0 hides it. No page errors.",
+   "areas": [
+    "season"
+   ],
+   "runtimeSec": 40,
+   "slow": false,
+   "needsServer": true,
+   "pureNode": false,
+   "flaky": []
+  },
+  "medalrewardscheck": {
+   "file": "scripts/medalrewardscheck.mjs",
+   "desc": "v179 G end to end — earning (a rising medal count queues one two-card reward a medal, the 10th a face-down major; an old save is not handed its history; a new era deals a major), the chooser through the UI (the hub's chip, the major's flip, the stat lines, the next reward, pick the rest), every effect where the game reads it (+1 / +3 starting attributes on a new player, Head Start points, trust / PP % / growth / injuries / team / titles / playoffs / cut lives in treeFx, +9 potential, the verdict ceiling and second look, one more card pick, the paycheck ×1.1, luckier cards, the PP windfall, a look in the Locker) and a reload keeping it all. No page errors.",
    "areas": [
     "season"
    ],

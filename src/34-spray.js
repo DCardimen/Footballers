@@ -297,6 +297,7 @@
   function hint() {
     if (!sprayOn() || document.getElementById("sprayHintV170")) return;
     var nav = document.getElementById("navV139"); if (!nav || !nav.classList.contains("on") || !nav.getBoundingClientRect().height) return;
+    if (document.querySelector(".decision-overlay,#verdictV179,#pgOverlayV13")) return;   // a choice is on screen (the medal chooser, the verdict, the post-game card): the one-time hint waits for a clear screen
     var seen = "1"; try { seen = localStorage.getItem("rib.sprayHint.v170") || "" } catch (e) {}
     if (seen) return;
     try { localStorage.setItem("rib.sprayHint.v170", "1") } catch (e) {}
