@@ -10,6 +10,32 @@ Names in older entries are the career app's pre-v149 C minified names (`q`, `ms`
 `index.html` + `src/` (`docs/LAYOUT.md`).
 
 <!-- new entries go here, newest first -->
+- **v183 — gear in the pacing; the Interstellar League is a league of legends.** (`src/07-career-app.js`,
+  `scripts/careersim.mjs`.) The owner asked whether the pacing runs counted items (they did not — drops went to the bag
+  and nothing was ever equipped) and for "a larger gap between entering the interstellar league and winning a
+  championship". `careersim` now equips the best item in each slot between careers (rarity, then mods; a careless player
+  wears the first thing in the bag; `--gear 0` off), and the beta estimate's "your account now" counts the gear worn (its
+  PP gain, growth and call-up). Measured with `simSeason`: Interstellar teams were rated 100 — a newcomer at ~OVR 230–360
+  won 88–90% of games and had the title in a season or two. They are now rated 400 (`aiBaseIstV178`; TU `v183IST` 0 →
+  100): a newcomer (~OVR 356) wins ~55%, ~OVR 500 ~71%, ~OVR 700 ~95% — the title waits on outgrowing the league. A beta
+  dial sets it (100–1,000), and the estimate's title gap follows (≈6 seasons + 1 per 10 points over 100). `v181check` 5.
+- **v182 — the estimate.** (`src/07-career-app.js`.) The owner: "add ways to scale the post game card amounts in [the beta]
+  menu. Add [the] estimated time to hit [the] UFF, interstellar, winning [the] interstellar … update dynamically. Doesn't
+  need to be 100 percent accurate". POST-GAME CARDS dials on 🧪 BETA TUNING: the weekly paycheck ×, the big points card,
+  the PP / coach-trust / reps / permanent cards (the card's face reads the dial). ⏱️ ESTIMATED TIME on the same card —
+  to the UFF, the Interstellar League and its title, for a fresh account and for this account now, as a range (a sharp
+  tree to a careless one) in hours at a minutes-per-season dial (7) — from a model on v179's measured pacing (potential
+  ~1.4 a season early × (gains ÷ prices)^0.6 × the ceiling nodes' weight; ~3× after the UFF until the finite ceiling
+  nodes run out; a career's climb; the verdict's misses), redrawn as any dial moves. Defaults read ~12 h to the UFF and
+  ~70 h to the Interstellar League. `v181check` 4.
+- **v181 — the beta bench.** (`src/07-career-app.js`.) The owner: "Add [a] beta slider menu to adjust prestige cost [and]
+  gains. Add 10 to 20 little fine tuning sliders for testing purposes. Add a beta skip game button for the championship
+  games." Settings carries 🧪 BETA TUNING — eighteen dials over the live `TU()` values: the tree's prices (core, Apex,
+  Impossible), the PP gains (career end / titles / medals through `eraMult`, in-season through `bankPPV136`), chaos per ring
+  and per era, the three potential bars, the ceiling weights, the verdict and the second look, the points card, Lucky
+  Draw, the grade bar and its ease. A moved dial applies at once and is kept on the device (`rib.betaTune.v181`), never in
+  the save; "Reset all" restores the game's values. The championship's play-it-live lock carries a 🧪 BETA skip that sims
+  the game (the lock lifted for that one call). Kill switch `v181`. `v181check`.
 - **v180 — the board at any speed, the 60% lights, the play in the middle, half tackles.** (`src/05-field-renderer.js`,
   `src/07-career-app.js`.) The owner: "ensure at 4x speed the celebration on the jumbotron plays, default lighting to 60
   percent, make sure the field doesn't [drift] towards the bottom of live play no matter where you are on the field.
