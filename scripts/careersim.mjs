@@ -34,7 +34,7 @@ const OUT = arg('out', 'docs/CAREERSIM.md'), CAREER_MS = +arg('careerMs', 240000
 // random affordable nodes, an early declare) and HOW FAR (--until ring = the first UFF title, as before; uff = the first
 // arrival in the UFF; interstellar = UFF careers ground on — chaos maxed whenever it is unlocked (smart) — until the
 // Interstellar Call is answered). Every run reports the SEASONS to each milestone, and hours at --seasonMin (7) a season.
-const POT_TARGET = +arg('potTarget', 150), FAST = arg('fast', '0') !== '0', CHAOS = arg('chaos', '1') !== '0', POLICY = arg('policy', 'smart'), UNTIL = arg('until', 'ring'), SEASON_MIN = +arg('seasonMin', 7), TUNE = JSON.parse(arg('tune', '{}'))
+const GEAR = arg('gear', '1') !== '0', POT_TARGET = +arg('potTarget', 150), FAST = arg('fast', '0') !== '0', CHAOS = arg('chaos', '1') !== '0', POLICY = arg('policy', 'smart'), UNTIL = arg('until', 'ring'), SEASON_MIN = +arg('seasonMin', 7), TUNE = JSON.parse(arg('tune', '{}'))
 const url = gameUrl('index.html')
 const U = (...q) => url + (url.includes('?') ? '&' : '?') + ['stayStale', 'noFilmV114', 'noGrowV132'].concat(q).join('&')
 
@@ -74,8 +74,22 @@ function installDriver () {
   CS.freshAccount = () => { const s = A.freshState(); s.tutorialSeen = true; A.setState(s); window.GridironStorage.save(s); return true }
 
   // between careers: the cheapest affordable prestige node, again and again; then a Path when the medals allow
+  // v183: between careers the player equips the best item in each slot (rarity first, then its extra mods); a careless
+  // player (bad) wears the first thing in the bag. Off with --gear 0.
+  CS.equipBest = () => {
+    if (CS.gear === false) return 0
+    const inv = (S().inventory || []).slice(), R = ['common', 'uncommon', 'rare', 'epic', 'legendary', 'mythic']
+    const score = (g) => R.indexOf(g.rarity) * 10 + ((g.mods || []).length) * 3 + (/^(ppMult|growth|startAll|pointsFlat)$/.test(g.eff) ? 2 : 0)
+    const best = {}
+    for (const g of inv) { if (!g || !g.slot) continue; if (CS.policy === 'bad') { best[g.slot] = best[g.slot] || g; continue } if (!best[g.slot] || score(g) > score(best[g.slot])) best[g.slot] = g }
+    let n = 0
+    for (const k in best) { const cur = (S().equipped || {})[k]; if (!cur || cur.id !== best[k].id) { try { window.equipGear(best[k].id); n++ } catch (e) {} } }
+    return n
+  }
   CS.spendPP = () => {
     const bought = []
+    let geared = 0
+    try { geared = CS.equipBest() } catch (e) {}
     // v179 G: the medal rewards first (they pay PP and permanent boosts) — good takes the stronger card, bad the weaker
     let medals = 0
     try { if (window.__V179 && window.__V179.medals) medals = window.__V179.medals.autoQuiet(CS.policy === 'good' || CS.policy === 'expert' ? 'good' : CS.policy === 'bad' ? 'bad' : 'random') } catch (e) {}
@@ -108,7 +122,7 @@ function installDriver () {
     }
     let path = null
     try { if (!S().path && typeof window.choosePath === 'function') { window.choosePath(CS.casual ? ['prodigy', 'magnate', 'grinder'][Math.floor(Math.random() * 3)] : 'prodigy'); path = S().path || null } } catch (e) {}
-    return { bought, path, medals, ppLeft: S().pp, tree: Object.assign({}, S().tree) }
+    return { bought, path, medals, geared, ppLeft: S().pp, tree: Object.assign({}, S().tree) }
   }
 
   const bestOffer = (O) => { let bi = 0, bs = -1e9; (O.list || []).forEach((c, i) => { const v = (c.rating || 0) + (c.security || 0) * 0.5 + (c.role === 'starter' ? 8 : c.role === 'rotation' ? 3 : 0); if (v > bs) { bs = v; bi = i } }); return bi }
@@ -268,7 +282,7 @@ function installDriver () {
 const runs = []
 async function playRun (page, runNo) {
   const out = { run: runNo, careers: [], title: false }
-  await page.evaluate(([pol, pt]) => { window.__CS.freshAccount(); window.__CS.policy = pol; window.__CS.casual = pol === 'casual'; window.__CS.potTarget = pt }, [POLICY, POT_TARGET])
+  await page.evaluate(([pol, pt, gear]) => { window.__CS.freshAccount(); window.__CS.policy = pol; window.__CS.casual = pol === 'casual'; window.__CS.potTarget = pt; window.__CS.gear = gear }, [POLICY, POT_TARGET, GEAR])
   for (let c = 1; c <= MAX_CAREERS; c++) {
     const spend = await page.evaluate(() => window.__CS.spendPP())
     let rec

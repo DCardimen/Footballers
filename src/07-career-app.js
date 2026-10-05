@@ -38056,9 +38056,19 @@
    * ~1.6×+), in hours at `etaMinPerSeasonV182` minutes a season; redrawn on every dial move. `window.__V182`. */
   function etaV182(fromNow) {
     const price = (TU("corePriceV179", 6) / 6) * 0.7 + (TU("apexPriceV179", 10) / 10) * 0.2 + (TU("impossiblePriceV179", 100) / 100) * 0.1,
-      gain = TU("betaPPGainV181", 1) * 0.75 + TU("betaSeasonPPV181", 1) * 0.25,
+      /* v183: "your account now" counts the gear it wears — its PP gain feeds the economy, its growth the potential,
+       * its call-up the scouts' odds (the fresh account wears nothing) */
+      gr = (() => {
+        if (!fromNow) return { pp: 0, growth: 0, call: 0 };
+        try {
+          return { pp: Math.max(0, gearFx("ppMult") + gearV147("ppGain")), growth: Math.max(0, gearFx("growth")), call: Math.max(0, gearV147("callUp")) };
+        } catch (_) {
+          return { pp: 0, growth: 0, call: 0 };
+        }
+      })(),
+      gain = (TU("betaPPGainV181", 1) * 0.75 + TU("betaSeasonPPV181", 1) * 0.25) * (1 + gr.pp),
       econ = Math.pow(Math.max(0.01, gain / Math.max(0.01, price)), 0.6),
-      g = 1.4 * econ * (TU("ceilNodeMultV179", 3) / 3) + TU("ceilPerLevelV179", 0.05) * 2,
+      g = (1.4 * econ * (TU("ceilNodeMultV179", 3) / 3) + TU("ceilPerLevelV179", 0.05) * 2) * (1 + gr.growth * 0.5),
       climb = 14 / Math.pow(Math.max(0.1, TU("betaPayV182", 1)), 0.15),
       vMax = Math.min(TU("verdictCapV179", 96), TU("verdictBaseV179", 80)) / 100,
       sl = TU("secondLookBaseV179", 10) / 100,
@@ -38075,7 +38085,7 @@
     // to the UFF: grow potential to a little over the bar, then a career's climb; each verdict that fails costs a career
     const targetU = Math.max(barU, barC) * 1.08,
       sPotU = Math.max(0, targetU - pot0) / Math.max(0.05, g),
-      vU = verdictAt(0.5 + (vMax - 0.5) * 0.25) * 0.95,
+      vU = Math.min(0.99, verdictAt(0.5 + (vMax - 0.5) * 0.25) * Math.min(0.99, 0.95 + gr.call / 100)),
       uff = Math.max(fromNow ? climb : 45, sPotU + climb * 0.5) + climb * (1 / Math.max(0.05, vU) - 1);
     // to the Interstellar League: a UFF ring (~10 seasons), potential to its bar (fast until ~1,100, slow past it), the call
     const potAtU = Math.max(pot0, targetU),
@@ -38084,7 +38094,7 @@
       ist = uff + Math.max(10, sLate) + climb * (1 / Math.max(0.05, verdictAt(0.6)) - 1),
       // an Interstellar title: a few seasons to settle in, quicker with a rich economy
       title = ist + 30 / Math.pow(Math.max(0.2, econ), 0.3);
-    return { uff, ist, title, g, pot0 };
+    return { uff, ist, title, g, pot0, gear: gr };
   }
   function etaHtmlV182() {
     if (!TU("v181", 1)) return "";
@@ -38100,7 +38110,7 @@
       N = state && state.player ? etaV182(true) : null;
     } catch (_) {}
     const row = (lab, f, n) => `<tr><td>${lab}</td><td>${rng(f)}</td>${N ? `<td>${rng(n)}</td>` : ""}</tr>`;
-    return `<div class="eta-v182" style="margin:10px 0 4px;padding:8px 10px;border-radius:10px;background:rgba(176,124,255,.10);border:1px solid rgba(176,124,255,.35)"><div class="l" style="font-size:10px;color:#c9b8ff;letter-spacing:1.5px">⏱️ ESTIMATED TIME · updates as you move the dials</div><table style="width:100%;margin-top:6px;font:500 12.5px 'Barlow Condensed',sans-serif;color:var(--chalk);border-collapse:collapse"><tr style="color:var(--chalk-dim);font-size:11px"><td></td><td>fresh account</td>${N ? "<td>your account now</td>" : ""}</tr>${row("🏈 Reach the UFF", F.uff, N && N.uff)}${row("🛸 Reach the Interstellar League", F.ist, N && N.ist)}${row("🏆 Win the Interstellar title", F.title, N && N.title)}</table><div class="small" style="margin-top:4px;color:var(--chalk-dim)">A rough model from measured careers: the low end is a sharp tree, the high end a careless one. Potential grows ~${(+F.g).toFixed(1)} a season at these dials${N ? ` · yours is ${fmtBigV179(Math.round(N.pot0))}` : ""}.</div></div>`;
+    return `<div class="eta-v182" style="margin:10px 0 4px;padding:8px 10px;border-radius:10px;background:rgba(176,124,255,.10);border:1px solid rgba(176,124,255,.35)"><div class="l" style="font-size:10px;color:#c9b8ff;letter-spacing:1.5px">⏱️ ESTIMATED TIME · updates as you move the dials</div><table style="width:100%;margin-top:6px;font:500 12.5px 'Barlow Condensed',sans-serif;color:var(--chalk);border-collapse:collapse"><tr style="color:var(--chalk-dim);font-size:11px"><td></td><td>fresh account</td>${N ? "<td>your account now</td>" : ""}</tr>${row("🏈 Reach the UFF", F.uff, N && N.uff)}${row("🛸 Reach the Interstellar League", F.ist, N && N.ist)}${row("🏆 Win the Interstellar title", F.title, N && N.title)}</table><div class="small" style="margin-top:4px;color:var(--chalk-dim)">A rough model from measured careers: the low end is a sharp tree, the high end a careless one. Potential grows ~${(+F.g).toFixed(1)} a season at these dials${N ? ` · yours is ${fmtBigV179(Math.round(N.pot0))}` : ""}${N && (N.gear.pp || N.gear.growth || N.gear.call) ? ` · your gear counts: +${Math.round(N.gear.pp * 100)}% PP, +${Math.round(N.gear.growth * 100)}% growth, +${Math.round(N.gear.call)}% call-up` : ""}.</div></div>`;
   }
   const V181 = { skips: 0 };
   window.__V182 = { eta: etaV182, etaHtml: etaHtmlV182 };
