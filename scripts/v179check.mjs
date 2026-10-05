@@ -16,6 +16,9 @@
 //   K: the scouts' verdict (TU v179K): a declare is two rolls — the season, then the verdict (a coin flip at the potential
 //      bar, diminishing returns over it toward a ceiling the declare-odds prestige raises), and the GM's second look when
 //      the verdict says no; College → Combine has its own bar; a full-screen reveal plays the rolls; v179K 0 = one roll
+//   L: the prestige tree opens with the BLOODLINE POTENTIAL card (the number, its parts, the three bars and what is left)
+//      and the MEDAL REWARDS card (every permanent bonus in plain stats, the majors owned and to find); a node that moves
+//      potential says what its next level adds; the medal chooser's cards carry stat lines; TU v179L 0 = none of it
 //   TU v179 0: no medal cap, the old Interstellar Call
 // No page errors.  GAME_URL=http://localhost:5173/ node scripts/v179check.mjs
 import { gameUrl, launch } from './lib/env.mjs'
@@ -245,6 +248,33 @@ ok(K.col > 0 && K.col < 150, 'College → Combine has its own (lower) potential 
 ok(K.lvA === 7 && K.rows1 === 3 && /IN/.test(K.end1), 'season ✓ · verdict ✗ · second look ✓: he is in, and the reveal plays all three rolls', { level: K.lvA, rows: K.rows1, end: K.end1 })
 ok(K.lvB === 6 && K.rows2 === 3 && /NOT THIS YEAR/.test(K.end2), 'season ✓ · verdict ✗ · second look ✗: not this year', { level: K.lvB, rows: K.rows2, end: K.end2 })
 ok(K.offSl === 0, 'TU v179K 0: no second look (the one-roll declare)', { v: K.offV, sl: K.offSl })
+
+// L: the bloodline on the tree
+const L = await M(async () => {
+  const AU = window.__GRIDIRON_AUDIT__, S = AU.freshState(); S.tutorialSeen = true; S.pp = 5e6
+  S.tree = { freak: 2, juggernaut: 1, etFortune: 12 }; AU.setState(S)
+  const st = window.__V179.medals.store(); st.fx = { ppMult: 0.12, startAll: 3, advFlat: 4 }; st.owned = { silverSpoon: true }
+  window.go('shop'); await new Promise((r) => setTimeout(r, 400))
+  const card = document.getElementById('potCardV179'), mc = document.getElementById('medalCardV179')
+  const big = (card && card.querySelector('.pv-h b') || {}).textContent, bars = card ? card.querySelectorAll('.pv-bars > div').length : 0
+  const parts = window.__V179.parts(), gainFreak = window.__V179.potGain('freak'), gainFortune = window.__V179.potGain('etFortune')
+  const tags = [...document.querySelectorAll('.pot-tag-v179')].map((t) => t.textContent)
+  const medalText = mc ? mc.textContent : ''
+  st.pending = [{ rank: 20, major: true, opts: [{ id: 'silverSpoon', icon: '🥄', name: 'Silver Spoon', rar: 'legendary', fx: { startAll: 3 }, ctx: 'x' }, { id: 'fortune', icon: '🏦', name: 'Fortune', rar: 'legendary', fx: { ppMult: 0.1 }, ctx: 'y' }] }]
+  window.__V179.medals.open(); await new Promise((r) => setTimeout(r, 100))
+  const fxLines = [...document.querySelectorAll('#medalPickV179 .mp-fx')].map((x) => x.textContent)
+  window.__V179.medals.close(); st.pending = []
+  window.RIB_TUNE.v179L = 0; window.go('menu'); window.go('shop'); await new Promise((r) => setTimeout(r, 300))
+  const off = !!document.getElementById('potCardV179') || document.querySelectorAll('.pot-tag-v179').length > 0; delete window.RIB_TUNE.v179L
+  return { big, bars, total: Math.round(parts.total), nodes: parts.nodes, gainFreak, gainFortune, tags, medalText: medalText.replace(/\s+/g, ' ').slice(0, 1500), fxLines, off }
+})
+console.log('L:', JSON.stringify(L))
+ok(L.big === String(L.total) && L.bars === 3, 'the prestige tree opens with the bloodline potential and its three bars', { shown: L.big, potential: L.total, bars: L.bars })
+ok(L.nodes === 2 * 12 * 3 + 12 * 3 && Math.round(L.gainFreak) === 36 && L.gainFortune < 0.95, 'the parts add up: Freak 2 (+72) and Juggernaut 1 (+36) at ×3; a Freak level adds 36, an eternal Fortune level nothing', { nodes: L.nodes, freak: L.gainFreak, fortune: L.gainFortune })
+ok(L.tags.some((t) => /\+36 POTENTIAL/.test(t)), 'a node card that moves potential says what its next level adds', L.tags)
+ok(/\+12% Prestige Points from every source/.test(L.medalText) && /\+3 to every starting attribute/.test(L.medalText) && /declare odds/.test(L.medalText) && /OWNED/.test(L.medalText), 'the medal card lists every permanent bonus in plain stats and the majors owned', L.medalText)
+ok(L.fxLines.length === 2 && /every starting attribute/.test(L.fxLines[0]) && /Prestige Points/.test(L.fxLines[1]), 'the medal chooser\'s cards carry their stat lines', L.fxLines)
+ok(!L.off, 'TU v179L 0: no card, no tags', L.off)
 
 console.log(JSON.stringify({ pass, fail, pageErrors: errors.length }))
 if (errors.length) console.log('page errors:', errors.slice(0, 6))
