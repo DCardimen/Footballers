@@ -2808,7 +2808,13 @@ class Ot extends mt.Scene {
         const keep147 = MD.keep != null ? Math.min(TU("camKeepMaxV147", 0.3), MD.keep * Math.pow(r147, TU("camKeepRateExpV147", 0))) : null;
         const kx = hw * (keep147 != null ? keep147 : TU("camKeepFracX", 0.4)), ky = hh * (keep147 != null ? keep147 : TU("camKeepFracY", 0.4));   // v145: a follow cam keeps him near dead centre
         const cx = hw >= FW / 2 + xb ? FW / 2 : mt.Math.Clamp(mt.Math.Clamp(fx + lx, fx - kx, fx + kx), hw - xb, FW + xb - hw);
-        const cy = mt.Math.Clamp(mt.Math.Clamp(fy + ly - (MD.follow ? 40 / Math.max(1, cam.zoom) : 40), fy - ky, fy + ky), hh, WORLD_H - hh);   // v145: the lift is a share of the frame, not 40 world px at 3x
+        /* ===== v180 C THE PLAY STAYS IN THE MIDDLE =====
+         * measured over live plays, the ball sat at 0.57 of the frame's height (0 the
+         * top; p90 0.64), lowest far upfield (0.61): the fixed 40 px lift and the full upfield lead framed the action in
+         * the bottom half wherever the snap was. The lift is gone (`camLiftV180` 0) and the vertical lead is halved
+         * (`camLeadYKV180` 0.5), so the play rides the middle of the frame. Kill switch v180C 0. */
+        const on180C = TU("v180C", 1), lift180 = on180C ? TU("camLiftV180", 0) : 40, ly180 = on180C ? ly * TU("camLeadYKV180", 0.5) : ly;
+        const cy = mt.Math.Clamp(mt.Math.Clamp(fy + ly180 - (MD.follow ? lift180 / Math.max(1, cam.zoom) : lift180), fy - ky, fy + ky), hh, WORLD_H - hh);   // v145: the lift is a share of the frame, not 40 world px at 3x
         /* v112: the near sideline PROJECTS past the painted field, and the camera's bounds are the
          * painted field — so a man out on the numbers is a man the pan can never reach. It opens
          * UP for him instead of scrolling off the art: the zoom is capped at whatever brings the
@@ -3564,7 +3570,13 @@ class Ot extends mt.Scene {
     try { (window.__V86 = window.__V86 || {}).posts = ((window.__V86 || {}).posts || 0) + 1; } catch (e) {}
   }
   updatePostV86(P, delta) {
-    const spd = Math.max(slowFloorV164F(), window.__getGridironLiveSpeed?.() ?? 1) * TU("basePlayRate", 0.7);   // v164 F
+    let spd = Math.max(slowFloorV164F(), window.__getGridironLiveSpeed?.() ?? 1) * TU("basePlayRate", 0.7);   // v164 F
+    /* ===== v180 A THE BOARD PLAYS AT ANY SPEED =====
+     * the pan and the board's party run on the wall clock (the camera lands, the
+     * badge holds, the party plays), but the post phase that holds them ran at the play speed: at 4× it ended in ~2 s of
+     * wall time, before the party's 1.7 s cue, and the celebration never played. While a pan holds the screen the post
+     * runs at 1× pace (`panPostRateV180`, the 1× rate) so the party plays whatever the dial says. Kill switch v180A 0. */
+    if (this._panV175 && TU("v180A", 1)) spd = Math.min(spd, TU("panPostRateV180", TU("basePlayRate", 0.7)));
     const dt = delta * spd; P.post.t += dt;
     const k = P.post.t;
     /* v103: the first second is still contact. The pile churns on its own phase, the men
@@ -8053,7 +8065,7 @@ class Ot extends mt.Scene {
    * ambient weight at 0 so nothing floats off the grass when the floodlights are out.
    * Changing it re-bakes the turf through the ordinary applyFieldFx -> refreshPersp path. */
   lightMulV100() {
-    const f = window.__FIELD_FX || {}, v = f.light == null ? 1 : +f.light;
+    const f = window.__FIELD_FX || {}, v = f.light == null ? TU("fxLightDefaultV180", 0.6) : +f.light;   // v180 B: the floodlights default to 60%
     return Number.isFinite(v) ? Math.max(0, Math.min(2, v)) : 1;
   }
   shadowMulV100() { return Math.max(0.2, Math.min(1.6, 0.35 + 0.65 * this.lightMulV100())) * (this.lightLiveAllV102 ? this.lightLiveAllV102() : 1); }   // v102: the weight breathes with the light

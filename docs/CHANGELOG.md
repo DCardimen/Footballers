@@ -10,6 +10,30 @@ Names in older entries are the career app's pre-v149 C minified names (`q`, `ms`
 `index.html` + `src/` (`docs/LAYOUT.md`).
 
 <!-- new entries go here, newest first -->
+- **v180 — the board at any speed, the 60% lights, the play in the middle, half tackles.** (`src/05-field-renderer.js`,
+  `src/07-career-app.js`.) The owner: "ensure at 4x speed the celebration on the jumbotron plays, default lighting to 60
+  percent, make sure the field doesn't [drift] towards the bottom of live play no matter where you are on the field.
+  Implement half tackles for gang tackles." **A** — the post phase that holds a pan to the screen ran at the play speed:
+  measured at 4×, all 28 board parties were cut off by the next snap after ~0.6 s; while a pan holds the screen the post
+  now runs at the 1× pace, and every party played its course (2.7–3.2 s). **B** — the floodlights (`fxLight`) default to
+  60% (a saved setting is kept). **C** — measured over live plays, the ball sat at 0.57–0.78 of the frame's height (0 the
+  top) — a fixed 40 px lift and the full upfield lead framed the action in the bottom half; the lift is gone and the
+  vertical lead halved: 0.48–0.52 by play, wherever the snap. **D** — a stop two men made (`X.tackler` + `X.assist`) is
+  half a tackle each (solo stops and sacks whole); the line says "½ tackle — shared", the season targets read 4.5. Kill
+  switches `v180A` / `fxLightDefaultV180` / `v180C` / `v180D`. `v180check`.
+- **v179 M / N — the fair grade; Lucky Draw.** (`src/07-career-app.js`.) The owner: "the season ratings seem off …
+  fix the season grading and add a brief explanation"; "a higher prestige (10k prestige points) that shows 1 reward card
+  every game at a 20% chance then 40 60 80 100 … the 100 percent chance should be expensive. Upgrade point bonus for the
+  cards should be percent based". **M** — measured with `simSeason`: at the UFF game ratings saturate at 100 around OVR
+  150, and the expectation (45 + (OVR − need) × 0.85, clamped at 95) left a dominant season an A at best, A+
+  unreachable, and a great year set next year's bar at itself. The bar now caps at 86, last season counts less 6, and
+  the national standing at your position floors the letter at every level (top 1% A, 5% B+, 15% B, 35% C). The season
+  report says why: "📋 Why A: your games averaged 91 against a bar of 84 — the UFF's standard, +2.2 for your role and
+  the level. B at 81+, A at 89+, A+ at 94+. You're #3 of 1,200 at your position (top 0.3%)." **N** — Lucky Draw (Apex):
+  10,000 PP, ×3 a level (810,000 for the 100% level): +20% a level for an extra card pick after every game (seeded by
+  the week), the deck growing to hold it; the reel tags it "🍀 LUCKY DRAW +1". The upgrade-point cards pay 10% / 20% of
+  the week's paycheck (never less than the old +1 / +2). Kill switches `v179M` / `v179N` / `luckyDrawV179`. `v179check`
+  M, N.
 - **v179 L — the bloodline on the tree.** (`src/07-career-app.js`.) The owner: "include [the potential bar] in the
   prestige tree … add more detail to the medals and what stats each one gives". The prestige tree opens with the
   BLOODLINE POTENTIAL card — the number, its parts (base, ceiling nodes, other tree levels, chaos, the Path, prestige),

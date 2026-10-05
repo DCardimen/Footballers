@@ -82,7 +82,7 @@ const Q = await M(async () => {
   for (let k = 0; k < 80 && !(p.weekResults[i].played && p.weekResults[i].payV178); k++) await new Promise((r) => setTimeout(r, 150)) // the week is closed, then paid
   await new Promise((r) => setTimeout(r, 600))
   const w = p.weekResults[i], P = w.payV178 || {}
-  const flipPts = (P.flip ? P.flip.picked : []).reduce((a, k) => a + (k.id === 'pt1' ? 1 : k.id === 'pt2' ? 2 : 0), 0)
+  const flipPts = (P.flip ? P.flip.picked : []).reduce((a, k) => a + (k.pts != null ? k.pts : k.id === 'pt1' ? 1 : k.id === 'pt2' ? 2 : 0), 0) // v179 N: a points card records what it paid
   const strip = document.getElementById('stripV178')
   return { played: w.played, watched: P.watched, wmul: P.wmul, raw: P.raw, whole: P.whole, b0, bank: p.payBankV178, pts0, pts1: p.points, flipPts, picks: P.flip && P.flip.picked.length, paid: p.paidV178,
     strip: strip ? { go: strip.classList.contains('go'), pe: getComputedStyle(strip).pointerEvents, txt: strip.innerText } : null,

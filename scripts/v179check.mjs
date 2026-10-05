@@ -19,6 +19,10 @@
 //   L: the prestige tree opens with the BLOODLINE POTENTIAL card (the number, its parts, the three bars and what is left)
 //      and the MEDAL REWARDS card (every permanent bonus in plain stats, the majors owned and to find); a node that moves
 //      potential says what its next level adds; the medal chooser's cards carry stat lines; TU v179L 0 = none of it
+//   M: the fair grade — the bar caps at 86 (a dominant season can earn an A+), last season counts less 6, the national
+//      standing at your position floors the letter, and the report card says why; TU v179M 0 = the old grade
+//   N: Lucky Draw (Apex, 10,000 PP, ×3 a level): +20% a level for an extra card pick each game (Lv 5 every game, 810,000
+//      PP); the upgrade-point cards pay 10% / 20% of the week (never less than +1 / +2); TU v179N 0 = flat
 //   TU v179 0: no medal cap, the old Interstellar Call
 // No page errors.  GAME_URL=http://localhost:5173/ node scripts/v179check.mjs
 import { gameUrl, launch } from './lib/env.mjs'
@@ -275,6 +279,46 @@ ok(L.tags.some((t) => /\+36 POTENTIAL/.test(t)), 'a node card that moves potenti
 ok(/\+12% Prestige Points from every source/.test(L.medalText) && /\+3 to every starting attribute/.test(L.medalText) && /declare odds/.test(L.medalText) && /OWNED/.test(L.medalText), 'the medal card lists every permanent bonus in plain stats and the majors owned', L.medalText)
 ok(L.fxLines.length === 2 && /every starting attribute/.test(L.fxLines[0]) && /Prestige Points/.test(L.fxLines[1]), 'the medal chooser\'s cards carry their stat lines', L.fxLines)
 ok(!L.off, 'TU v179L 0: no card, no tags', L.off)
+
+// M: the fair grade
+const MG = await M(async () => {
+  const AU = window.__GRIDIRON_AUDIT__, S = AU.freshState(); S.tutorialSeen = true; AU.setState(S)
+  S.player = AU.newPlayer(); const p = S.player; p.pos = 'WR'; p.level = 7; p._wonShown = true
+  for (const k in p.attrs) p.attrs[k] = 300
+  const V = window.__V179
+  const star = V.fairGrade(100, 0.9, 72)
+  p.performanceExpectationV12 = 95; const repeat = V.fairGrade(95, 0.9, 72)
+  delete p.performanceExpectationV12
+  const html = V.gradeWhy(star, star.grade)
+  window.RIB_TUNE.v179M = 0; const offFloor = V.rankFloor('D', {}); delete window.RIB_TUNE.v179M
+  const why = {}; const floored = V.rankFloor('D', why)
+  return { star, repeat, html, offFloor, floored, why }
+})
+console.log('M:', JSON.stringify(MG).slice(0, 700))
+ok(MG.star.grade === 'A+' && MG.star.Va <= 86, 'a dominant UFF season (100 a game) can earn an A+ — the bar caps at 86', { grade: MG.star.grade, bar: MG.star.Va, A: MG.star.needA, Ap: MG.star.needAp })
+ok(['A', 'A+'].includes(MG.repeat.grade), 'repeating a great season keeps an A (last season counts less 6)', MG.repeat)
+ok(/Why A\+/.test(MG.html) && /averaged/.test(MG.html) && /A at \d+\+/.test(MG.html), 'the report card says why: the average, the bar, what an A takes', MG.html.replace(/<[^>]+>/g, '').slice(0, 220))
+ok(MG.offFloor === 'D' && (MG.floored !== 'D' ? !!MG.why.floored : true) && MG.why.rank && MG.why.rank.of > 0, 'the national standing at your position floors the letter (and TU v179M 0 does not)', { off: MG.offFloor, floored: MG.floored, rank: MG.why.rank })
+
+// N: Lucky Draw and the percent cards
+const N = await M(async () => {
+  const AU = window.__GRIDIRON_AUDIT__, S = AU.freshState(); S.tutorialSeen = true; AU.setState(S)
+  S.player = AU.newPlayer(); const p = S.player; p.pos = 'WR'; p.level = 4; p._wonShown = true; p.seasonSeed = 7
+  const node = AU.TREE_NODES.luckyDraw, c1 = AU.nodeCost(node)
+  S.tree = { luckyDraw: 4 }; const c5 = AU.nodeCost(node)
+  const freq = (lv) => { S.tree = lv ? { luckyDraw: lv } : {}; let n = 0; for (let w = 1; w <= 400; w++) if (window.__V179.flipDeal({ week: w, opp: 'X' + w }, 1).lucky) n++; return n / 400 }
+  const f = [0, 1, 3, 5].map(freq)
+  S.tree = { luckyDraw: 5 }; const d5 = window.__V179.flipDeal({ week: 3, opp: 'Y' }, 2)
+  const p0 = p.points || 0
+  const big = window.__V179.applyFlip('pt1', { payV178: { whole: 60 } }), small = window.__V179.applyFlip('pt1', { payV178: { whole: 3 } }), two = window.__V179.applyFlip('pt2', { payV178: { whole: 60 } })
+  window.RIB_TUNE.v179N = 0; const flat = window.__V179.applyFlip('pt1', { payV178: { whole: 60 } }); delete window.RIB_TUNE.v179N
+  return { c1, c5, f, d5: { n: d5.n, deck: d5.deck.length, lucky: d5.lucky }, big, small, two, flat, gained: (p.points || 0) - p0 }
+})
+console.log('N:', JSON.stringify(N))
+ok(N.c1 === 10000 && N.c5 === 810000, 'Lucky Draw costs 10,000 PP, and the 100% level 810,000', { lv1: N.c1, lv5: N.c5 })
+ok(N.f[0] === 0 && Math.abs(N.f[1] - 0.2) < 0.07 && Math.abs(N.f[2] - 0.6) < 0.08 && N.f[3] === 1, 'an extra card 20% of games a level — every game at Lv 5', N.f)
+ok(N.d5.lucky && N.d5.n === 3 && N.d5.deck >= 3, 'the lucky game deals the extra pick (a watched game: 2 + 1)', N.d5)
+ok(N.big === 6 && N.small === 1 && N.two === 12 && N.flat === 1 && N.gained === 6 + 1 + 12 + 1, 'the points cards pay 10% / 20% of the week (never under +1 / +2); TU v179N 0 = flat', { pct10of60: N.big, of3: N.small, pct20of60: N.two, flat: N.flat })
 
 console.log(JSON.stringify({ pass, fail, pageErrors: errors.length }))
 if (errors.length) console.log('page errors:', errors.slice(0, 6))
