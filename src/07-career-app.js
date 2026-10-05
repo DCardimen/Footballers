@@ -3589,6 +3589,63 @@
       score: r
     };
   }
+  /* ===== v179 M THE FAIR GRADE =====
+   * The owner: "the season ratings seem off … fix the season grading and add a brief explanation at that time, especially
+   * later on". The expectation (`Va`) was the highest of the level's standard, 45 + (OVR − need) × 0.85, a prestige term
+   * and last season's level — clamped at 95. Measured: at the UFF a player's game ratings saturate at 100 around OVR 150,
+   * so a dominant season (100 a game) graded at best an A, A+ was unreachable, and a great year set next year's bar at
+   * itself (repeat it: B+). Now the bar caps at `gradeBarCapV179` (86 — an A+ wants ~96 a game), last season counts LESS
+   * `gradeRatchetEaseV179` (6 — repeat a great year, keep your A), and the national standing at your position floors the
+   * letter at every level (`rankFloorV179`: top 1% A, 5% B+, 15% B, 35% C — the v139 floor only saw the declare odds,
+   * which at the UFF are the Interstellar Call's). `fairGradeV179.last` keeps the why for the report card
+   * (`gradeWhyHtmlV179`). Kill switch TU "v179M" 0. `v179check` M. */
+  function fairGradeV179(e, U, snap, oppS) {
+    const lv = e.level | 0,
+      L = LEVELS[lv] || { need: 50, name: "this level" },
+      ovr = playerOvr(e),
+      cap = TU("gradeBarCapV179", 86),
+      tree = Object.values(state.tree || {}).reduce((a, b) => a + b, 0),
+      last = e.performanceExpectationV12 ? e.performanceExpectationV12 - TU("gradeRatchetEaseV179", 6) : 0,
+      parts = [
+        { k: "level", v: [28, 35, 43, 52, 62, 72, 78, 84, 90][lv] || 50, say: L.name + "'s standard" },
+        { k: "rating", v: 45 + (ovr - L.need) * 0.85, say: "what a " + Math.round(ovr) + " OVR should post here" },
+        { k: "prestige", v: 30 + effectivePrestige(state.prestige) * 0.65 + Math.sqrt(tree) * 0.75, say: "your family's name" },
+        { k: "last", v: last, say: "last season's level, less " + TU("gradeRatchetEaseV179", 6) }
+      ],
+      top = parts.reduce((a, b) => (b.v > a.v ? b : a)),
+      Va = clamp99(top.v, 26, cap),
+      bonus = (1 - clamp(snap, 0.04, 0.98)) * 8 + (oppS - 60) * 0.12,
+      r = U - Va + bonus,
+      grade = r >= 12 ? "A+" : r >= 7 ? "A" : r >= 3 ? "B+" : r >= -1 ? "B" : r >= -5 ? "C" : r >= -10 ? "D" : "F";
+    fairGradeV179.last = { U: Math.round(U), Va: Math.round(Va), capped: top.v > cap, by: top.k, bySay: top.say, bonus: Math.round(bonus * 10) / 10, r: Math.round(r * 10) / 10, grade, needA: Math.ceil(Va + 7 - bonus), needAp: Math.ceil(Va + 12 - bonus), needB: Math.ceil(Va - 1 - bonus) };
+    return { grade, delta: Math.round(r), score: r };
+  }
+  // the national standing at your position: a floor, never a cap
+  function rankFloorV179(e, g, why) {
+    if (!TU("v179M", 1)) return g;
+    const obj = g && typeof g === "object",
+      cur = String((obj ? g.grade : g) || "");
+    let rk = null;
+    try {
+      rk = nationalRank(e, playerOvr(e));
+    } catch (_) {}
+    if (!rk || !rk.posSize || !cur) return g;
+    const top = rk.posRank / rk.posSize,
+      L = ["F", "D", "C", "B", "B+", "A", "A+"],
+      min = top <= 0.01 ? "A" : top <= 0.05 ? "B+" : top <= 0.15 ? "B" : top <= 0.35 ? "C" : null;
+    why && (why.rank = { pos: rk.posRank, of: rk.posSize, top: Math.max(0.1, Math.round(top * 1000) / 10), min });
+    if (!min || L.indexOf(cur) < 0 || L.indexOf(cur) >= L.indexOf(min)) return g;
+    why && (why.floored = { from: cur, to: min });
+    return obj ? Object.assign({}, g, { grade: min, floorV179: { from: cur } }) : min;
+  }
+  // the report card's one line: what set the bar, what you averaged, what an A takes
+  function gradeWhyHtmlV179(W, letter) {
+    if (!W || !TU("v179M", 1)) return "";
+    const pos = W.rank ? ` You're #${W.rank.pos.toLocaleString("en-US")} of ${W.rank.of.toLocaleString("en-US")} at your position (top ${W.rank.top}%).` : "",
+      fl = W.floored ? ` That standing lifts a ${W.floored.from} to ${W.floored.to}.` : "",
+      cap = W.capped ? " (capped — the bar never asks more than that)" : "";
+    return `<div class="small grade-why-v179" style="margin:6px 0 2px;padding:8px 10px;border-radius:10px;background:rgba(0,0,0,.22);font-family:'Barlow Condensed';font-size:13.5px;line-height:1.35;color:var(--chalk-dim)">📋 <b style="color:var(--chalk)">Why ${escHtml(String(letter || W.grade))}:</b> your games averaged <b style="color:var(--chalk)">${W.U}</b> against a bar of <b style="color:var(--chalk)">${W.Va}</b> — ${escHtml(W.bySay)}${cap}${W.bonus ? `, ${W.bonus > 0 ? "+" : ""}${W.bonus} for your role and the level` : ""}. B at ${W.needB}+, A at ${W.needA}+, A+ at ${W.needAp}+.${pos}${fl}</div>`;
+  }
   function capDecisionChance(e, t, a = 0) {
     const s = String(t || "").toLowerCase();
     let n = 0.84;
@@ -6643,6 +6700,16 @@
           max: 5,
           req: { honors: 25 },
           fx: { ppMult: 0.5 }
+        },
+        {
+          key: "luckyDraw",
+          name: "Lucky Draw",
+          icon: "🍀",
+          desc: "+20% chance per level of an EXTRA reward-card pick after every game. Level 5: every game.",
+          cost: 1e3 /* v179 N: ×10 on the Apex branch — 10,000 PP, then ×3 a level (810,000 for the 100% level) */,
+          mult: 3,
+          max: 5,
+          fx: {}
         },
         {
           key: "inevitable",
@@ -12985,7 +13052,8 @@
       Pt = [28, 35, 43, 52, 62, 72, 78, 84, 90][e.level] || 50,
       _e = e.performanceExpectationV12 || 0,
       Va = clamp99(Math.max(Pt, me, ue, _e), 26, 95),
-      Oa = expectedGrade(U, Va, e.snapShare || 0.5, 58 + e.level * 2).grade;
+      Oa = TU("v179M", 1) ? fairGradeV179(e, U, e.snapShare || 0.5, 58 + e.level * 2).grade : expectedGrade(U, Va, e.snapShare || 0.5, 58 + e.level * 2).grade; /* v179 M */
+    const why179 = TU("v179M", 1) ? fairGradeV179.last : null;
     e.performanceExpectationV12 = _e ? _e * 0.45 + U * 0.55 : U * 0.9;
     const Te = [],
       Ba = e.level >= 5;
@@ -13115,7 +13183,8 @@
       developmentModel: "performance-mainline-v1",
       agg: Q,
       sampleGames: P,
-      grade: gradeFloorV139(Oa, Mo),
+      grade: TU("v179M", 1) ? rankFloorV179(e, gradeFloorV139(Oa, Mo), why179) : gradeFloorV139(Oa, Mo),
+      gradeWhyV179: why179 /* v179 M: what set the bar, for the report card */,
       awards: Te,
       training: e.training,
       statLine: de,
@@ -23537,6 +23606,7 @@
       <span class="injury-badge" style="background:${u === "var(--blood)" ? "rgba(178,59,59,.18)" : "rgba(107,191,89,.15)"};border-color:${u};color:${u}">SEASON GRADE ${t.grade}</span>${watchBadgeV164C(t)}
       ${t.injuries > 0 ? `<span class="injury-badge">🩹 ${t.injuries} injury${t.injuries > 1 ? "ies" : ""}</span>` : '<span class="injury-badge" style="background:rgba(107,191,89,.15);border-color:var(--good);color:var(--good)">🩹 Healthy season</span>'}
     </div>
+    ${gradeWhyHtmlV179(t.gradeWhyV179, typeof t.grade == "object" ? t.grade.grade : t.grade)}
 
     ${
       !n && d
@@ -30741,6 +30811,7 @@
       d = 30 + effectivePrestige(state.prestige) * 0.65 + Math.sqrt(l) * 0.75,
       c = [28, 35, 43, 52, 62, 72, 78, 84, 90][e.level] || 50,
       u = clamp99(Math.max(c, 45 + (i - n.need) * 0.85, d, e.performanceExpectationV12 || 0), 26, 95);
+    if (TU("v179M", 1)) return rankFloorV179(e, fairGradeV179(e, s, e.snapShare || 0.5, r).grade, fairGradeV179.last); /* v179 M */
     return expectedGrade(s, u, e.snapShare || 0.5, r).grade;
   };
   function Cd(e) {
@@ -35669,21 +35740,39 @@
   }
   /* ---- F: flip a card ---- */
   const FLIPS_V178 = [
-    { id: "pt1", w: 38, rar: "common", col: "#c8d0da", icon: "🪙", name: "+1 Upgrade Point" },
-    { id: "pt2", w: 16, rar: "uncommon", col: "#6bbf59", icon: "💰", name: "+2 Upgrade Points" },
+    { id: "pt1", w: 38, rar: "common", col: "#c8d0da", icon: "🪙", name: "+10% Upgrade Points" } /* v179 N: % of the week (min +1) */,
+    { id: "pt2", w: 16, rar: "uncommon", col: "#6bbf59", icon: "💰", name: "+20% Upgrade Points" } /* min +2 */,
     { id: "reps", w: 17, rar: "uncommon", col: "#6bbf59", icon: "🏋️", name: "Extra reps" },
     { id: "trust", w: 12, rar: "rare", col: "#5ab0ff", icon: "🤝", name: "+3 Coach Trust" },
     { id: "pp", w: 10, rar: "rare", col: "#5ab0ff", icon: "💎", name: "+3 Prestige Points" },
     { id: "gear", w: 5, rar: "epic", col: "#b07cff", icon: "🎁", name: "Gear drop" },
     { id: "attr", w: 2, rar: "legendary", col: "#f2c94c", icon: "⚡", name: "+1 Permanent" }
   ];
-  function deckV178(e, w) {
+  /* ===== v179 N LUCKY DRAW =====
+   * The owner: "a higher prestige (10k prestige points) that shows 1 reward card every game at a 20% chance then 40 60
+   * 80 100 … the 100 percent chance should be expensive. Upgrade point bonus for the cards should be percent based".
+   * `luckyDraw` (Apex, 10,000 PP ×3 a level): each game rolls (seeded by the week) for one EXTRA card pick, 20% a level;
+   * the deck grows to hold it (`flipDealV179`). The upgrade-point cards pay 10% / 20% of the week's paycheck (never less
+   * than the old +1 / +2). Kill switches `luckyDrawV179` 0 / `v179N` 0 (flat points). `v179check` N. */
+  function flipDealV179(e, w, n) {
+    let lucky = false;
+    try {
+      const L = nodeLvl("luckyDraw");
+      if (L > 0 && TU("luckyDrawV179", 1)) {
+        const rng = seededRng(e.seasonSeed || 0, e.level || 0, e.totalSeasons || 0, w.week || 0, w.opp || "", "luckyV179");
+        lucky = rng() < Math.min(1, L * TU("luckyDrawPerLvlV179", 0.2));
+      }
+    } catch (_) {}
+    const picks = n + (lucky ? 1 : 0);
+    return { deck: deckV178(e, w, Math.max(3, picks)), n: picks, picked: [], lucky };
+  }
+  function deckV178(e, w, size) {
     const rng = seededRng(e.seasonSeed || 0, e.level || 0, e.totalSeasons || 0, w.week || 0, w.opp || "", w.playoff ? "p" : "r", "flipV178"),
       tot = FLIPS_V178.reduce((s, c) => s + c.w, 0);
     const luck = 1 + medalFxV179("flipLuckV179"), /* v179 G: Loaded Deck / luckier flips weigh the rare cards up */
       wOf = c => (c.rar === "common" || c.rar === "uncommon" ? c.w : c.w * luck),
       totL = FLIPS_V178.reduce((s, c) => s + wOf(c), 0);
-    return [0, 1, 2].map(() => {
+    return Array.from({ length: Math.max(3, size | 0) }, () => {
       let r = rng() * (luck === 1 ? tot : totL);
       for (const c of FLIPS_V178) if ((r -= luck === 1 ? c.w : wOf(c)) <= 0) return c.id;
       return "pt1";
@@ -35692,13 +35781,21 @@
   function flipCardV178(id) {
     return FLIPS_V178.find(c => c.id === id) || FLIPS_V178[0];
   }
-  function applyFlipV178(e, id) {
+  function applyFlipV178(e, id, w) {
     const keys = keyAttrsV178(e);
     let say = flipCardV178(id).name;
     if (id === "pt1" || id === "pt2") {
-      const n = id === "pt1" ? 1 : 2;
+      let n = id === "pt1" ? 1 : 2;
+      /* v179 N: a percent of the week's paycheck (points vary 1 → hundreds a week); never less than the old flat card */
+      if (TU("v179N", 1)) {
+        const pct = id === "pt1" ? TU("flipPctV179", 0.1) : TU("flipPct2V179", 0.2),
+          week = (w && w.payV178 && w.payV178.whole) || 0;
+        n = Math.max(n, Math.round(week * pct));
+        say = "+" + n + " Upgrade Point" + (n === 1 ? "" : "s") + " (" + Math.round(pct * 100) + "% of the week)";
+      }
       e.points = (e.points || 0) + n;
       e.paidV178 = (e.paidV178 || 0) + n;
+      applyFlipV178.pts = n;
     } else if (id === "reps") {
       const r = repAttrV178(e, keys[0] || "speed", 0.5);
       say = "Extra reps · " + r.name + (r.up ? " +1!" : " +0.5");
@@ -35721,13 +35818,15 @@
     const P = w && w.payV178,
       F = P && P.flip;
     if (!F || F.picked.length >= F.n || F.picked.some(p => p.i === i) || !F.deck[i]) return false;
-    F.picked.push({ i, id: F.deck[i], say: applyFlipV178(e, F.deck[i]) });
+    applyFlipV178.pts = 0;
+    const say = applyFlipV178(e, F.deck[i], w);
+    F.picked.push({ i, id: F.deck[i], say, pts: applyFlipV178.pts }); /* v179 N: what a points card paid */
     return true;
   }
   function autoFlipV178(e, w) {
     const F = w && w.payV178 && w.payV178.flip;
     if (!F) return;
-    for (let i = 0; i < 3 && F.picked.length < F.n; i++) pickFlipV178(e, w, i);
+    for (let i = 0; i < F.deck.length && F.picked.length < F.n; i++) pickFlipV178(e, w, i);
   }
   /* ---- G: the stock ticker ---- */
   function stockReadV178(e, v) {
@@ -35911,7 +36010,7 @@
       coach: coachReceiptV178(e, w, perf, won, ctx.live),
       reps: practiceV178(e, perf, wmul, hits),
       stock: stockV178(e, perf, won),
-      flip: on178("flip") ? { deck: deckV178(e, w), n: Math.min(3, (watched ? 2 : 1) + Math.round(medalFxV179("flipPicksV179"))), picked: [] } : null,
+      flip: on178("flip") ? flipDealV179(e, w, Math.min(3, (watched ? 2 : 1) + Math.round(medalFxV179("flipPicksV179")))) : null,
       title: pot.title,
       shown: !!ctx.card
     });
@@ -36225,7 +36324,7 @@
       const F = P.flip,
         left = F.n - F.picked.length;
       rows.push(
-        `<div class="rv-row" id="rvFlipV178" data-kind="cards"><div class="rv-head"><span class="rv-k">FLIP ${F.n === 1 ? "A CARD" : F.n + " CARDS"}</span>${P.watched ? '<span class="rv-tag" style="color:var(--cyan)">WATCHED: 2 PICKS</span>' : ""}<em style="color:var(--gold)" id="rvFlipLeftV178">${left ? "TAP " + left + " to pick" : "done"}</em></div><div class="rvcs-v178">${F.deck
+        `<div class="rv-row" id="rvFlipV178" data-kind="cards"><div class="rv-head"><span class="rv-k">FLIP ${F.n === 1 ? "A CARD" : F.n + " CARDS"}</span>${P.watched ? '<span class="rv-tag" style="color:var(--cyan)">WATCHED: 2 PICKS</span>' : ""}${F.lucky ? '<span class="rv-tag" style="color:#57e07a">🍀 LUCKY DRAW +1</span>' : ""}<em style="color:var(--gold)" id="rvFlipLeftV178">${left ? "TAP " + left + " to pick" : "done"}</em></div><div class="rvcs-v178">${F.deck
           .map((id, i) => {
             const c = flipCardV178(id),
               pk = F.picked.find(p => p.i === i);
@@ -37778,5 +37877,5 @@
   window.__chaosMaxV179 = () => chaosMaxAllNowV150();
   window.__chaosTotalV179 = () => chaosTotal();
   window.__istGateV179 = e => istGateV179(e || (state && state.player));
-  window.__V179 = { parts: ceilingPartsV179, potGain: nodePotGainV179, fxText: fxTextV179, bar: e => scoutBarV179(e || (state && state.player)), potential: potentialV179, verdict: () => V179K.last, gate: istGateV179, medalGate: e => medalGateV179(e || (state && state.player)), fmt: fmtBigV179, price: branchPriceV179, medals: { sync: medalSyncV179, open: openMedalPickV179, tap: tapMedalV179, claim: claimMedalV179, auto: m => (autoMedalV179(typeof m === 'string' ? m : 'good'), document.getElementById('medalPickV179')?.remove(), render()), autoQuiet: autoMedalV179, close: () => document.getElementById('medalPickV179')?.remove(), newPlayer: () => newPlayer(), eraUp: () => tryNextEra(), store: medalStoreV179, fx: medalFxV179, deal: dealMedalV179 } };
+  window.__V179 = { flipDeal: (w, n) => flipDealV179(state.player, w || {}, n || 1), applyFlip: (id, w) => (applyFlipV178(state.player, id, w), applyFlipV178.pts), fairGrade: (U, snap, opp) => (fairGradeV179(state.player, U, snap == null ? 0.9 : snap, opp == null ? 72 : opp), fairGradeV179.last), rankFloor: (g, why) => rankFloorV179(state.player, g, why), gradeWhy: gradeWhyHtmlV179, parts: ceilingPartsV179, potGain: nodePotGainV179, fxText: fxTextV179, bar: e => scoutBarV179(e || (state && state.player)), potential: potentialV179, verdict: () => V179K.last, gate: istGateV179, medalGate: e => medalGateV179(e || (state && state.player)), fmt: fmtBigV179, price: branchPriceV179, medals: { sync: medalSyncV179, open: openMedalPickV179, tap: tapMedalV179, claim: claimMedalV179, auto: m => (autoMedalV179(typeof m === 'string' ? m : 'good'), document.getElementById('medalPickV179')?.remove(), render()), autoQuiet: autoMedalV179, close: () => document.getElementById('medalPickV179')?.remove(), newPlayer: () => newPlayer(), eraUp: () => tryNextEra(), store: medalStoreV179, fx: medalFxV179, deal: dealMedalV179 } };
 })();
