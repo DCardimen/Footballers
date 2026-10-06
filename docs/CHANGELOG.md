@@ -10,6 +10,51 @@ Names in older entries are the career app's pre-v149 C minified names (`q`, `ms`
 `index.html` + `src/` (`docs/LAYOUT.md`).
 
 <!-- new entries go here, newest first -->
+- **v185 — the chaos loop.** (`src/07-career-app.js`, `public/rib-menu-howto.js`, `scripts/careersim.mjs`.) The owner:
+  chaos should be "a soft prestige … redo it again and work your way back from peewee to high-school, get cut sometime in
+  high-school, but have waaay more prestige points to keep pushing later". Measured with `careersim` from a real account
+  at its first ring (`--seed`, `--chaosSet`, new): chaos never bit. Players declared at 98% through every level at chaos
+  6–30, won a ring every UFF season and raised capacity by about ten a career. Three leaks were behind it:
+  - **The declare odds** counted 0.45 a chaos point.
+  - **The national-rank floor** counted none. Great stats against unlifted leaderboards kept every chaos player near the
+    top.
+  - **The lift was flat** (22 + 1.05 a point). It is nothing to a bloodline whose JV player has ~150 power.
+
+  Now:
+  - **The lift scales with each level's own rating.** Opponents gain `chaosOppBoost(lv)` = the flat lift + that level's
+    rating × (0.15 + 0.03 a point). Pee Wee barely moves; high school, college and the UFF move a lot.
+  - **The scouts and the rankings see the same lift.** The depth chart (your own teammates) keeps the flat one.
+  - **Capacity rises once a career**, by 3, on its first ring at full chaos.
+  - **Chaos PP is ×6 at the first point** (was ×3), ×1.16 a point after.
+
+  Measured from the first ring at chaos 6:
+  - **Smart player:** a Combine exit, then a UFF ring (capacity 9). Then a Varsity exit at chaos 9 (+20k PP), then a ring
+    to 12 (+234k PP).
+  - **Power-first expert:** three Combine exits at 9–14k PP each, then the ring.
+
+  Each notch takes about 1–4 careers (25–45 seasons). Chaos exits pay 2–3× a calm career's PP. Rejected settings, all
+  measured: lift share 0.48 at chaos 6 walled College for 7 careers; 0.84 walled JV at 9%; PP ×3 loops slower.
+
+  The other changes:
+  - **The estimate models the loop.** At full chaos a notch takes `etaNotchSeasonsV185` (32), scaled by the wall's
+    steepness and the step; below full, capacity never grows. Default: Interstellar ~37h, title ~54h; at 70% chaos
+    47h / 92h; no chaos 70h / 143h.
+  - **Every number is a beta dial** in a new CHAOS group: lift base and per-point, level share base and per-point,
+    declare and rank shares, capacity step, PP base and per-point, the early-exit bank. The How-to's chaos page explains
+    the loop.
+  - **`careersim`'s expert buys power under chaos.** An expert who poured 15k PP into the ceiling had potential 634 and
+    a weaker JV player. The log line now lists medal rewards claimed and gear swapped.
+
+  Kill switch `v185`. `v185check`; `v153Fcheck` and `v181check` updated.
+- **v184 — the estimate, second pass.** (`src/07-career-app.js`.) The owner: "the chaos I would have thought would have
+  more of an impact … and this one doesn't include [the] new interstellar difficulty". `etaV182` is now a season-by-season
+  projection (well under a millisecond): the climb to the UFF as before; then each UFF season rings come in (fewer when
+  the chaos run outweighs the bloodline — chaos puts 22 + 1.05 a point on every opponent, a bloodline carries ~0.08 a
+  point of potential), each ring raises the chaos capacity, the player runs a share of it (dial, 70%), chaos multiplies
+  the PP economy (3 × 1.16^chaos, felt as a power) and adds 1.6 potential a point, eras open every 15 chaos (×1.2 PP);
+  the Interstellar title waits until OVR (~0.22 × potential, dial) outgrows the league (~1.5 × its rating). Defaults:
+  UFF ~12 h, Interstellar ~35 h, its title ~47 h; with no chaos 70 h / 143 h; the title follows entry at league 100 and
+  trails it by ~24 h at 700. "Your account now" starts from its potential, chaos, capacity, era and rings. `v181check` 6.
 - **v183 — gear in the pacing; the Interstellar League is a league of legends.** (`src/07-career-app.js`,
   `scripts/careersim.mjs`.) The owner asked whether the pacing runs counted items (they did not — drops went to the bag
   and nothing was ever equipped) and for "a larger gap between entering the interstellar league and winning a

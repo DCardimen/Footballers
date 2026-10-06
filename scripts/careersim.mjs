@@ -35,6 +35,11 @@ const OUT = arg('out', 'docs/CAREERSIM.md'), CAREER_MS = +arg('careerMs', 240000
 // arrival in the UFF; interstellar = UFF careers ground on — chaos maxed whenever it is unlocked (smart) — until the
 // Interstellar Call is answered). Every run reports the SEASONS to each milestone, and hours at --seasonMin (7) a season.
 const GEAR = arg('gear', '1') !== '0', POT_TARGET = +arg('potTarget', 150), FAST = arg('fast', '0') !== '0', CHAOS = arg('chaos', '1') !== '0', POLICY = arg('policy', 'smart'), UNTIL = arg('until', 'ring'), SEASON_MIN = +arg('seasonMin', 7), TUNE = JSON.parse(arg('tune', '{}'))
+// v185: the CHAOS LOOP — --seed <state.json> starts every run from a saved account (not a fresh one), --chaosSet N puts
+// chaos at N (capacity N, every chaos card dealt) before the first career, --snap <file> writes the account at a run's end,
+// --until none plays --maxCareers careers back to back. Each career logs the PP it earned (` · +pp N`).
+const SEED = arg('seed', ''), SNAP = arg('snap', ''), CHAOS_SET = arg('chaosSet', '')
+const SEED_STATE = SEED ? fs.readFileSync(SEED, 'utf8') : null
 const url = gameUrl('index.html')
 const U = (...q) => url + (url.includes('?') ? '&' : '?') + ['stayStale', 'noFilmV114', 'noGrowV132'].concat(q).join('&')
 
@@ -105,6 +110,11 @@ function installDriver () {
       // …until the bloodline clears the scouts' potential bar with room (the hub says what they want); then the cheapest, as smart
       let potOk = false
       try { const B = window.__V179.bar(Object.assign({}, S().player || {}, { level: 6 })); potOk = window.__V179.potential() >= (B.potBar || CS.potTarget || 150) + 15 } catch (e) {} // curve mode turns the bars off: aim at the shipped one
+      // v185: under chaos the wall is the lifted world at 15, and the ceiling does not move it (measured: an expert who
+      // poured 15k PP into the ceiling had potential 634 and a WEAKER JV player) — the expert buys power first, as `good`
+      let chaosOn = false
+      try { chaosOn = !!(window.__chaosTotalV179 && window.__chaosTotalV179() > 0) } catch (e) {}
+      if (chaosOn && CS.policy === 'expert') potOk = true
       if (CS.policy === 'expert' && !potOk) {
         const CEIL = /^(freak|primeGenes|superhuman|juggernaut|iron_sched|evolution|etCeiling|apexCeiling|ceilLift)$/
         const all = Object.values(A.TREE_NODES).filter((n) => A.nodeLvl(n.key) < n.max && A.nodeUnlocked(n) && CEIL.test(n.key)).sort((a, b) => A.nodeCost(a) - A.nodeCost(b))
@@ -114,7 +124,7 @@ function installDriver () {
         if (!other.length) break
         const pp0 = s.pp; try { window.buy(other[0].key) } catch (e) { break } if (S().pp >= pp0) break; bought.push(other[0].key + ':' + A.nodeLvl(other[0].key) + '@' + (pp0 - S().pp)); continue
       }
-      const pref = CS.policy === 'good' ? nodes.filter((x) => POWER.test(x.key)) : CS.policy === 'bad' ? nodes.filter((x) => !POWER.test(x.key)) : []
+      const pref = CS.policy === 'good' || (chaosOn && CS.policy === 'expert') ? nodes.filter((x) => POWER.test(x.key)) : CS.policy === 'bad' ? nodes.filter((x) => !POWER.test(x.key)) : []
       const n = pref.length ? pref[0] : CS.casual ? nodes[Math.floor(Math.random() * Math.min(nodes.length, 12))] : nodes[0], pp0 = s.pp
       try { window.buy(n.key) } catch (e) { break }
       if (S().pp >= pp0) break
@@ -283,16 +293,23 @@ const runs = []
 async function playRun (page, runNo) {
   const out = { run: runNo, careers: [], title: false }
   await page.evaluate(([pol, pt, gear]) => { window.__CS.freshAccount(); window.__CS.policy = pol; window.__CS.casual = pol === 'casual'; window.__CS.potTarget = pt; window.__CS.gear = gear }, [POLICY, POT_TARGET, GEAR])
+  if (SEED_STATE) await page.evaluate(([st, ch]) => {
+    const A = window.__GRIDIRON_AUDIT__, s = JSON.parse(st); s.tutorialSeen = true
+    if (s.player && !s.player._settled) s.player = null
+    A.setState(s)
+    if (ch !== '') { const S = A.getState(); S.chaosUnlocked = true; S.chaosCap = +ch; S.chaos = {}; if (+ch > 0) window.__chaosMaxV179() }
+    window.GridironStorage.save(A.getState())
+  }, [SEED_STATE, CHAOS_SET])
   for (let c = 1; c <= MAX_CAREERS; c++) {
     const spend = await page.evaluate(() => window.__CS.spendPP())
     let rec
     try {
       rec = await page.evaluate((o) => window.__CS.runCareer(o), { declareAt: DECLARE_AT, training: TRAINING, ms: CAREER_MS, policy: POLICY, until: UNTIL, chaos: CHAOS })
     } catch (e) { rec = { end: 'evaluate threw: ' + (e.message || e).slice(0, 160), seasons: [], level: -1, maxLevel: -1, games: 0 } }
-    rec.no = c; rec.spend = spend
+    rec.no = c; rec.spend = spend; rec.ppGain = rec.pp - spend.ppLeft
     out.careers.push(rec)
     const lvName = rec.maxLevel >= 0 ? ['PeeWee', 'Youth', 'Middle', 'JV', 'Varsity', 'College', 'Combine', 'UFF', 'Inter'][rec.maxLevel] : '?'
-    console.log(`run ${runNo} career ${c}: ${rec.pos || '?'} → ${lvName} · ${rec.totalSeasons || 0} seasons · ${rec.games || 0} games · ${rec.end}${rec.uffSeasons ? ' · UFF seasons ' + rec.uffSeasons : ''} · ${((rec.ms || 0) / 1000).toFixed(1)}s · pp ${rec.pp} · medals ${rec.medals} · sims ${rec.skips && rec.skips.allowed}${rec.declares ? ' · declares ' + rec.declares.join(',') : ''}${spend.bought.length ? ' · bought ' + spend.bought.length + ' nodes (' + spend.bought.slice(-3).join(',') + ')' : ''}${VERBOSE && spend.bought.length ? ' · bought ' + spend.bought.join(',') : ''}${VERBOSE ? ' · views ' + (rec.views || []).slice(-12).join('>') : ''}`)
+    console.log(`run ${runNo} career ${c}: ${rec.pos || '?'} → ${lvName} · ${rec.totalSeasons || 0} seasons · ${rec.games || 0} games · ${rec.end}${rec.uffSeasons ? ' · UFF seasons ' + rec.uffSeasons : ''} · ${((rec.ms || 0) / 1000).toFixed(1)}s · pp ${rec.pp} · +pp ${rec.ppGain} · chaos ${rec.chaos || 0} · claimed ${spend.medals || 0} medal rewards · geared ${spend.geared || 0} · medals ${rec.medals} · sims ${rec.skips && rec.skips.allowed}${rec.declares ? ' · declares ' + rec.declares.join(',') : ''}${spend.bought.length ? ' · bought ' + spend.bought.length + ' nodes (' + spend.bought.slice(-3).join(',') + ')' : ''}${VERBOSE && spend.bought.length ? ' · bought ' + spend.bought.join(',') : ''}${VERBOSE ? ' · views ' + (rec.views || []).slice(-12).join('>') : ''}`)
     if (rec.stuck) console.log('   stuck:', JSON.stringify(rec.stuck))
     if (rec.stack) console.log('   stack:', rec.stack)
     // v179: the seasons to each milestone, counted across the whole account
@@ -309,6 +326,7 @@ async function playRun (page, runNo) {
     if (UNTIL === 'interstellar' && out.seasonsToIst != null) { out.title = true; break }
     if (/evaluate threw|watchdog/.test(rec.end)) { /* a page that cannot go on: reload it and continue on the same save */ try { await page.reload({ waitUntil: 'networkidle', timeout: 60000 }); await page.waitForFunction(() => !!window.__GRIDIRON_AUDIT__ && !!window.__V164B, null, { timeout: 60000 }); await page.evaluate(() => document.getElementById('splash')?.remove()); await page.evaluate(installDriver); await page.evaluate(() => { const A = window.__GRIDIRON_AUDIT__, S = A.getState(); if (S.player && !S.player._settled) { S.player._settled = true; S.player = null; window.GridironStorage.save(S) } }) } catch (e) { console.log('   reload failed: ' + e.message) } }
   }
+  if (SNAP) fs.writeFileSync(SNAP.replace(/(\.json)?$/, (RUNS > 1 ? '.' + runNo : '') + '.json'), await page.evaluate(() => JSON.stringify(window.__GRIDIRON_AUDIT__.getState())))
   out.careersToTitle = out.title ? out.careers.length : null
   out.seasons = out.careers.reduce((a, c) => a + (c.totalSeasons || 0), 0)
   out.games = out.careers.reduce((a, c) => a + (c.games || 0), 0)

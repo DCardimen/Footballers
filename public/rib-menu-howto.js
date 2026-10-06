@@ -377,32 +377,35 @@
       <h4>Unlocking it</h4>
       ${list([
         'Win a <b>UFF championship</b> with a player who peaked at <b>85+ OVR</b>, with <b>20 season objectives</b> completed across your careers.',
-        'It opens with a <b>capacity of 6</b> chaos points. Win a championship with chaos set to your <b>full</b> capacity and the capacity grows: +6 for a UFF title, +10 for an Interstellar one.',
+        'It opens with a <b>capacity of 6</b> chaos points. Win a championship with chaos set to your <b>full</b> capacity and the capacity grows by <b>3</b> — once a career, on its first ring at full chaos. The next notch is the next career.',
       ])}
       <h4>What the dials do</h4>
       <p>Every one of the 17 attributes has a dial from 0 to 10. Each point makes the world’s
       players stronger at that stat, and the whole world gets harder with the total: every opponent
       and every rival for your roster spot jumps about 22 OVR the moment the first point goes on,
-      and about one more per point after that. Every level’s call-up bar rises with it, and the
-      near-automatic promotions of the first three levels are gone. <b>MAXIMUM CHAOS</b> fills your
+      and about one more per point after that. On top of that, opponents gain a share of their own
+      level’s rating — about a third at 6 points, 3% more each point — so Pee Wee barely changes
+      while high school, college and the UFF get much harder. The scouts and the national rankings
+      see the same stronger world, so promotions get much harder too. <b>MAXIMUM CHAOS</b> fills your
       whole capacity at once.</p>
       <p>The one gift on the way in: every chaos point raises the <b>attribute cap</b> by 3, so the
       harder the world, the higher your man can climb.</p>
       <h4>What it pays</h4>
       ${tab(['CHAOS', 'PP', 'LEGACY XP'], [
         ['0', '×1', '×1'],
-        ['1', '×3.5', '×1.08'],
-        ['6 (first capacity)', '×7.3', '×1.48'],
-        ['10', '×13', '×1.8'],
-        ['20', '×58', '×2.6'],
+        ['1', '×7', '×1.08'],
+        ['6 (first capacity)', '×14.6', '×1.48'],
+        ['10', '×26', '×1.8'],
+        ['20', '×117', '×2.6'],
         ['50+', 'more still', '<b>×5</b> (the cap)'],
       ])}
       ${list([
-        '<b>PP:</b> ×3 the moment one point is on, then ×1.16 more for every point — on career ends, titles, challenges and milestones. The prestige tree’s chaos nodes raise it further.',
+        '<b>PP:</b> ×6 the moment one point is on, then ×1.16 more for every point — on career ends, titles, challenges and milestones. The prestige tree’s chaos nodes raise it further.',
         '<b>Legacy XP:</b> +8% per chaos point on every season and every career end, up to ×5. The season report and career-end card show it as its own line.',
         'Both are shown live on the Chaos card, and the Legacy multiplier in your trophy case.',
       ])}
       ${note('THE RISK IS REAL.', 'A career that flames out early under chaos banks only part of the PP multiplier — the full bonus is paid to careers that reach the UFF. Opponents are vastly better, so a first year that used to be automatic can end the run. Turn it up a few points at a time, and keep a build that can win at the level you are at.')}
+      ${note('THE LOOP.', 'Chaos is a second prestige. Turn it up and the next careers start from Pee Wee in a harder world: expect a cut in high school or college. Even so, those careers bank several times the PP a calm one would. Spend it on the build — starting attributes and growth move the wall more than the ceiling does — and within a career or two you are back in the UFF. A ring there at full chaos raises the capacity, and the loop starts again one notch harder.')}
       <p>Any dial can be turned back down at any time on the same screen.</p>` },
 
     {
