@@ -1836,13 +1836,15 @@
    ]
   },
   "prestige-pacing": {
-   "desc": "v179 — the long road: medal gates on the last climbs, the Interstellar Call waits on the era, big numbers",
+   "desc": "v179 — the long road: medal gates on the last climbs, the Interstellar Call waits on the era, big numbers; v185 — the chaos loop",
    "anchors": [
-    "v179"
+    "v179",
+    "v185"
    ],
    "files": [],
    "checks": [
     "v179check",
+    "v185check",
     "medalrewardscheck",
     "v136check",
     "v178check"
@@ -4810,6 +4812,18 @@
     "season"
    ],
    "runtimeSec": 30,
+   "slow": false,
+   "needsServer": true,
+   "pureNode": false,
+   "flaky": []
+  },
+  "v185check": {
+   "file": "scripts/v185check.mjs",
+   "desc": "v185 — the chaos loop: the declare odds and the national rank see chaos (the lift the games use; TU v185 0 = the old 0.45 a point and no rank lift), the lift grows with each level's own rating (Pee Wee barely, high school and the UFF a lot; the depth chart keeps the flat lift), the dials move it, the capacity rises once a career by the step (3), an early exit keeps the bonus the bank dials say, the beta menu's CHAOS group. No page errors.",
+   "areas": [
+    "season"
+   ],
+   "runtimeSec": 60,
    "slow": false,
    "needsServer": true,
    "pureNode": false,

@@ -5247,19 +5247,40 @@
   }
   function chaosPPMult() {
     const e = chaosTotal();
-    return e ? 3 * Math.pow(1.16, e) * (1 + treeFx("chaosPP")) : 1;
+    return e ? TU("chaosPPBaseV185", 6) * Math.pow(TU("chaosPPPerV185", 1.16), e) * (1 + treeFx("chaosPP")) : 1;
   }
   function chaosEarnedMult(e) {
-    return 1 + (chaosPPMult() - 1) * clamp99(Math.pow((e + 1) / 8, 1.6), 0.06, 1);
+    return 1 + (chaosPPMult() - 1) * clamp99(Math.pow((e + 1) / 8, TU("chaosBankExpV185", 1.6)), TU("chaosBankFloorV185", 0.06), 1);
   }
   function Yo() {
     const e = chaosTotal();
     return e ? 0.18 + e * 0.012 + Math.floor(e / 30) * 0.08 + treeFx("chaosEnemy") / 100 : 0;
   }
-  function chaosOppBoost() {
-    const e = chaosTotal();
-    return e ? 22 + e * 1.05 + Math.floor(e / 30) * 12 + treeFx("chaosEnemy") : 0;
+  /* ===== v185 THE CHAOS LOOP =====
+   * Chaos is a soft prestige: turn it up and the next careers start from Pee Wee in a harder world — the scouts and the
+   * national rankings see the same lifted peers the games do (before, the declare odds counted 0.45 a point and the
+   * national-rank floor none, so a chaos player still declared at 98%) — get cut in high school or college, bank far more
+   * PP than a calm career would (an early exit keeps most of the chaos bonus), and climb back. The capacity rises ONCE a
+   * career (its first ring at full chaos), by `chaosCapStepV185` — the next notch is the next loop. Dials in the beta
+   * menu (group CHAOS). TU v185 0 = the old odds, a point a ring. `window.__V185`; `v185check`. */
+  function chaosPeerLiftV185(knob, lv) {
+    return TU("v185", 1) ? chaosOppBoost(lv) * TU(knob, 1) : 0;
   }
+  // the share of a level's own opponent rating chaos adds on top of the flat lift: Pee Wee (16) barely moves, high school
+  // (56–66) and the UFF (80) move a lot — the wall is where the loop wants it
+  function chaosNeedShareV185(c) {
+    return c > 0 ? TU("chaosNeedBaseV185", 0.15) + c * TU("chaosNeedPerV185", 0.03) : 0;
+  }
+  function chaosCapStepV185(ist) {
+    return Math.round(ist ? Math.max(TU("chaosCapIslV179", 2), TU("chaosCapStepV185", 3)) : TU("chaosCapStepV185", 3));
+  }
+  function chaosOppBoost(lv) {
+    const e = chaosTotal();
+    if (!e) return 0;
+    const need = lv != null && TU("v185", 1) && LEVELS[lv] ? LEVELS[lv].need * chaosNeedShareV185(e) : 0; /* v185: the level's share */
+    return TU("chaosBoostBaseV185", 22) + e * TU("chaosBoostPerV185", 1.05) + Math.floor(e / 30) * 12 + treeFx("chaosEnemy") + need;
+  }
+  window.__V185 = { lift: lv => chaosOppBoost(lv), peer: (k, lv) => chaosPeerLiftV185(k || "chaosDeclareShareV185", lv), step: ist => chaosCapStepV185(ist), ppMult: () => chaosPPMult(), earned: lv => chaosEarnedMult(lv) };
   function attrCap() {
     return ATTR_HARD_CAP + treeFx("capPlus") + chaosTotal() * 3;
   }
@@ -9798,7 +9819,7 @@
   }
   /* ===== v153 F CHAOS PAYS THE RANK =====
    * The Chaos card says what the risk buys, in the two numbers that outlive the career: the PP multiplier
-   * (chaosPPMult — ×3 the moment one point is on, ×1.16 per point after; a career that flames out early
+   * (chaosPPMult — ×6 the moment one point is on (v185; was ×3), ×1.16 per point after; a career that flames out early
    * banks only part of it, chaosEarnedMult) and the Legacy XP multiplier (legacyDiffV152 — +8% per point,
    * up to ×5). `window.__V153F`; `v153Fcheck`. */
   function chaosRewardNoteV153F() {
@@ -12579,7 +12600,7 @@
     a = a || {};
     const s = playerPower(e),
       n = LEVELS[e.level],
-      i = n.need - 6 + chaosOppBoost() + seasonModFx("peerShift"),
+      i = n.need - 6 + chaosOppBoost(e.level) + seasonModFx("peerShift"),
       r = 1 + nodeLvl("clutch") * 0.02,
       l = 1 + (e.attrs.grit - 10) * 0.003 * r,
       d = 1 + (e.attrs.stamina - 10) * 0.0015;
@@ -12687,7 +12708,7 @@
     })
   );
   function mr(e, t) {
-    const a = LEVELS[t].need - 6 + chaosOppBoost();
+    const a = LEVELS[t].need - 6 + chaosOppBoost(t);
     return clamp99(xi((e - a) * 2.4 + 50 + treeFx("perfFlat")), 1, 100);
   }
   function prodStats(e, t, a, ng) {
@@ -12729,7 +12750,7 @@
     const r = (ADVANCE_BASE[i] || 0) + (t <= 2, 0),
       l =
         LEVELS[i].need +
-        chaosTotal() * 0.45 +
+        (TU("v185", 1) ? chaosPeerLiftV185("chaosDeclareShareV185", i) : chaosTotal() * 0.45) +
         (state && state.player && state.player.level === t ? pressNeedV131(state.player) : 0);
     /* v131: the Prodigy is judged against a higher bar — the "harsher evaluations" his card promised and nothing delivered */ if (
       a != null &&
@@ -13037,7 +13058,9 @@
             showToast("💍 Ring earned. Chaos still requires: " + chaosUnlockReq(e)),
         state.chaosUnlocked &&
           chaosMaxed() &&
-          ((state.chaosCap = (state.chaosCap || 0) + (TU("v179", 1) ? (R ? TU("chaosCapIslV179", 2) : TU("chaosCapUffV179", 1)) : R ? 10 : 6)) /* v179 D: capacity grows a point a ring, not six */,
+          !(TU("v185", 1) && e.chaosBumpV185) /* v185: once a career — the next notch is the next loop */ &&
+          ((state.chaosCap = (state.chaosCap || 0) + (TU("v185", 1) ? chaosCapStepV185(R) : TU("v179", 1) ? (R ? TU("chaosCapIslV179", 2) : TU("chaosCapUffV179", 1)) : R ? 10 : 6)) /* v179 D: capacity grows a point a ring, not six */,
+          (e.chaosBumpV185 = !0),
           typeof document < "u" &&
             byId("toast") &&
             showToast("⛓️ CHAOS CLEARANCE — capacity raised to " + state.chaosCap + "!")),
@@ -13238,7 +13261,7 @@
   function nationalRank(e, t) {
     const pool = NAT_POOL(e.level),
       pos = POS_POOL(e.level);
-    const s = LEVELS[e.level].need - 8,
+    const s = LEVELS[e.level].need - 8 + chaosPeerLiftV185("chaosRankShareV185", e.level),
       n = 6 + e.level * 1,
       i = 1 + nodeLvl("spotlight") * 0.06;
     const ovrPct = 1 / (1 + Math.exp(-1.702 * (((t - s) / n) * i)));
@@ -14958,7 +14981,7 @@
           need =
             t.need -
             6 +
-            (typeof chaosOppBoost == "function" ? chaosOppBoost() : 0) +
+            (typeof chaosOppBoost == "function" ? chaosOppBoost(e.level) : 0) +
             (typeof seasonModFx == "function" ? seasonModFx("peerShift") || 0 : 0);
         exp = clamp99((s - need) * 2.4 + 50 + (i / t.games) * 2, 1, 100);
       }
@@ -25472,7 +25495,7 @@
   }
   function depthChart(e) {
     ensureDepth(e);
-    const t = LEVELS[e.level].need - 5 + lo(e.level) + chaosOppBoost(),
+    const t = LEVELS[e.level].need - 5 + lo(e.level) + chaosOppBoost() /* v185: the flat lift only — the depth chart is your own teammates, not the lifted world */,
       a = playerPower(e) + e.coachTrust * 0.18 + treeFx("depthPower") * 20 - t;
     let s, n;
     return (
@@ -37935,8 +37958,20 @@
     ["flipTrustV182", "Coach trust card", 0, 20, 1, 3, "post"],
     ["flipRepsV182", "Reps card (attribute points)", 0, 5, 0.5, 0.5, "post"],
     ["flipAttrV182", "Permanent card (+attribute)", 0, 10, 1, 1, "post"],
+    ["chaosBoostBaseV185", "Chaos: opponents' lift at the first point", 0, 60, 1, 22, "chaos"],
+    ["chaosBoostPerV185", "Chaos: opponents' lift per point", 0, 5, 0.05, 1.05, "chaos"],
+    ["chaosPPBaseV185", "Chaos: PP × at the first point", 1, 20, 0.5, 6, "chaos"],
+    ["chaosPPPerV185", "Chaos: PP × per point", 1, 1.5, 0.01, 1.16, "chaos"],
+    ["chaosBankExpV185", "Chaos: how steeply an early exit cuts the PP bonus", 0, 3, 0.1, 1.6, "chaos"],
+    ["chaosBankFloorV185", "Chaos: PP bonus kept by a Pee Wee exit", 0, 1, 0.01, 0.06, "chaos"],
+    ["chaosNeedBaseV185", "Chaos: lift as a share of the level's own rating (at the first point)", 0, 2, 0.05, 0.15, "chaos"],
+    ["chaosNeedPerV185", "Chaos: … plus this share per point", 0, 0.2, 0.005, 0.03, "chaos"],
+    ["chaosDeclareShareV185", "Chaos: share of the lift the scouts see (declare odds)", 0, 2, 0.05, 1, "chaos"],
+    ["chaosRankShareV185", "Chaos: share of the lift in the national rankings", 0, 2, 0.05, 1, "chaos"],
+    ["chaosCapStepV185", "Chaos: capacity a career's ring at full chaos adds", 1, 15, 1, 3, "chaos"],
     ["aiBaseIstV178", "Interstellar League strength (team OVR)", 100, 1000, 10, 400, "ist"],
-    ["etaChaosShareV184", "Chaos you run (% of capacity — the estimate)", 0, 1, 0.05, 0.7, "eta"],
+    ["etaChaosShareV184", "Chaos you run (% of capacity — the estimate; below 100% the capacity never grows)", 0, 1, 0.05, 1, "eta"],
+    ["etaNotchSeasonsV185", "Seasons a chaos notch takes (the estimate)", 5, 120, 1, 32, "eta"],
     ["etaOvrPerPotV184", "OVR per point of potential (the estimate)", 0.1, 0.5, 0.01, 0.22, "eta"],
     ["etaMinPerSeasonV182", "Minutes per season (the estimate)", 2, 20, 1, 7, "eta"]
   ];
@@ -38002,7 +38037,7 @@
     if (!TU("v181", 1)) return "";
     const o = betaReadV181(),
       moved = Object.keys(o).length,
-      head = { cost: "PRESTIGE COSTS", gain: "PRESTIGE GAINS", bar: "POTENTIAL & THE SCOUTS", card: "CARDS & GRADES", post: "POST-GAME CARDS", ist: "THE INTERSTELLAR LEAGUE", eta: "THE ESTIMATE" };
+      head = { cost: "PRESTIGE COSTS", gain: "PRESTIGE GAINS", bar: "POTENTIAL & THE SCOUTS", card: "CARDS & GRADES", post: "POST-GAME CARDS", chaos: "CHAOS", ist: "THE INTERSTELLAR LEAGUE", eta: "THE ESTIMATE" };
     let last = "";
     const rows = BETA_DIALS_V181.map(d => {
       const v = window.RIB_TUNE && window.RIB_TUNE[d[0]] != null ? +window.RIB_TUNE[d[0]] : d[5],
@@ -38079,8 +38114,7 @@
       barU = TU("scoutPotUffV179", 150),
       barI = TU("istPotV179", 1600),
       lg = TU("aiBaseIstV178", TU("v183IST", 1) ? 400 : 100),
-      share = TU("etaChaosShareV184", 0.7),
-      capPerRing = TU("chaosCapUffV179", 1),
+      share = TU("etaChaosShareV184", 1),
       eraStep = Math.max(1, TU("eraChaosStepV179", 15)),
       ovrPerPot = TU("etaOvrPerPotV184", 0.22),
       potTitle = Math.max(barI, (lg * 1.5) / ovrPerPot);
@@ -38099,7 +38133,7 @@
         rings = state.rings || 0;
       } catch (_) {}
     }
-    const chaosPP = c => (c > 0 ? 3 * Math.pow(1.16, c) : 1),
+    const chaosPP = c => (c > 0 ? TU("chaosPPBaseV185", 6) * Math.pow(TU("chaosPPPerV185", 1.16), c) : 1),
       grow = (late, c, e) => {
         // the PP economy (prices, gains, chaos, eras) buys the ceiling; its pull is a power — the tree's prices climb
         const econ = econ0 * Math.pow(chaosPP(c), 0.35) * Math.pow(1.2, e * 0.6);
@@ -38119,19 +38153,33 @@
       s = Math.max(fromNow ? climb : 45, s + climb * 0.5) + retryU;
     }
     const uff = s;
-    // 2. the UFF years: rings (harder the more chaos is run), chaos capacity, chaos, eras; to the Interstellar bar
+    // 2. the UFF years. v185: chaos is a loop — run at FULL capacity, each notch (+step) knocks the next careers back to a
+    // wall in high school or college; the build grows out of it (measured from the first ring: ~25–45 seasons a notch at
+    // the shipped dials — a smart tree ~25, a power-first one ~45), a ring at full chaos raises the capacity, again.
+    // Run below full and the capacity stays where it is: the rings come, the notches do not.
     let ist = null,
       title = null,
-      maxChaos = chaos;
-    const vI = verdictAt(0.6);
+      maxChaos = chaos,
+      notch = 0;
+    const vI = verdictAt(0.6),
+      full = share >= 0.95,
+      step = Math.max(1, TU("chaosCapStepV185", 3)),
+      perPt = TU("chaosBoostPerV185", 1.05) + 66 * TU("chaosNeedPerV185", 0.03),
+      wallStep = (step * perPt) / (3 * (1.05 + 66 * 0.03)), // 1 at the shipped dials
+      wall0 = (TU("chaosBoostBaseV185", 22) + 66 * (TU("chaosNeedBaseV185", 0.15) + 6 * TU("chaosNeedPerV185", 0.03))) / (22 + 66 * 0.33),
+      notchSeasons = TU("etaNotchSeasonsV185", 32) * Math.pow(wallStep, 0.8) * Math.pow(Math.max(0.3, wall0), 1.5) / Math.pow(Math.max(0.05, econ0), 0.3);
     for (let k = 0; k < 40000 && title == null; k++) {
-      // chaos puts 22 + 1.05 a point on every opponent; a bloodline strong enough (~0.08 a point of potential) shrugs it off,
-      // one that is not loses its rings (measured: chaos 25–31 on a ~160-OVR player — waived every season)
-      const boost = chaos > 0 ? 22 + chaos * 1.05 : 0,
-        ringRate = 0.25 * Math.max(0.05, Math.min(1, 1 - Math.max(0, boost - pot * TU("etaChaosCarryV184", 0.08)) / 40));
-      rings += ringRate;
-      cap = Math.min(170, cap + ringRate * capPerRing + (rings >= 1 && cap < 6 ? 6 - cap : 0)); // the first ring opens chaos (6)
-      const c1 = Math.min(cap, cap * share);
+      if (rings >= 1 && cap < 6) cap = 6; // the first ring opens chaos (6)
+      const c1 = cap > 0 ? (full ? cap : Math.min(cap, cap * share)) : 0;
+      // the rings: a full-chaos loop earns its ring at the end of each notch; a calm run (below full) rings ~1 in 4
+      if (full && cap > 0) {
+        notch += 1 / notchSeasons;
+        if (notch >= 1) {
+          notch -= 1;
+          rings += 1;
+          cap = Math.min(999, cap + step);
+        }
+      } else rings += 0.25;
       pot += grow(true, c1, era) + Math.max(0, c1 - chaos) * 1.6;
       chaos = c1;
       maxChaos = Math.max(maxChaos, chaos);
@@ -38144,7 +38192,7 @@
       // 3. the Interstellar title: outgrow a league rated `lg` (OVR ≈ ovrPerPot × potential; the title wants ~1.5× the league)
       if (ist != null && pot >= potTitle) title = s + 3;
     }
-    return { uff, ist: ist == null ? 40000 : ist, title: title == null ? 40000 : title, g: grow(false, 0, 0), pot0: fromNow ? (() => { try { return potentialV179(); } catch (_) { return 30; } })() : 30, gear: gr, chaos: Math.round(maxChaos), era, potTitle: Math.round(potTitle) };
+    return { notchSeasons: full ? notchSeasons : 0, uff, ist: ist == null ? 40000 : ist, title: title == null ? 40000 : title, g: grow(false, 0, 0), pot0: fromNow ? (() => { try { return potentialV179(); } catch (_) { return 30; } })() : 30, gear: gr, chaos: Math.round(maxChaos), era, potTitle: Math.round(potTitle) };
   }
   function etaHtmlV182() {
     if (!TU("v181", 1)) return "";
@@ -38160,7 +38208,7 @@
       N = state && state.player ? etaV182(true) : null;
     } catch (_) {}
     const row = (lab, f, n) => `<tr><td>${lab}</td><td>${rng(f)}</td>${N ? `<td>${rng(n)}</td>` : ""}</tr>`;
-    return `<div class="eta-v182" style="margin:10px 0 4px;padding:8px 10px;border-radius:10px;background:rgba(176,124,255,.10);border:1px solid rgba(176,124,255,.35)"><div class="l" style="font-size:10px;color:#c9b8ff;letter-spacing:1.5px">⏱️ ESTIMATED TIME · updates as you move the dials</div><table style="width:100%;margin-top:6px;font:500 12.5px 'Barlow Condensed',sans-serif;color:var(--chalk);border-collapse:collapse"><tr style="color:var(--chalk-dim);font-size:11px"><td></td><td>fresh account</td>${N ? "<td>your account now</td>" : ""}</tr>${row("🏈 Reach the UFF", F.uff, N && N.uff)}${row("🛸 Reach the Interstellar League", F.ist, N && N.ist)}${row("🏆 Win the Interstellar title", F.title, N && N.title)}</table><div class="small" style="margin-top:4px;color:var(--chalk-dim)">A rough model from measured careers: the low end is a sharp tree, the high end a careless one. Potential grows ~${(+F.g).toFixed(1)} a season early; running ${Math.round(TU("etaChaosShareV184", 0.7) * 100)}% of chaos capacity the UFF years reach ~${F.chaos} chaos (era ${F.era}); the Interstellar title wants ~${fmtBigV179(F.potTitle)} potential (OVR ≈ 1.5× the league's ${fmtBigV179(TU("aiBaseIstV178", 400))})${N ? ` · yours is ${fmtBigV179(Math.round(N.pot0))}` : ""}${N && (N.gear.pp || N.gear.growth || N.gear.call) ? ` · your gear counts: +${Math.round(N.gear.pp * 100)}% PP, +${Math.round(N.gear.growth * 100)}% growth, +${Math.round(N.gear.call)}% call-up` : ""}.</div></div>`;
+    return `<div class="eta-v182" style="margin:10px 0 4px;padding:8px 10px;border-radius:10px;background:rgba(176,124,255,.10);border:1px solid rgba(176,124,255,.35)"><div class="l" style="font-size:10px;color:#c9b8ff;letter-spacing:1.5px">⏱️ ESTIMATED TIME · updates as you move the dials</div><table style="width:100%;margin-top:6px;font:500 12.5px 'Barlow Condensed',sans-serif;color:var(--chalk);border-collapse:collapse"><tr style="color:var(--chalk-dim);font-size:11px"><td></td><td>fresh account</td>${N ? "<td>your account now</td>" : ""}</tr>${row("🏈 Reach the UFF", F.uff, N && N.uff)}${row("🛸 Reach the Interstellar League", F.ist, N && N.ist)}${row("🏆 Win the Interstellar title", F.title, N && N.title)}</table><div class="small" style="margin-top:4px;color:var(--chalk-dim)">A rough model from measured careers: the low end is a sharp tree, the high end a careless one. Potential grows ~${(+F.g).toFixed(1)} a season early; ${F.notchSeasons ? `running full chaos, the loop (a wall in high school or college, then back to the UFF for the ring) takes ~${hrs(F.notchSeasons)} a notch of +${Math.round(TU("chaosCapStepV185", 3))} and reaches ~${F.chaos} chaos (era ${F.era})` : `running ${Math.round(TU("etaChaosShareV184", 1) * 100)}% of chaos capacity (below full the capacity never grows) the UFF years stay at ~${F.chaos} chaos`}; the Interstellar title wants ~${fmtBigV179(F.potTitle)} potential (OVR ≈ 1.5× the league's ${fmtBigV179(TU("aiBaseIstV178", 400))})${N ? ` · yours is ${fmtBigV179(Math.round(N.pot0))}` : ""}${N && (N.gear.pp || N.gear.growth || N.gear.call) ? ` · your gear counts: +${Math.round(N.gear.pp * 100)}% PP, +${Math.round(N.gear.growth * 100)}% growth, +${Math.round(N.gear.call)}% call-up` : ""}.</div></div>`;
   }
   const V181 = { skips: 0 };
   window.__V182 = { eta: etaV182, etaHtml: etaHtmlV182 };

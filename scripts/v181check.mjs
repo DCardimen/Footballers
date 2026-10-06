@@ -133,7 +133,7 @@ const X = await page.evaluate(() => {
   return { none, some, weak, hard }
 })
 console.log('X:', JSON.stringify(X))
-ok(X.none.uff === X.some.uff && X.some.ist < X.none.ist * 0.7 && X.some.title < X.none.title * 0.5 && X.some.chaos > 20 && X.some.era >= 1, 'chaos drives the late game: run at 70% of capacity it cuts the Interstellar times (eras, PP), and leaves the UFF climb alone', X)
+ok(X.none.uff === X.some.uff && X.some.ist < X.none.ist * 0.7 && X.some.title < X.none.title * 0.5 && X.some.chaos > 20 && X.some.era >= 1, 'chaos drives the late game: the full-chaos loop (v185) cuts the Interstellar times (eras, PP), and leaves the UFF climb alone', X)
 ok(X.weak.title - X.weak.ist < 10 && X.hard.title - X.hard.ist > X.some.title - X.some.ist, 'the Interstellar title waits on outgrowing the league: rated 100 it follows entry, rated 700 it is far off', { gap100: X.weak.title - X.weak.ist, gap400: X.some.title - X.some.ist, gap700: X.hard.title - X.hard.ist })
 
 console.log(JSON.stringify({ pass, fail, pageErrors: errors.length }))

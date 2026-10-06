@@ -51,6 +51,11 @@ Every gameplay dial reads through `TU(key, default)`, so values can be retuned l
 
 The full history, newest first, is [`docs/CHANGELOG.md`](docs/CHANGELOG.md) — add new entries there.
 
+- **v185 — the chaos loop.** Chaos is a second prestige. Turn it up and the next careers start from Pee Wee in a much
+  harder world, where opponents gain a share of their own level's rating and the scouts and rankings see it too. They
+  get cut in high school or college, but bank several times the PP of a calm career. Within a career or two they are
+  back in the UFF, and a ring at full chaos raises the capacity by 3, one notch harder. Every number is a beta dial,
+  and the estimate models the loop. `v185check`.
 - **v180 — the board at any speed.** The jumbotron's celebration plays its whole course at 4× (the next snap used to cut
   it off); the floodlights default to 60%; the camera keeps the play in the middle of the frame wherever the snap; a
   gang tackle is half a tackle each. `v180check`.
