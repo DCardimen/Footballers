@@ -5269,13 +5269,17 @@
   // the share of a level's own opponent rating chaos adds on top of the flat lift: Pee Wee (16) barely moves, high school
   // (56–66) and the UFF (80) move a lot — the wall is where the loop wants it
   function chaosNeedShareV185(c) {
-    return c > 0 ? TU("chaosNeedBaseV185", 0.15) + c * TU("chaosNeedPerV185", 0.03) : 0;
+    if (!(c > 0)) return 0;
+    const sh = TU("chaosNeedBaseV185", 0.15) + c * TU("chaosNeedPerV185", 0.03);
+    /* v186 G: the share stops at `chaosNeedMaxV186` (0.5 — chaos 12). Measured: past it a College player's rating (capped by
+     * age and growth, not by PP — ~145 at 1M PP a career) never reaches the lifted Combine bar; 10 careers in a row walled */
+    return TU("v186", 1) ? Math.min(TU("chaosNeedMaxV186", 0.5), sh) : sh;
   }
   /* ===== v186 RINGS ARE EARNED =====
    * The owner: "rings should only be given if you've meaningfully contributed … I don't think it makes sense to luck into
    * a really good team and then get a ring". A UFF / Interstellar title counts as a ring (the ring count, the chaos
    * clearance, the era, the loot) only for a STARTER whose season average cleared the bar (`ringPerfUffV186` 60,
-   * `ringPerfIstV186` 80 — the Interstellar ring wants a dominant season). The team's title still counts as a title.
+   * `ringPerfIstV186` 85 — the Interstellar ring wants a dominant season). The team's title still counts as a title.
    * And chaos is a commitment: once a career has started under it, the dials cannot be turned below what was played
    * (`state.chaosLockV186`; `chaosLockV186` 0 lets them down). Kill switch `v186`. `window.__V186`; `v186check`. */
   // v186: the Apex and the Impossible cost ×50 / ×500 (the owner's own dials, now the defaults) — and pay like it
@@ -5358,7 +5362,7 @@
   function ringEarnedV186(e, U) {
     const st = (e && e.nflStateV11 && e.nflStateV11.status) || "",
       starter = !st || st === "starter" || st === "franchise",
-      need = e && e.level >= 8 ? Math.max(0, TU("ringPerfIstV186", 80) - forgeFxV186("horizon")) : TU("ringPerfUffV186", 60);
+      need = e && e.level >= 8 ? Math.max(0, TU("ringPerfIstV186", 85) - forgeFxV186("horizon")) : TU("ringPerfUffV186", 60);
     ringEarnedV186.last = { U: Math.round(U || 0), need, status: st, starter };
     if (!TU("v186", 1) || !e || e.level < 7) return !0;
     return starter && (U || 0) >= need;
@@ -38355,13 +38359,14 @@
     ["chaosBankFloorV185", "Chaos: PP bonus kept by a Pee Wee exit", 0, 1, 0.01, 0.06, "chaos"],
     ["chaosNeedBaseV185", "Chaos: lift as a share of the level's own rating (at the first point)", 0, 2, 0.05, 0.15, "chaos"],
     ["chaosNeedPerV185", "Chaos: … plus this share per point", 0, 0.2, 0.005, 0.03, "chaos"],
+    ["chaosNeedMaxV186", "Chaos: … the level share stops at", 0, 2, 0.05, 0.5, "chaos"],
     ["chaosDeclareShareV185", "Chaos: share of the lift the scouts see (declare odds)", 0, 2, 0.05, 1, "chaos"],
     ["chaosRankShareV185", "Chaos: share of the lift in the national rankings", 0, 2, 0.05, 1, "chaos"],
     ["chaosCapStepV185", "Chaos: capacity a career's ring at full chaos adds", 1, 15, 1, 3, "chaos"],
     ["aiBaseIstV178", "Interstellar League strength (team OVR)", 100, 1500, 10, 700, "ist"],
     ["ringPerfUffV186", "UFF ring: the season average a starter needs", 0, 100, 1, 60, "ist"],
-    ["ringPerfIstV186", "Interstellar ring: the season average a starter needs", 0, 100, 1, 80, "ist"],
-    ["etaIstDomV186", "Interstellar title: how far past the league (the estimate)", 1, 3, 0.05, 1.5, "eta"],
+    ["ringPerfIstV186", "Interstellar ring: the season average a starter needs", 0, 100, 1, 85, "ist"],
+    ["etaIstDomV186", "Interstellar title: how far past the league (the estimate)", 1, 3, 0.05, 1.55, "eta"],
     ["etaChaosShareV184", "Chaos you run (% of capacity — the estimate; below 100% the capacity never grows)", 0, 1, 0.05, 1, "eta"],
     ["etaNotchSeasonsV185", "Seasons a chaos notch takes (the estimate)", 5, 120, 1, 32, "eta"],
     ["etaOvrPerPotV184", "OVR per point of potential (the estimate)", 0.1, 0.5, 0.01, 0.22, "eta"],
@@ -38560,8 +38565,8 @@
     const vI = verdictAt(0.6),
       full = share >= 0.95,
       step = Math.max(1, TU("chaosCapStepV185", 3)),
-      perPt = TU("chaosBoostPerV185", 1.05) + 66 * TU("chaosNeedPerV185", 0.03),
-      wallStep = (step * perPt) / (3 * (1.05 + 66 * 0.03)), // 1 at the shipped dials
+      perPt = TU("chaosBoostPerV185", 1.05) + 66 * TU("chaosNeedPerV185", 0.03) * 0.6 /* v186 G: the share stops at chaos ~12, so on average the notches grow by less */,
+      wallStep = (step * perPt) / (3 * (1.05 + 66 * 0.03 * 0.6)), // 1 at the shipped dials
       wall0 = (TU("chaosBoostBaseV185", 22) + 66 * (TU("chaosNeedBaseV185", 0.15) + 6 * TU("chaosNeedPerV185", 0.03))) / (22 + 66 * 0.33),
       notchSeasons = TU("etaNotchSeasonsV185", 32) * Math.pow(wallStep, 0.8) * Math.pow(Math.max(0.3, wall0), 1.5) / Math.pow(Math.max(0.05, econ0), 0.3);
     for (let k = 0; k < 40000 && title == null; k++) {
@@ -38591,8 +38596,8 @@
       if (ist != null && title == null && TU("v186", 1)) {
         if (istChaos == null) istChaos = chaos;
         const need8 = (LEVELS[8] && LEVELS[8].need) || 135,
-          lift8 = istChaos > 0 ? TU("chaosBoostBaseV185", 22) + istChaos * TU("chaosBoostPerV185", 1.05) + need8 * (TU("chaosNeedBaseV185", 0.15) + istChaos * TU("chaosNeedPerV185", 0.03)) : 0,
-          domK = TU("etaIstDomV186", 1.5) * (TU("ringPerfIstV186", 80) / 80);
+          lift8 = istChaos > 0 ? TU("chaosBoostBaseV185", 22) + istChaos * TU("chaosBoostPerV185", 1.05) + need8 * Math.min(TU("chaosNeedMaxV186", 0.5), TU("chaosNeedBaseV185", 0.15) + istChaos * TU("chaosNeedPerV185", 0.03)) : 0,
+          domK = TU("etaIstDomV186", 1.55) * (TU("ringPerfIstV186", 85) / 80);
         potTitle = Math.max(barI, ((lg + lift8) * domK) / ovrPerPot);
       }
       if (ist != null && pot >= potTitle) title = s + 3;
@@ -38613,7 +38618,7 @@
       N = state && state.player ? etaV182(true) : null;
     } catch (_) {}
     const row = (lab, f, n) => `<tr><td>${lab}</td><td>${rng(f)}</td>${N ? `<td>${rng(n)}</td>` : ""}</tr>`;
-    return `<div class="eta-v182" style="margin:10px 0 4px;padding:8px 10px;border-radius:10px;background:rgba(176,124,255,.10);border:1px solid rgba(176,124,255,.35)"><div class="l" style="font-size:10px;color:#c9b8ff;letter-spacing:1.5px">⏱️ ESTIMATED TIME · updates as you move the dials</div><table style="width:100%;margin-top:6px;font:500 12.5px 'Barlow Condensed',sans-serif;color:var(--chalk);border-collapse:collapse"><tr style="color:var(--chalk-dim);font-size:11px"><td></td><td>fresh account</td>${N ? "<td>your account now</td>" : ""}</tr>${row("🏈 Reach the UFF", F.uff, N && N.uff)}${row("🛸 Reach the Interstellar League", F.ist, N && N.ist)}${row("🏆 Win the Interstellar title", F.title, N && N.title)}</table><div class="small" style="margin-top:4px;color:var(--chalk-dim)">A rough model from measured careers: the low end is a sharp tree, the high end a careless one. Potential grows ~${(+F.g).toFixed(1)} a season early; ${F.notchSeasons ? `running full chaos, the loop (a wall in high school or college, then back to the UFF for the ring) takes ~${hrs(F.notchSeasons)} a notch of +${Math.round(TU("chaosCapStepV185", 3))} and reaches ~${F.chaos} chaos (era ${F.era})` : `running ${Math.round(TU("etaChaosShareV184", 1) * 100)}% of chaos capacity (below full the capacity never grows) the UFF years stay at ~${F.chaos} chaos`}; the Interstellar title wants ~${fmtBigV179(F.potTitle)} potential (a ring is a starter's dominant season: OVR ≈ ${nf1V179(TU("etaIstDomV186", 1.5))}× the league's ${fmtBigV179(TU("aiBaseIstV178", 700))} plus the chaos you carry there — ~${hrs(F.title - F.ist)} after you arrive)${N ? ` · yours is ${fmtBigV179(Math.round(N.pot0))}` : ""}${N && (N.gear.pp || N.gear.growth || N.gear.call) ? ` · your gear counts: +${Math.round(N.gear.pp * 100)}% PP, +${Math.round(N.gear.growth * 100)}% growth, +${Math.round(N.gear.call)}% call-up` : ""}.</div></div>`;
+    return `<div class="eta-v182" style="margin:10px 0 4px;padding:8px 10px;border-radius:10px;background:rgba(176,124,255,.10);border:1px solid rgba(176,124,255,.35)"><div class="l" style="font-size:10px;color:#c9b8ff;letter-spacing:1.5px">⏱️ ESTIMATED TIME · updates as you move the dials</div><table style="width:100%;margin-top:6px;font:500 12.5px 'Barlow Condensed',sans-serif;color:var(--chalk);border-collapse:collapse"><tr style="color:var(--chalk-dim);font-size:11px"><td></td><td>fresh account</td>${N ? "<td>your account now</td>" : ""}</tr>${row("🏈 Reach the UFF", F.uff, N && N.uff)}${row("🛸 Reach the Interstellar League", F.ist, N && N.ist)}${row("🏆 Win the Interstellar title", F.title, N && N.title)}</table><div class="small" style="margin-top:4px;color:var(--chalk-dim)">A rough model from measured careers: the low end is a sharp tree, the high end a careless one. Potential grows ~${(+F.g).toFixed(1)} a season early; ${F.notchSeasons ? `running full chaos, the loop (a wall in high school or college, then back to the UFF for the ring) takes ~${hrs(F.notchSeasons)} a notch of +${Math.round(TU("chaosCapStepV185", 3))} and reaches ~${F.chaos} chaos (era ${F.era})` : `running ${Math.round(TU("etaChaosShareV184", 1) * 100)}% of chaos capacity (below full the capacity never grows) the UFF years stay at ~${F.chaos} chaos`}; the Interstellar title wants ~${fmtBigV179(F.potTitle)} potential (a ring is a starter's dominant season: OVR ≈ ${nf1V179(TU("etaIstDomV186", 1.55))}× the league's ${fmtBigV179(TU("aiBaseIstV178", 700))} plus the chaos you carry there — ~${hrs(F.title - F.ist)} after you arrive)${N ? ` · yours is ${fmtBigV179(Math.round(N.pot0))}` : ""}${N && (N.gear.pp || N.gear.growth || N.gear.call) ? ` · your gear counts: +${Math.round(N.gear.pp * 100)}% PP, +${Math.round(N.gear.growth * 100)}% growth, +${Math.round(N.gear.call)}% call-up` : ""}.</div></div>`;
   }
   const V181 = { skips: 0 };
   window.__V182 = { eta: etaV182, etaHtml: etaHtmlV182 };

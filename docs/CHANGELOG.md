@@ -14,7 +14,7 @@ Names in older entries are the career app's pre-v149 C minified names (`q`, `ms`
   `src/05-field-renderer.js`.) The owner's patch notes, in order:
   - **Rings are earned (A).** A UFF title is a ring (the ring count, the chaos clearance, the era, the loot) only for a
     starter (or franchise man) whose season average clears `ringPerfUffV186` (60). The Interstellar ring needs a dominant
-    season (`ringPerfIstV186`, 80). A camp body on a great team gets the title, not the ring.
+    season (`ringPerfIstV186`, 85). A camp body on a great team gets the title, not the ring.
   - **Chaos locks in.** A career started under chaos commits it (`state.chaosLockV186`): the dials go up, never back
     below it (`chaosLockV186` 0 lets them down). The Chaos card says so.
   - **The late tree is priced and paid for the long game.** The Apex and the Impossible default to ×50 / ×500 (the owner's
@@ -49,7 +49,13 @@ Names in older entries are the career app's pre-v149 C minified names (`q`, `ms`
     - **Two new Apex nodes:** Card Shark (+10% a level to every card's percentage) and Marked Cards (+30% a level to the
       rare / epic / legendary odds). The old card dials gave way to the odds and the coach card's.
 
-  New beta dials: both ring bars and the estimate's Interstellar dominance. Kill switches `v186`, `v186B`, `v186C`,
+  - **The wall stops growing at chaos 12 (G).** The level share of the chaos lift stops at `chaosNeedMaxV186` (0.5).
+    Measured: at chaos 15 (share 0.6) an expert and a power-first player each spent 10 careers in a row walled at
+    College, earning ~1M PP each — a College player's rating is capped by age and growth (~145), not by PP, and the
+    lifted Combine bar was ~163. Past 12 a notch adds only the flat lift (+1.05 a point), which the attribute cap
+    (+3 a point) outgrows.
+
+  New beta dials: both ring bars, the chaos share's cap and the estimate's Interstellar dominance. Kill switches `v186`, `v186B`, `v186C`,
   `v186D`, `v186E`, `v186F`. `v186check`; `v185check` updated (its ring test plays a starter).
 - **v185 — the chaos loop.** (`src/07-career-app.js`, `public/rib-menu-howto.js`, `scripts/careersim.mjs`.) The owner:
   chaos should be "a soft prestige … redo it again and work your way back from peewee to high-school, get cut sometime in

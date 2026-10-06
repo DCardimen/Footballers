@@ -35,12 +35,12 @@ const A = await p.evaluate(() => {
   const mk = (level, status) => ({ level, nflStateV11: status ? { status } : null })
   return {
     star: V.ringEarned(mk(7, 'starter'), 72), weak: V.ringEarned(mk(7, 'starter'), 52), camp: V.ringEarned(mk(7, 'camp'), 95),
-    franchise: V.ringEarned(mk(7, 'franchise'), 61), ist: V.ringEarned(mk(8, 'starter'), 72), istDom: V.ringEarned(mk(8, 'starter'), 84),
+    franchise: V.ringEarned(mk(7, 'franchise'), 61), ist: V.ringEarned(mk(8, 'starter'), 80), istDom: V.ringEarned(mk(8, 'starter'), 88),
     college: V.ringEarned(mk(5, 'camp'), 10), last: V.last()
   }
 })
 ok(A.star && !A.weak && !A.camp && A.franchise, 'a UFF ring: a starter (or franchise man) averaging 60+ — not a camp body, not a weak season', A)
-ok(!A.ist && A.istDom, 'an Interstellar ring wants a dominant season (80+)', { ist: A.ist, istDom: A.istDom })
+ok(!A.ist && A.istDom, 'an Interstellar ring wants a dominant season (85+)', { ist: A.ist, istDom: A.istDom })
 ok(A.college, 'below the UFF the gate does not apply (titles there are not rings)')
 // the game itself: a won UFF season by a camp body is a title, not a ring
 const G = await p.evaluate(() => {
