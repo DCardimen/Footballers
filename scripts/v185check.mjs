@@ -73,13 +73,14 @@ const C = await p.evaluate(() => {
   window.RIB_TUNE.v156Bplayoffs = 0
   pl.level = 7; pl.age = 25; for (const k in pl.attrs) pl.attrs[k] = 900; s.chaosCap = 6; s.chaos = {}; window.__chaosMaxV179(); s.objectivesCompleted = 40
   const cap0 = s.chaosCap, caps = []
-  const champ = () => { pl.weekResults = []; pl.playoffState = { qualified: true, champion: true } } // a won season (simSeason reads the played playoffs)
+  window.RIB_TUNE.ringPerfUffV186 = 0 // v186 gates a ring on the season's average; this test plays no games
+  const champ = () => { if (pl.nflStateV11) pl.nflStateV11.status = 'starter' /* v186: and on starting */; pl.weekResults = []; pl.playoffState = { qualified: true, champion: true } } // a won season (simSeason reads the played playoffs)
   for (let i = 0; i < 8 && (pl.nflRings || 0) < 3; i++) { champ(); try { A.simSeason(pl) } catch (e) { caps.push('threw ' + e.message); break } caps.push(s.chaosCap + '/' + (pl.nflRings || 0)); window.__chaosMaxV179() }
   const rings = pl.nflRings || 0, cap1 = s.chaosCap
   // a new career: the next ring at full chaos raises it again
   pl.chaosBumpV185 = false; let cap2 = cap1
   for (let i = 0; i < 6; i++) { const r0 = pl.nflRings; champ(); try { A.simSeason(pl) } catch (e) { break } if (pl.nflRings > r0) { cap2 = s.chaosCap; break } }
-  return { cap0, cap1, cap2, rings, caps, step: window.__V185.step(false) }
+  return { cap0, cap1, cap2, rings, caps, step: window.__V185.step(false), gate: window.__V186 && window.__V186.last(), st: pl.nflStateV11 && pl.nflStateV11.status }
 })
 ok(C.rings >= 2 && C.cap1 === C.cap0 + C.step, 'a career\'s rings at full chaos raise the capacity ONCE, by the step (3)', C)
 ok(C.cap2 === C.cap1 + C.step, 'the next career\'s first ring raises it again', C)

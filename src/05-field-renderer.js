@@ -2659,7 +2659,7 @@ class Ot extends mt.Scene {
        * user can select, so switching speed mid-play cannot truncate it either.
        * `TU("watchdogSlackMs")` is the headroom for slow-mo and hit-stop. */
       const wdRate144 = Math.max(.05, Math.min(TU("watchdogSlowestSpeed", .5), slowFloorV164F()) * TU("basePlayRate", 0.7));   // v164 F: budgeted at the slow dial's floor
-      const wdSpan144 = script.duration + ((this.play && this.play.delay) || 0) + TU("postPlayMs", 1450) + (TU("v175pan", 1) ? TU("screenPanHoldMsV175", 1700) + TU("screenPanDelayMsV175", 350) + (TU("v177Cparty", 1) ? TU("partyHoldMsV177C", 2800) : 0) : 0);   // v175: a pan to the screen holds the post longer
+      const wdSpan144 = script.duration + ((this.play && this.play.delay) || 0) + TU("postPlayMs", 1450) + (TU("v175pan", 1) ? TU("screenPanHoldMsV175", TU("v186B", 1) ? 1100 : 1700) + TU("screenPanDelayMsV175", 350) + (TU("v177Cparty", 1) ? TU("partyHoldMsV177C", 2800) : 0) : 0);   // v175: a pan to the screen holds the post longer
       const wdMs144 = wdSpan144 / wdRate144 + TU("watchdogSlackMs", 6000);
       try { (window.__V144 = window.__V144 || {}).watchdog = { ms: Math.round(wdMs144), span: Math.round(wdSpan144), rate: +wdRate144.toFixed(3), dur: Math.round(script.duration), delay: Math.round((this.play && this.play.delay) || 0) }; } catch (e) {}
       this.time.delayedCall(wdMs144, () => { try { (window.__V144 = window.__V144 || {}).watchdogFired = (window.__V144.watchdogFired || 0) + 1; } catch (e) {} this.complete(); });
@@ -3577,6 +3577,13 @@ class Ot extends mt.Scene {
      * wall time, before the party's 1.7 s cue, and the celebration never played. While a pan holds the screen the post
      * runs at 1× pace (`panPostRateV180`, the 1× rate) so the party plays whatever the dial says. Kill switch v180A 0. */
     if (this._panV175 && TU("v180A", 1)) spd = Math.min(spd, TU("panPostRateV180", TU("basePlayRate", 0.7)));
+    /* ===== v186 B TIGHTER BETWEEN THE WHISTLES =====
+     * The owner: "in between plays … a little bit faster of an idle. Panning to the Jumbotron … the animation plays and then
+     * there's like a pause where it just kind of zooms in on the character on the ground". Without a pan the after-play
+     * phase runs `postRateV186` (1.35×) faster; with one, the screen's hold is `screenPanHoldMsV175` 1100 (was 1700), and
+     * the moment the board's party has run its course the post is cut to its last `partyTailMsV186` (250 ms) — no long
+     * look at the pile after the fireworks. Kill switch v186B 0. */
+    else if (!this._panV175 && TU("v186B", 1)) spd *= TU("postRateV186", 1.35);
     const dt = delta * spd; P.post.t += dt;
     const k = P.post.t;
     /* v103: the first second is still contact. The pile churns on its own phase, the men
@@ -8518,7 +8525,7 @@ class Ot extends mt.Scene {
     if (V) { V.frames++; try { const wv = cam.worldView; V.inFrame = R.x >= wv.x - 1 && R.x + R.w <= wv.x + wv.width + 1 && R.y >= wv.y - 1 && R.y + R.h <= wv.y + wv.height + 1; if (V.inFrame) V.inFrameFrames = (V.inFrameFrames || 0) + 1; } catch (e) {} }
     return true;
   }
-  screenPanHoldMsV175() { return this._panV175 ? TU("screenPanHoldMsV175", 1700) + (this._partyV177C && this._partyV177C.state === "armed" ? TU("partyHoldMsV177C", 2800) : 0) : 0; }   // v177 C: a party holds the screen longer
+  screenPanHoldMsV175() { return this._panV175 ? TU("screenPanHoldMsV175", TU("v186B", 1) ? 1100 : 1700) + (this._partyV177C && this._partyV177C.state === "armed" ? TU("partyHoldMsV177C", 2800) : 0) : 0; }   // v177 C: a party holds the screen longer
   // the glide home is gentle for a moment after a pan
   screenPanBackKV175() { return this._panBackV175 && performance.now() < this._panBackV175 ? TU("screenPanBackKV175", 0.45) : 1; }
   screenPanSnapV175() {
@@ -8707,6 +8714,7 @@ class Ot extends mt.Scene {
     if (B) for (const o of B.all || []) { try { if (o && o.scene) o.setVisible(false); } catch (e) {} }
     if (this._fwV177C && why !== "done") this._fwV177C.sched.length = 0;   // cut off (the snap): the sky burns out what is already up; a party that ran its course lets the finale go
     V.ended++; if (V.last) { V.last.ended = why || "done"; V.last.ms = Math.round(performance.now() - (PT.at || performance.now())); }
+    if (why === "done" && TU("v186B", 1)) { try { const P = this.play; if (P && P.post) P.post.t = Math.max(P.post.t, P.post.ms - TU("partyTailMsV186", 250)); } catch (e) {} }   // v186 B: the party is over — so is the post
     if (this._artLockV175 && this._artLockV175.kind === PT.kind) this._artLockV175 = null;
     try { if (ST && ST._msgTimerV164F) { clearTimeout(ST._msgTimerV164F); ST._msgTimerV164F = null; } if (ST && ST.mode === "msg") this.jumboClearV164F(); } catch (e) {}
   }
