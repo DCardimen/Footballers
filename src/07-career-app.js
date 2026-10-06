@@ -8811,7 +8811,7 @@
       "Yetis",
       "Pirates",
       "Bearcats",
-      "Longhorns",
+      "Steers",
       "Thunder",
       "Wildcats",
       "Miners",
@@ -8823,7 +8823,7 @@
       "Gators",
       "Sharks",
       "Bulls",
-      "Razorbacks",
+      "Warthogs",
       "Rams",
       "Bison",
       "Lions",
@@ -8851,7 +8851,7 @@
       "Barbarians",
       "Cavaliers",
       "Paladins",
-      "Buccaneers",
+      "Corsairs",
       "Outlaws",
       "Reapers",
       "Golems",
@@ -36278,7 +36278,7 @@
     }
     const m = Math.round((0.8 + Math.pow(v / 100, 2) * 44) * 10) / 10,
       tier = m >= 30 ? 4 : m >= 18 ? 3 : m >= 8 ? 2 : m >= 3 ? 1 : 0;
-    return { kind: "MARKET VALUE", txt: "$" + Math.max(1, Math.round(m)) + "M/yr", tier, tierTxt: ["MINIMUM DEAL", "ROLE-PLAYER MONEY", "STARTER MONEY", "PRO BOWL MONEY", "MAX CONTRACT"][tier] };
+    return { kind: "MARKET VALUE", txt: "$" + Math.max(1, Math.round(m)) + "M/yr", tier, tierTxt: ["MINIMUM DEAL", "ROLE-PLAYER MONEY", "STARTER MONEY", "ALL-STAR MONEY", "MAX CONTRACT"][tier] };
   }
   function stockV178(e, perf, won) {
     if (!on178("stock")) return null;
