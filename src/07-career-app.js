@@ -8811,7 +8811,7 @@
       "Yetis",
       "Pirates",
       "Bearcats",
-      "Longhorns",
+      "Steers",
       "Thunder",
       "Wildcats",
       "Miners",
@@ -8823,7 +8823,7 @@
       "Gators",
       "Sharks",
       "Bulls",
-      "Razorbacks",
+      "Warthogs",
       "Rams",
       "Bison",
       "Lions",
@@ -8851,7 +8851,7 @@
       "Barbarians",
       "Cavaliers",
       "Paladins",
-      "Buccaneers",
+      "Corsairs",
       "Outlaws",
       "Reapers",
       "Golems",
@@ -36278,7 +36278,7 @@
     }
     const m = Math.round((0.8 + Math.pow(v / 100, 2) * 44) * 10) / 10,
       tier = m >= 30 ? 4 : m >= 18 ? 3 : m >= 8 ? 2 : m >= 3 ? 1 : 0;
-    return { kind: "MARKET VALUE", txt: "$" + Math.max(1, Math.round(m)) + "M/yr", tier, tierTxt: ["MINIMUM DEAL", "ROLE-PLAYER MONEY", "STARTER MONEY", "PRO BOWL MONEY", "MAX CONTRACT"][tier] };
+    return { kind: "MARKET VALUE", txt: "$" + Math.max(1, Math.round(m)) + "M/yr", tier, tierTxt: ["MINIMUM DEAL", "ROLE-PLAYER MONEY", "STARTER MONEY", "ALL-STAR MONEY", "MAX CONTRACT"][tier] };
   }
   function stockV178(e, perf, won) {
     if (!on178("stock")) return null;
@@ -37928,6 +37928,8 @@
           o.fx = { ["start_" + k]: 1 };
           o.name = "+1 starting " + ((ATTR_INFO[k] && ATTR_INFO[k].name) || k);
         }
+        if ((c.id === "skin" || c.id === "skinMajor") && TU("v187", 1)) return null; /* v187: looks come by milestone, never as a choice */
+        if (c.id === "pp" && M.respecDealV187) return null; /* v187: a respec does not pay the windfalls twice */
         if (c.id === "skin" || c.id === "skinMajor") {
           const L = earnedLooksV179(c.id === "skinMajor" ? "legendary" : "rare");
           if (!L.length) return null;
@@ -37940,11 +37942,14 @@
       };
     let opts;
     if (major) {
-      const left = MEDAL_MAJOR_V179.filter(c => !M.owned[c.id]).map(c => Object.assign({ w: 1, rar: "legendary" }, c));
+      const left = MEDAL_MAJOR_V179.filter(c => !M.owned[c.id] && !(c.id === "skinMajor" && TU("v187", 1))).map(c => Object.assign({ w: 1, rar: "legendary" }, c));
       opts = pickW(left.length >= 2 ? left : left.concat(MEDAL_GREATER_V179.map(c => Object.assign({ w: 1, rar: "epic" }, c))), 2);
     } else opts = pickW(MEDAL_SMALL_V179, 3);
     opts = opts.map(dress).filter(Boolean).slice(0, 2);
-    while (opts.length < 2) opts.push(dress(MEDAL_SMALL_V179[0]));
+    for (let k = 0; opts.length < 2 && k < 40; k++) {
+      const c = dress(MEDAL_SMALL_V179[k % MEDAL_SMALL_V179.length]);
+      c && !opts.some(x => x.id === c.id) && opts.push(c);
+    }
     return { rank, major, opts };
   }
   // new medals → pending choices (lazy: any medal source counts; an old save starts from where it is)
@@ -37970,7 +37975,7 @@
       } catch (_) {}
     if (P.major && MEDAL_MAJOR_V179.some(x => x.id === c.id)) M.owned[c.id] = true;
     M.pending.shift();
-    M.log.push({ rank: P.rank, major: P.major, id: c.id, name: c.name });
+    M.log.push({ rank: P.rank, major: P.major, id: c.id, name: c.name, era: P.era });
     M.log.length > 60 && M.log.splice(0, M.log.length - 60);
     try {
       syncCounters();
@@ -37994,6 +37999,133 @@
     }
     return n;
   }
+  /* ===== v187 MEDAL LOOKS & THE RING RESPEC =====
+   * The owner: "make all cosmetics earned every 10 levels for the medals, not an option you choose between. Cooler ones at
+   * higher medal counts. Automatically updated. Sacrifice one ring to reset medals and pick their bonuses again."
+   * LOOKS: the medal deck no longer deals a look (the small "A new look" and the major "A legendary look" are gone from
+   * it). Every `medalLookEveryV187` (10) medals EARNS one — rare below `medalLookEpicV187` (50) medals, epic below
+   * `medalLookLegV187` (100), legendary below `medalLookMythV187` (200), mythic after (the next rarity up when a tier has
+   * run out). `medalLooksSyncV187` rides `medalSyncV179`, so it is automatic and catches up on an old save; the new look
+   * is worn at once (`medalLookWearV187` 1). THE RING RESPEC: sacrifice `ringRespecCostV187` (1) ring to clear every
+   * medal-reward bonus (`fx`, the majors owned) and deal every claimed choice again — new cards, the windfall PP not
+   * paid twice; the looks stay. Kill switch v187 0. `window.__V187`; `v187check`. */
+  function medalLookTierV187(n) {
+    return n < TU("medalLookEpicV187", 50) ? "rare" : n < TU("medalLookLegV187", 100) ? "epic" : n < TU("medalLookMythV187", 200) ? "legendary" : "mythic";
+  }
+  function medalLooksSyncV187() {
+    if (!TU("v187", 1) || !state) return [];
+    const C = window.RIB_COSMETICS;
+    if (!C || !C.catalog || !C.grant) return [];
+    const M = medalStoreV179(),
+      now = medalCountV179(),
+      step = Math.max(1, TU("medalLookEveryV187", 10)),
+      got = [],
+      order = ["rare", "epic", "legendary", "mythic"];
+    M.looksV187 || (M.looksV187 = []);
+    for (let r = (Math.floor((M.lookMarkV187 || 0) / step) + 1) * step; r <= now; r += step) {
+      const want = medalLookTierV187(r),
+        wi = order.indexOf(want),
+        rng = seededRng("lookV187", M.seed, r);
+      let pool = [];
+      for (let k = wi; k < order.length && !pool.length; k++) pool = earnedLooksV179(order[k]).filter(it => it.rarity === order[k]);
+      for (let k = wi - 1; k >= 0 && !pool.length; k--) pool = earnedLooksV179(order[k]).filter(it => it.rarity === order[k]);
+      M.lookMarkV187 = r;
+      if (!pool.length) continue;
+      const it = pool[Math.floor(rng() * pool.length)];
+      try {
+        C.grant(it.id, "earned");
+      } catch (_) {
+        continue;
+      }
+      M.looksV187.push({ rank: r, id: it.id, name: it.name, rar: it.rarity, cat: it.cat });
+      got.push(it);
+    }
+    if (got.length) {
+      const last = got[got.length - 1];
+      try {
+        TU("medalLookWearV187", 1) && C.equip && C.equip(last.cat, last.id);
+      } catch (_) {}
+      try {
+        typeof document < "u" && byId("toast") && showToast("🎨 Medal " + M.lookMarkV187 + ": a new " + last.rarity + " look — " + last.name + (got.length > 1 ? " (+" + (got.length - 1) + " more)" : "") + (TU("medalLookWearV187", 1) ? " · now wearing it" : ""));
+        saveGame();
+      } catch (_) {}
+    }
+    return got;
+  }
+  const msMedalV187 = medalSyncV179;
+  medalSyncV179 = function () {
+    const r = msMedalV187.apply(this, arguments);
+    try {
+      medalLooksSyncV187();
+    } catch (_) {}
+    return r;
+  };
+  function medalLooksLineV187(M, medals) {
+    const step = TU("medalLookEveryV187", 10),
+      next = (Math.floor(Math.max(medals, M.lookMarkV187 || 0) / step) + 1) * step,
+      L = (M.looksV187 || []).slice(-4).reverse();
+    return `<div class="mv-t">🎨 EARNED LOOKS · every ${step} medals</div><div class="mv-sub">${L.length ? L.map(x => `#${x.rank} ${escHtml(x.name)} <small>(${x.rar})</small>`).join(" · ") + " · " : ""}next at medal <b>${next}</b> — a <b>${medalLookTierV187(next)}</b> look (rare → epic at ${TU("medalLookEpicV187", 50)}, legendary at ${TU("medalLookLegV187", 100)}, mythic at ${TU("medalLookMythV187", 200)}).</div>`;
+  }
+  function medalRespecHtmlV187(M) {
+    const cost = TU("ringRespecCostV187", 1),
+      rings = (state && state.rings) || 0,
+      n = (M.log || []).length;
+    if (!n) return "";
+    return `<div class="mv-t">💍 RE-PICK YOUR REWARDS</div><div class="mv-sub">Sacrifice ${cost} ring${cost === 1 ? "" : "s"} (you hold ${rings}) to clear every medal bonus and choose all ${n} again — new cards, the windfalls not paid twice, your looks kept.</div><button class="btn secondary" style="margin-top:6px" ${rings >= cost ? "" : "disabled"} onclick="medalRespecV187()">💍 Sacrifice ${cost} ring${cost === 1 ? "" : "s"} · re-pick ${n}</button>`;
+  }
+  function medalRespecNowV187() {
+    const M = medalStoreV179(),
+      cost = TU("ringRespecCostV187", 1);
+    if (!TU("v187", 1) || !M || !(M.log || []).length || (state.rings || 0) < cost) return null;
+    const old = M.log.slice();
+    state.rings = (state.rings || 0) - cost;
+    M.fx = {};
+    M.owned = {};
+    M.log = [];
+    M.seed = randInt(1, 2e9);
+    M.respecsV187 = (M.respecsV187 || 0) + 1;
+    M.respecDealV187 = !0;
+    let re = [];
+    try {
+      re = old.map(l => {
+        const P = dealMedalV179(l.rank, M);
+        if (l.era != null) P.era = l.era;
+        P.respecV187 = !0;
+        return P;
+      });
+    } finally {
+      M.respecDealV187 = !1;
+    }
+    M.pending = re.concat((M.pending || []).filter(P => !P.respecV187));
+    try {
+      syncCounters();
+      saveGame();
+    } catch (_) {}
+    return { cost, dealt: re.length, rings: state.rings };
+  }
+  function medalRespecV187() {
+    const M = medalStoreV179(),
+      cost = TU("ringRespecCostV187", 1),
+      n = (M && M.log && M.log.length) || 0;
+    if (!n) return void showToast("No medal rewards claimed yet.");
+    if ((state.rings || 0) < cost) return void showToast("💍 It costs " + cost + " ring" + (cost === 1 ? "" : "s") + " — win one in the UFF.");
+    return askV150(
+      `Sacrifice ${cost} ring${cost === 1 ? "" : "s"} to clear every medal-reward bonus you hold and choose all ${n} again? The cards are dealt fresh; Prestige windfalls are not paid again; your earned looks stay.`,
+      { title: "💍 Re-pick your medal rewards", ok: "Sacrifice the ring", danger: !0 }
+    ).then(ok => {
+      if (!ok) return;
+      const r = medalRespecNowV187();
+      if (!r) return;
+      showToast("💍 A ring for a fresh start — " + r.dealt + " rewards to choose again");
+      try {
+        openMedalPickV179();
+      } catch (_) {
+        render();
+      }
+    });
+  }
+  window.medalRespecV187 = medalRespecV187;
+  window.__V187 = { looks: () => medalLooksSyncV187(), tier: n => medalLookTierV187(n), respec: () => medalRespecNowV187(), store: () => medalStoreV179() };
   function cssMedalV179() {
     if (document.getElementById("medalCssV179")) return;
     const s = document.createElement("style");
@@ -38227,11 +38359,12 @@
       maj = c => `<div class="mv-maj ${M.owned[c.id] ? "own" : ""}"><i>${c.icon}</i><div><b>${escHtml(c.name)}</b><small>${fxLinesV179(c.fx).join(" · ") || escHtml(c.ctx)}</small></div><span>${M.owned[c.id] ? "✓ OWNED" : "unfound"}</span></div>`;
     return `<div class="card medal-v179" id="medalCardV179">
   <div class="pv-h"><span>🎖️ MEDAL REWARDS</span><b>${medals} medal${medals === 1 ? "" : "s"}</b></div>
-  <div class="mv-sub">Every Legacy medal deals a choice of two rewards; every 10th medal (and every new era) deals two sealed MAJOR upgrades you can own once. Next major at medal <b>${nextMajor}</b>${M.pending.length ? ` · <b>${M.pending.length}</b> waiting — <a href="javascript:void 0" onclick="window.__V179.medals.open()">choose now ▸</a>` : ""}.</div>
+  <div class="mv-sub">Every Legacy medal deals a choice of two rewards${TU("v187", 1) ? " (looks are not among them — every " + TU("medalLookEveryV187", 10) + " medals EARNS one)" : ""}; every 10th medal (and every new era) deals two sealed MAJOR upgrades you can own once. Next major at medal <b>${nextMajor}</b>${M.pending.length ? ` · <b>${M.pending.length}</b> waiting — <a href="javascript:void 0" onclick="window.__V179.medals.open()">choose now ▸</a>` : ""}.</div>
   <div class="mv-t">PERMANENT BONUSES YOU HOLD</div>
   ${lines.length ? `<ul class="mv-fx">${lines.map(l => `<li>${escHtml(l)}</li>`).join("")}</ul>` : `<div class="mv-sub">None yet — your next medal deals the first.</div>`}
   <div class="mv-t">MAJOR UPGRADES · ${owned.length} / ${owned.length + left.length} owned</div>
   ${owned.map(maj).join("")}${left.length ? `<details class="mv-more"><summary>${left.length} still to find — what each one gives ▸</summary>${left.map(maj).join("")}</details>` : ""}
+  ${TU("v187", 1) ? medalLooksLineV187(M, medals) + medalRespecHtmlV187(M) : ""}
   ${M.log.length ? `<div class="mv-t">RECENT</div><div class="mv-sub">${M.log.slice(-6).reverse().map(x => `#${x.rank} ${escHtml(x.name)}`).join(" · ")}</div>` : ""}
 </div>`;
   }
@@ -38340,6 +38473,8 @@
     ["verdictBaseV179", "Scouts' verdict ceiling %", 50, 96, 1, 80, "bar"],
     ["secondLookBaseV179", "GM's second look %", 0, 50, 1, 10, "bar"],
     ["luckyDrawPerLvlV179", "Lucky Draw chance per level", 0, 0.5, 0.05, 0.2, "card"],
+    ["medalLookEveryV187", "An earned look every N medals", 1, 50, 1, 10, "card"],
+    ["ringRespecCostV187", "Rings to re-pick the medal rewards", 1, 10, 1, 1, "card"],
     ["gradeBarCapV179", "Season grade bar cap", 60, 95, 1, 86, "card"],
     ["gradeRatchetEaseV179", "Grade: last season eased by", 0, 20, 1, 6, "card"],
     ["betaPayV182", "Weekly paycheck ×", 0.1, 10, 0.1, 1, "post"],

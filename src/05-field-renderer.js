@@ -248,12 +248,12 @@ window.__RIB_PLAN_V66 = window.__RIB_ASSET("rib_plan_v66.png");
 window.__RIB_SKILL_V64 = window.__RIB_ASSET("rib_skill_v64.png");
 window.__RIB_SIDE_V78 = window.__RIB_ASSET("rib_side_v78.png");
 const RIB_META = {"run_dn0": [0, 0], "run_dn1": [1, 0], "run_dn2": [2, 0], "run_dn3": [3, 0], "run_dn4": [4, 0], "run_dn5": [5, 0], "run_dn6": [6, 0], "run_dn7": [7, 0], "run_dr0": [0, 1], "run_dr1": [1, 1], "run_dr2": [2, 1], "run_dr3": [3, 1], "run_dr4": [4, 1], "run_dr5": [5, 1], "run_dr6": [6, 1], "run_dr7": [7, 1], "run_sd0": [0, 2], "run_sd1": [1, 2], "run_sd2": [2, 2], "run_sd3": [3, 2], "run_sd4": [4, 2], "run_sd5": [5, 2], "run_sd6": [6, 2], "run_sd7": [7, 2], "run_ur0": [0, 3], "run_ur1": [1, 3], "run_ur2": [2, 3], "run_ur3": [3, 3], "run_ur4": [4, 3], "run_ur5": [5, 3], "run_ur6": [6, 3], "run_ur7": [7, 3], "run_up0": [0, 4], "run_up1": [1, 4], "run_up2": [2, 4], "run_up3": [3, 4], "run_up4": [4, 4], "run_up5": [5, 4], "run_up6": [6, 4], "run_up7": [7, 4], "idle_dn": [0, 5], "idle_up": [1, 5], "idle_sd": [2, 5], "stance_dn": [3, 5], "stance_up": [4, 5], "dive0": [5, 5], "dive1": [6, 5], "dive2": [7, 5], "dive3": [0, 6], "down0": [1, 6], "down1": [2, 6], "grab": [3, 6], "catch": [4, 6], "block_dn0": [5, 6], "block_dn1": [6, 6], "block_dn2": [7, 6], "block_dn3": [0, 7], "block_dn4": [1, 7], "block_dn5": [2, 7], "block_up0": [3, 7], "block_up1": [4, 7], "block_up2": [5, 7], "block_up3": [6, 7], "block_up4": [7, 7], "block_up5": [0, 8], "block_sd0": [1, 8], "block_sd1": [2, 8], "block_sd2": [3, 8], "block_sd3": [4, 8], "block_sd4": [5, 8], "block_sd5": [6, 8], "ball": [7, 8], "throw0": [0, 9], "throw1": [1, 9], "throw2": [2, 9], "throw3": [3, 9], "throw4": [4, 9], "throw5": [5, 9]};
-const TEAM_PALETTES = window.TEAM_PALETTES = [["#2f9e4f","#e8c86a"],["#c8414b","#c3c9d2"],["#1f4fd0","#ffffff"],["#e07020","#ffffff"],["#12855e","#f2d24e"],["#7a2ea0","#e0d6ee"],["#c8102e","#ffb612"],["#003594","#ffb612"],["#0b6623","#ffffff"],["#5a1414","#c9a44a"],["#101820","#a5acaf"],["#4b92db","#ffffff"],["#aa0000","#b3995d"],["#0c2340","#c8102e"],["#ff7900","#101820"],["#5f259f","#ffc72c"],["#0085ca","#101820"],["#d50a0a","#8c8c8c"],["#125740","#ffffff"],["#7c1415","#ffd100"],["#003f2d","#c0c0c0"],["#241773","#9e7c0c"],["#fb4f14","#101820"],["#311d00","#ff8200"],["#006778","#d7a22a"],["#a71930","#ffffff"],["#002244","#69be28"],["#97233f","#ffb612"],["#0b2265","#a71930"],["#004c54","#a5acaf"],["#ffb612","#101820"],["#008e97","#f58220"],["#4f2683","#ffc62f"],["#002c5f","#a2aaad"],["#d3bc8d","#101820"],["#0080c6","#ffc20e"],["#773141","#c5b358"],["#136d6f","#e8e0c2"],["#2c5e4f","#e57200"],["#3d3d6b","#e6e6fa"],
+const TEAM_PALETTES = window.TEAM_PALETTES = [["#2f9e4f","#e8c86a"],["#c8414b","#c3c9d2"],["#1f4fd0","#ffffff"],["#e07020","#ffffff"],["#12855e","#f2d24e"],["#7a2ea0","#e0d6ee"],["#b5223b","#2b3a4a"],["#1d3f8f","#f0e6c8"],["#0b6623","#f7e7b0"],["#5a2a2a","#9fb4c7"],["#14161c","#7fd0e0"],["#3a8fd6","#7a1f2b"],["#a3121e","#e8d8b0"],["#1a2a48","#5ec8a8"],["#ff7900","#2d6a4f"],["#5f259f","#9be15d"],["#1478b8","#e4572e"],["#c2410c","#8c8c8c"],["#1e5b45","#c7d3dd"],["#7c1415","#9ad1d4"],["#003f2d","#e0a458"],["#2e2580","#ff6b6b"],["#fb6a2c","#ffd23f"],["#3a2610","#d9c5a0"],["#0a6f7d","#f28482"],["#a71930","#3d405b"],["#0d2a4a","#ff8fab"],["#8f2a4a","#a8dadc"],["#16255e","#90be6d"],["#0a5560","#f4a261"],["#f2c14e","#3d2b1f"],["#1a9aa0","#fdf0d5"],["#5c2d91","#8ac926"],["#0d3466","#f6bd60"],["#c9b28a","#6a040f"],["#2b2d42","#00f5d4"],["#6e2c3e","#9ec1cf"],["#136d6f","#e8e0c2"],["#2c5e4f","#e57200"],["#3d3d6b","#e6e6fa"], /* v188: original pairs — no real team's colours (namecheck guards it) */
 /* v44 emblem-matched palettes (40-52): added so every emblem has a kit that reads as its own colors */
-["#3d4a57","#59e0f0"],["#6b4423","#d9b380"],["#bcd8e8","#26547c"],["#7d8791","#e8e4d8"],["#15151c","#d50a0a"],["#69be28","#0b3d0b"],["#15181e","#d4a017"],["#f5f5f5","#26262e"],["#c0c5cc","#d4a017"],["#101820","#2ec4b6"],["#4a5d3a","#8fae6b"],["#2a7fd4","#bfe6ff"],["#bf5700","#f2e3c6"]];
+["#3d4a57","#59e0f0"],["#8a5a2b","#e8d5a8"],["#bcd8e8","#26547c"],["#7d8791","#e8e4d8"],["#15151c","#d50a0a"],["#69be28","#0b3d0b"],["#3a3f47","#d4a017"],["#f5f5f5","#1f7a8c"],["#c0c5cc","#d4a017"],["#101820","#2ec4b6"],["#4a5d3a","#8fae6b"],["#2a7fd4","#bfe6ff"],["#8d5524","#f2e3c6"]]; /* v188: was Texas burnt orange */
 const RIB = { img: null, ready: false, loaded: false, pendingScene: null, teams: {}, defName: null, cellCache: {}, v22img: null, v22cache: {}, refImg: null, refCache: {}, sideImg: null, sideCache: {}, crowdImg: null, crowdCache: {}, crowdAisle: {}, crowdTrim: {}, teamCols: {}, teamDeco: {}, regScenes: [], numBandSrc: {}, numBandTex: {}, numFont: null, numLast: null, numPlaced: 0 };
 function ribHash(str) { let h = 0; for (let i = 0; i < (str || "").length; i++) h = (h * 31 + str.charCodeAt(i)) >>> 0; return h; }
-/* ===== v44 TEAM EMBLEMS: 90 real logos, name -> emblem matching, emblem -> palette matching ===== */
+/* ===== v44 TEAM EMBLEMS: 90 original emblems, name -> emblem matching, emblem -> palette matching ===== */
 /* The packed sheet (public/rib_logos_v44.png, built by scripts/spritekit/pack_logos.mjs) is a
  * 10x9 grid of 128px cells. LOGO_DB is in sheet order; each entry names its emblem and points at
  * the TEAM_PALETTES index whose kit reads as that emblem's own colors (indices 40+ were added
@@ -261,9 +261,9 @@ function ribHash(str) { let h = 0; for (let i = 0; i < (str || "").length; i++) 
 const LOGO_COLS = 10, LOGO_ROWS = 9, LOGO_CELL = 128;
 const LOGO_SHEET_URL = window.__RIB_LOGOS_V44 || "/rib_logos_v44.png";
 const LOGO_DB = [
-  { n: "Wolf", p: 40 }, { n: "Grizzly", p: 41 }, { n: "Panther", p: 10 }, { n: "Eagle", p: 7 }, { n: "Gator", p: 8 },
-  { n: "Shark", p: 11 }, { n: "Bull", p: 1 }, { n: "Boar", p: 17 }, { n: "Ram", p: 34 }, { n: "Bison", p: 23 },
-  { n: "Tiger", p: 14 }, { n: "Lion", p: 30 }, { n: "Jaguar", p: 24 }, { n: "Hawk", p: 33 }, { n: "Polar Bear", p: 42 },
+  { n: "Wolf", p: 40 }, { n: "Grizzly", p: 41 }, { n: "Panther", p: 39 }, { n: "Eagle", p: 7 }, { n: "Gator", p: 8 },
+  { n: "Shark", p: 11 }, { n: "Bull", p: 1 }, { n: "Boar", p: 41 }, { n: "Ram", p: 34 }, { n: "Bison", p: 23 },
+  { n: "Tiger", p: 14 }, { n: "Lion", p: 30 }, { n: "Jaguar", p: 20 }, { n: "Hawk", p: 33 }, { n: "Polar Bear", p: 42 },
   { n: "Cobra", p: 10 }, { n: "Dragon", p: 4 }, { n: "Rhino", p: 43 }, { n: "Phoenix", p: 22 }, { n: "Octopus", p: 5 },
   { n: "Gorilla", p: 10 }, { n: "Owl", p: 43 }, { n: "Scorpion", p: 44 }, { n: "Mantis", p: 45 }, { n: "Hyena", p: 34 },
   { n: "Yeti", p: 42 }, { n: "Stag", p: 41 }, { n: "Jackal", p: 46 }, { n: "Unicorn", p: 47 }, { n: "Sea Serpent", p: 37 },
@@ -2177,7 +2177,7 @@ class Ot extends mt.Scene {
     this.fieldLines = this.add.graphics().setDepth(3.4);   // LOS + first-down markers, above turf art, below players
     this.speedFx = this.add.graphics().setDepth(3.6);
     this.drawField(50, 60);
-    // Madden rig: the main camera lives on the field and follows the ball; the legend gets its own fixed camera
+    // broadcast rig: the main camera lives on the field and follows the ball; the legend gets its own fixed camera
     try {
       const cam = this.cameras.main;
       cam.setViewport(0, 0, FW, FVH); cam.setBounds(0, 0, FW, WORLD_H);
@@ -2697,7 +2697,7 @@ class Ot extends mt.Scene {
     const spd = Math.max(slowFloorV164F(), window.__getGridironLiveSpeed?.() ?? 1) * TU("basePlayRate", 0.7) * Math.min(cineScale, antic);   // v164 F: the slow dial goes below ½×
     P.t += delta * spd;
     const S = P.script, T = Math.min(Math.max(0, P.t - (P.delay || 0)), S.duration);
-    // Madden-style follow camera: track the ball with look-ahead, wider on big plays
+    // broadcast-style follow camera: track the ball with look-ahead, wider on big plays
     try {
       const cam = this.cameras.main;
       if (this.camOffV112()) { const VF = this.v112E(); VF.fixedFrames++; VF.mode = this.camModeV112().id; this.camSideV145(cam); }

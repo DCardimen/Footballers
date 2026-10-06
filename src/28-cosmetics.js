@@ -1172,7 +1172,7 @@
       { id: "uni_teal_stripes", cat: "uniform", name: "Teal Stripes", rarity: "common", source: "free", k: { j: "#127a74", p: "#e8e8e8", t: "#e8e8e8", pat: "stripes" } },
       { id: "uni_crimson_chev", cat: "uniform", name: "Crimson Chevron", rarity: "rare", source: "free", k: { j: "#9e1b25", p: "#f0f0f0", t: "#f0f0f0", pat: "chevron" } },
       { id: "uni_glacier_sash", cat: "uniform", name: "Glacier Sash", rarity: "rare", source: "free", k: { j: "#bfe6ff", p: "#1f3a5c", t: "#1f5fbf", pat: "sash" } },
-      { id: "uni_tiger", cat: "uniform", name: "Tiger Stripe", rarity: "epic", source: "earned", ach: "td100", k: { j: "#e07a1f", p: "#1a1a1a", t: "#1a1a1a", pat: "tiger" } },
+      { id: "uni_tiger", cat: "uniform", name: "Jungle Stripe", rarity: "epic", source: "earned", ach: "td100", k: { j: "#4b5d2a", p: "#1a1a1a", t: "#1a1a1a", pat: "tiger" } } /* v188: was orange and black */,
       { id: "uni_royal_chev", cat: "uniform", name: "Royal Chevron", rarity: "legendary", source: "earned", ach: "ring", k: { j: "#3b1f7a", p: "#f2efe6", t: "#e6c46a", pat: "chevron", ps: "#e6c46a" } },
       { id: "uni_mvp_white", cat: "uniform", name: "MVP White", rarity: "legendary", source: "earned", ach: "mvp", k: { j: "#f4f4f4", p: "#f4f4f4", t: "#d4af37", pat: "sash", ps: "#d4af37" } },
       { id: "uni_heritage", cat: "uniform", name: "Heritage Plaid", rarity: "epic", source: "earned", ach: "gen3", k: { j: "#7a2a2a", p: "#d9cfb8", t: "#1f3a2c", pat: "checker" } },
@@ -7891,7 +7891,7 @@
     { id: "cel_worm", cat: "celebration", name: "The Worm", rarity: "mythic", source: "super", blurb: "Down on the grass and wave across it.", c: { kind: "v177worm", body: "worm", col: ["#7cff9b", "#ffd76f", "#ffffff"], say: "GET LOW" } },
     { id: "cel_leap", cat: "celebration", name: "Crowd Leap", rarity: "mythic", source: "super", blurb: "Into the stands — the crowd catches him.", c: { kind: "v177leap", body: "leap", col: ["#ffd76f", "#ff5a5a", "#6fd3ff", "#ffffff"], say: "INTO THE STANDS" } },
     { id: "cel_quake", cat: "celebration", name: "Earthquake Spike", rarity: "mythic", source: "super", blurb: "The slam splits the field.", c: { kind: "v177quake", body: "quake", col: ["#ff7a1a", "#ffd76f", "#5a2a0e"], say: "SEISMIC" } },
-    { id: "cel_griddy", cat: "celebration", name: "Griddy", rarity: "mythic", source: "super", blurb: "Heel kicks on the beat.", c: { kind: "v177griddy", body: "griddy", col: ["#ff5ab4", "#6fd3ff", "#ffd76f", "#7cff9b"], say: "HIT THE GRIDDY" } },
+    { id: "cel_griddy", cat: "celebration", name: "Heel Clicks", rarity: "mythic", source: "super", blurb: "Heel kicks on the beat.", c: { kind: "v177griddy", body: "griddy", col: ["#ff5ab4", "#6fd3ff", "#ffd76f", "#7cff9b"], say: "HEEL CLICKS!" } /* v188: a generic name — not a named signature dance */ },
     { id: "cel_archer", cat: "celebration", name: "Bow & Arrow", rarity: "mythic", source: "super", blurb: "Draws, aims, and the target in the sky bursts.", c: { kind: "v177arrow", body: "archer", col: ["#ffd76f", "#ff4d6d", "#ffffff"], say: "BULLSEYE" } },
     { id: "cel_robot", cat: "celebration", name: "The Robot", rarity: "mythic", source: "super", blurb: "Stepped, stiff, powered up.", c: { kind: "v177robot", body: "robot", col: ["#18f0ff", "#b9fff8", "#ff3df2"], say: "BEEP BOOP" } },
     { id: "cel_nap", cat: "celebration", name: "Nap Time", rarity: "mythic", source: "super", blurb: "Head on the ball, out like a light.", c: { kind: "v177nap", body: "nap", col: ["#fff3c4", "#9fb8ff", "#ffffff"], say: "NAP TIME" } },
@@ -8450,7 +8450,7 @@
   /* ===== v177 J TEN NEW UNIFORMS =====
    * The owner: "Add 10 more uniforms, super cool status." Ten SUPER (mythic, source "super") uniforms, each a DESIGN that
    * is drawn wherever the kit is: Liquid Chrome (banded reflections), Lava Crackle (a glowing crack network), Galaxy (a
-   * nebula with stars), Carbon Fibre (a twill weave, a red pant stripe), Urban Digital (pixel camo), Bengal (tiger
+   * nebula with stars), Carbon Fibre (a twill weave, a red pant stripe), Urban Digital (pixel camo), Snow Tiger (white-tiger
    * stripes), Neon Grid (cyan circuit seams on black), Ice Crystal (faceted frost), Royal Black & Gold (gold yoke and
    * panels, pinstripes) and Throwback '79 (cream, maroon sleeve stripes and collar).
    *   ONE PATTERN, TWO SCALES  `PAT_V177J[pat](X, Y, s, J, T)` in FIELD PIXELS (X from the chest's middle, Y down from the
@@ -8471,7 +8471,7 @@
     { id: "uni_galaxy", cat: "uniform", name: "Galaxy", rarity: "mythic", source: "super", blurb: "A nebula and its stars.", k: { j: "#1b1446", p: "#0e0b2a", t: "#b06bff", pat: "galaxy" } },
     { id: "uni_carbon", cat: "uniform", name: "Carbon Fibre", rarity: "mythic", source: "super", blurb: "A twill weave, a red stripe.", k: { j: "#26292f", p: "#17191d", t: "#4f5662", pat: "carbon", ps: "#e8202a" } },
     { id: "uni_digicamo", cat: "uniform", name: "Urban Digital", rarity: "mythic", source: "super", blurb: "Pixel camo in city blues.", k: { j: "#4a5a78", p: "#323d52", t: "#232c44", pat: "digicamo" } },
-    { id: "uni_bengal", cat: "uniform", name: "Bengal", rarity: "mythic", source: "super", blurb: "Tiger stripes.", k: { j: "#ee7514", p: "#161210", t: "#141010", pat: "bengal" } },
+    { id: "uni_bengal", cat: "uniform", name: "Snow Tiger", rarity: "mythic", source: "super", blurb: "White-tiger stripes.", k: { j: "#cfd9e3", p: "#26303d", t: "#7f9bb8", pat: "bengal" } } /* v188: was orange and black (a real club's look) */,
     { id: "uni_tron", cat: "uniform", name: "Neon Grid", rarity: "mythic", source: "super", blurb: "Cyan seams on black.", k: { j: "#070a12", p: "#070a12", t: "#18f0ff", pat: "grid", ps: "#18f0ff" } },
     { id: "uni_ice", cat: "uniform", name: "Ice Crystal", rarity: "mythic", source: "super", blurb: "Faceted frost.", k: { j: "#bfe3fb", p: "#eaf6ff", t: "#2a6fb0", pat: "crystal" } },
     { id: "uni_royal", cat: "uniform", name: "Royal Black & Gold", rarity: "mythic", source: "super", blurb: "Gold yoke, gold panels, pinstripes.", k: { j: "#0e0e12", p: "#d4af37", t: "#d4af37", pat: "royal", ps: "#0e0e12" } },

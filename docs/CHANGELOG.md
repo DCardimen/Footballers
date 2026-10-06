@@ -10,6 +10,34 @@ Names in older entries are the career app's pre-v149 C minified names (`q`, `ms`
 `index.html` + `src/` (`docs/LAYOUT.md`).
 
 <!-- new entries go here, newest first -->
+- **v188 — no real team's look.** (`src/05-field-renderer.js`, `src/07-career-app.js`, `src/28-cosmetics.js`,
+  `scripts/namecheck.mjs`, `docs/IP-AUDIT.md`.) The owner asked for a look-alike check ("a tiger logo using Bengals
+  colours") and for anything close to be switched or removed.
+  - **Kit palettes.** The 40 base palettes were exact NFL hex pairs, and several emblems wore their namesake's colours:
+    the Jaguar in Jaguars teal/gold, the Bolt in Chargers blue/gold, the Pirate in Raiders black/silver, the Tiger in
+    orange/black, the Longhorn in Texas burnt orange. All are now original pairs. Six more were nudged, and the Panther,
+    Jaguar and Boar emblems moved to unrelated palettes. `namecheck` fails if any palette's two colours sit within ΔRGB 40
+    of a real NFL or major college pair.
+  - **Uniforms.** "Bengal" is now **Snow Tiger** (pale steel, ice-blue stripes) and "Tiger Stripe" is **Jungle Stripe**
+    (olive). The ids are unchanged, so owners keep them.
+  - **Mascots.** Longhorns, Razorbacks and Buccaneers became **Steers**, **Warthogs** and **Corsairs**.
+  - **Celebration.** The "Griddy" is now **Heel Clicks**.
+  - **Strings and comments.** "PRO BOWL MONEY" is now **ALL-STAR MONEY**, and the comments no longer name Madden.
+  - **The audit.** `docs/IP-AUDIT.md` lists what was scanned, what changed, what was left as is, and what is still the
+    owner's: a trademark search on the title, the AI-art rights, and the audio and font licences.
+
+  `namecheck`, `v177IJKcheck` (the Snow Tiger's slate on the body).
+- **v187 — medal looks are earned, and a ring buys a respec.** (`src/07-career-app.js`.) The owner: "make all
+  cosmetics earned every 10 levels for the medals, not an option you choose between. Cooler ones at higher medal counts.
+  Automatically updated. Sacrifice one ring to reset medals and pick their bonuses again."
+  - **Looks come by milestone, not choice.** The medal deck no longer deals a look (the small "A new look" and the major
+    "A legendary look" are gone from it). Every 10 medals earns one automatically: rare below 50 medals, epic below 100,
+    legendary below 200, mythic after (the next rarity up when a tier runs out). The newest is worn at once, and an old
+    save catches up on the milestones it passed.
+  - **The ring respec.** One ring clears every medal-reward bonus and the majors owned, and deals every claimed choice
+    again: new cards, the windfall PP not paid twice, the looks kept. A 💍 button on the prestige screen's medal card;
+    it refuses without a ring.
+  - **Dials and switch.** The interval and the ring cost are beta dials. Kill switch `v187`. `v187check`.
 - **v186 — rings are earned, chaos is a commitment, the long road out there.** (`src/07-career-app.js`,
   `src/05-field-renderer.js`.) The owner's patch notes, in order:
   - **Rings are earned (A).** A UFF title is a ring (the ring count, the chaos clearance, the era, the loot) only for a

@@ -221,7 +221,7 @@ if (scene) {
       try { C.celebrate(sc, m.root.x, m.root.y, m) } finally { Math.random = orig }
       const run = V.active, c159 = window.__V159C.active
       const tex = run && sc.textures.get(run.tex).getSourceImage(); let orange = 0
-      if (tex) { const d = tex.getContext('2d').getImageData(0, 0, tex.width, tex.height).data; for (let i = 0; i < d.length; i += 4) if (d[i + 3] > 200 && d[i] > 170 && d[i + 1] > 70 && d[i + 1] < 150 && d[i + 2] < 60) orange++ }
+      if (tex) { const d = tex.getContext('2d').getImageData(0, 0, tex.width, tex.height).data; for (let i = 0; i < d.length; i += 4) if (d[i + 3] > 200 && Math.abs(d[i] - 0x26) < 18 && Math.abs(d[i + 1] - 0x30) < 18 && Math.abs(d[i + 2] - 0x3d) < 18) orange++ /* v188: the Snow Tiger's slate (was the Bengal orange) */ }
       await new Promise(r => { const w = () => (!run || !run.alive ? r() : setTimeout(w, 60)); setTimeout(w, 200) })
       out[name] = run ? { name: run.name, ended: run.ended, frames: run.frames, ks: [...new Set(run.seq.map(s => s.k))].length, props: run.props, c159: c159 ? c159.kind : null, skipped: c159 ? c159.body161 || 0 : 0, orange,
         back: (m.body.originX === 0.5 && m.body.rotation === 0) || /^spr_|^rib_player_fallback$/.test(m.body.texture.key) /* placeMarker re-dressed him */ || !!(m.__v161a && m.__v161a !== run && m.__v161a.alive) /* another body (a v164 G dance) took him */, bo: [+m.body.originX.toFixed(2), +m.body.rotation.toFixed(2), m.__v161a ? m.__v161a.name : null], med: run.ms.slice().sort((a, b) => a - b)[run.ms.length >> 1] || 0 } : null
@@ -249,7 +249,7 @@ if (scene) {
   const L = Object.values(live.out)
   ok(L.length === 10 && L.every(r => r && r.ended === 'done' && r.ks >= 3 && r.frames >= 8), 'a forced touchdown by HIM plays each new celebration\'s own body on his marker, through its frames, and it ends by itself', Object.keys(live.out))
   ok(L.every(r => r.c159 && /^v177/.test(r.c159) && r.skipped > 5), 'v159 C\'s new effect plays around him, its pose standing down for the body', L.map(r => r.c159 + ':' + r.skipped).join(' '))
-  ok(L.every(r => r.orange > 30), 'he celebrates in the uniform he wears (the Bengal orange is on the body\'s texture)', L.map(r => r.name + ':' + r.orange).join(' '))
+  ok(L.every(r => r.orange > 30), 'he celebrates in the uniform he wears (the Snow Tiger\'s slate is on the body\'s texture)', L.map(r => r.name + ':' + r.orange).join(' '))
   ok(L.every(r => r.back) && live.rnd === 0 && live.errs.length === 0 && L.every(r => r.med < 2.5), 'the marker is handed back; no Math.random; no error; the draw cost stays small', { rnd: live.rnd, errs: live.errs, back: L.map(r => r.back), med: L.map(r => +r.med.toFixed(2)) })
   await E(() => { const sc = window.__gridironScene; if (window.__updV177) { sc.update = window.__updV177[0]; sc.killAllFx = window.__updV177[1]; sc.animatePlay = window.__updV177[2]; delete window.__updV177 } })
 }

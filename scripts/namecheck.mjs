@@ -10,6 +10,7 @@
 //   * no generated team name — town + mascot, at any level, and no DFL club —
 //     is a real NFL or major college team, and no town is an NFL host city
 //   * the college suffixes and the fifty DFL clubs are well formed and unique
+//   * v188: no kit palette reproduces a real NFL or major college team's two colours
 import fs from "node:fs";
 import vm from "node:vm";
 import { readGameHtml } from './lib/layout.mjs'   // v149 A: index.html + src/ put back together
@@ -44,15 +45,15 @@ const emblem = (name) => {
 const EXPECT = {
   Bulldogs: "Jackal", Mustangs: "Unicorn", Wolverines: "Hyena", Firebirds: "Phoenix", Tigers: "Tiger",
   Hornets: "Hornet", Rebels: "Outlaw", Yetis: "Yeti", Pirates: "Pirate", Bearcats: "Grizzly",
-  Longhorns: "Longhorn", Thunder: "Storm", Wildcats: "Panther", Miners: "Mine", Rockets: "Meteor",
+  Steers: "Longhorn", Thunder: "Storm", Wildcats: "Panther", Miners: "Mine", Rockets: "Meteor",
   Wolves: "Wolf", Grizzlies: "Grizzly", Panthers: "Panther", Eagles: "Eagle", Gators: "Gator",
-  Sharks: "Shark", Bulls: "Bull", Razorbacks: "Boar", Rams: "Ram", Bison: "Bison",
+  Sharks: "Shark", Bulls: "Bull", Warthogs: "Boar", Rams: "Ram", Bison: "Bison",
   Lions: "Lion", Jaguars: "Jaguar", Hawks: "Hawk", Cobras: "Cobra", Dragons: "Dragon",
   Rhinos: "Rhino", Phoenix: "Phoenix", Krakens: "Kraken", Gorillas: "Gorilla", Owls: "Owl",
   Scorpions: "Scorpion", Mantises: "Mantis", Coyotes: "Hyena", Stags: "Stag", Jackals: "Jackal",
   Broncos: "Unicorn", Spartans: "Spartan", Knights: "Knight", Vikings: "Viking", Samurai: "Samurai",
   Trojans: "Trojan", Monarchs: "King", Barbarians: "Barbarian", Cavaliers: "Cavalier", Paladins: "Paladin",
-  Buccaneers: "Pirate", Outlaws: "Outlaw", Reapers: "Reaper", Golems: "Golem", Blizzard: "Frost Knight",
+  Corsairs: "Pirate", Outlaws: "Outlaw", Reapers: "Reaper", Golems: "Golem", Blizzard: "Frost Knight",
   Sorcerers: "Sorcerer", Emperors: "King", Crows: "Crow", Berserkers: "Berserker", Wyverns: "Wyvern",
   Drakes: "Drake", Valkyries: "Valkyrie", Inferno: "Wildfire", Bees: "Killer Bee", Widows: "Widow",
   Fireflies: "Firefly", Centipedes: "Centipede", Crabs: "Crab", Sasquatch: "Sasquatch", Meteors: "Meteor",
@@ -112,6 +113,37 @@ for (const t of Ga) {
 }
 ok(cityClash.length === 0, "town is an NFL host city: " + cityClash.join(", "));
 ok(clash.length === 0, "generated name is a real team: " + clash.join(", "));
+
+/* ---- v188: no real team's COLOURS ----
+ * A team's look is its name, its emblem and its colours together; the kit palettes (TEAM_PALETTES, the emblem-matched
+ * 40–52 included) must not reproduce a real NFL or major college pair. A palette fails when BOTH its colours sit within
+ * ΔRGB 40 of a real team's two colours (either order). */
+const palSrc = (() => { const i = html.indexOf("const TEAM_PALETTES = window.TEAM_PALETTES = ["); const j = html.indexOf("]];", i); return html.slice(i, j + 3); })();
+const PALS = [...palSrc.matchAll(/\[("#[0-9a-fA-F]{6}"(?:,"#[0-9a-fA-F]{6}")*)\]/g)].map(m => m[1].split(",").map(x => x.replace(/"/g, "")));
+const REAL_COLOURS = {
+  Cardinals: ["#97233f", "#ffb612"], Falcons: ["#a71930", "#000000"], Ravens: ["#241773", "#9e7c0c"], Bills: ["#00338d", "#c60c30"],
+  Panthers: ["#0085ca", "#101820"], Bears: ["#0b162a", "#c83803"], Bengals: ["#fb4f14", "#000000"], Browns: ["#311d00", "#ff3c00"],
+  Cowboys: ["#003594", "#869397"], Broncos: ["#fb4f14", "#002244"], Lions: ["#0076b6", "#b0b7bc"], Packers: ["#203731", "#ffb612"],
+  Texans: ["#03202f", "#a71930"], Colts: ["#002c5f", "#a2aaad"], Jaguars: ["#006778", "#d7a22a"], Chiefs: ["#e31837", "#ffb81c"],
+  Raiders: ["#000000", "#a5acaf"], Chargers: ["#0080c6", "#ffc20e"], Rams: ["#003594", "#ffa300"], Dolphins: ["#008e97", "#fc4c02"],
+  Vikings: ["#4f2683", "#ffc62f"], Patriots: ["#002244", "#c60c30"], Saints: ["#d3bc8d", "#101820"], Giants: ["#0b2265", "#a71930"],
+  Jets: ["#125740", "#ffffff"], Eagles: ["#004c54", "#a5acaf"], Steelers: ["#ffb612", "#101820"], "49ers": ["#aa0000", "#b3995d"],
+  Seahawks: ["#002244", "#69be28"], Buccaneers: ["#d50a0a", "#34302b"], Titans: ["#0c2340", "#4b92db"], Commanders: ["#5a1414", "#ffb612"],
+  Texas: ["#bf5700", "#ffffff"], Alabama: ["#9e1b32", "#ffffff"], "Ohio State": ["#bb0000", "#666666"], Michigan: ["#00274c", "#ffcb05"],
+  Georgia: ["#ba0c2f", "#000000"], Oklahoma: ["#841617", "#fdf9d8"], Clemson: ["#f56600", "#522d80"], LSU: ["#461d7c", "#fdd023"],
+  Auburn: ["#0c2340", "#e87722"], Florida: ["#fa4616", "#0021a5"], Oregon: ["#154733", "#fee123"], USC: ["#990000", "#ffc72c"],
+  "Michigan State": ["#18453b", "#ffffff"], Arkansas: ["#9d2235", "#ffffff"], Tennessee: ["#ff8200", "#ffffff"], "Notre Dame": ["#0c2340", "#c99700"],
+  Miami: ["#f47321", "#005030"], "Florida State": ["#782f40", "#ceb888"], "Penn State": ["#041e42", "#ffffff"], Colorado: ["#000000", "#cfb87c"],
+};
+const rgb = h => [1, 3, 5].map(k => parseInt(h.slice(k, k + 2), 16));
+const near = (a, b) => { const x = rgb(a), y = rgb(b); return Math.hypot(x[0] - y[0], x[1] - y[1], x[2] - y[2]) < 40; };
+const colourClash = [];
+PALS.forEach((P, i) => {
+  for (const [team, [c1, c2]] of Object.entries(REAL_COLOURS))
+    if ((near(P[0], c1) && near(P[1], c2)) || (near(P[0], c2) && near(P[1], c1))) colourClash.push(`palette ${i} ${P[0]}/${P[1]} ≈ ${team} ${c1}/${c2}`);
+});
+ok(PALS.length >= 50, `palettes found ${PALS.length} < 50`);
+ok(colourClash.length === 0, "a kit palette reproduces a real team's colours: " + colourClash.join(" | "));
 
 /* ---- the DFL ---- */
 ok(DFL_V123.length === 50, `DFL clubs ${DFL_V123.length} != 50`);
