@@ -5229,7 +5229,7 @@
     if (!state || !state.tree) return t;
     for (const a in state.tree) {
       const s = TREE_NODES[a];
-      s && s.fx && s.fx[e] && (t += s.fx[e] * (state.tree[a] || 0));
+      s && s.fx && s.fx[e] && (t += s.fx[e] * (state.tree[a] || 0) * branchFxV186(s.branch));
     }
     return t;
   }
@@ -5269,7 +5269,108 @@
   // the share of a level's own opponent rating chaos adds on top of the flat lift: Pee Wee (16) barely moves, high school
   // (56–66) and the UFF (80) move a lot — the wall is where the loop wants it
   function chaosNeedShareV185(c) {
-    return c > 0 ? TU("chaosNeedBaseV185", 0.15) + c * TU("chaosNeedPerV185", 0.03) : 0;
+    if (!(c > 0)) return 0;
+    const sh = TU("chaosNeedBaseV185", 0.15) + c * TU("chaosNeedPerV185", 0.03);
+    /* v186 G: the share stops at `chaosNeedMaxV186` (0.5 — chaos 12). Measured: past it a College player's rating (capped by
+     * age and growth, not by PP — ~145 at 1M PP a career) never reaches the lifted Combine bar; 10 careers in a row walled */
+    return TU("v186", 1) ? Math.min(TU("chaosNeedMaxV186", 0.5), sh) : sh;
+  }
+  /* ===== v186 RINGS ARE EARNED =====
+   * The owner: "rings should only be given if you've meaningfully contributed … I don't think it makes sense to luck into
+   * a really good team and then get a ring". A UFF / Interstellar title counts as a ring (the ring count, the chaos
+   * clearance, the era, the loot) only for a STARTER whose season average cleared the bar (`ringPerfUffV186` 60,
+   * `ringPerfIstV186` 85 — the Interstellar ring wants a dominant season). The team's title still counts as a title.
+   * And chaos is a commitment: once a career has started under it, the dials cannot be turned below what was played
+   * (`state.chaosLockV186`; `chaosLockV186` 0 lets them down). Kill switch `v186`. `window.__V186`; `v186check`. */
+  // v186: the Apex and the Impossible cost ×50 / ×500 (the owner's own dials, now the defaults) — and pay like it
+  function branchFxV186(b) {
+    if (!TU("v186", 1)) return 1;
+    return b === "impossible" ? TU("impossibleFxV186", 2) : b === "apex" ? TU("apexFxV186", 1.5) : 1;
+  }
+  /* ===== v186 E STARDUST — THE INTERSTELLAR'S OWN CURRENCY =====
+   * The owner: "maybe later I'll implement a prestige-like system for the Interstellar League, like a separate prestige
+   * currency … see if you can implement something". Every Interstellar season pays ✨ STARDUST by its average (≥65: 1,
+   * ≥80: 2, ≥90: 3) and an earned Interstellar ring pays `stardustRingV186` (10). It is spent in the STAR FORGE (a card
+   * on the hub once you hold any or play out there) on three upgrades that only work in the Interstellar League:
+   * GRAVITY WELL (+3 power out there a level, 10 levels), EVENT HORIZON (−2 off the Interstellar ring's bar a level, 5),
+   * SUPERNOVA (+10% PP from Interstellar seasons a level, 10). Prices 5 × 1.6^level. Kept in `state.stardustV186` /
+   * `state.forgeV186` (the account: it survives every career). Kill switch v186E 0. */
+  const FORGE_V186 = {
+    gravity: { name: "GRAVITY WELL", icon: "🌀", max: 10, per: 3, say: v => `+${v} power in the Interstellar League` },
+    horizon: { name: "EVENT HORIZON", icon: "🕳️", max: 5, per: 2, say: v => `−${v} off the Interstellar ring's bar` },
+    nova: { name: "SUPERNOVA", icon: "💥", max: 10, per: 0.1, say: v => `+${Math.round(v * 100)}% PP from Interstellar seasons` }
+  };
+  function forgeLvlV186(k) {
+    return (state && state.forgeV186 && state.forgeV186[k]) || 0;
+  }
+  function forgeFxV186(k) {
+    if (!TU("v186E", 1) || !TU("v186", 1) || !forgeLvlV186(k)) return 0;
+    try {
+      const F = FORGE_V186[k];
+      return F ? forgeLvlV186(k) * F.per : 0;
+    } catch (_) {
+      return 0; // v140: the boot can read a player's power before this block's const exists
+    }
+  }
+  function forgeCostV186(k) {
+    return Math.round(TU("forgeBaseV186", 5) * Math.pow(TU("forgeMultV186", 1.6), forgeLvlV186(k)));
+  }
+  function earnStardustV186(e, U, ringed) {
+    if (!TU("v186E", 1) || !TU("v186", 1) || !e || e.level < 8) return 0;
+    const n = (U >= 90 ? 3 : U >= 80 ? 2 : U >= 65 ? 1 : 0) + (ringed ? TU("stardustRingV186", 10) : 0);
+    if (n > 0) {
+      state.stardustV186 = (state.stardustV186 || 0) + n;
+      typeof document < "u" && byId("toast") && showToast("✨ +" + n + " STARDUST — spend it in the Star Forge");
+    }
+    return n;
+  }
+  function forgeBuyV186(k) {
+    const F = FORGE_V186[k];
+    if (!F || forgeLvlV186(k) >= F.max) return !1;
+    const c = forgeCostV186(k);
+    if ((state.stardustV186 || 0) < c) return (showToast("✨ Not enough Stardust — " + c + " needed"), !1);
+    state.stardustV186 -= c;
+    (state.forgeV186 || (state.forgeV186 = {}))[k] = forgeLvlV186(k) + 1;
+    try {
+      saveGame();
+      render();
+    } catch (_) {}
+    return !0;
+  }
+  window.forgeBuyV186 = forgeBuyV186;
+  function forgeCardV186() {
+    if (!TU("v186E", 1) || !TU("v186", 1) || !state || state.view !== "hub") return;
+    const e = state.player,
+      sd = state.stardustV186 || 0;
+    if (!sd && !(e && e.level >= 8) && !Object.keys(state.forgeV186 || {}).length) return;
+    const sc = byId("screen");
+    if (!sc || sc.querySelector("#forgeV186")) return;
+    const rows = Object.keys(FORGE_V186)
+      .map(k => {
+        const F = FORGE_V186[k],
+          l = forgeLvlV186(k),
+          c = forgeCostV186(k),
+          maxed = l >= F.max;
+        return `<div style="display:flex;align-items:center;gap:8px;margin-top:6px"><span style="font-size:20px">${F.icon}</span><div style="flex:1"><b>${F.name}</b> <small style="color:var(--chalk-dim)">${l}/${F.max}</small><div class="small">${F.say(l * F.per)}${maxed ? "" : ` → ${F.say((l + 1) * F.per)}`}</div></div>${maxed ? `<b style="color:var(--gold)">MAX</b>` : `<button class="btn secondary" style="padding:6px 10px" ${sd >= c ? "" : "disabled"} onclick="forgeBuyV186('${k}')">✨ ${c}</button>`}</div>`;
+      })
+      .join("");
+    sc.insertAdjacentHTML(
+      "beforeend",
+      `<div class="card tight" id="forgeV186" style="border-color:#b07cff"><div class="eyebrow">✨ STAR FORGE · ${sd} STARDUST</div><div class="small" style="color:var(--chalk-dim)">The Interstellar League's own currency: every season out there pays it by your average, an earned ring pays ${TU("stardustRingV186", 10)}. It never leaves your account.</div>${rows}</div>`
+    );
+  }
+  function ringEarnedV186(e, U) {
+    const st = (e && e.nflStateV11 && e.nflStateV11.status) || "",
+      starter = !st || st === "starter" || st === "franchise",
+      need = e && e.level >= 8 ? Math.max(0, TU("ringPerfIstV186", 85) - forgeFxV186("horizon")) : TU("ringPerfUffV186", 60);
+    ringEarnedV186.last = { U: Math.round(U || 0), need, status: st, starter };
+    if (!TU("v186", 1) || !e || e.level < 7) return !0;
+    return starter && (U || 0) >= need;
+  }
+  ringEarnedV186.last = { need: 60, starter: !0 };
+  window.__V186 = { flip: { odds: () => flipRarOddsV186(), mult: () => flipPctMultV186(), upSettle: e => flipUpSettleV186(e || (state && state.player)), ppSettle: (e, b) => flipPPSettleV186(e || (state && state.player), b), deck: (w, n) => deckV178(state.player, w || {}, n || 3) }, forge: { buy: k => forgeBuyV186(k), lvl: k => forgeLvlV186(k), fx: k => forgeFxV186(k), cost: k => forgeCostV186(k), earn: (e, U, r) => earnStardustV186(e || (state && state.player), U, r) }, ringEarned: (e, U) => ringEarnedV186(e || (state && state.player), U), last: () => ringEarnedV186.last, lock: () => chaosLockedV186(), branchFx: b => branchFxV186(b) };
+  function chaosLockedV186() {
+    return TU("v186", 1) && TU("chaosLockV186", 1) ? (state && state.chaosLockV186) || 0 : 0;
   }
   function chaosCapStepV185(ist) {
     return Math.round(ist ? Math.max(TU("chaosCapIslV179", 2), TU("chaosCapStepV185", 3)) : TU("chaosCapStepV185", 3));
@@ -6742,6 +6843,26 @@
           mult: 3,
           max: 5,
           fx: {}
+        },
+        {
+          key: "cardShark",
+          name: "Card Shark",
+          icon: "🃏",
+          desc: "+10% per level to every reward card's percentage — the Upgrade Point cards (paid at season end) and the Prestige cards (paid at career end).",
+          cost: 2e3 /* v186 F */,
+          mult: 3,
+          max: 5,
+          fx: { flipPctV186: 0.1 }
+        },
+        {
+          key: "markedCards",
+          name: "Marked Cards",
+          icon: "🎴",
+          desc: "+30% per level to the odds of a rare (1 in 20), epic (1 in 200) or legendary (1 in 1,000) reward card.",
+          cost: 3e3 /* v186 F */,
+          mult: 3,
+          max: 5,
+          fx: { flipRareV186: 0.3 }
         },
         {
           key: "inevitable",
@@ -9783,6 +9904,10 @@
     const a = state.chaos[e] || 0,
       s = clamp99(a + t, 0, 10);
     if (s !== a) {
+      if (t < 0 && chaosTotal() + (s - a) < chaosLockedV186()) {
+        showToast("🔒 Chaos is locked in at " + chaosLockedV186() + " — you committed to it. It only goes up from here.");
+        return;
+      }
       if (t > 0 && chaosTotal() + t > chaosCap()) {
         showToast("⛓️ Chaos capacity " + chaosCap() + " reached — win a championship at FULL chaos to raise it!");
         return;
@@ -9827,7 +9952,7 @@
       on = TU("v153F", 1),
       per = on ? TU("legacyDiffPerChaosV153F", 0.08) : TU("legacyDiffPerChaosV152", 0.03),
       cap = on ? TU("legacyDiffCapV153F", 5) : TU("legacyDiffCapV152", 3);
-    return `<div class="threshold-note chaos-reward-v153" style="margin-top:4px;color:#f3d98a">💰 <b>What it pays:</b> every chaos point is <b>+${Math.round(per * 100)}% Legacy XP</b> on every season and career end (up to <b>×${cap}</b>), and it multiplies every PP you earn${t ? ` — right now <b>×${chaosPPMult().toFixed(1)} PP</b> and <b>×${legacyDiffV152().toFixed(2)} Legacy XP</b>` : ""}. A career that flames out early under chaos banks only part of the PP.</div>`;
+    return `<div class="threshold-note chaos-reward-v153" style="margin-top:4px;color:#f3d98a">💰 <b>What it pays:</b> every chaos point is <b>+${Math.round(per * 100)}% Legacy XP</b> on every season and career end (up to <b>×${cap}</b>), and it multiplies every PP you earn${t ? ` — right now <b>×${chaosPPMult().toFixed(1)} PP</b> and <b>×${legacyDiffV152().toFixed(2)} Legacy XP</b>` : ""}. A career that flames out early under chaos banks only part of the PP.${chaosLockedV186() ? ` <b>🔒 Locked in at ${chaosLockedV186()}</b> — a career played under chaos commits it; it only goes up.` : TU("v186", 1) && TU("chaosLockV186", 1) ? " <b>🔒 Starting a career under chaos locks it in</b> — it only goes up from there." : ""}</div>`;
   }
   window.__V153F = {
     legacyMult: () => legacyDiffV152(),
@@ -13040,7 +13165,19 @@
       bankPPV136(be, "title"),
       (e.titles = (e.titles || 0) + 1),
       (state.titlesWon = (state.titlesWon || 0) + 1),
-      e.level >= 7)
+      e.level >= 7 &&
+        (ringEarnedV186(e, U) ||
+          (typeof document < "u" &&
+            byId("toast") &&
+            showToast(
+              "🏆 The team won it — but no ring: rings go to starters who carried it (season avg " +
+                Math.round(U) +
+                ", needed " +
+                ringEarnedV186.last.need +
+                (ringEarnedV186.last.starter ? "" : " as a starter") +
+                ")"
+            ),
+          !1)))
     ) {
       const R = e.level >= 8;
       ((state.rings = (state.rings || 0) + (R ? 3 : 1)),
@@ -13070,6 +13207,7 @@
           showToast("🌌 NEW ERA: " + eraName() + " — permanent +20% PP!"),
         dropGear(R ? 3 : 2, "Championship loot"));
     }
+    e.level >= 8 && earnStardustV186(e, U, ke) /* v186 E: the Interstellar's own currency */;
     const ge = 4 + e.level * 3,
       _p178 = seasonPayV178(e, P, ie, Y, B) /* v178 A: the games paid their own points; this is what is left */,
       $e =
@@ -14213,6 +14351,7 @@
       _pv = _ab ? state.player.name : "";
     _ab && lineageEndV136(state.player, state.player.level, "walked");
     _ab && legacyCareerEndV152(state.player, state.player.level, "walked") /* v152 A */;
+    TU("v186", 1) && (state.chaosLockV186 = Math.max(state.chaosLockV186 || 0, chaosTotal())) /* v186: a career started under chaos commits it */;
     ((state.player = newPlayer()),
       state.careers++,
       lineageBirthV136(state.player),
@@ -15930,7 +16069,7 @@
   // v178 O: the per-level team baseline every roster is built on (live rosters, the quick sim's ratings, the displays).
   // Interstellar (8) had no entry and fell back to 55 — weaker than Varsity — so it sits above the UFF now. Hoisted.
   function levelBaseV178(lv) {
-    return [18, 30, 42, 54, 66, 78, 86, 90, TU("v178O", 1) ? TU("aiBaseIstV178", TU("v183IST", 1) ? 400 : 100) : 55 /* v183: the Interstellar League is a league of legends — a newcomer (~OVR 350) wins ~55%, a title wants ~OVR 600 */][lv | 0] || 55;
+    return [18, 30, 42, 54, 66, 78, 86, 90, TU("v178O", 1) ? TU("aiBaseIstV178", TU("v183IST", 1) ? (TU("v186", 1) ? 700 : 400) : 100) : 55 /* v183: the Interstellar League is a league of legends — a newcomer (~OVR 350) wins ~55%, a title wants ~OVR 600 */][lv | 0] || 55;
   }
   window.__levelBaseV178 = levelBaseV178;
   // v178 N: the scale S of the square-root gap the sim plays, by level (Pee Wee … Interstellar), fitted to the v76 0.7 a point
@@ -20199,7 +20338,7 @@
     return i;
   }
   function playerPower(e) {
-    return !e || !e.pos ? 0 : playerOvr(e) + gearFx("power");
+    return !e || !e.pos ? 0 : playerOvr(e) + gearFx("power") + (e.level >= 8 ? forgeFxV186("gravity") : 0) /* v186 E */;
   }
   function gearPowerBonus(e) {
     return Math.max(0, Math.round(gearFx("power")));
@@ -20931,7 +21070,7 @@
   }
   function al(e) {
     return Math.round(
-      (6 + (e.titles || 0) * 2 + (e.nflSeasons || 0)) * chaosPPMult() * eraMult() * (1 + hofWings() * 0.05)
+      (6 + (e.titles || 0) * 2 + (e.nflSeasons || 0)) * chaosPPMult() * eraMult() * (1 + hofWings() * 0.05) * (e.level >= 8 ? 1 + forgeFxV186("nova") : 1) /* v186 E */
     );
   }
   function playoffRoundNames(e) {
@@ -24787,6 +24926,7 @@
       (e._ppBankV136 = flushBankV136()),
       (state.pp += r),
       (e._vaultPayV137 = r + (e._ppBankV136 || 0)),
+      flipPPSettleV186(e, r + (e._ppBankV136 || 0)) /* v186 F: the Prestige cards pay now */,
       payoutBoostV150C(e, r, "gameover") /* v150 C H4 */,
       (state.prestige = +(state.prestige + honorGainV156A(l)).toFixed(1)) /* v156 A: no Honors — the medals are the rank */,
       (state.careersCompleted = (state.careersCompleted || 0) + (arr ? 0 : 1)) /* counted once, at the arrival */,
@@ -24871,6 +25011,7 @@
       ((e._ppBankV136 = flushBankV136()),
         (state.pp += n),
         (e._vaultPayV137 = (e._vaultPayV137 || 0) + n + (e._ppBankV136 || 0)),
+        flipPPSettleV186(e, n + (e._ppBankV136 || 0)) /* v186 F */,
         payoutBoostV150C(e, n, "win") /* v150 C H5 */,
         (state.prestige = +(state.prestige + honorGainV156A(i)).toFixed(1)) /* v156 A */,
         (state.bestLevel = 7),
@@ -33005,6 +33146,63 @@
         var col = !prev ? "var(--gold)" : delta > 0 ? "var(--good)" : delta < 0 ? "#e08a8a" : "var(--chalk-dim)";
         return { rank: r.rank, of: r.of, arrow: arrow, col: col };
       }
+      /* ===== v186 C YOUR GAME, UP TOP =====
+       * The owner: "the post-game recap … should actually show your stats that game … how many touchdowns did I score, how
+       * many rushing yards … have that be at the top … show all the crucial stats for each position … for the game played
+       * and over the course of the season and a projection." The card opens on YOUR GAME: every box-score line the
+       * position keeps (liveBoxLine) as big tiles, and under each the season to date and the full-season projection
+       * (the season's pace × the level's games; derived lines — averages, completion, longest — are not projected).
+       * Kill switch v186C 0. */
+      function pgHeroV186(p, g, seasonBox) {
+        if (!TU("v186C", 1) || !p || !g || !g.stat || typeof liveBoxLine !== "function") return "";
+        var rows = (liveBoxLine(p.pos, g.stat) || []).slice(0, TU("pgHeroMaxV186", 8));
+        if (!rows.length) return "";
+        var sea = {},
+          n = Math.max(1, p._pgGames || 1),
+          L = LEVELS[p.level] || { games: 10 },
+          G = Math.max(n, L.games || 10),
+          derived = /AVG|C\/ATT|LONG|PCT|%|RTG|RATE/i;
+        (liveBoxLine(p.pos, seasonBox || {}) || []).forEach(function (r) {
+          sea[r[0]] = r[1];
+        });
+        var tiles = rows
+          .map(function (r) {
+            var lab = r[0],
+              sv = sea[lab],
+              num = parseFloat(String(sv).replace(/,/g, "")),
+              proj = sv != null && !derived.test(lab) && isFinite(num) ? Math.round((num / n) * G) : null;
+            return (
+              '<div class="pg-hero-tile-v186" style="flex:1 1 30%;min-width:84px;padding:7px 6px;border-radius:10px;background:#00000055;border:1px solid rgba(255,255,255,.09);text-align:center">' +
+              '<div style="font:700 26px/1 Oswald;color:var(--chalk)">' +
+              r[1] +
+              "</div>" +
+              '<div style="font:600 10px Oswald;letter-spacing:1.2px;color:var(--gold);margin-top:2px">' +
+              escHtml(String(lab)) +
+              "</div>" +
+              (sv != null
+                ? '<div style="font:500 11px Barlow Condensed,sans-serif;color:var(--chalk-dim);margin-top:3px">season ' +
+                  sv +
+                  (proj != null ? ' · <b style="color:var(--cyan)">on pace ' + proj.toLocaleString() + "</b>" : "") +
+                  "</div>"
+                : "") +
+              "</div>"
+            );
+          })
+          .join("");
+        return (
+          '<div id="pgHeroV186" style="margin:8px 0 6px">' +
+          '<div class="stat-sec-label" style="margin:0 0 5px">YOUR GAME <small style="color:var(--chalk-dim);letter-spacing:0">' +
+          escHtml(String(p.pos)) +
+          " · game " +
+          n +
+          " of " +
+          G +
+          " · on pace = the full season at this rate</small></div>" +
+          '<div style="display:flex;flex-wrap:wrap;gap:6px">' +
+          tiles +
+          "</div></div>"
+        );
+      }
       function pgGrid(pos, statObj, gameObj) {
         var rows = typeof liveBoxLine === "function" ? liveBoxLine(pos, statObj) : [];
         var gmap = null;
@@ -33597,6 +33795,7 @@
           them +
           (TU("v168season", 1) ? crestV168(opp.replace(/^.*'s /, ""), 34) : "") +
           "</div>" +
+          pgHeroV186(p, g, seasonBox) /* v186 C: YOUR GAME — every key stat, the season so far, the projection */ +
           postGameSeasonV168(p, wr, us, them) /* v168: what this game did to the season */ +
           callLineV171(wr, state._liveGame) /* v171 A: did the matchup call come off */ +
           '<div style="display:flex;align-items:center;gap:8px;margin:8px 0 4px;padding:9px 11px;border-radius:11px;background:#00000040;border:1px solid rgba(255,255,255,.07);font-family:Oswald">' +
@@ -35075,8 +35274,20 @@
     };
   }
   finishSeasonGames = finishWrapV153B(finishSeasonGames);
+  // v186 F: the season's Upgrade Point cards pay before the weeks are cleared
+  function finishWrapV186(f0) {
+    return function () {
+      try {
+        const e = state && state.player;
+        e && flipUpSettleV186(e); // a second wrapper's call finds the percentage spent (0) and pays nothing
+      } catch (_) {}
+      return f0.apply(this, arguments);
+    };
+  }
+  finishSeasonGames = finishWrapV186(finishSeasonGames);
   typeof window.finishSeasonGames === "function" &&
     (window.finishSeasonGames = finishWrapV153B(window.finishSeasonGames));
+  typeof window.finishSeasonGames === "function" && (window.finishSeasonGames = finishWrapV186(window.finishSeasonGames));
   // the LOCKER ROOM card: the season screen names every man this season's moves touched
   function lockerCardV153B() {
     const e = state && state.player;
@@ -35118,6 +35329,63 @@
             `<div class="card tight sac-v153" id="lockerV153B" style="padding:6px 8px;margin-bottom:0"><button class="btn secondary" style="padding:8px 10px;font-size:13px;line-height:1.15" onclick="sacrificeAskV153B()"><small style="display:block;font-size:11px;letter-spacing:1.2px;opacity:.8">🤝 SACRIFICE FOR A TEAMMATE · ONCE A SEASON</small>GIVE UP ${c} PTS → ${escHtml(m.p.name.toUpperCase())} +${lift} OVR</button></div>`
       );
     }
+  }
+  /* ===== v186 D MY TEAM =====
+   * The owner: "a spot to see your team … if you're sacrificing stats to improve your team members … how your stats have
+   * overall impacted your team members' ability and how many seasons that would be relevant for." A folded 👥 MY TEAM
+   * card on the season screen: your unit (name, position, OVR; who your sacrifice lifted, who grew beside you, who left),
+   * what the moves did to the team rating and what they cost you, the locker room's chemistry and its pull on the team's
+   * strength (teamDecisionQV153B), and how long each lasts — roster moves for THIS season (the roster turns over when it
+   * ends); chemistry carries, fading `v153BchemFade` (10%) of its gap to 50 a season, so the card counts the seasons your
+   * goodwill keeps paying. Kill switch v186D 0. */
+  function myTeamCardV186() {
+    const e = state && state.player;
+    if (!TU("v186D", 1) || !e || !e.pos || state.view !== "season" || !teamOnV153B()) return;
+    const sc = byId("screen");
+    if (!sc || sc.querySelector("#myTeamV186")) return;
+    const R = rosterV153B(e);
+    if (!R || !R.length) return;
+    const L = lockerV153B(e),
+      mine = unitOfV153B(e.pos),
+      mark = {};
+    (L.events || []).forEach(v => (mark[v.slot] = v));
+    const unit = R.map((p, i) => ({ p, i }))
+      .filter(o => o.p && o.p.pos !== "K" && o.p.pos !== "P" && (OFF_POS_V153B.includes(o.p.pos) ? "off" : "def") === mine)
+      .sort((a, b) => (b.p.ovr || 0) - (a.p.ovr || 0))
+      .slice(0, TU("myTeamRowsV186", 10));
+    const chem = chemOfV153B(e),
+      gap = chem - 50,
+      fade = TU("v153BchemFade", 0.1),
+      lastS = Math.abs(gap) < 1 ? 0 : Math.ceil(Math.log(1 / Math.abs(gap)) / Math.log(1 - fade)),
+      q = teamDecisionQV153B(e),
+      sac = (L.events || []).filter(v => v.kind === "sacrifice"),
+      cost = sac.reduce((a, v) => a + (v.cost || 0), 0),
+      given = sac.reduce((a, v) => a + (v.amt || 0), 0),
+      careerSac = (L.log || []).filter(v => v.k === "sacrifice").length;
+    const row = o => {
+      const v = mark[o.i],
+        tag = !v
+          ? ""
+          : v.kind === "sacrifice"
+            ? `<b style="color:var(--gold)">🤝 +${v.amt} from you</b>`
+            : v.kind === "leave"
+              ? `<b style="color:#e08a8a">🚪 replacement</b>`
+              : `<b style="color:var(--good)">⭐ +${v.amt}</b>`;
+      return `<div style="display:flex;gap:6px;align-items:baseline;font:500 12.5px 'Barlow Condensed',sans-serif"><span style="width:28px;color:var(--chalk-dim)">${escHtml(String(o.p.pos))}</span><span style="flex:1">${escHtml(String(o.p.name || "—"))}</span>${tag}<b style="width:34px;text-align:right">${Math.round(o.p.ovr || 0)}</b></div>`;
+    };
+    sc.insertAdjacentHTML(
+      "beforeend",
+      `<div class="card tight" id="myTeamV186"><details><summary style="cursor:pointer;list-style:none"><div class="eyebrow">👥 MY TEAM · ${mine === "off" ? "OFFENSE" : "DEFENSE"} · CHEMISTRY ${Math.round(chem)} · TEAM ${q >= 0 ? "+" : ""}${Math.round(q * 100)}% ▸</div></summary>` +
+        `<div style="margin-top:6px">${unit.map(row).join("")}</div>` +
+        `<div class="small" style="margin-top:6px">` +
+        (sac.length
+          ? `🤝 Your sacrifice this season: you gave up <b>${cost}</b> point${cost === 1 ? "" : "s"}; your unit gained <b>+${given} OVR</b>. `
+          : `🤝 No sacrifice this season${L.sacrificed ? "" : " — the offseason board offers one"}. `) +
+        (L.ovrDelta ? `This season's moves put the team rating <b>${L.ovrDelta > 0 ? "+" : ""}${L.ovrDelta.toFixed(1)}</b>. ` : "") +
+        `</div><div class="small" style="margin-top:4px;color:var(--chalk-dim)">⏳ <b>How long it lasts:</b> roster moves (lifts, sacrifices, departures) last <b>this season</b> — the roster turns over when it ends. Chemistry carries over: it drifts ${Math.round(fade * 100)}% of the way back to 50 each season, so ${
+          Math.abs(gap) < 1 ? "it is at neutral now" : `your ${gap > 0 ? "+" : ""}${Math.round(gap)} keeps ${gap > 0 ? "paying" : "costing"} for about <b>${lastS} season${lastS === 1 ? "" : "s"}</b>`
+        } (it moves the team's strength ${q >= 0 ? "+" : ""}${Math.round(q * 100)}% today).${careerSac ? ` Career: ${careerSac} sacrifice${careerSac === 1 ? "" : "s"} on record.` : ""}</div></details></div>`
+    );
   }
   /* the terms, read before the points go: the one confirm is askV150 (never a native dialog) */
   function sacrificeAskV153B() {
@@ -35499,6 +35767,8 @@
     const r = q0V153B.apply(this, arguments);
     try {
       lockerCardV153B();
+      myTeamCardV186();
+      forgeCardV186();
       trainBoardV153B();
     } catch (x) {
       console.warn("[v153 B render]", x);
@@ -35775,6 +36045,78 @@
     });
   }
   /* ---- F: flip a card ---- */
+  /* ===== v186 F THE FLIP PAYS LATER =====
+   * The owner: "heavily nerf the coach one — easy to get 100% snap share that way … the prestige gain not to be a flat
+   * amount, but a percent increase … you flipped 22 cards, each with 1% more, that's 22% more prestige that you get by
+   * the time you actually prestige … the same mechanic for the upgrade points … given at the end of a season … common
+   * items much, much more common … rare 1 in 20, epic 1 in 200, legendary 1 in 1,000 … modifiable in the prestige system".
+   * The deck draws a RARITY first — legendary `flipLegV186` (0.001), epic `flipEpicV186` (0.005), rare `flipRareP_V186`
+   * (0.05), uncommon `flipUncV186` (0.2), the rest common — then a card of that rarity. Marked Cards (Apex) and the
+   * Loaded Deck medal make the top three likelier. The cards:
+   *   UPGRADE POINT cards (+2% / +4% / +10%, common / uncommon / rare) add to the season's percentage; at the season's
+   *     end it pays that share of the season's paycheck (`flipUpSettleV186`) — nothing mid-season
+   *   PRESTIGE cards (+1% / +2% / +5%) add to the career's percentage; it is paid on the career's payout (and the PP
+   *     banked with it) when you prestige (`flipPPSettleV186`) — nothing mid-season
+   *   COACH TRUST +1 (uncommon; was +3 rare), and nothing once trust is 70 (`flipTrustCapV186`)
+   *   extra reps (common), a gear drop (epic), +1 permanent (legendary)
+   * Card Shark (Apex) multiplies every card's percentage (+10% a level). Kill switch v186F 0 = the v178/v179 deck. */
+  const FLIPS_V186 = [
+    { id: "pt1", rar: "common", col: "#c8d0da", icon: "🪙", pct: 2, kind: "up", name: "+2% Upgrade Points" },
+    { id: "pp1", rar: "common", col: "#c8d0da", icon: "💎", pct: 1, kind: "pp", name: "+1% Prestige" },
+    { id: "reps", rar: "common", col: "#c8d0da", icon: "🏋️", name: "Extra reps" },
+    { id: "pt2", rar: "uncommon", col: "#6bbf59", icon: "💰", pct: 4, kind: "up", name: "+4% Upgrade Points" },
+    { id: "pp2", rar: "uncommon", col: "#6bbf59", icon: "💎", pct: 2, kind: "pp", name: "+2% Prestige" },
+    { id: "trust", rar: "uncommon", col: "#6bbf59", icon: "🤝", name: "+1 Coach Trust" },
+    { id: "pt3", rar: "rare", col: "#5ab0ff", icon: "💰", pct: 10, kind: "up", name: "+10% Upgrade Points" },
+    { id: "pp3", rar: "rare", col: "#5ab0ff", icon: "💎", pct: 5, kind: "pp", name: "+5% Prestige" },
+    { id: "gear", rar: "epic", col: "#b07cff", icon: "🎁", name: "Gear drop" },
+    { id: "attr", rar: "legendary", col: "#f2c94c", icon: "⚡", name: "+1 Permanent" }
+  ];
+  function flipOnV186() {
+    return !!TU("v186F", 1);
+  }
+  function flipRarOddsV186() {
+    const luck = (1 + medalFxV179("flipLuckV179")) * (1 + treeFx("flipRareV186")),
+      leg = TU("flipLegV186", 0.001) * luck,
+      epic = TU("flipEpicV186", 0.005) * luck,
+      rare = TU("flipRareP_V186", 0.05) * luck,
+      unc = TU("flipUncV186", 0.2);
+    return { legendary: leg, epic, rare, uncommon: unc, common: Math.max(0, 1 - leg - epic - rare - unc) };
+  }
+  // the career's Prestige cards, paid on the payout they ride (the career's PP and the PP banked with it)
+  function flipPPSettleV186(e, base) {
+    if (!e || !flipOnV186()) return 0;
+    const pct = e.flipPPPctV186 || 0,
+      bonus = pct > 0 && base > 0 ? Math.max(1, Math.round((base * pct) / 100)) : 0;
+    e.flipPPPctV186 = 0;
+    if (!bonus) return 0;
+    state.pp += bonus;
+    e._vaultPayV137 = (e._vaultPayV137 || 0) + bonus;
+    e.flipPPPaidV186 = { pct: +pct.toFixed(1), base: Math.round(base), bonus };
+    try {
+      typeof document < "u" && byId("toast") && showToast("💎 Prestige cards: +" + +pct.toFixed(1) + "% → +" + fmtBigV179(bonus) + " PP");
+    } catch (_) {}
+    return bonus;
+  }
+  // the season's Upgrade Point cards, paid at its end on the season's paycheck
+  function flipUpSettleV186(e) {
+    if (!e || !flipOnV186()) return 0;
+    const pct = e.flipUpPctV186 || 0;
+    e.flipUpPctV186 = 0;
+    if (!(pct > 0)) return 0;
+    const earned = (e.weekResults || []).reduce((a, w) => a + ((w && w.payV178 && w.payV178.whole) || 0), 0),
+      bonus = earned > 0 ? Math.max(1, Math.round((earned * pct) / 100)) : 0;
+    if (!bonus) return 0;
+    e.points = (e.points || 0) + bonus;
+    e.flipUpPaidV186 = { pct: +pct.toFixed(1), earned, bonus, at: e.totalSeasons };
+    try {
+      typeof document < "u" && byId("toast") && showToast("🪙 Upgrade Point cards: +" + +pct.toFixed(1) + "% of " + earned + " → +" + bonus + " points");
+    } catch (_) {}
+    return bonus;
+  }
+  function flipPctMultV186() {
+    return 1 + treeFx("flipPctV186");
+  }
   const FLIPS_V178 = [
     { id: "pt1", w: 38, rar: "common", col: "#c8d0da", icon: "🪙", name: "+10% Upgrade Points" } /* v179 N: % of the week (min +1) */,
     { id: "pt2", w: 16, rar: "uncommon", col: "#6bbf59", icon: "💰", name: "+20% Upgrade Points" } /* min +2 */,
@@ -35805,6 +36147,17 @@
   function deckV178(e, w, size) {
     const rng = seededRng(e.seasonSeed || 0, e.level || 0, e.totalSeasons || 0, w.week || 0, w.opp || "", w.playoff ? "p" : "r", "flipV178"),
       tot = FLIPS_V178.reduce((s, c) => s + c.w, 0);
+    if (flipOnV186()) {
+      const O = flipRarOddsV186(),
+        order = ["legendary", "epic", "rare", "uncommon", "common"];
+      return Array.from({ length: Math.max(3, size | 0) }, () => {
+        let r = rng(),
+          rar = "common";
+        for (const k of order) if ((r -= O[k]) < 0) { rar = k; break; }
+        const pool = FLIPS_V186.filter(c => c.rar === rar);
+        return pool[Math.floor(rng() * pool.length)].id;
+      });
+    }
     const luck = 1 + medalFxV179("flipLuckV179"), /* v179 G: Loaded Deck / luckier flips weigh the rare cards up */
       wOf = c => (c.rar === "common" || c.rar === "uncommon" ? c.w : c.w * luck),
       totL = FLIPS_V178.reduce((s, c) => s + wOf(c), 0);
@@ -35815,6 +36168,17 @@
     });
   }
   function flipCardV178(id) {
+    if (flipOnV186()) {
+      const c6 = FLIPS_V186.find(x => x.id === id);
+      if (c6) {
+        if (c6.pct) {
+          const v = c6.pct * flipPctMultV186();
+          return Object.assign({}, c6, { name: "+" + (Math.abs(v - Math.round(v)) < 0.05 ? Math.round(v) : v.toFixed(1)) + "% " + (c6.kind === "up" ? "Upgrade Points · season end" : "Prestige · career end") });
+        }
+        if (c6.id === "trust" && TU("flipTrustV186", 1) !== 1) return Object.assign({}, c6, { name: "+" + TU("flipTrustV186", 1) + " Coach Trust" });
+        return c6;
+      }
+    }
     const c = FLIPS_V178.find(x => x.id === id) || FLIPS_V178[0];
     /* v182: the beta dials scale the cards — the card's face says what it pays now */
     try {
@@ -35830,6 +36194,28 @@
   function applyFlipV178(e, id, w) {
     const keys = keyAttrsV178(e);
     let say = flipCardV178(id).name;
+    if (flipOnV186()) {
+      const c6 = FLIPS_V186.find(x => x.id === id);
+      if (c6 && c6.pct) {
+        const v = c6.pct * flipPctMultV186();
+        if (c6.kind === "up") {
+          e.flipUpPctV186 = +((e.flipUpPctV186 || 0) + v).toFixed(2);
+          say = "+" + +v.toFixed(1) + "% Upgrade Points at season end (this season: +" + +e.flipUpPctV186.toFixed(1) + "%)";
+        } else {
+          e.flipPPPctV186 = +((e.flipPPPctV186 || 0) + v).toFixed(2);
+          say = "+" + +v.toFixed(1) + "% Prestige at career end (this career: +" + +e.flipPPPctV186.toFixed(1) + "%)";
+        }
+        applyFlipV178.pts = 0;
+        return say;
+      }
+      if (id === "trust") {
+        const t0 = e.coachTrust != null ? e.coachTrust : 50,
+          cap = TU("flipTrustCapV186", 70);
+        if (t0 >= cap) return "Coach Trust — he already trusts you (the card adds nothing at " + cap + "+)";
+        e.coachTrust = clamp99(Math.min(cap, t0 + TU("flipTrustV186", 1)), 0, 100);
+        return "+" + TU("flipTrustV186", 1) + " Coach Trust";
+      }
+    }
     if (id === "pt1" || id === "pt2") {
       let n = id === "pt1" ? 1 : 2;
       /* v179 N: a percent of the week's paycheck (points vary 1 → hundreds a week); never less than the old flat card */
@@ -36745,7 +37131,7 @@
     try {
       cssV178();
     } catch (_) {}
-    const flipPts = p => (p.flip ? p.flip.picked.reduce((a, k) => a + (k.id === "pt1" ? 1 : k.id === "pt2" ? 2 : 0), 0) : 0),
+    const flipPts = p => (p.flip ? p.flip.picked.reduce((a, k) => a + (k.pts != null ? k.pts : k.id === "pt1" ? 1 : k.id === "pt2" ? 2 : 0), 0) : 0) /* v186 F: what the card paid (a percent card pays at season end) */,
       pts = ps.reduce((s, p) => s + p.whole + flipPts(p), 0),
       last = ps[ps.length - 1],
       hits = ps.reduce((s, p) => s + (p.hits || 0), 0),
@@ -36969,7 +37355,7 @@
     const w = ws[ws.length - 1],
       P = w.payV178,
       wk = e.weekResults.indexOf(w),
-      flipPts = p => (p.flip ? p.flip.picked.reduce((a, k) => a + (k.id === "pt1" ? 1 : k.id === "pt2" ? 2 : 0), 0) : 0),
+      flipPts = p => (p.flip ? p.flip.picked.reduce((a, k) => a + (k.pts != null ? k.pts : k.id === "pt1" ? 1 : k.id === "pt2" ? 2 : 0), 0) : 0) /* v186 F: what the card paid (a percent card pays at season end) */,
       tot = ws.reduce((a, x) => a + x.payV178.whole + flipPts(x.payV178), 0),
       rec = ws.reduce((a, x) => (x.won ? a.w++ : a.l++, a), { w: 0, l: 0 });
     V178.cardWeek = w;
@@ -37184,9 +37570,9 @@
   function branchPriceV179(b) {
     if (!TU("v179", 1)) return 1;
     return b === "impossible"
-      ? TU("impossiblePriceV179", 100)
+      ? TU("impossiblePriceV179", 500)
       : b === "apex"
-        ? TU("apexPriceV179", 10)
+        ? TU("apexPriceV179", 50)
         : b === "eternal"
           ? 1
           : TU("corePriceV179", 6); /* the early branches: PP scarce enough that what you buy first matters */
@@ -37910,14 +38296,19 @@
     try {
       if (!TU("v179L", 1) || !TU("v179", 1) || !TREE[e]) return h;
       for (const n of TREE[e].nodes) {
-        const g = nodePotGainV179(n.key);
-        if (g < 0.95) continue;
+        const g = nodePotGainV179(n.key),
+          bm = branchFxV186((TREE_NODES[n.key] && TREE_NODES[n.key].branch) || n.branch || e) /* v186 */;
+        if (g < 0.95 && bm <= 1) continue;
         const k = h.indexOf(`vaultBuy('${n.key}')`);
         if (k < 0) continue;
         const cut = h.lastIndexOf('<button class="buy', k);
         const end = h.lastIndexOf("</div>", cut);
         if (end < 0) continue;
-        h = h.slice(0, end) + `<div class="pot-tag-v179">📐 +${fmtBigV179(Math.round(g))} POTENTIAL next level</div>` + h.slice(end);
+        h =
+          h.slice(0, end) +
+          (g >= 0.95 ? `<div class="pot-tag-v179">📐 +${fmtBigV179(Math.round(g))} POTENTIAL next level</div>` : "") +
+          (bm > 1 ? `<div class="pot-tag-v179 fx-tag-v186">⚡ ×${nf1V179(bm)} effect — priced for the long game, paid like it</div>` : "") +
+          h.slice(end);
       }
     } catch (_) {}
     return h;
@@ -37935,8 +38326,8 @@
    * `window.__V181`; `v181check`. */
   const BETA_DIALS_V181 = [
     ["corePriceV179", "Core tree price ×", 0.1, 20, 0.1, 6, "cost"],
-    ["apexPriceV179", "Apex price ×", 0.1, 50, 0.1, 10, "cost"],
-    ["impossiblePriceV179", "Impossible price ×", 1, 500, 1, 100, "cost"],
+    ["apexPriceV179", "Apex price ×", 0.1, 250, 0.1, 50, "cost"],
+    ["impossiblePriceV179", "Impossible price ×", 1, 2500, 1, 500, "cost"],
     ["betaPPGainV181", "PP gains × (career end, titles, medals)", 0.1, 20, 0.1, 1, "gain"],
     ["betaSeasonPPV181", "In-season PP ×", 0.1, 20, 0.1, 1, "gain"],
     ["chaosCapUffV179", "Chaos capacity per UFF ring", 0, 10, 1, 1, "gain"],
@@ -37948,14 +38339,16 @@
     ["ceilPerLevelV179", "Ceiling per plain tree level", 0, 1, 0.05, 0.05, "bar"],
     ["verdictBaseV179", "Scouts' verdict ceiling %", 50, 96, 1, 80, "bar"],
     ["secondLookBaseV179", "GM's second look %", 0, 50, 1, 10, "bar"],
-    ["flipPctV179", "Points card (% of the week)", 0, 0.5, 0.01, 0.1, "card"],
     ["luckyDrawPerLvlV179", "Lucky Draw chance per level", 0, 0.5, 0.05, 0.2, "card"],
     ["gradeBarCapV179", "Season grade bar cap", 60, 95, 1, 86, "card"],
     ["gradeRatchetEaseV179", "Grade: last season eased by", 0, 20, 1, 6, "card"],
     ["betaPayV182", "Weekly paycheck ×", 0.1, 10, 0.1, 1, "post"],
-    ["flipPct2V179", "Big points card (% of the week)", 0, 1, 0.01, 0.2, "post"],
-    ["flipPPV182", "PP card amount", 0, 100000, 1, 3, "post"],
-    ["flipTrustV182", "Coach trust card", 0, 20, 1, 3, "post"],
+    ["flipUncV186", "Card odds: uncommon", 0, 0.5, 0.01, 0.2, "post"],
+    ["flipRareP_V186", "Card odds: rare (1 in 20)", 0, 0.3, 0.005, 0.05, "post"],
+    ["flipEpicV186", "Card odds: epic (1 in 200)", 0, 0.1, 0.001, 0.005, "post"],
+    ["flipLegV186", "Card odds: legendary (1 in 1,000)", 0, 0.05, 0.0005, 0.001, "post"],
+    ["flipTrustV186", "Coach trust card", 0, 10, 1, 1, "post"],
+    ["flipTrustCapV186", "Coach trust card stops at", 0, 100, 1, 70, "post"],
     ["flipRepsV182", "Reps card (attribute points)", 0, 5, 0.5, 0.5, "post"],
     ["flipAttrV182", "Permanent card (+attribute)", 0, 10, 1, 1, "post"],
     ["chaosBoostBaseV185", "Chaos: opponents' lift at the first point", 0, 60, 1, 22, "chaos"],
@@ -37966,10 +38359,14 @@
     ["chaosBankFloorV185", "Chaos: PP bonus kept by a Pee Wee exit", 0, 1, 0.01, 0.06, "chaos"],
     ["chaosNeedBaseV185", "Chaos: lift as a share of the level's own rating (at the first point)", 0, 2, 0.05, 0.15, "chaos"],
     ["chaosNeedPerV185", "Chaos: … plus this share per point", 0, 0.2, 0.005, 0.03, "chaos"],
+    ["chaosNeedMaxV186", "Chaos: … the level share stops at", 0, 2, 0.05, 0.5, "chaos"],
     ["chaosDeclareShareV185", "Chaos: share of the lift the scouts see (declare odds)", 0, 2, 0.05, 1, "chaos"],
     ["chaosRankShareV185", "Chaos: share of the lift in the national rankings", 0, 2, 0.05, 1, "chaos"],
     ["chaosCapStepV185", "Chaos: capacity a career's ring at full chaos adds", 1, 15, 1, 3, "chaos"],
-    ["aiBaseIstV178", "Interstellar League strength (team OVR)", 100, 1000, 10, 400, "ist"],
+    ["aiBaseIstV178", "Interstellar League strength (team OVR)", 100, 1500, 10, 700, "ist"],
+    ["ringPerfUffV186", "UFF ring: the season average a starter needs", 0, 100, 1, 60, "ist"],
+    ["ringPerfIstV186", "Interstellar ring: the season average a starter needs", 0, 100, 1, 85, "ist"],
+    ["etaIstDomV186", "Interstellar title: how far past the league (the estimate)", 1, 3, 0.05, 1.55, "eta"],
     ["etaChaosShareV184", "Chaos you run (% of capacity — the estimate; below 100% the capacity never grows)", 0, 1, 0.05, 1, "eta"],
     ["etaNotchSeasonsV185", "Seasons a chaos notch takes (the estimate)", 5, 120, 1, 32, "eta"],
     ["etaOvrPerPotV184", "OVR per point of potential (the estimate)", 0.1, 0.5, 0.01, 0.22, "eta"],
@@ -38024,6 +38421,7 @@
     render();
   }
   function betaFmtV181(d, v) {
+    if (/^flip(Unc|RareP_|Epic|Leg)V186$/.test(d[0])) return +(v * 100).toFixed(v < 0.01 ? 2 : 1) + "%" + (v > 0 ? " (1 in " + fmtBigV179(Math.round(1 / v)) + ")" : "");
     return d[0] === "flipPctV179" || d[0] === "flipPct2V179" || d[0] === "luckyDrawPerLvlV179" || d[0] === "etaChaosShareV184" ? Math.round(v * 100) + "%" : d[0] === "etaMinPerSeasonV182" ? v + " min" : d[4] < 1 ? (+v).toFixed(d[4] < 0.1 ? 2 : 1).replace(/\.0+$/, "") : fmtBigV179(v);
   }
   function betaCardV181() {
@@ -38094,7 +38492,8 @@
    * ~1.6×+), in hours at `etaMinPerSeasonV182` minutes a season; redrawn on every dial move. `window.__V182`. */
   function etaV182(fromNow) {
     /* v184: a season-by-season projection (milliseconds) — the climb, then chaos, rings, eras and the league of legends */
-    const price = (TU("corePriceV179", 6) / 6) * 0.7 + (TU("apexPriceV179", 10) / 10) * 0.2 + (TU("impossiblePriceV179", 100) / 100) * 0.1,
+    const price = TU("corePriceV179", 6) / 6 /* v186: the climb buys core nodes; the late game prices in the Apex and the Impossible */,
+      priceLate = (TU("corePriceV179", 6) / 6) * 0.6 + Math.pow(TU("apexPriceV179", 50) / 10, 0.5) * 0.25 + Math.pow(TU("impossiblePriceV179", 500) / 100, 0.5) * 0.15 /* against v179's 10 / 100 */,
       gr = (() => {
         if (!fromNow) return { pp: 0, growth: 0, call: 0 };
         try {
@@ -38113,11 +38512,13 @@
       barC = TU("scoutPotCombineV179", 90),
       barU = TU("scoutPotUffV179", 150),
       barI = TU("istPotV179", 1600),
-      lg = TU("aiBaseIstV178", TU("v183IST", 1) ? 400 : 100),
+      lg = TU("aiBaseIstV178", TU("v183IST", 1) ? (TU("v186", 1) ? 700 : 400) : 100),
       share = TU("etaChaosShareV184", 1),
       eraStep = Math.max(1, TU("eraChaosStepV179", 15)),
       ovrPerPot = TU("etaOvrPerPotV184", 0.22),
-      potTitle = Math.max(barI, (lg * 1.5) / ovrPerPot);
+      potTitleBase = Math.max(barI, (lg * 1.5) / ovrPerPot);
+    let potTitle = potTitleBase,
+      istChaos = null;
     // where the projection starts
     let pot = 30,
       chaos = 0,
@@ -38136,7 +38537,7 @@
     const chaosPP = c => (c > 0 ? TU("chaosPPBaseV185", 6) * Math.pow(TU("chaosPPPerV185", 1.16), c) : 1),
       grow = (late, c, e) => {
         // the PP economy (prices, gains, chaos, eras) buys the ceiling; its pull is a power — the tree's prices climb
-        const econ = econ0 * Math.pow(chaosPP(c), 0.35) * Math.pow(1.2, e * 0.6);
+        const econ = econ0 * (late ? price / Math.max(0.01, priceLate) : 1) * Math.pow(chaosPP(c), 0.35) * Math.pow(1.2, e * 0.6);
         return gBase * Math.pow(econ, 0.6) * (late ? (pot < 1100 ? 3 : 1.2) : 1);
       };
     // 1. to the UFF
@@ -38164,15 +38565,15 @@
     const vI = verdictAt(0.6),
       full = share >= 0.95,
       step = Math.max(1, TU("chaosCapStepV185", 3)),
-      perPt = TU("chaosBoostPerV185", 1.05) + 66 * TU("chaosNeedPerV185", 0.03),
-      wallStep = (step * perPt) / (3 * (1.05 + 66 * 0.03)), // 1 at the shipped dials
+      perPt = TU("chaosBoostPerV185", 1.05) + 66 * TU("chaosNeedPerV185", 0.03) * 0.6 /* v186 G: the share stops at chaos ~12, so on average the notches grow by less */,
+      wallStep = (step * perPt) / (3 * (1.05 + 66 * 0.03 * 0.6)), // 1 at the shipped dials
       wall0 = (TU("chaosBoostBaseV185", 22) + 66 * (TU("chaosNeedBaseV185", 0.15) + 6 * TU("chaosNeedPerV185", 0.03))) / (22 + 66 * 0.33),
       notchSeasons = TU("etaNotchSeasonsV185", 32) * Math.pow(wallStep, 0.8) * Math.pow(Math.max(0.3, wall0), 1.5) / Math.pow(Math.max(0.05, econ0), 0.3);
     for (let k = 0; k < 40000 && title == null; k++) {
       if (rings >= 1 && cap < 6) cap = 6; // the first ring opens chaos (6)
       const c1 = cap > 0 ? (full ? cap : Math.min(cap, cap * share)) : 0;
       // the rings: a full-chaos loop earns its ring at the end of each notch; a calm run (below full) rings ~1 in 4
-      if (full && cap > 0) {
+      if (full && cap > 0 && ist == null) {
         notch += 1 / notchSeasons;
         if (notch >= 1) {
           notch -= 1;
@@ -38190,6 +38591,15 @@
         ist = s;
       }
       // 3. the Interstellar title: outgrow a league rated `lg` (OVR ≈ ovrPerPot × potential; the title wants ~1.5× the league)
+      // v186: the Interstellar ring wants a DOMINANT season (a starter averaging `ringPerfIstV186`) against the league AND
+      // the chaos you carry there — the lift at the Interstellar level is the flat lift + its rating × the chaos share
+      if (ist != null && title == null && TU("v186", 1)) {
+        if (istChaos == null) istChaos = chaos;
+        const need8 = (LEVELS[8] && LEVELS[8].need) || 135,
+          lift8 = istChaos > 0 ? TU("chaosBoostBaseV185", 22) + istChaos * TU("chaosBoostPerV185", 1.05) + need8 * Math.min(TU("chaosNeedMaxV186", 0.5), TU("chaosNeedBaseV185", 0.15) + istChaos * TU("chaosNeedPerV185", 0.03)) : 0,
+          domK = TU("etaIstDomV186", 1.55) * (TU("ringPerfIstV186", 85) / 80);
+        potTitle = Math.max(barI, ((lg + lift8) * domK) / ovrPerPot);
+      }
       if (ist != null && pot >= potTitle) title = s + 3;
     }
     return { notchSeasons: full ? notchSeasons : 0, uff, ist: ist == null ? 40000 : ist, title: title == null ? 40000 : title, g: grow(false, 0, 0), pot0: fromNow ? (() => { try { return potentialV179(); } catch (_) { return 30; } })() : 30, gear: gr, chaos: Math.round(maxChaos), era, potTitle: Math.round(potTitle) };
@@ -38208,7 +38618,7 @@
       N = state && state.player ? etaV182(true) : null;
     } catch (_) {}
     const row = (lab, f, n) => `<tr><td>${lab}</td><td>${rng(f)}</td>${N ? `<td>${rng(n)}</td>` : ""}</tr>`;
-    return `<div class="eta-v182" style="margin:10px 0 4px;padding:8px 10px;border-radius:10px;background:rgba(176,124,255,.10);border:1px solid rgba(176,124,255,.35)"><div class="l" style="font-size:10px;color:#c9b8ff;letter-spacing:1.5px">⏱️ ESTIMATED TIME · updates as you move the dials</div><table style="width:100%;margin-top:6px;font:500 12.5px 'Barlow Condensed',sans-serif;color:var(--chalk);border-collapse:collapse"><tr style="color:var(--chalk-dim);font-size:11px"><td></td><td>fresh account</td>${N ? "<td>your account now</td>" : ""}</tr>${row("🏈 Reach the UFF", F.uff, N && N.uff)}${row("🛸 Reach the Interstellar League", F.ist, N && N.ist)}${row("🏆 Win the Interstellar title", F.title, N && N.title)}</table><div class="small" style="margin-top:4px;color:var(--chalk-dim)">A rough model from measured careers: the low end is a sharp tree, the high end a careless one. Potential grows ~${(+F.g).toFixed(1)} a season early; ${F.notchSeasons ? `running full chaos, the loop (a wall in high school or college, then back to the UFF for the ring) takes ~${hrs(F.notchSeasons)} a notch of +${Math.round(TU("chaosCapStepV185", 3))} and reaches ~${F.chaos} chaos (era ${F.era})` : `running ${Math.round(TU("etaChaosShareV184", 1) * 100)}% of chaos capacity (below full the capacity never grows) the UFF years stay at ~${F.chaos} chaos`}; the Interstellar title wants ~${fmtBigV179(F.potTitle)} potential (OVR ≈ 1.5× the league's ${fmtBigV179(TU("aiBaseIstV178", 400))})${N ? ` · yours is ${fmtBigV179(Math.round(N.pot0))}` : ""}${N && (N.gear.pp || N.gear.growth || N.gear.call) ? ` · your gear counts: +${Math.round(N.gear.pp * 100)}% PP, +${Math.round(N.gear.growth * 100)}% growth, +${Math.round(N.gear.call)}% call-up` : ""}.</div></div>`;
+    return `<div class="eta-v182" style="margin:10px 0 4px;padding:8px 10px;border-radius:10px;background:rgba(176,124,255,.10);border:1px solid rgba(176,124,255,.35)"><div class="l" style="font-size:10px;color:#c9b8ff;letter-spacing:1.5px">⏱️ ESTIMATED TIME · updates as you move the dials</div><table style="width:100%;margin-top:6px;font:500 12.5px 'Barlow Condensed',sans-serif;color:var(--chalk);border-collapse:collapse"><tr style="color:var(--chalk-dim);font-size:11px"><td></td><td>fresh account</td>${N ? "<td>your account now</td>" : ""}</tr>${row("🏈 Reach the UFF", F.uff, N && N.uff)}${row("🛸 Reach the Interstellar League", F.ist, N && N.ist)}${row("🏆 Win the Interstellar title", F.title, N && N.title)}</table><div class="small" style="margin-top:4px;color:var(--chalk-dim)">A rough model from measured careers: the low end is a sharp tree, the high end a careless one. Potential grows ~${(+F.g).toFixed(1)} a season early; ${F.notchSeasons ? `running full chaos, the loop (a wall in high school or college, then back to the UFF for the ring) takes ~${hrs(F.notchSeasons)} a notch of +${Math.round(TU("chaosCapStepV185", 3))} and reaches ~${F.chaos} chaos (era ${F.era})` : `running ${Math.round(TU("etaChaosShareV184", 1) * 100)}% of chaos capacity (below full the capacity never grows) the UFF years stay at ~${F.chaos} chaos`}; the Interstellar title wants ~${fmtBigV179(F.potTitle)} potential (a ring is a starter's dominant season: OVR ≈ ${nf1V179(TU("etaIstDomV186", 1.55))}× the league's ${fmtBigV179(TU("aiBaseIstV178", 700))} plus the chaos you carry there — ~${hrs(F.title - F.ist)} after you arrive)${N ? ` · yours is ${fmtBigV179(Math.round(N.pot0))}` : ""}${N && (N.gear.pp || N.gear.growth || N.gear.call) ? ` · your gear counts: +${Math.round(N.gear.pp * 100)}% PP, +${Math.round(N.gear.growth * 100)}% growth, +${Math.round(N.gear.call)}% call-up` : ""}.</div></div>`;
   }
   const V181 = { skips: 0 };
   window.__V182 = { eta: etaV182, etaHtml: etaHtmlV182 };

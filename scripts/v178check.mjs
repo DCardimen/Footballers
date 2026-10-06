@@ -259,7 +259,7 @@ const O = await M(() => {
 })
 console.log('league:', JSON.stringify(O))
 ok(O.maxAttr > 99 && O.max0 <= 99, 'a UFF roster\'s attributes go past 99 (TU v178O 0: the old 99 clamp)', O)
-ok(O.ist > O.uff && O.ist === 400, 'Interstellar has its own team base above the UFF\'s (it fell back to 55; v183: a league of legends at 400)', { ist: O.ist, uff: O.uff })
+ok(O.ist > O.uff && O.ist === 700, 'Interstellar has its own team base above the UFF\'s (it fell back to 55; v183: a league of legends at 400; v186: 700)', { ist: O.ist, uff: O.uff })
 ok(O.badgeGap > 15 && O.attrGap > 0 && O.attrGap < O.badgeGap * 0.6, 'the sim plays a big badge gap smaller than the badge (the square-root gap), the favourite still better', { badge: O.badgeGap, attrs: O.attrGap })
 
 // ============================== the kill switch ==============================

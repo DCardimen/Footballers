@@ -1836,15 +1836,17 @@
    ]
   },
   "prestige-pacing": {
-   "desc": "v179 — the long road: medal gates on the last climbs, the Interstellar Call waits on the era, big numbers; v185 — the chaos loop",
+   "desc": "v179 — the long road: medal gates on the last climbs, the Interstellar Call waits on the era, big numbers; v185 — the chaos loop; v186 — rings are earned, chaos locks in, Stardust",
    "anchors": [
     "v179",
-    "v185"
+    "v185",
+    "v186"
    ],
    "files": [],
    "checks": [
     "v179check",
     "v185check",
+    "v186check",
     "medalrewardscheck",
     "v136check",
     "v178check"
@@ -4824,6 +4826,18 @@
     "season"
    ],
    "runtimeSec": 60,
+   "slow": false,
+   "needsServer": true,
+   "pureNode": false,
+   "flaky": []
+  },
+  "v186check": {
+   "file": "scripts/v186check.mjs",
+   "desc": "v186 — rings are earned (a starter averaging 60+ in the UFF, 85+ out there; a camp body's title is not a ring), chaos locks in once a career is played under it, the Apex / Impossible pay ×1.5 / ×2, the Interstellar League is rated 700 and the estimate puts ≥100 h between arriving and its ring, MY TEAM on the season screen, Stardust and the Star Forge. The flip pays later: rarities 74 / 20 / 5 / 0.5 / 0.1%, Upgrade Point and Prestige cards add a percentage paid at the season's / the career's end, the coach card +1 up to 70, Card Shark and Marked Cards. No page errors.",
+   "areas": [
+    "season"
+   ],
+   "runtimeSec": 40,
    "slow": false,
    "needsServer": true,
    "pureNode": false,

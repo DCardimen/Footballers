@@ -10,6 +10,53 @@ Names in older entries are the career app's pre-v149 C minified names (`q`, `ms`
 `index.html` + `src/` (`docs/LAYOUT.md`).
 
 <!-- new entries go here, newest first -->
+- **v186 — rings are earned, chaos is a commitment, the long road out there.** (`src/07-career-app.js`,
+  `src/05-field-renderer.js`.) The owner's patch notes, in order:
+  - **Rings are earned (A).** A UFF title is a ring (the ring count, the chaos clearance, the era, the loot) only for a
+    starter (or franchise man) whose season average clears `ringPerfUffV186` (60). The Interstellar ring needs a dominant
+    season (`ringPerfIstV186`, 85). A camp body on a great team gets the title, not the ring.
+  - **Chaos locks in.** A career started under chaos commits it (`state.chaosLockV186`): the dials go up, never back
+    below it (`chaosLockV186` 0 lets them down). The Chaos card says so.
+  - **The late tree is priced and paid for the long game.** The Apex and the Impossible default to ×50 / ×500 (the owner's
+    own dials; the slider ceilings rose to 250 / 2,500) and pay ×1.5 / ×2 (`branchFxV186` in `treeFx`). The tree tags
+    their nodes. The estimate prices them into the late game only (against v179's 10 / 100); the climb buys core nodes.
+  - **The Interstellar League is rated 700** (was 400). The estimate's Interstellar ring needs OVR ≈ 1.5 × (the league
+    + the chaos lift carried there), and the UFF loop stops once you are out there. Default estimate: UFF ~12 h,
+    Interstellar ~41 h, its ring ~142 h — about 100 h between arriving and the ring.
+  - **Tighter between the whistles (B).** With no pan up, the after-play phase runs 1.35× (`postRateV186`). The
+    screen's hold is 1.1 s (was 1.7). The moment the board's party has run its course the post is cut to its last
+    250 ms (`partyTailMsV186`), so there is no long look at the pile after the fireworks.
+  - **YOUR GAME (C).** The post-game card opens on your stat line: every box-score line your position keeps, as big
+    tiles, each with the season to date and the full-season pace.
+  - **MY TEAM (D).** A folded card on the season screen shows:
+    - your unit, marking who your sacrifice lifted, who grew beside you and who left
+    - what the moves did to the team rating and what they cost you
+    - chemistry and its pull on the team's strength
+    - how long each lasts: roster moves for this season; chemistry fading 10% of its gap a season, counted in seasons
+  - **Stardust (E).** The Interstellar League's own currency, on the account:
+    - every Interstellar season pays it by its average (≥65: 1, ≥80: 2, ≥90: 3), and an earned Interstellar ring pays 10
+    - the ✨ STAR FORGE (a hub card) spends it on GRAVITY WELL (+3 power out there a level), EVENT HORIZON (−2 off the
+      ring's bar a level) and SUPERNOVA (+10% Interstellar season PP a level)
+
+  - **The flip pays later (F).** The owner: nerf the coach card, no flat PP or points mid-season, and much rarer good cards.
+    - **Rarity is drawn first:** common ~74%, uncommon 20%, rare 1 in 20, epic 1 in 200, legendary 1 in 1,000. All five
+      are beta dials.
+    - **Upgrade Point cards** (+2% / +4% / +10%) add to the season's percentage. It is paid at the season's end on its
+      paycheck (`flipUpSettleV186`, in a `finishSeasonGames` wrapper).
+    - **Prestige cards** (+1% / +2% / +5%) add to the career's percentage. It is paid on the payout when you prestige,
+      PP banked with it included (`flipPPSettleV186`, at both settles).
+    - **The coach card** is +1 trust (uncommon; was +3 rare) and adds nothing at 70+.
+    - **Two new Apex nodes:** Card Shark (+10% a level to every card's percentage) and Marked Cards (+30% a level to the
+      rare / epic / legendary odds). The old card dials gave way to the odds and the coach card's.
+
+  - **The wall stops growing at chaos 12 (G).** The level share of the chaos lift stops at `chaosNeedMaxV186` (0.5).
+    Measured: at chaos 15 (share 0.6) an expert and a power-first player each spent 10 careers in a row walled at
+    College, earning ~1M PP each — a College player's rating is capped by age and growth (~145), not by PP, and the
+    lifted Combine bar was ~163. Past 12 a notch adds only the flat lift (+1.05 a point), which the attribute cap
+    (+3 a point) outgrows.
+
+  New beta dials: both ring bars, the chaos share's cap and the estimate's Interstellar dominance. Kill switches `v186`, `v186B`, `v186C`,
+  `v186D`, `v186E`, `v186F`. `v186check`; `v185check` updated (its ring test plays a starter).
 - **v185 — the chaos loop.** (`src/07-career-app.js`, `public/rib-menu-howto.js`, `scripts/careersim.mjs`.) The owner:
   chaos should be "a soft prestige … redo it again and work your way back from peewee to high-school, get cut sometime in
   high-school, but have waaay more prestige points to keep pushing later". Measured with `careersim` from a real account

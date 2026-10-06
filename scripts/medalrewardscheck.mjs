@@ -116,7 +116,7 @@ const F = await M(async () => {
   claim({ id: 'fourthCard', major: true, fx: { flipPicksV179: 1 } }); claim({ id: 'paycheck', major: true, fx: { payMultV179: 0.1 } })
   const w1 = wk(); window.__V178.pay(w1, { live: false }); const n1 = w1.payV178.flip ? w1.payV178.flip.n : null, raw1 = w1.payV178.raw
   out.picks = [n0, n1]; out.payRatio = raw0 ? +(raw1 / raw0).toFixed(3) : null
-  const rare = () => { let r = 0, t = 0; for (let k = 0; k < 300; k++) { const d = window.__V178.deck({ week: k, opp: 'L' + k }); for (const id of d) { t++; if (/^(trust|pp|gear|attr)$/.test(id)) r++ } } return r / t }
+  const rare = () => { let r = 0, t = 0; for (let k = 0; k < 3000; k++) { const d = window.__V178.deck({ week: k, opp: 'L' + k }); for (const id of d) { t++; if (/^(pt3|pp3|gear|attr)$/.test(id)) r++ } } return r / t } // v186 F: the rare, epic and legendary cards
   const r0 = rare(); claim({ id: 'luckyDeck', major: true, fx: { flipLuckV179: 1 } }); const r1 = rare()
   out.rare = [+(r0.toFixed(3)), +(r1.toFixed(3))]
   // PP now; a look
