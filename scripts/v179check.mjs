@@ -310,8 +310,10 @@ const N = await M(async () => {
   const f = [0, 1, 3, 5].map(freq)
   S.tree = { luckyDraw: 5 }; const d5 = window.__V179.flipDeal({ week: 3, opp: 'Y' }, 2)
   const p0 = p.points || 0
+  window.RIB_TUNE.v186F = 0 // v179 N's points cards (v186 F makes them a percentage paid at the season's end — v186check)
   const big = window.__V179.applyFlip('pt1', { payV178: { whole: 60 } }), small = window.__V179.applyFlip('pt1', { payV178: { whole: 3 } }), two = window.__V179.applyFlip('pt2', { payV178: { whole: 60 } })
   window.RIB_TUNE.v179N = 0; const flat = window.__V179.applyFlip('pt1', { payV178: { whole: 60 } }); delete window.RIB_TUNE.v179N
+  delete window.RIB_TUNE.v186F
   return { c1, c5, f, d5: { n: d5.n, deck: d5.deck.length, lucky: d5.lucky }, big, small, two, flat, gained: (p.points || 0) - p0 }
 })
 console.log('N:', JSON.stringify(N))

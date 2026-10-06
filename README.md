@@ -54,7 +54,7 @@ The full history, newest first, is [`docs/CHANGELOG.md`](docs/CHANGELOG.md) — 
 - **v186 — rings are earned.** A UFF ring goes to a starter who carried the season (an average of 60+), an
   Interstellar ring to a dominant one (80+). Chaos locks in once a career is played under it. The Apex and the
   Impossible cost ×50 / ×500 and pay ×1.5 / ×2. The Interstellar League is rated 700, about 100 hours between arriving
-  and its ring, with ✨ Stardust and the Star Forge out there. The post-game card leads with YOUR GAME, the season screen
+  and its ring, with ✨ Stardust and the Star Forge out there. Reward cards pay later: Upgrade Point and Prestige cards add a percentage paid at the season's or the career's end, the coach card is +1, and rare / epic / legendary cards are 1 in 20 / 200 / 1,000. The post-game card leads with YOUR GAME, the season screen
   has MY TEAM, and the gap between plays is tighter. `v186check`.
 - **v185 — the chaos loop.** Chaos is a second prestige. Turn it up and the next careers start from Pee Wee in a much
   harder world, where opponents gain a share of their own level's rating and the scouts and rankings see it too. They

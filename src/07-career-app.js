@@ -5364,7 +5364,7 @@
     return starter && (U || 0) >= need;
   }
   ringEarnedV186.last = { need: 60, starter: !0 };
-  window.__V186 = { forge: { buy: k => forgeBuyV186(k), lvl: k => forgeLvlV186(k), fx: k => forgeFxV186(k), cost: k => forgeCostV186(k), earn: (e, U, r) => earnStardustV186(e || (state && state.player), U, r) }, ringEarned: (e, U) => ringEarnedV186(e || (state && state.player), U), last: () => ringEarnedV186.last, lock: () => chaosLockedV186(), branchFx: b => branchFxV186(b) };
+  window.__V186 = { flip: { odds: () => flipRarOddsV186(), mult: () => flipPctMultV186(), upSettle: e => flipUpSettleV186(e || (state && state.player)), ppSettle: (e, b) => flipPPSettleV186(e || (state && state.player), b), deck: (w, n) => deckV178(state.player, w || {}, n || 3) }, forge: { buy: k => forgeBuyV186(k), lvl: k => forgeLvlV186(k), fx: k => forgeFxV186(k), cost: k => forgeCostV186(k), earn: (e, U, r) => earnStardustV186(e || (state && state.player), U, r) }, ringEarned: (e, U) => ringEarnedV186(e || (state && state.player), U), last: () => ringEarnedV186.last, lock: () => chaosLockedV186(), branchFx: b => branchFxV186(b) };
   function chaosLockedV186() {
     return TU("v186", 1) && TU("chaosLockV186", 1) ? (state && state.chaosLockV186) || 0 : 0;
   }
@@ -6839,6 +6839,26 @@
           mult: 3,
           max: 5,
           fx: {}
+        },
+        {
+          key: "cardShark",
+          name: "Card Shark",
+          icon: "🃏",
+          desc: "+10% per level to every reward card's percentage — the Upgrade Point cards (paid at season end) and the Prestige cards (paid at career end).",
+          cost: 2e3 /* v186 F */,
+          mult: 3,
+          max: 5,
+          fx: { flipPctV186: 0.1 }
+        },
+        {
+          key: "markedCards",
+          name: "Marked Cards",
+          icon: "🎴",
+          desc: "+30% per level to the odds of a rare (1 in 20), epic (1 in 200) or legendary (1 in 1,000) reward card.",
+          cost: 3e3 /* v186 F */,
+          mult: 3,
+          max: 5,
+          fx: { flipRareV186: 0.3 }
         },
         {
           key: "inevitable",
@@ -24902,6 +24922,7 @@
       (e._ppBankV136 = flushBankV136()),
       (state.pp += r),
       (e._vaultPayV137 = r + (e._ppBankV136 || 0)),
+      flipPPSettleV186(e, r + (e._ppBankV136 || 0)) /* v186 F: the Prestige cards pay now */,
       payoutBoostV150C(e, r, "gameover") /* v150 C H4 */,
       (state.prestige = +(state.prestige + honorGainV156A(l)).toFixed(1)) /* v156 A: no Honors — the medals are the rank */,
       (state.careersCompleted = (state.careersCompleted || 0) + (arr ? 0 : 1)) /* counted once, at the arrival */,
@@ -24986,6 +25007,7 @@
       ((e._ppBankV136 = flushBankV136()),
         (state.pp += n),
         (e._vaultPayV137 = (e._vaultPayV137 || 0) + n + (e._ppBankV136 || 0)),
+        flipPPSettleV186(e, n + (e._ppBankV136 || 0)) /* v186 F */,
         payoutBoostV150C(e, n, "win") /* v150 C H5 */,
         (state.prestige = +(state.prestige + honorGainV156A(i)).toFixed(1)) /* v156 A */,
         (state.bestLevel = 7),
@@ -35248,8 +35270,20 @@
     };
   }
   finishSeasonGames = finishWrapV153B(finishSeasonGames);
+  // v186 F: the season's Upgrade Point cards pay before the weeks are cleared
+  function finishWrapV186(f0) {
+    return function () {
+      try {
+        const e = state && state.player;
+        e && flipUpSettleV186(e); // a second wrapper's call finds the percentage spent (0) and pays nothing
+      } catch (_) {}
+      return f0.apply(this, arguments);
+    };
+  }
+  finishSeasonGames = finishWrapV186(finishSeasonGames);
   typeof window.finishSeasonGames === "function" &&
     (window.finishSeasonGames = finishWrapV153B(window.finishSeasonGames));
+  typeof window.finishSeasonGames === "function" && (window.finishSeasonGames = finishWrapV186(window.finishSeasonGames));
   // the LOCKER ROOM card: the season screen names every man this season's moves touched
   function lockerCardV153B() {
     const e = state && state.player;
@@ -36007,6 +36041,78 @@
     });
   }
   /* ---- F: flip a card ---- */
+  /* ===== v186 F THE FLIP PAYS LATER =====
+   * The owner: "heavily nerf the coach one — easy to get 100% snap share that way … the prestige gain not to be a flat
+   * amount, but a percent increase … you flipped 22 cards, each with 1% more, that's 22% more prestige that you get by
+   * the time you actually prestige … the same mechanic for the upgrade points … given at the end of a season … common
+   * items much, much more common … rare 1 in 20, epic 1 in 200, legendary 1 in 1,000 … modifiable in the prestige system".
+   * The deck draws a RARITY first — legendary `flipLegV186` (0.001), epic `flipEpicV186` (0.005), rare `flipRareP_V186`
+   * (0.05), uncommon `flipUncV186` (0.2), the rest common — then a card of that rarity. Marked Cards (Apex) and the
+   * Loaded Deck medal make the top three likelier. The cards:
+   *   UPGRADE POINT cards (+2% / +4% / +10%, common / uncommon / rare) add to the season's percentage; at the season's
+   *     end it pays that share of the season's paycheck (`flipUpSettleV186`) — nothing mid-season
+   *   PRESTIGE cards (+1% / +2% / +5%) add to the career's percentage; it is paid on the career's payout (and the PP
+   *     banked with it) when you prestige (`flipPPSettleV186`) — nothing mid-season
+   *   COACH TRUST +1 (uncommon; was +3 rare), and nothing once trust is 70 (`flipTrustCapV186`)
+   *   extra reps (common), a gear drop (epic), +1 permanent (legendary)
+   * Card Shark (Apex) multiplies every card's percentage (+10% a level). Kill switch v186F 0 = the v178/v179 deck. */
+  const FLIPS_V186 = [
+    { id: "pt1", rar: "common", col: "#c8d0da", icon: "🪙", pct: 2, kind: "up", name: "+2% Upgrade Points" },
+    { id: "pp1", rar: "common", col: "#c8d0da", icon: "💎", pct: 1, kind: "pp", name: "+1% Prestige" },
+    { id: "reps", rar: "common", col: "#c8d0da", icon: "🏋️", name: "Extra reps" },
+    { id: "pt2", rar: "uncommon", col: "#6bbf59", icon: "💰", pct: 4, kind: "up", name: "+4% Upgrade Points" },
+    { id: "pp2", rar: "uncommon", col: "#6bbf59", icon: "💎", pct: 2, kind: "pp", name: "+2% Prestige" },
+    { id: "trust", rar: "uncommon", col: "#6bbf59", icon: "🤝", name: "+1 Coach Trust" },
+    { id: "pt3", rar: "rare", col: "#5ab0ff", icon: "💰", pct: 10, kind: "up", name: "+10% Upgrade Points" },
+    { id: "pp3", rar: "rare", col: "#5ab0ff", icon: "💎", pct: 5, kind: "pp", name: "+5% Prestige" },
+    { id: "gear", rar: "epic", col: "#b07cff", icon: "🎁", name: "Gear drop" },
+    { id: "attr", rar: "legendary", col: "#f2c94c", icon: "⚡", name: "+1 Permanent" }
+  ];
+  function flipOnV186() {
+    return !!TU("v186F", 1);
+  }
+  function flipRarOddsV186() {
+    const luck = (1 + medalFxV179("flipLuckV179")) * (1 + treeFx("flipRareV186")),
+      leg = TU("flipLegV186", 0.001) * luck,
+      epic = TU("flipEpicV186", 0.005) * luck,
+      rare = TU("flipRareP_V186", 0.05) * luck,
+      unc = TU("flipUncV186", 0.2);
+    return { legendary: leg, epic, rare, uncommon: unc, common: Math.max(0, 1 - leg - epic - rare - unc) };
+  }
+  // the career's Prestige cards, paid on the payout they ride (the career's PP and the PP banked with it)
+  function flipPPSettleV186(e, base) {
+    if (!e || !flipOnV186()) return 0;
+    const pct = e.flipPPPctV186 || 0,
+      bonus = pct > 0 && base > 0 ? Math.max(1, Math.round((base * pct) / 100)) : 0;
+    e.flipPPPctV186 = 0;
+    if (!bonus) return 0;
+    state.pp += bonus;
+    e._vaultPayV137 = (e._vaultPayV137 || 0) + bonus;
+    e.flipPPPaidV186 = { pct: +pct.toFixed(1), base: Math.round(base), bonus };
+    try {
+      typeof document < "u" && byId("toast") && showToast("💎 Prestige cards: +" + +pct.toFixed(1) + "% → +" + fmtBigV179(bonus) + " PP");
+    } catch (_) {}
+    return bonus;
+  }
+  // the season's Upgrade Point cards, paid at its end on the season's paycheck
+  function flipUpSettleV186(e) {
+    if (!e || !flipOnV186()) return 0;
+    const pct = e.flipUpPctV186 || 0;
+    e.flipUpPctV186 = 0;
+    if (!(pct > 0)) return 0;
+    const earned = (e.weekResults || []).reduce((a, w) => a + ((w && w.payV178 && w.payV178.whole) || 0), 0),
+      bonus = earned > 0 ? Math.max(1, Math.round((earned * pct) / 100)) : 0;
+    if (!bonus) return 0;
+    e.points = (e.points || 0) + bonus;
+    e.flipUpPaidV186 = { pct: +pct.toFixed(1), earned, bonus, at: e.totalSeasons };
+    try {
+      typeof document < "u" && byId("toast") && showToast("🪙 Upgrade Point cards: +" + +pct.toFixed(1) + "% of " + earned + " → +" + bonus + " points");
+    } catch (_) {}
+    return bonus;
+  }
+  function flipPctMultV186() {
+    return 1 + treeFx("flipPctV186");
+  }
   const FLIPS_V178 = [
     { id: "pt1", w: 38, rar: "common", col: "#c8d0da", icon: "🪙", name: "+10% Upgrade Points" } /* v179 N: % of the week (min +1) */,
     { id: "pt2", w: 16, rar: "uncommon", col: "#6bbf59", icon: "💰", name: "+20% Upgrade Points" } /* min +2 */,
@@ -36037,6 +36143,17 @@
   function deckV178(e, w, size) {
     const rng = seededRng(e.seasonSeed || 0, e.level || 0, e.totalSeasons || 0, w.week || 0, w.opp || "", w.playoff ? "p" : "r", "flipV178"),
       tot = FLIPS_V178.reduce((s, c) => s + c.w, 0);
+    if (flipOnV186()) {
+      const O = flipRarOddsV186(),
+        order = ["legendary", "epic", "rare", "uncommon", "common"];
+      return Array.from({ length: Math.max(3, size | 0) }, () => {
+        let r = rng(),
+          rar = "common";
+        for (const k of order) if ((r -= O[k]) < 0) { rar = k; break; }
+        const pool = FLIPS_V186.filter(c => c.rar === rar);
+        return pool[Math.floor(rng() * pool.length)].id;
+      });
+    }
     const luck = 1 + medalFxV179("flipLuckV179"), /* v179 G: Loaded Deck / luckier flips weigh the rare cards up */
       wOf = c => (c.rar === "common" || c.rar === "uncommon" ? c.w : c.w * luck),
       totL = FLIPS_V178.reduce((s, c) => s + wOf(c), 0);
@@ -36047,6 +36164,17 @@
     });
   }
   function flipCardV178(id) {
+    if (flipOnV186()) {
+      const c6 = FLIPS_V186.find(x => x.id === id);
+      if (c6) {
+        if (c6.pct) {
+          const v = c6.pct * flipPctMultV186();
+          return Object.assign({}, c6, { name: "+" + (Math.abs(v - Math.round(v)) < 0.05 ? Math.round(v) : v.toFixed(1)) + "% " + (c6.kind === "up" ? "Upgrade Points · season end" : "Prestige · career end") });
+        }
+        if (c6.id === "trust" && TU("flipTrustV186", 1) !== 1) return Object.assign({}, c6, { name: "+" + TU("flipTrustV186", 1) + " Coach Trust" });
+        return c6;
+      }
+    }
     const c = FLIPS_V178.find(x => x.id === id) || FLIPS_V178[0];
     /* v182: the beta dials scale the cards — the card's face says what it pays now */
     try {
@@ -36062,6 +36190,28 @@
   function applyFlipV178(e, id, w) {
     const keys = keyAttrsV178(e);
     let say = flipCardV178(id).name;
+    if (flipOnV186()) {
+      const c6 = FLIPS_V186.find(x => x.id === id);
+      if (c6 && c6.pct) {
+        const v = c6.pct * flipPctMultV186();
+        if (c6.kind === "up") {
+          e.flipUpPctV186 = +((e.flipUpPctV186 || 0) + v).toFixed(2);
+          say = "+" + +v.toFixed(1) + "% Upgrade Points at season end (this season: +" + +e.flipUpPctV186.toFixed(1) + "%)";
+        } else {
+          e.flipPPPctV186 = +((e.flipPPPctV186 || 0) + v).toFixed(2);
+          say = "+" + +v.toFixed(1) + "% Prestige at career end (this career: +" + +e.flipPPPctV186.toFixed(1) + "%)";
+        }
+        applyFlipV178.pts = 0;
+        return say;
+      }
+      if (id === "trust") {
+        const t0 = e.coachTrust != null ? e.coachTrust : 50,
+          cap = TU("flipTrustCapV186", 70);
+        if (t0 >= cap) return "Coach Trust — he already trusts you (the card adds nothing at " + cap + "+)";
+        e.coachTrust = clamp99(Math.min(cap, t0 + TU("flipTrustV186", 1)), 0, 100);
+        return "+" + TU("flipTrustV186", 1) + " Coach Trust";
+      }
+    }
     if (id === "pt1" || id === "pt2") {
       let n = id === "pt1" ? 1 : 2;
       /* v179 N: a percent of the week's paycheck (points vary 1 → hundreds a week); never less than the old flat card */
@@ -36977,7 +37127,7 @@
     try {
       cssV178();
     } catch (_) {}
-    const flipPts = p => (p.flip ? p.flip.picked.reduce((a, k) => a + (k.id === "pt1" ? 1 : k.id === "pt2" ? 2 : 0), 0) : 0),
+    const flipPts = p => (p.flip ? p.flip.picked.reduce((a, k) => a + (k.pts != null ? k.pts : k.id === "pt1" ? 1 : k.id === "pt2" ? 2 : 0), 0) : 0) /* v186 F: what the card paid (a percent card pays at season end) */,
       pts = ps.reduce((s, p) => s + p.whole + flipPts(p), 0),
       last = ps[ps.length - 1],
       hits = ps.reduce((s, p) => s + (p.hits || 0), 0),
@@ -37201,7 +37351,7 @@
     const w = ws[ws.length - 1],
       P = w.payV178,
       wk = e.weekResults.indexOf(w),
-      flipPts = p => (p.flip ? p.flip.picked.reduce((a, k) => a + (k.id === "pt1" ? 1 : k.id === "pt2" ? 2 : 0), 0) : 0),
+      flipPts = p => (p.flip ? p.flip.picked.reduce((a, k) => a + (k.pts != null ? k.pts : k.id === "pt1" ? 1 : k.id === "pt2" ? 2 : 0), 0) : 0) /* v186 F: what the card paid (a percent card pays at season end) */,
       tot = ws.reduce((a, x) => a + x.payV178.whole + flipPts(x.payV178), 0),
       rec = ws.reduce((a, x) => (x.won ? a.w++ : a.l++, a), { w: 0, l: 0 });
     V178.cardWeek = w;
@@ -38185,14 +38335,16 @@
     ["ceilPerLevelV179", "Ceiling per plain tree level", 0, 1, 0.05, 0.05, "bar"],
     ["verdictBaseV179", "Scouts' verdict ceiling %", 50, 96, 1, 80, "bar"],
     ["secondLookBaseV179", "GM's second look %", 0, 50, 1, 10, "bar"],
-    ["flipPctV179", "Points card (% of the week)", 0, 0.5, 0.01, 0.1, "card"],
     ["luckyDrawPerLvlV179", "Lucky Draw chance per level", 0, 0.5, 0.05, 0.2, "card"],
     ["gradeBarCapV179", "Season grade bar cap", 60, 95, 1, 86, "card"],
     ["gradeRatchetEaseV179", "Grade: last season eased by", 0, 20, 1, 6, "card"],
     ["betaPayV182", "Weekly paycheck ×", 0.1, 10, 0.1, 1, "post"],
-    ["flipPct2V179", "Big points card (% of the week)", 0, 1, 0.01, 0.2, "post"],
-    ["flipPPV182", "PP card amount", 0, 100000, 1, 3, "post"],
-    ["flipTrustV182", "Coach trust card", 0, 20, 1, 3, "post"],
+    ["flipUncV186", "Card odds: uncommon", 0, 0.5, 0.01, 0.2, "post"],
+    ["flipRareP_V186", "Card odds: rare (1 in 20)", 0, 0.3, 0.005, 0.05, "post"],
+    ["flipEpicV186", "Card odds: epic (1 in 200)", 0, 0.1, 0.001, 0.005, "post"],
+    ["flipLegV186", "Card odds: legendary (1 in 1,000)", 0, 0.05, 0.0005, 0.001, "post"],
+    ["flipTrustV186", "Coach trust card", 0, 10, 1, 1, "post"],
+    ["flipTrustCapV186", "Coach trust card stops at", 0, 100, 1, 70, "post"],
     ["flipRepsV182", "Reps card (attribute points)", 0, 5, 0.5, 0.5, "post"],
     ["flipAttrV182", "Permanent card (+attribute)", 0, 10, 1, 1, "post"],
     ["chaosBoostBaseV185", "Chaos: opponents' lift at the first point", 0, 60, 1, 22, "chaos"],
@@ -38264,6 +38416,7 @@
     render();
   }
   function betaFmtV181(d, v) {
+    if (/^flip(Unc|RareP_|Epic|Leg)V186$/.test(d[0])) return +(v * 100).toFixed(v < 0.01 ? 2 : 1) + "%" + (v > 0 ? " (1 in " + fmtBigV179(Math.round(1 / v)) + ")" : "");
     return d[0] === "flipPctV179" || d[0] === "flipPct2V179" || d[0] === "luckyDrawPerLvlV179" || d[0] === "etaChaosShareV184" ? Math.round(v * 100) + "%" : d[0] === "etaMinPerSeasonV182" ? v + " min" : d[4] < 1 ? (+v).toFixed(d[4] < 0.1 ? 2 : 1).replace(/\.0+$/, "") : fmtBigV179(v);
   }
   function betaCardV181() {

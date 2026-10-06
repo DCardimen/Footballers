@@ -38,8 +38,19 @@ Names in older entries are the career app's pre-v149 C minified names (`q`, `ms`
     - the ✨ STAR FORGE (a hub card) spends it on GRAVITY WELL (+3 power out there a level), EVENT HORIZON (−2 off the
       ring's bar a level) and SUPERNOVA (+10% Interstellar season PP a level)
 
+  - **The flip pays later (F).** The owner: nerf the coach card, no flat PP or points mid-season, and much rarer good cards.
+    - **Rarity is drawn first:** common ~74%, uncommon 20%, rare 1 in 20, epic 1 in 200, legendary 1 in 1,000. All five
+      are beta dials.
+    - **Upgrade Point cards** (+2% / +4% / +10%) add to the season's percentage. It is paid at the season's end on its
+      paycheck (`flipUpSettleV186`, in a `finishSeasonGames` wrapper).
+    - **Prestige cards** (+1% / +2% / +5%) add to the career's percentage. It is paid on the payout when you prestige,
+      PP banked with it included (`flipPPSettleV186`, at both settles).
+    - **The coach card** is +1 trust (uncommon; was +3 rare) and adds nothing at 70+.
+    - **Two new Apex nodes:** Card Shark (+10% a level to every card's percentage) and Marked Cards (+30% a level to the
+      rare / epic / legendary odds). The old card dials gave way to the odds and the coach card's.
+
   New beta dials: both ring bars and the estimate's Interstellar dominance. Kill switches `v186`, `v186B`, `v186C`,
-  `v186D`, `v186E`. `v186check`; `v185check` updated (its ring test plays a starter).
+  `v186D`, `v186E`, `v186F`. `v186check`; `v185check` updated (its ring test plays a starter).
 - **v185 — the chaos loop.** (`src/07-career-app.js`, `public/rib-menu-howto.js`, `scripts/careersim.mjs`.) The owner:
   chaos should be "a soft prestige … redo it again and work your way back from peewee to high-school, get cut sometime in
   high-school, but have waaay more prestige points to keep pushing later". Measured with `careersim` from a real account
