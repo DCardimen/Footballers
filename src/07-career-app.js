@@ -5283,16 +5283,88 @@
     if (!TU("v186", 1)) return 1;
     return b === "impossible" ? TU("impossibleFxV186", 2) : b === "apex" ? TU("apexFxV186", 1.5) : 1;
   }
+  /* ===== v186 E STARDUST — THE INTERSTELLAR'S OWN CURRENCY =====
+   * The owner: "maybe later I'll implement a prestige-like system for the Interstellar League, like a separate prestige
+   * currency … see if you can implement something". Every Interstellar season pays ✨ STARDUST by its average (≥65: 1,
+   * ≥80: 2, ≥90: 3) and an earned Interstellar ring pays `stardustRingV186` (10). It is spent in the STAR FORGE (a card
+   * on the hub once you hold any or play out there) on three upgrades that only work in the Interstellar League:
+   * GRAVITY WELL (+3 power out there a level, 10 levels), EVENT HORIZON (−2 off the Interstellar ring's bar a level, 5),
+   * SUPERNOVA (+10% PP from Interstellar seasons a level, 10). Prices 5 × 1.6^level. Kept in `state.stardustV186` /
+   * `state.forgeV186` (the account: it survives every career). Kill switch v186E 0. */
+  const FORGE_V186 = {
+    gravity: { name: "GRAVITY WELL", icon: "🌀", max: 10, per: 3, say: v => `+${v} power in the Interstellar League` },
+    horizon: { name: "EVENT HORIZON", icon: "🕳️", max: 5, per: 2, say: v => `−${v} off the Interstellar ring's bar` },
+    nova: { name: "SUPERNOVA", icon: "💥", max: 10, per: 0.1, say: v => `+${Math.round(v * 100)}% PP from Interstellar seasons` }
+  };
+  function forgeLvlV186(k) {
+    return (state && state.forgeV186 && state.forgeV186[k]) || 0;
+  }
+  function forgeFxV186(k) {
+    if (!TU("v186E", 1) || !TU("v186", 1) || !forgeLvlV186(k)) return 0;
+    try {
+      const F = FORGE_V186[k];
+      return F ? forgeLvlV186(k) * F.per : 0;
+    } catch (_) {
+      return 0; // v140: the boot can read a player's power before this block's const exists
+    }
+  }
+  function forgeCostV186(k) {
+    return Math.round(TU("forgeBaseV186", 5) * Math.pow(TU("forgeMultV186", 1.6), forgeLvlV186(k)));
+  }
+  function earnStardustV186(e, U, ringed) {
+    if (!TU("v186E", 1) || !TU("v186", 1) || !e || e.level < 8) return 0;
+    const n = (U >= 90 ? 3 : U >= 80 ? 2 : U >= 65 ? 1 : 0) + (ringed ? TU("stardustRingV186", 10) : 0);
+    if (n > 0) {
+      state.stardustV186 = (state.stardustV186 || 0) + n;
+      typeof document < "u" && byId("toast") && showToast("✨ +" + n + " STARDUST — spend it in the Star Forge");
+    }
+    return n;
+  }
+  function forgeBuyV186(k) {
+    const F = FORGE_V186[k];
+    if (!F || forgeLvlV186(k) >= F.max) return !1;
+    const c = forgeCostV186(k);
+    if ((state.stardustV186 || 0) < c) return (showToast("✨ Not enough Stardust — " + c + " needed"), !1);
+    state.stardustV186 -= c;
+    (state.forgeV186 || (state.forgeV186 = {}))[k] = forgeLvlV186(k) + 1;
+    try {
+      saveGame();
+      render();
+    } catch (_) {}
+    return !0;
+  }
+  window.forgeBuyV186 = forgeBuyV186;
+  function forgeCardV186() {
+    if (!TU("v186E", 1) || !TU("v186", 1) || !state || state.view !== "hub") return;
+    const e = state.player,
+      sd = state.stardustV186 || 0;
+    if (!sd && !(e && e.level >= 8) && !Object.keys(state.forgeV186 || {}).length) return;
+    const sc = byId("screen");
+    if (!sc || sc.querySelector("#forgeV186")) return;
+    const rows = Object.keys(FORGE_V186)
+      .map(k => {
+        const F = FORGE_V186[k],
+          l = forgeLvlV186(k),
+          c = forgeCostV186(k),
+          maxed = l >= F.max;
+        return `<div style="display:flex;align-items:center;gap:8px;margin-top:6px"><span style="font-size:20px">${F.icon}</span><div style="flex:1"><b>${F.name}</b> <small style="color:var(--chalk-dim)">${l}/${F.max}</small><div class="small">${F.say(l * F.per)}${maxed ? "" : ` → ${F.say((l + 1) * F.per)}`}</div></div>${maxed ? `<b style="color:var(--gold)">MAX</b>` : `<button class="btn secondary" style="padding:6px 10px" ${sd >= c ? "" : "disabled"} onclick="forgeBuyV186('${k}')">✨ ${c}</button>`}</div>`;
+      })
+      .join("");
+    sc.insertAdjacentHTML(
+      "beforeend",
+      `<div class="card tight" id="forgeV186" style="border-color:#b07cff"><div class="eyebrow">✨ STAR FORGE · ${sd} STARDUST</div><div class="small" style="color:var(--chalk-dim)">The Interstellar League's own currency: every season out there pays it by your average, an earned ring pays ${TU("stardustRingV186", 10)}. It never leaves your account.</div>${rows}</div>`
+    );
+  }
   function ringEarnedV186(e, U) {
     const st = (e && e.nflStateV11 && e.nflStateV11.status) || "",
       starter = !st || st === "starter" || st === "franchise",
-      need = e && e.level >= 8 ? TU("ringPerfIstV186", 80) : TU("ringPerfUffV186", 60);
+      need = e && e.level >= 8 ? Math.max(0, TU("ringPerfIstV186", 80) - forgeFxV186("horizon")) : TU("ringPerfUffV186", 60);
     ringEarnedV186.last = { U: Math.round(U || 0), need, status: st, starter };
     if (!TU("v186", 1) || !e || e.level < 7) return !0;
     return starter && (U || 0) >= need;
   }
   ringEarnedV186.last = { need: 60, starter: !0 };
-  window.__V186 = { ringEarned: (e, U) => ringEarnedV186(e || (state && state.player), U), last: () => ringEarnedV186.last, lock: () => chaosLockedV186(), branchFx: b => branchFxV186(b) };
+  window.__V186 = { forge: { buy: k => forgeBuyV186(k), lvl: k => forgeLvlV186(k), fx: k => forgeFxV186(k), cost: k => forgeCostV186(k), earn: (e, U, r) => earnStardustV186(e || (state && state.player), U, r) }, ringEarned: (e, U) => ringEarnedV186(e || (state && state.player), U), last: () => ringEarnedV186.last, lock: () => chaosLockedV186(), branchFx: b => branchFxV186(b) };
   function chaosLockedV186() {
     return TU("v186", 1) && TU("chaosLockV186", 1) ? (state && state.chaosLockV186) || 0 : 0;
   }
@@ -13111,6 +13183,7 @@
           showToast("🌌 NEW ERA: " + eraName() + " — permanent +20% PP!"),
         dropGear(R ? 3 : 2, "Championship loot"));
     }
+    e.level >= 8 && earnStardustV186(e, U, ke) /* v186 E: the Interstellar's own currency */;
     const ge = 4 + e.level * 3,
       _p178 = seasonPayV178(e, P, ie, Y, B) /* v178 A: the games paid their own points; this is what is left */,
       $e =
@@ -20241,7 +20314,7 @@
     return i;
   }
   function playerPower(e) {
-    return !e || !e.pos ? 0 : playerOvr(e) + gearFx("power");
+    return !e || !e.pos ? 0 : playerOvr(e) + gearFx("power") + (e.level >= 8 ? forgeFxV186("gravity") : 0) /* v186 E */;
   }
   function gearPowerBonus(e) {
     return Math.max(0, Math.round(gearFx("power")));
@@ -20973,7 +21046,7 @@
   }
   function al(e) {
     return Math.round(
-      (6 + (e.titles || 0) * 2 + (e.nflSeasons || 0)) * chaosPPMult() * eraMult() * (1 + hofWings() * 0.05)
+      (6 + (e.titles || 0) * 2 + (e.nflSeasons || 0)) * chaosPPMult() * eraMult() * (1 + hofWings() * 0.05) * (e.level >= 8 ? 1 + forgeFxV186("nova") : 1) /* v186 E */
     );
   }
   function playoffRoundNames(e) {
@@ -35657,6 +35730,7 @@
     try {
       lockerCardV153B();
       myTeamCardV186();
+      forgeCardV186();
       trainBoardV153B();
     } catch (x) {
       console.warn("[v153 B render]", x);

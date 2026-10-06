@@ -315,7 +315,7 @@ const N = await M(async () => {
   return { c1, c5, f, d5: { n: d5.n, deck: d5.deck.length, lucky: d5.lucky }, big, small, two, flat, gained: (p.points || 0) - p0 }
 })
 console.log('N:', JSON.stringify(N))
-ok(N.c1 === 10000 && N.c5 === 810000, 'Lucky Draw costs 10,000 PP, and the 100% level 810,000', { lv1: N.c1, lv5: N.c5 })
+ok(N.c1 === 50000 && N.c5 === 4050000, 'Lucky Draw costs 50,000 PP (v186: the Apex ×50), and the 100% level 4,050,000', { lv1: N.c1, lv5: N.c5 })
 ok(N.f[0] === 0 && Math.abs(N.f[1] - 0.2) < 0.07 && Math.abs(N.f[2] - 0.6) < 0.08 && N.f[3] === 1, 'an extra card 20% of games a level — every game at Lv 5', N.f)
 ok(N.d5.lucky && N.d5.n === 3 && N.d5.deck >= 3, 'the lucky game deals the extra pick (a watched game: 2 + 1)', N.d5)
 ok(N.big === 6 && N.small === 1 && N.two === 12 && N.flat === 1 && N.gained === 6 + 1 + 12 + 1, 'the points cards pay 10% / 20% of the week (never under +1 / +2); TU v179N 0 = flat', { pct10of60: N.big, of3: N.small, pct20of60: N.two, flat: N.flat })

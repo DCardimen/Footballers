@@ -118,23 +118,23 @@ const I = await page.evaluate(() => {
   const lb = window.__levelBaseV178 ? window.__levelBaseV178(8) : null
   window.RIB_TUNE.v183IST = 0; const old = window.__levelBaseV178 ? window.__levelBaseV178(8) : null; delete window.RIB_TUNE.v183IST
   const g0 = window.__V182.eta(false); const gap0 = g0.title - g0.ist
-  window.__V181.set('aiBaseIstV178', 700, 0); const g1 = window.__V182.eta(false); const gap1 = g1.title - g1.ist; const lb1 = window.__levelBaseV178 ? window.__levelBaseV178(8) : null
+  window.__V181.set('aiBaseIstV178', 1000, 0); const g1 = window.__V182.eta(false); const gap1 = g1.title - g1.ist; const lb1 = window.__levelBaseV178 ? window.__levelBaseV178(8) : null
   window.__V181.reset()
   return { lb, old, lb1, gap0: Math.round(gap0), gap1: Math.round(gap1) }
 })
-ok(I.lb === 400 && I.old === 100 && I.lb1 === 700, 'the Interstellar League\'s teams are rated 400 (TU v183IST 0: 100), and the beta dial moves it', I)
-ok(I.gap1 > I.gap0 && I.gap0 >= 25, 'the estimate\'s gap from entering the Interstellar League to its title grows with the league\'s strength', { at400: I.gap0, at700: I.gap1 })
+ok(I.lb === 700 && I.old === 100 && I.lb1 === 1000, 'the Interstellar League\'s teams are rated 700 (v186; was 400 — TU v183IST 0: 100), and the beta dial moves it', I)
+ok(I.gap1 > I.gap0 && I.gap0 >= 25, 'the estimate\'s gap from entering the Interstellar League to its title grows with the league\'s strength', { at700: I.gap0, at1000: I.gap1 })
 
 // 6. v184: chaos drives the late game, and the Interstellar title waits on outgrowing the league
 const X = await page.evaluate(() => {
   const r = (set) => { window.__V181.reset(); for (const [k, v] of Object.entries(set)) window.__V181.set(k, v, 0); const e = window.__V182.eta(false); return { uff: Math.round(e.uff), ist: Math.round(e.ist), title: Math.round(e.title), chaos: e.chaos, era: e.era } }
-  const none = r({ etaChaosShareV184: 0 }), some = r({}), weak = r({ aiBaseIstV178: 100 }), hard = r({ aiBaseIstV178: 700 })
+  const none = r({ etaChaosShareV184: 0 }), some = r({}), weak = r({ aiBaseIstV178: 100 }), hard = r({ aiBaseIstV178: 1000 })
   window.__V181.reset()
   return { none, some, weak, hard }
 })
 console.log('X:', JSON.stringify(X))
 ok(X.none.uff === X.some.uff && X.some.ist < X.none.ist * 0.7 && X.some.title < X.none.title * 0.5 && X.some.chaos > 20 && X.some.era >= 1, 'chaos drives the late game: the full-chaos loop (v185) cuts the Interstellar times (eras, PP), and leaves the UFF climb alone', X)
-ok(X.weak.title - X.weak.ist < 10 && X.hard.title - X.hard.ist > X.some.title - X.some.ist, 'the Interstellar title waits on outgrowing the league: rated 100 it follows entry, rated 700 it is far off', { gap100: X.weak.title - X.weak.ist, gap400: X.some.title - X.some.ist, gap700: X.hard.title - X.hard.ist })
+ok(X.weak.title - X.weak.ist < (X.some.title - X.some.ist) / 4 && X.hard.title - X.hard.ist > X.some.title - X.some.ist, 'the Interstellar title waits on outgrowing the league (and the chaos carried there, v186): rated 100 it comes soon, 700 far off, 1000 further', { gap100: X.weak.title - X.weak.ist, gap700: X.some.title - X.some.ist, gap1000: X.hard.title - X.hard.ist })
 
 console.log(JSON.stringify({ pass, fail, pageErrors: errors.length }))
 if (errors.length) console.log('page errors:', errors.slice(0, 6))
