@@ -11176,7 +11176,7 @@
       chipSyncV156A(),
       (byId("ppCount").textContent = TU("v179", 1) ? fmtBigV179(state.pp) : state.pp)); /* v179 C */
     const b = byId("ppBankChipV139"),
-      n = bankedV136();
+      n = bankShownV189(); /* v189 C: the bank as of the last season's end — it is not counted up mid-season */
     if (b) {
       b.hidden = !(n > 0);
       b.textContent = n > 0 ? " \u00b7 \u{1F3E6} " + ppShortV139(n) : "";
@@ -14352,6 +14352,7 @@
     _ab && lineageEndV136(state.player, state.player.level, "walked");
     _ab && legacyCareerEndV152(state.player, state.player.level, "walked") /* v152 A */;
     TU("v186", 1) && (state.chaosLockV186 = Math.max(state.chaosLockV186 || 0, chaosTotal())) /* v186: a career started under chaos commits it */;
+    ((state.bankShownV189 = 0), (state.bankSeasonV189 = null)) /* v189 C: a new career's bank starts empty */;
     ((state.player = newPlayer()),
       state.careers++,
       lineageBirthV136(state.player),
@@ -25217,7 +25218,7 @@
     <div class="eyebrow">The Inheritance · ${familyV136().ordinal} generation · ${e} lesson${e === 1 ? "" : "s"} handed down</div>
     <div class="h1">What the Family Learned</div>
     <div class="sub">Every finished career is a father's lesson to the son who comes next. Spend the family's Prestige Points here — every node is handed down to every ${escHtml(familyV136().surname || "player")} after this one, forever.</div>
-    <div class="pts-banner mt" style="margin-top:14px"><div><span class="n">${(state.pp || 0).toLocaleString("en-US")}</span> <span class="l">PRESTIGE POINTS</span>${bankedV136() > 0 ? `<div class="bank-v136">🏦 +${bankedV136()} banked · paid when this career ends</div>` : ""}</div>
+    <div class="pts-banner mt" style="margin-top:14px"><div><span class="n">${(state.pp || 0).toLocaleString("en-US")}</span> <span class="l">PRESTIGE POINTS</span>${bankShownV189() > 0 ? `<div class="bank-v136">🏦 +${bankShownV189()} banked · paid when this career ends</div>` : ""}</div>
       <div class="tree-rank-v156a" style="font-family:'Oswald';font-size:15px;color:var(--gold)">${medalsOnV156A() ? `${medalArtV156A(medalsV156A(), 22)}${medalsV156A()} MEDAL${medalsV156A() === 1 ? "" : "S"}` : `${HONOR_ICON_V130} ${state.prestige} Honors`}</div></div>
 
     <div class="btn-row" style="margin-bottom:14px;flex-wrap:wrap;gap:6px">
@@ -33795,7 +33796,7 @@
           them +
           (TU("v168season", 1) ? crestV168(opp.replace(/^.*'s /, ""), 34) : "") +
           "</div>" +
-          pgHeroV186(p, g, seasonBox) /* v186 C: YOUR GAME — every key stat, the season so far, the projection */ +
+          (TU("v189A", 1) ? (function () { var S9 = seasonBoxV189(p, g.stat, wr); return TU("v186C", 1) ? heroHtmlV189(p, g.stat, S9.box, S9.n) : ""; })() : pgHeroV186(p, g, seasonBox)) /* v186 C: YOUR GAME; v189 A: the season counts the simmed weeks too */ +
           postGameSeasonV168(p, wr, us, them) /* v168: what this game did to the season */ +
           callLineV171(wr, state._liveGame) /* v171 A: did the matchup call come off */ +
           '<div style="display:flex;align-items:center;gap:8px;margin:8px 0 4px;padding:9px 11px;border-radius:11px;background:#00000040;border:1px solid rgba(255,255,255,.07);font-family:Oswald">' +
@@ -33822,7 +33823,7 @@
           seasonThru +
           ' <small style="color:var(--good);letter-spacing:0">+ from this game</small></div>' +
           '<div class="fullbox">' +
-          pgGrid(p.pos, seasonBox, g.stat) +
+          pgGrid(p.pos, TU("v189A", 1) ? seasonBoxV189(p, g.stat, wr).box : seasonBox, g.stat) /* v189 A: every played week, watched or simmed */ +
           "</div>" +
           gradeCardHtml(p.pos, grade) +
           '<div class="stat-sec-label" style="margin-top:12px">THIS GAME</div>' +
@@ -35285,9 +35286,28 @@
     };
   }
   finishSeasonGames = finishWrapV186(finishSeasonGames);
+  // v189 C: the season's end is when the bank is shown — what it held then, what it holds now
+  function finishWrapV189(f0) {
+    return function () {
+      const r = f0.apply(this, arguments);
+      try {
+        const e = state && state.player;
+        if (e && TU("v189C", 1)) {
+          const from = state.bankShownV189 || 0,
+            to = bankedV136();
+          state.bankShownV189 = to;
+          state.bankSeasonV189 = { from, to, at: e.totalSeasons, seenResult: !1, seenShop: !1 };
+          typeof document < "u" && bankCardsV189(); /* the report was drawn before the season's bank was known */
+        }
+      } catch (_) {}
+      return r;
+    };
+  }
+  finishSeasonGames = finishWrapV189(finishSeasonGames);
   typeof window.finishSeasonGames === "function" &&
     (window.finishSeasonGames = finishWrapV153B(window.finishSeasonGames));
   typeof window.finishSeasonGames === "function" && (window.finishSeasonGames = finishWrapV186(window.finishSeasonGames));
+  typeof window.finishSeasonGames === "function" && (window.finishSeasonGames = finishWrapV189(window.finishSeasonGames));
   // the LOCKER ROOM card: the season screen names every man this season's moves touched
   function lockerCardV153B() {
     const e = state && state.player;
@@ -35769,6 +35789,8 @@
       lockerCardV153B();
       myTeamCardV186();
       forgeCardV186();
+      medalPromptV189();
+      bankCardsV189();
       trainBoardV153B();
     } catch (x) {
       console.warn("[v153 B render]", x);
@@ -37340,6 +37362,51 @@
     if (W.batch) return true;
     return e.weekResults && e.weekResults.indexOf(w) === W.i;
   }
+  /* ===== v189 A ONE STAT LINE, WATCHED OR SIMMED =====
+   * The owner: "Quick play summaries don't show the same thing as the live sim viewing, ensure the stats etc show the same
+   * way." Every played week carries its box score (`w.statLine` — resolveWeekV11 for a simmed week, bookLiveGameV85 for a
+   * watched one), so the season is summed from the weeks themselves (`seasonBoxV189`): the live card's season totals and
+   * pace no longer forget the simmed weeks (`pgAccumulate` counted only the watched ones), and the Quick Play card opens on
+   * the same YOUR GAME tiles (`heroHtmlV189`) and the same season race (`postGameSeasonV168`) the live card does.
+   * Kill switch v189A 0 (the v178 sim card; the live card's own accumulator). */
+  const MAXKEYS_V189 = { longest: 1 };
+  function seasonBoxV189(p, curStat, curW) {
+    const box = {};
+    let n = 0;
+    const add = st => {
+      for (const k in st || {}) {
+        const v = Number(st[k]);
+        if (!isFinite(v)) continue;
+        box[k] = MAXKEYS_V189[k] ? Math.max(box[k] || 0, v) : (box[k] || 0) + v;
+      }
+      n++;
+    };
+    for (const w of (p && p.weekResults) || []) if (w && w.played && !w.satOut && w.statLine && w !== curW) add(w.statLine);
+    curStat && add(curStat);
+    return { box, n };
+  }
+  function heroHtmlV189(p, stat, box, n) {
+    if (!p || !stat || typeof liveBoxLine !== "function") return "";
+    const rows = (liveBoxLine(p.pos, stat) || []).slice(0, TU("pgHeroMaxV186", 8));
+    if (!rows.length) return "";
+    const sea = {},
+      L = LEVELS[p.level] || { games: 10 },
+      G = Math.max(n, L.games || 10),
+      derived = /AVG|C\/ATT|LONG|PCT|%|RTG|RATE|PEN/i;
+    n = Math.max(1, n || 1);
+    (liveBoxLine(p.pos, box || {}) || []).forEach(r => (sea[r[0]] = r[1]));
+    const tiles = rows
+      .map(r => {
+        const lab = r[0],
+          sv = sea[lab],
+          num = parseFloat(String(sv).replace(/,/g, "")),
+          proj = sv != null && !derived.test(lab) && isFinite(num) ? Math.round((num / n) * G) : null;
+        return `<div class="pg-hero-tile-v186" style="flex:1 1 30%;min-width:84px;padding:7px 6px;border-radius:10px;background:#00000055;border:1px solid rgba(255,255,255,.09);text-align:center"><div style="font:700 26px/1 Oswald;color:var(--chalk)">${r[1]}</div><div style="font:600 10px Oswald;letter-spacing:1.2px;color:var(--gold);margin-top:2px">${escHtml(String(lab))}</div>${sv != null ? `<div style="font:500 11px Barlow Condensed,sans-serif;color:var(--chalk-dim);margin-top:3px">season ${sv}${proj != null ? ` · <b style="color:var(--cyan)">on pace ${proj.toLocaleString()}</b>` : ""}</div>` : ""}</div>`;
+      })
+      .join("");
+    return `<div id="pgHeroV186" style="margin:8px 0 6px"><div class="stat-sec-label" style="margin:0 0 5px">YOUR GAME <small style="color:var(--chalk-dim);letter-spacing:0">${escHtml(String(p.pos))} · game ${n} of ${G} · on pace = the full season at this rate</small></div><div style="display:flex;flex-wrap:wrap;gap:6px">${tiles}</div></div>`;
+  }
+  window.__V189 = Object.assign(window.__V189 || {}, { seasonBox: (p, st, w) => seasonBoxV189(p || (state && state.player), st, w), hero: (p, st, b, n) => heroHtmlV189(p, st, b, n) });
   function simCardV178() {
     const C = V178.card;
     if (!C || !on178("reel")) return false;
@@ -37365,7 +37432,7 @@
         : `<div class="decision-kicker">${w.playoff ? escHtml(w.round || "PLAYOFFS") : "WEEK " + (wk + 1)} FINAL · ${escHtml(String(w.opp || "OPPONENT"))} · SIMMED</div><div class="decision-title">${TU("v168season", 1) ? myCrestV168(e, 34) : ""}${w.won ? "✅ WIN" : "❌ LOSS"} · ${w.us} – ${w.them}${TU("v168season", 1) ? crestV168(String(w.opp || "").replace(/^.*'s /, ""), 34) : ""}</div><div class="small center" style="color:var(--chalk-dim);margin:2px 0 4px">Game grade ${Math.round(w.perf || 0)}${w.gameGrade ? " · " + escHtml(w.gameGrade) : ""}</div>`;
     document.body.insertAdjacentHTML(
       "beforeend",
-      `<div class="decision-overlay" id="simCardV178"><div class="decision-panel" style="border-color:var(--gold)">${head}${reelHtmlV178(e, w)}<div class="small center watch-hint-v178" style="margin-top:8px;color:var(--cyan)">📺 Watch next week live: ×${TU("watchPayV178", 2)} points, ×2 reps, two card picks</div><button class="btn" style="margin-top:12px" onclick="window.__V178.closeCard()">Continue ›</button></div></div>`
+      `<div class="decision-overlay" id="simCardV178"><div class="decision-panel" style="border-color:var(--gold)">${head}${simStatsV189(e, w)}${reelHtmlV178(e, w)}<div class="small center watch-hint-v178" style="margin-top:8px;color:var(--cyan)">📺 Watch next week live: ×${TU("watchPayV178", 2)} points, ×2 reps, two card picks</div><button class="btn" style="margin-top:12px" onclick="window.__V178.closeCard()">Continue ›</button></div></div>`
     );
     requestAnimationFrame(() => {
       try {
@@ -37373,6 +37440,18 @@
       } catch (_) {}
     });
     return true;
+  }
+  function simStatsV189(e, w) {
+    if (!TU("v189A", 1) || !e || !w) return "";
+    let h = "";
+    try {
+      const S = seasonBoxV189(e, w.statLine, w);
+      h += w.satOut ? `<div class="small center" style="color:var(--chalk-dim)">Sat out — no stat line this week</div>` : heroHtmlV189(e, w.statLine, S.box, S.n);
+    } catch (_) {}
+    try {
+      h += postGameSeasonV168(e, w, w.us, w.them);
+    } catch (_) {}
+    return h;
   }
   function closeCardV178() {
     const el = document.getElementById("simCardV178");
@@ -38125,6 +38204,151 @@
     });
   }
   window.medalRespecV187 = medalRespecV187;
+  /* ===== v189 C THE BANK, AT THE SEASON'S END =====
+   * The owner: "After each game I would like an animation for the amount of coins banked in the vault. This should be
+   * visible from the prestige menu. Upon career completion release this into the vault — rain down" … then "only show the
+   * banked prestige at the end of the season". The PP a career banks (v136 C — paid when it ends) is shown at the season's
+   * end, not tick by tick: the top bar's 🏦 and the prestige banner read the bank as the last season left it
+   * (`state.bankShownV189`); the season report opens on a 🏦 BANKED card — coins drop into the pot and the number counts
+   * up by what the season added — and the prestige screen shows the same pot (animating the season's gain the first time
+   * it is seen there). When the career ends (cut, retired, or arrived in the UFF) the whole pot RAINS into the Vault: coins
+   * fall over the career-end screen into the vault while the total counts up. Display only — nothing waits on it.
+   * Kill switch v189C 0. `window.__V189`; `v189check`. */
+  function bankShownV189() {
+    if (!TU("v189C", 1)) return bankedV136();
+    const b = bankedV136();
+    return Math.min(b, (state && state.bankShownV189) || 0);
+  }
+  function cssBankV189() {
+    if (document.getElementById("bankCssV189")) return;
+    const st = document.createElement("style");
+    st.id = "bankCssV189";
+    st.textContent = `.bank-v189{position:relative;overflow:hidden;display:flex;align-items:center;gap:12px;padding:10px 12px;border-radius:12px;background:linear-gradient(180deg,#2a2210,#15120a);border:1px solid rgba(242,201,76,.45)}
+.bank-v189 .pot{position:relative;width:64px;height:64px;flex:0 0 64px}
+.bank-v189 .pot i.jar{position:absolute;left:6px;right:6px;bottom:0;height:40px;border-radius:10px 10px 16px 16px;background:linear-gradient(180deg,#6b5a2a,#3a2f14);border:2px solid #c9a13b;box-shadow:inset 0 -10px 18px rgba(242,201,76,.35)}
+.bank-v189 .pot b.coin{position:absolute;left:50%;top:-14px;width:14px;height:14px;margin-left:-7px;border-radius:50%;background:radial-gradient(circle at 35% 35%,#fff3b0,#f2c94c 45%,#a8801e);box-shadow:0 0 6px rgba(242,201,76,.8);opacity:0;animation:coinDropV189 .9s cubic-bezier(.5,0,.75,0) forwards}
+@keyframes coinDropV189{0%{transform:translate(var(--dx,0),-10px) scale(.8);opacity:0}15%{opacity:1}85%{transform:translate(0,52px) scale(1);opacity:1}100%{transform:translate(0,56px) scale(.6);opacity:0}}
+.bank-v189 .num{font:700 26px/1 Oswald;color:#f2c94c}.bank-v189 .lab{font:600 10px Oswald;letter-spacing:1.5px;color:var(--chalk-dim)}
+.rain-v189{position:fixed;inset:0;pointer-events:none;z-index:400;overflow:hidden}
+.rain-v189 b{position:absolute;top:-30px;width:18px;height:18px;border-radius:50%;background:radial-gradient(circle at 35% 35%,#fff3b0,#f2c94c 45%,#a8801e);box-shadow:0 0 8px rgba(242,201,76,.9);animation:coinRainV189 var(--t,1.6s) cubic-bezier(.45,0,.9,.6) forwards;animation-delay:var(--d,0s);opacity:0}
+@keyframes coinRainV189{0%{transform:translateY(0) rotate(0);opacity:0}8%{opacity:1}90%{opacity:1}100%{transform:translate(var(--dx,0),calc(100vh - 230px)) rotate(540deg);opacity:0}}
+.rain-v189 .vault{position:absolute;left:50%;bottom:150px;transform:translateX(-50%);text-align:center;font:700 15px Oswald;color:#f2c94c;text-shadow:0 2px 8px #000}
+.rain-v189 .vault span{display:block;font-size:56px;line-height:1;filter:drop-shadow(0 0 12px rgba(242,201,76,.7))}
+.rain-v189 .vault em{display:block;font-style:normal;font-size:30px}`;
+    document.head.appendChild(st);
+  }
+  function countUpV189(el, from, to, ms) {
+    if (!el) return;
+    const t0 = performance.now();
+    const step = t => {
+      const k = Math.min(1, (t - t0) / ms),
+        v = Math.round(from + (to - from) * (1 - Math.pow(1 - k, 3)));
+      el.textContent = fmtBigV179(v);
+      k < 1 && el.isConnected && requestAnimationFrame(step);
+    };
+    requestAnimationFrame(step);
+  }
+  function bankCardHtmlV189(id, from, to, sub) {
+    const gain = Math.max(0, to - from),
+      coins = gain > 0 ? Math.min(14, 3 + Math.round(Math.log10(gain + 1) * 3)) : 0;
+    let drops = "";
+    for (let i = 0; i < coins; i++) drops += `<b class="coin" style="animation-delay:${(i * 0.16).toFixed(2)}s;--dx:${Math.round((Math.random() - 0.5) * 30)}px"></b>`;
+    return `<div class="card tight bank-v189" id="${id}"><div class="pot">${drops}<i class="jar"></i></div><div style="flex:1"><div class="lab">🏦 BANKED THIS CAREER</div><div class="num" data-from="${from}" data-to="${to}">${fmtBigV179(from)}</div><div class="small" style="color:var(--chalk-dim)">${gain > 0 ? `<b style="color:#7fe0a0">+${fmtBigV179(gain)}</b> this season · ` : ""}${sub}</div></div></div>`;
+  }
+  function bankCardsV189() {
+    if (!TU("v189C", 1) || !state || !state.player) return;
+    const sc = byId("screen"),
+      B = state.bankSeasonV189;
+    if (!sc) return;
+    if (state.view === "gameover" || state.view === "win") {
+      bankRainV189(state.player);
+      return;
+    }
+    // the season report: the season's bank, animated
+    if (state.view === "result" && B && !sc.querySelector("#bankResultV189")) {
+      const shown = B.to;
+      if (!(shown > 0)) return;
+      cssBankV189();
+      const animate = !B.seenResult;
+      B.seenResult = !0;
+      const html = bankCardHtmlV189("bankResultV189", animate ? B.from : shown, shown, "paid into the Vault when the career ends"),
+        first = sc.querySelector(".card"); /* after the report card — the screen's own title sits above it */
+      first ? first.insertAdjacentHTML("afterend", html) : sc.insertAdjacentHTML("afterbegin", html);
+      animate && countUpV189(sc.querySelector("#bankResultV189 .num"), B.from, shown, 1400);
+      return;
+    }
+    // the prestige screen: the pot as the last season left it
+    if (state.view === "shop" && !sc.querySelector("#bankShopV189")) {
+      const shown = bankShownV189();
+      if (!(shown > 0)) return;
+      cssBankV189();
+      const animate = B && !B.seenShop && B.to === shown;
+      B && (B.seenShop = !0);
+      const html = bankCardHtmlV189("bankShopV189", animate ? B.from : shown, shown, "rains into the Vault when this career ends");
+      const ban = sc.querySelector(".pts-banner");
+      ban ? ban.insertAdjacentHTML("afterend", html) : sc.insertAdjacentHTML("afterbegin", html);
+      animate && countUpV189(sc.querySelector("#bankShopV189 .num"), B.from, shown, 1400);
+    }
+  }
+  // the career's end: the pot rains into the Vault (once a career)
+  function bankRainV189(e) {
+    if (!TU("v189C", 1) || !e) return !1;
+    const total = e._vaultPayV137 || 0;
+    if (!(total > 0) || typeof document > "u" || e._vaultRainV189 === total) return !1; /* once a payout (the UFF arrival, then the UFF retirement) */
+    e._vaultRainV189 = total;
+    state.bankShownV189 = 0;
+    state.bankSeasonV189 = null;
+    cssBankV189();
+    const n = Math.min(60, 12 + Math.round(Math.log10(total + 1) * 8));
+    let coins = "";
+    for (let i = 0; i < n; i++)
+      coins += `<b style="left:${Math.round(5 + Math.random() * 90)}%;--d:${(Math.random() * 1.6).toFixed(2)}s;--t:${(1.3 + Math.random() * 0.8).toFixed(2)}s;--dx:${Math.round((50 - (5 + Math.random() * 90)) * 3)}px"></b>`;
+    const el = document.createElement("div");
+    el.className = "rain-v189";
+    el.id = "bankRainV189";
+    el.innerHTML = `${coins}<div class="vault"><span>🏦</span>INTO THE VAULT<em>+0</em></div>`;
+    document.body.appendChild(el);
+    countUpV189(el.querySelector(".vault em"), 0, total, 2600);
+    setTimeout(() => el.remove(), TU("bankRainMsV189", 4200));
+    return !0;
+  }
+  window.__V189 = Object.assign(window.__V189 || {}, { shown: () => bankShownV189(), cards: () => bankCardsV189(), rain: e => bankRainV189(e || (state && state.player)) });
+  /* ===== v189 B THE MEDAL REWARD COMES TO YOU =====
+   * The owner: "ANY upgrade to the medal appears after you exit this screen, and prompts the upgrade to you before moving to
+   * the next game or season … right now I think the medal improvements are off screen." Medals are paid at the season's
+   * and the career's end (legacyPayV152); the choice used to wait on a 🎁 chip. Now, once you leave the screen that paid
+   * them (the season report, the career's end), the next screen you land on — the hub, the season, the prestige tree —
+   * opens the chooser before anything else (once per new batch: "Later" is respected until another medal comes).
+   * `v189medalPrompt` (default on; off under an automated browser, so the checks and the simulator are not interrupted —
+   * a check that wants it sets the tune to 1). Kill switch v189B 0. */
+  function medalPromptOnV189() {
+    let auto = !1;
+    try {
+      auto = !!(typeof navigator < "u" && navigator.webdriver);
+    } catch (_) {}
+    return TU("v189B", 1) && TU("v189medalPrompt", auto ? 0 : 1) && TU("v179G", 1);
+  }
+  function medalPromptV189() {
+    if (!medalPromptOnV189() || !state || !["hub", "season", "shop"].includes(state.view)) return !1;
+    if (document.getElementById("medalPickV179") || document.querySelector(".decision-overlay,.life-event-overlay-v12,#growthV42,#pregameV1513")) return !1;
+    let M = null;
+    try {
+      medalSyncV179();
+      M = medalStoreV179();
+    } catch (_) {
+      return !1;
+    }
+    if (!M || !M.pending.length) return !1;
+    const sig = M.pending.length + ":" + (M.pending[M.pending.length - 1].rank || 0);
+    if (M.promptedV189 === sig) return !1;
+    M.promptedV189 = sig;
+    setTimeout(() => {
+      try {
+        if (!document.getElementById("medalPickV179") && !document.querySelector(".decision-overlay")) openMedalPickV179();
+      } catch (_) {}
+    }, TU("medalPromptMsV189", 350));
+    return !0;
+  }
   window.__V187 = { looks: () => medalLooksSyncV187(), tier: n => medalLookTierV187(n), respec: () => medalRespecNowV187(), store: () => medalStoreV179() };
   function cssMedalV179() {
     if (document.getElementById("medalCssV179")) return;
