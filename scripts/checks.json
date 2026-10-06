@@ -1836,12 +1836,13 @@
    ]
   },
   "prestige-pacing": {
-   "desc": "v179 — the long road: medal gates on the last climbs, the Interstellar Call waits on the era, big numbers; v185 — the chaos loop; v186 — rings are earned, chaos locks in, Stardust; v187 — medal looks and the ring respec",
+   "desc": "v179 — the long road: medal gates on the last climbs, the Interstellar Call waits on the era, big numbers; v185 — the chaos loop; v186 — rings are earned, chaos locks in, Stardust; v187 — medal looks and the ring respec; v189 — one stat line, the medal prompt, the bank at the season's end",
    "anchors": [
     "v179",
     "v185",
     "v186",
-    "v187"
+    "v187",
+    "v189"
    ],
    "files": [],
    "checks": [
@@ -1849,6 +1850,7 @@
     "v185check",
     "v186check",
     "v187check",
+    "v189check",
     "medalrewardscheck",
     "v136check",
     "v178check"
@@ -4852,6 +4854,18 @@
     "season"
    ],
    "runtimeSec": 20,
+   "slow": false,
+   "needsServer": true,
+   "pureNode": false,
+   "flaky": []
+  },
+  "v189check": {
+   "file": "scripts/v189check.mjs",
+   "desc": "v189 — a Quick Play card opens on the same YOUR GAME tiles as the live card and the season is summed from every played week; new medals open the reward chooser on the next screen (once a batch; off under an automated browser unless v189medalPrompt is 1); the 🏦 bank is not counted up mid-season, the season's end shows the BANKED pot on the report and the prestige screen, the career's end rains it into the Vault once a payout. No page errors.",
+   "areas": [
+    "season"
+   ],
+   "runtimeSec": 30,
    "slow": false,
    "needsServer": true,
    "pureNode": false,

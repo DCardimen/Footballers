@@ -10,6 +10,22 @@ Names in older entries are the career app's pre-v149 C minified names (`q`, `ms`
 `index.html` + `src/` (`docs/LAYOUT.md`).
 
 <!-- new entries go here, newest first -->
+- **v189 — one stat line, the medal reward comes to you, the bank at the season's end.** (`src/07-career-app.js`.)
+  - **One stat line (A).** The Quick Play card opens on the same YOUR GAME tiles as the live card (every box-score line,
+    the season, the pace) and the same season race. Every played week carries its box score, so the season is summed
+    from the weeks. The live card's totals and pace used to count only watched games and undercounted after any Quick
+    Play.
+  - **The medal reward comes to you (B).** Medals are paid at the season's and the career's end. Once you leave that
+    screen, the next one (hub, season, prestige tree) opens the reward chooser before anything else. It prompts once a
+    batch: "Later" is respected until another medal comes. It is off under an automated browser, so the checks and the
+    simulator run uninterrupted; `v189medalPrompt` 1 turns it on.
+  - **The bank at the season's end (C).** The owner: "only show the banked prestige at the end of the season". The 🏦 in
+    the top bar and the prestige banner no longer count up mid-season. The season's end records the bank. The report
+    opens on a 🏦 BANKED pot (coins drop in, the number counts up by the season's gain), and the prestige screen shows the
+    same pot. The career's end rains the payout into the Vault: coins fall over the screen while the total counts up,
+    once a payout.
+
+  `v189check`.
 - **v188 — no real team's look.** (`src/05-field-renderer.js`, `src/07-career-app.js`, `src/28-cosmetics.js`,
   `scripts/namecheck.mjs`, `docs/IP-AUDIT.md`.) The owner asked for a look-alike check ("a tiger logo using Bengals
   colours") and for anything close to be switched or removed.
