@@ -10,6 +10,17 @@ Names in older entries are the career app's pre-v149 C minified names (`q`, `ms`
 `index.html` + `src/` (`docs/LAYOUT.md`).
 
 <!-- new entries go here, newest first -->
+- **v187 — medal looks are earned, and a ring buys a respec.** (`src/07-career-app.js`.) The owner: "make all
+  cosmetics earned every 10 levels for the medals, not an option you choose between. Cooler ones at higher medal counts.
+  Automatically updated. Sacrifice one ring to reset medals and pick their bonuses again."
+  - **Looks come by milestone, not choice.** The medal deck no longer deals a look (the small "A new look" and the major
+    "A legendary look" are gone from it). Every 10 medals earns one automatically: rare below 50 medals, epic below 100,
+    legendary below 200, mythic after (the next rarity up when a tier runs out). The newest is worn at once, and an old
+    save catches up on the milestones it passed.
+  - **The ring respec.** One ring clears every medal-reward bonus and the majors owned, and deals every claimed choice
+    again: new cards, the windfall PP not paid twice, the looks kept. A 💍 button on the prestige screen's medal card;
+    it refuses without a ring.
+  - **Dials and switch.** The interval and the ring cost are beta dials. Kill switch `v187`. `v187check`.
 - **v186 — rings are earned, chaos is a commitment, the long road out there.** (`src/07-career-app.js`,
   `src/05-field-renderer.js`.) The owner's patch notes, in order:
   - **Rings are earned (A).** A UFF title is a ring (the ring count, the chaos clearance, the era, the loot) only for a

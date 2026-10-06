@@ -1836,17 +1836,19 @@
    ]
   },
   "prestige-pacing": {
-   "desc": "v179 — the long road: medal gates on the last climbs, the Interstellar Call waits on the era, big numbers; v185 — the chaos loop; v186 — rings are earned, chaos locks in, Stardust",
+   "desc": "v179 — the long road: medal gates on the last climbs, the Interstellar Call waits on the era, big numbers; v185 — the chaos loop; v186 — rings are earned, chaos locks in, Stardust; v187 — medal looks and the ring respec",
    "anchors": [
     "v179",
     "v185",
-    "v186"
+    "v186",
+    "v187"
    ],
    "files": [],
    "checks": [
     "v179check",
     "v185check",
     "v186check",
+    "v187check",
     "medalrewardscheck",
     "v136check",
     "v178check"
@@ -4838,6 +4840,18 @@
     "season"
    ],
    "runtimeSec": 40,
+   "slow": false,
+   "needsServer": true,
+   "pureNode": false,
+   "flaky": []
+  },
+  "v187check": {
+   "file": "scripts/v187check.mjs",
+   "desc": "v187 — the medal deck deals no look; every 10 medals earns one automatically (rare < 50, epic < 100, legendary < 200, mythic after), worn at once, an old save catching up; one ring re-picks every medal reward (bonuses cleared, choices re-dealt, no windfall twice, looks kept); the medal card shows both. No page errors.",
+   "areas": [
+    "season"
+   ],
+   "runtimeSec": 20,
    "slow": false,
    "needsServer": true,
    "pureNode": false,
