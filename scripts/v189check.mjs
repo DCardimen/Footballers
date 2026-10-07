@@ -6,6 +6,8 @@
 //   C: THE BANK, AT THE SEASON'S END — the top bar's 🏦 does not count up mid-season; the season's end records it, the
 //      season report and the prestige screen show the 🏦 BANKED pot (the season's gain counting up); the career's end rains
 //      it into the Vault
+//   D: the pot is the career's projected PP (the in-season bank is usually 0); it waits for the offseason body screen;
+//      the medal chooser waits for the coach's summary
 // No page errors.  GAME_URL=http://localhost:5173/ node scripts/v189check.mjs
 import { gameUrl, launch } from './lib/env.mjs'
 const url = gameUrl('index.html')
@@ -111,6 +113,36 @@ ok(C.banked >= 500 && C.midShown === 0, 'mid-season the bank is not counted up o
 ok(C.view === 'result' && C.rec && C.rec.from === 0 && C.rec.to >= 500 && C.res && C.num && C.num !== '0', 'the season\'s end: the report opens on the 🏦 BANKED pot, counting up the season\'s gain', C)
 ok(C.shop, 'the prestige screen shows the pot', C.shop)
 ok(C.rained && C.rain && C.coins >= 12 && !C.twice && C.after === 0, 'the career\'s end rains it into the Vault — once a payout', C)
+
+// D: what a real season end puts in front of you — the pot is the career's PP (not just the in-season bank, which is
+//    usually 0), held until the offseason body screen closes; the medal chooser waits for the coach's summary
+await seed({ level: 2, pos: 'RB' })
+const D = await M(async () => {
+  const A = window.__GRIDIRON_AUDIT__, S = A.getState(), V = window.__V189, p = S.player
+  S.bankShownV189 = 0; S.bankSeasonV189 = null
+  const pot0 = V.pot(p), banked0 = window.__V136_C.banked()
+  // the pot is held under the offseason body screen
+  const g = document.createElement('div'); g.id = 'growV132'; document.body.appendChild(g)
+  p.weekResults.forEach((w) => { w.played = true; if (!w.statLine) w.statLine = {} })
+  window.finishSeasonGames(); await new Promise((r) => setTimeout(r, 300))
+  const under = !!document.getElementById('bankResultV189')
+  g.remove(); await new Promise((r) => setTimeout(r, 700))
+  const after = !!document.getElementById('bankResultV189')
+  // the chooser waits for the coach
+  const Md = window.__V179.medals, st = Md.store(); document.querySelectorAll('.decision-overlay').forEach((x) => x.remove())
+  st.pending = []; st.seen = 0; st.promptedV189 = null; window.RIB_TUNE.v189medalPrompt = 1; S.honorsV156A = { floor: 3 }
+  const C = window.__RIB_COACH, real = Object.getOwnPropertyDescriptor(C, 'isOpen'); let coach = true
+  Object.defineProperty(C, 'isOpen', { configurable: true, get: () => coach })
+  window.go('hub'); await new Promise((r) => setTimeout(r, 900))
+  const withCoach = !!document.getElementById('medalPickV179')
+  coach = false; await new Promise((r) => setTimeout(r, 700))
+  const afterCoach = !!document.getElementById('medalPickV179')
+  Object.defineProperty(C, 'isOpen', real); delete window.RIB_TUNE.v189medalPrompt; Md.close(); st.pending = []
+  return { pot0, banked0, under, after, withCoach, afterCoach }
+})
+ok(D.pot0 > 0 && D.banked0 === 0, 'the pot is the career\'s PP — shown even when nothing sits in the in-season bank', D)
+ok(!D.under && D.after, 'the pot waits for the offseason body screen to close, then counts up on the report', D)
+ok(!D.withCoach && D.afterCoach, 'the medal chooser waits for the coach\'s summary, then opens', D)
 
 console.log(JSON.stringify({ pass, fail, pageErrors: errors.length }))
 if (errors.length) console.log('page errors:', errors.slice(0, 6))

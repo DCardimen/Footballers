@@ -11183,7 +11183,7 @@
       b.title =
         n > 0
           ? n.toLocaleString() +
-            " PP is banked from this career — it is paid into your account the moment the career ends, won or cut."
+            " PP is this career's pot as of the last season's end — paid into your account the moment the career ends, won or cut."
           : "";
     }
   }
@@ -35294,7 +35294,7 @@
         const e = state && state.player;
         if (e && TU("v189C", 1)) {
           const from = state.bankShownV189 || 0,
-            to = bankedV136();
+            to = careerPotV189(e) /* v189 D: the career's whole pot, not only the in-season bank */;
           state.bankShownV189 = to;
           state.bankSeasonV189 = { from, to, at: e.totalSeasons, seenResult: !1, seenShop: !1 };
           typeof document < "u" && bankCardsV189(); /* the report was drawn before the season's bank was known */
@@ -37469,7 +37469,7 @@
     setTimeout(() => {
       const e = state && state.player;
       if (!e || !e.pos || state.view !== "season") return;
-      if (document.querySelector(".decision-overlay,.life-event-overlay-v12,#growthV42,#pregameV1513")) return;
+      if (document.querySelector(".decision-overlay,.life-event-overlay-v12,#growthV42,#growV132,#pregameV1513")) return;
       if (!((e.points || 0) > 0)) return momentsV178();
       // the coach's first-week walk ends on the season screen (its RECOVERY stop): let him finish before the flow takes over
       try {
@@ -38214,10 +38214,36 @@
    * it is seen there). When the career ends (cut, retired, or arrived in the UFF) the whole pot RAINS into the Vault: coins
    * fall over the career-end screen into the vault while the total counts up. Display only — nothing waits on it.
    * Kill switch v189C 0. `window.__V189`; `v189check`. */
+  /* v189 D: the pot is what the career would pay if it ended now — the PP banked in season (titles, goals, objectives) is
+   * only a sliver of it; the career-end payout (screenGameOver's formula: the level's base, the seasons, the titles, ×
+   * the PP multipliers × chaos) is most of it, and the Prestige cards ride on both. Read-only — nothing is paid. */
+  function careerPotV189(e) {
+    e = e || (state && state.player);
+    if (!e || e._settled) return 0;
+    let r = 0;
+    try {
+      const a = e.level | 0,
+        sm =
+          (1 + nodeLvl("endorse") * 0.2 + nodeLvl("agent") * 0.15 + nodeLvl("brand") * 0.35 + nodeLvl("goat") * 0.5 + treeFx("ppMult") + gearFx("ppMult") + gearV147("ppGain") + hofWings() * 0.05 + posMasteryCount("ring") * 0.03) *
+          tierPPMult(e) *
+          pathVal("ppMult", 1) *
+          (hasTrait(e, "showman") ? 1.15 : 1) *
+          eraMult(),
+        nn = nodeLvl("legacy") * (e.totalSeasons || 0),
+        ii = [1, 2, 4, 8, 15, 28, 45, 70, 120][Math.min(a, 8)] || 1;
+      r = e._arrivedV154 && a >= 7 ? tailPPV154(e, e._arrivedV154, sm, a) : Math.max(1, Math.round(((ii + (e.totalSeasons || 0) * 0.35 + (e.titles || 0) * 4) * sm + nn) * chaosEarnedMult(a)));
+    } catch (_) {
+      r = 0;
+    }
+    const base = (r || 0) + bankedV136(),
+      pct = (flipOnV186() && e.flipPPPctV186) || 0;
+    return Math.round(base * (1 + pct / 100));
+  }
   function bankShownV189() {
     if (!TU("v189C", 1)) return bankedV136();
-    const b = bankedV136();
-    return Math.min(b, (state && state.bankShownV189) || 0);
+    const e = state && state.player;
+    if (!e || e._settled) return 0;
+    return Math.min(careerPotV189(e), (state && state.bankShownV189) || 0);
   }
   function cssBankV189() {
     if (document.getElementById("bankCssV189")) return;
@@ -38253,7 +38279,7 @@
       coins = gain > 0 ? Math.min(14, 3 + Math.round(Math.log10(gain + 1) * 3)) : 0;
     let drops = "";
     for (let i = 0; i < coins; i++) drops += `<b class="coin" style="animation-delay:${(i * 0.16).toFixed(2)}s;--dx:${Math.round((Math.random() - 0.5) * 30)}px"></b>`;
-    return `<div class="card tight bank-v189" id="${id}"><div class="pot">${drops}<i class="jar"></i></div><div style="flex:1"><div class="lab">🏦 BANKED THIS CAREER</div><div class="num" data-from="${from}" data-to="${to}">${fmtBigV179(from)}</div><div class="small" style="color:var(--chalk-dim)">${gain > 0 ? `<b style="color:#7fe0a0">+${fmtBigV179(gain)}</b> this season · ` : ""}${sub}</div></div></div>`;
+    return `<div class="card tight bank-v189" id="${id}"><div class="pot">${drops}<i class="jar"></i></div><div style="flex:1"><div class="lab">🏦 THIS CAREER'S POT</div><div class="num" data-from="${from}" data-to="${to}">${fmtBigV179(from)}</div><div class="small" style="color:var(--chalk-dim)">${gain > 0 ? `<b style="color:#7fe0a0">+${fmtBigV179(gain)}</b> this season · ` : ""}${sub}</div></div></div>`;
   }
   function bankCardsV189() {
     if (!TU("v189C", 1) || !state || !state.player) return;
@@ -38268,10 +38294,20 @@
     if (state.view === "result" && B && !sc.querySelector("#bankResultV189")) {
       const shown = B.to;
       if (!(shown > 0)) return;
+      // v189 D: the offseason body screen (v132) opens OVER the report — hold the pot until it is gone, so the count-up is seen
+      if (!B.seenResult && document.getElementById("growV132")) {
+        if (!bankCardsV189._wait) bankCardsV189._wait = setInterval(() => {
+          if (document.getElementById("growV132")) return;
+          clearInterval(bankCardsV189._wait);
+          bankCardsV189._wait = 0;
+          try { bankCardsV189(); } catch (_) {}
+        }, 250);
+        return;
+      }
       cssBankV189();
       const animate = !B.seenResult;
       B.seenResult = !0;
-      const html = bankCardHtmlV189("bankResultV189", animate ? B.from : shown, shown, "paid into the Vault when the career ends"),
+      const html = bankCardHtmlV189("bankResultV189", animate ? B.from : shown, shown, "PP this career has earned — paid into the Vault when it ends"),
         first = sc.querySelector(".card"); /* after the report card — the screen's own title sits above it */
       first ? first.insertAdjacentHTML("afterend", html) : sc.insertAdjacentHTML("afterbegin", html);
       animate && countUpV189(sc.querySelector("#bankResultV189 .num"), B.from, shown, 1400);
@@ -38284,7 +38320,7 @@
       cssBankV189();
       const animate = B && !B.seenShop && B.to === shown;
       B && (B.seenShop = !0);
-      const html = bankCardHtmlV189("bankShopV189", animate ? B.from : shown, shown, "rains into the Vault when this career ends");
+      const html = bankCardHtmlV189("bankShopV189", animate ? B.from : shown, shown, "PP this career has earned — rains into the Vault when it ends");
       const ban = sc.querySelector(".pts-banner");
       ban ? ban.insertAdjacentHTML("afterend", html) : sc.insertAdjacentHTML("afterbegin", html);
       animate && countUpV189(sc.querySelector("#bankShopV189 .num"), B.from, shown, 1400);
@@ -38312,7 +38348,7 @@
     setTimeout(() => el.remove(), TU("bankRainMsV189", 4200));
     return !0;
   }
-  window.__V189 = Object.assign(window.__V189 || {}, { shown: () => bankShownV189(), cards: () => bankCardsV189(), rain: e => bankRainV189(e || (state && state.player)) });
+  window.__V189 = Object.assign(window.__V189 || {}, { pot: e => careerPotV189(e), shown: () => bankShownV189(), cards: () => bankCardsV189(), rain: e => bankRainV189(e || (state && state.player)) });
   /* ===== v189 B THE MEDAL REWARD COMES TO YOU =====
    * The owner: "ANY upgrade to the medal appears after you exit this screen, and prompts the upgrade to you before moving to
    * the next game or season … right now I think the medal improvements are off screen." Medals are paid at the season's
@@ -38330,7 +38366,7 @@
   }
   function medalPromptV189() {
     if (!medalPromptOnV189() || !state || !["hub", "season", "shop"].includes(state.view)) return !1;
-    if (document.getElementById("medalPickV179") || document.querySelector(".decision-overlay,.life-event-overlay-v12,#growthV42,#pregameV1513")) return !1;
+    if (document.getElementById("medalPickV179") || document.querySelector(".decision-overlay,.life-event-overlay-v12,#growthV42,#growV132,#pregameV1513")) return !1;
     let M = null;
     try {
       medalSyncV179();
@@ -38342,11 +38378,26 @@
     const sig = M.pending.length + ":" + (M.pending[M.pending.length - 1].rank || 0);
     if (M.promptedV189 === sig) return !1;
     M.promptedV189 = sig;
-    setTimeout(() => {
+    // v189 D: the coach's season summary (rib-menu-coach) and the offseason body screen open on the same beat —
+    // the chooser waits until they are gone, so it is never opened UNDER them
+    const blocked = () => {
       try {
-        if (!document.getElementById("medalPickV179") && !document.querySelector(".decision-overlay")) openMedalPickV179();
+        if (window.__RIB_COACH && window.__RIB_COACH.isOpen) return !0;
       } catch (_) {}
-    }, TU("medalPromptMsV189", 350));
+      return !!document.querySelector(".decision-overlay,.life-event-overlay-v12,#growthV42,#growV132,#pregameV1513,#medalPickV179");
+    };
+    let tries = 0;
+    const tryOpen = () => {
+      try {
+        if (!["hub", "season", "shop"].includes(state.view) || !M.pending.length) return;
+        if (blocked()) {
+          if (++tries < 2400) setTimeout(tryOpen, 250);
+          return;
+        }
+        openMedalPickV179();
+      } catch (_) {}
+    };
+    setTimeout(tryOpen, TU("medalPromptMsV189", 350));
     return !0;
   }
   window.__V187 = { looks: () => medalLooksSyncV187(), tier: n => medalLookTierV187(n), respec: () => medalRespecNowV187(), store: () => medalStoreV179() };
