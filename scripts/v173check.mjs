@@ -11,7 +11,7 @@ import { CHROME, gameUrl } from './lib/env.mjs'
 const browser = await chromium.launch({ executablePath: CHROME })
 const ctx = await browser.newContext({ viewport: { width: 400, height: 860 } })
 // v179 prices the tree by branch (core ×6, Apex ×10); this check's numbers are the vault's own mechanics at the base prices
-await ctx.addInitScript(() => { window.RIB_TUNE = Object.assign(window.RIB_TUNE || {}, { corePriceV179: 1, apexPriceV179: 1, impossiblePriceV179: 1 }) })
+await ctx.addInitScript(() => { window.RIB_TUNE = Object.assign(window.RIB_TUNE || {}, { corePriceV179: 1, apexPriceV179: 1, impossiblePriceV179: 1, corePriceV191: 1, impossiblePriceV191: 1 } /* v191: the base prices, as before */ ) })
 const page = await ctx.newPage()
 const errs = []
 page.on('pageerror', e => errs.push('PAGEERROR: ' + e.message))
