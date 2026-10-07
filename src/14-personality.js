@@ -18,43 +18,43 @@
   // slider points.
   const P = [
     {key:'aggression', name:'Aggression', lo:'Composed', hi:'Aggressive',
-      hiFx:{ceil:{strength:.30,tackling:.24}, clash:1.0, inj:.05},
-      loFx:{ceil:{discipline:.26,awareness:.12}, clash:-.4, vr:-.04},
+      hiFx:{ceil:{strength:.30,tackling:.24}, clash:1.0, inj:.05, x:{}},
+      loFx:{ceil:{discipline:.26,awareness:.12}, clash:-.4, vr:-.04, x:{boom:-.06, poise:.05}},
       hiTxt:'▲ max STR/TKL &nbsp;▼ injury risk, coach clashes',
       loTxt:'▲ max DIS/AWR, locker-room fit &nbsp;▼ fewer explosive plays'},
     {key:'iq', name:'Football IQ', lo:'Instinctive', hi:'Cerebral',
-      hiFx:{ceil:{awareness:.22,vision:.30}, clash:-.5, siq:6},
-      loFx:{ceil:{burst:.20,agility:.16}, vr:.03, siq:-6},
+      hiFx:{ceil:{awareness:.22,vision:.30}, clash:-.5, siq:6, x:{big:-.4}},
+      loFx:{ceil:{burst:.20,agility:.16}, vr:.03, siq:-6, x:{big:.4}},
       hiTxt:'▲ max AWR/VIS, spends stamina smartly &nbsp;▼ overthinks — fewer instinct plays',
       loTxt:'▲ max BST/AGI, plays free &nbsp;▼ burns the stamina bar at random'},
     {key:'eq', name:'Composure (EQ)', lo:'Volatile', hi:'Even-Keeled',
-      hiFx:{ceil:{discipline:.28,grit:.20}, clash:-1.0, vr:-.03},
-      loFx:{ceil:{burst:.12}, clash:.5, vr:.06},
+      hiFx:{ceil:{discipline:.28,grit:.20}, clash:-1.0, vr:-.03, x:{poise:.12, boom:-.08}},
+      loFx:{ceil:{burst:.12}, clash:.5, vr:.06, x:{poise:-.12, boom:.12}},
       hiTxt:'▲ max DIS/GRIT, steady floor &nbsp;▼ fewer monster games',
       loTxt:'▲ real boom-game upside &nbsp;▼ real bust games, clashes'},
     {key:'longterm', name:'Long-Term Focus', lo:'Win-Now', hi:'Process',
-      hiFx:{ceil:{stamina:.22}, inj:-.02, perf:-.15},
-      loFx:{perf:.35, inj:.02},
+      hiFx:{ceil:{stamina:.22}, inj:-.02, perf:-.15, x:{grow:.03}},
+      loFx:{perf:.35, inj:.02, x:{grow:-.03}},
       hiTxt:'▲ max STA, durable &nbsp;▼ slower early production',
       loTxt:'▲ produces NOW (+flat stats every game) &nbsp;▼ overuse injury risk, no ceiling gain'},
     {key:'workethic', name:'Work Ethic', lo:'Coasts', hi:'Relentless',
-      hiFx:{ceil:{acceleration:.24,agility:.20,stamina:.16}, clash:-.5, gas:.05},
-      loFx:{gas:-.05, perf:-.2, clash:.2},
+      hiFx:{ceil:{acceleration:.24,agility:.20,stamina:.16}, clash:-.5, gas:.05, x:{grow:.03, fat:.05}},
+      loFx:{gas:-.05, perf:-.2, clash:.2, x:{fat:-.08, grow:-.03}},
       hiTxt:'▲ max ACC/AGI/STA &nbsp;▼ empties the tank faster in games',
       loTxt:'▲ fresh legs (slow stamina burn) &nbsp;▼ lower output, quiet clashes'},
     {key:'loyalty', name:'Loyalty', lo:'Me-First', hi:'Team-First',
-      hiFx:{ceil:{blocking:.24,grit:.10}, clash:-.8, perf:-.1},
-      loFx:{perf:.25, clash:.6},
+      hiFx:{ceil:{blocking:.24,grit:.10}, clash:-.8, perf:-.1, x:{}},
+      loFx:{perf:.25, clash:.6, x:{}},
       hiTxt:'▲ max BLK/GRIT, coaches trust you &nbsp;▼ shares the spotlight (−flat stats)',
       loTxt:'▲ hunts stats (+flat stats) &nbsp;▼ clashes, trust erodes'},
     {key:'confidence', name:'Confidence', lo:'Humble', hi:'Brash',
-      hiFx:{ceil:{speed:.20,burst:.28}, clash:.6, vr:.04},
-      loFx:{ceil:{awareness:.10}, clash:-.6, inj:-.02, vr:-.02},
+      hiFx:{ceil:{speed:.20,burst:.28}, clash:.6, vr:.04, x:{big:.6}},
+      loFx:{ceil:{awareness:.10}, clash:-.6, inj:-.02, vr:-.02, x:{big:-.4}},
       hiTxt:'▲ max SPD/BST, big-play hunter &nbsp;▼ boom/bust, clashes',
       loTxt:'▲ steady, coach favorite, safer body &nbsp;▼ lower athletic ceiling'},
     {key:'coachability', name:'Coachability', lo:'Stubborn', hi:'Coachable',
-      hiFx:{ceil:{awareness:.16,catching:.24}, clash:-1.0, vr:-.02},
-      loFx:{ceil:{grit:.22}, clash:.7, vr:.03},
+      hiFx:{ceil:{awareness:.16,catching:.24}, clash:-1.0, vr:-.02, x:{grow:.03, boom:-.05}},
+      loFx:{ceil:{grit:.22}, clash:.7, vr:.03, x:{grow:-.03, fat:-.03}},
       hiTxt:'▲ max AWR/CAT, more snaps &nbsp;▼ predictable — fewer wild highs',
       loTxt:'▲ max GRIT, does it his way &nbsp;▼ clashes, slower to learn'}
   ];
@@ -95,8 +95,89 @@
     P.forEach(tr=>{ const {fx,pts}=sideFx(tr,pn[tr.key]); if(!fx) return;
       inj+=(fx.inj||0)*pts; vr+=(fx.vr||0)*pts; perf+=(fx.perf||0)*pts; gas+=(fx.gas||0)*pts; siq+=(fx.siq||0)*pts; });
     if(inj>0)inj*=soft; if(vr>0)vr*=soft; if(perf<0)perf*=soft; if(gas>0)gas*=soft;
-    return { injMult:clamp(1+inj,.6,1.6), varMult:clamp(1+vr,.7,1.5),
+    const out = { injMult:clamp(1+inj,.6,1.6), varMult:clamp(1+vr,.7,1.5),
              perfFlat:Math.round(perf*10)/10, gasBurn:clamp(1+gas,.6,1.5), sprintIQ:Math.round(siq) };
+    if(onV192C()) Object.assign(out, fxV192C(pn, soft));
+    return out;
+  }
+  /* ===== v192C PERSONALITY, BOTH SIDES =====
+   * The owner: "Each side should have clear positives and negatives. Some clearly don't have any positives.
+   * Maybe work ethic coasts are less likely to be fatigued. That page only shows 6 of the stats' adjustments,
+   * make sure you show all of the bonuses associated with it."
+   *
+   * Every pole's `x` adds levers to hooks the game ALREADY reads (07 reads them through `personaFxV192C`):
+   *   fat    season fatigue a game builds (`updateConditionAfterGame` + the v111 wear charge)   → fatigueMult
+   *   grow   the season's attribute growth (`xt` in the growth roll and its preview)            → growthMult
+   *   big    flat game rating in PLAYOFF games (the persona wrapper of `rollGamePerf`)           → bigGame
+   *   boom   chance of the hot "monster game" (the 4% ×1.5 roll inside `rollGamePerf`)            → boomMult
+   *   poise  how fast Poise grows (v192C POISE in 07)                                             → poiseRate
+   * Each per-point number is a tuning knob: `TU("pV192C_<trait>_<hi|lo>_<field>", default)`. The drawback half
+   * of every new lever is softened by the Sports Psychologist like the v20 ones. The page draws every number,
+   * both poles, from this same table (`effectsOf`). Kill switch `TU("v192C", 1)`: 0 = the v20 levers only. */
+  function onV192C(){ try{ return !!(window.TU ? window.TU("v192C",1) : 1); }catch(e){ return true; } }
+  function knobV192C(tr, side, f){
+    const d=((side==='hi'?tr.hiFx:tr.loFx).x||{})[f]||0;
+    try{ return window.TU ? Number(window.TU("pV192C_"+tr.key+"_"+side+"_"+f, d)) : d; }catch(e){ return d; }
+  }
+  const X_FIELDS_V192C = ['fat','grow','big','boom','poise'];
+  // which direction of each new lever HURTS (that half is softened by the Sports Psychologist)
+  const X_BAD_V192C = { fat:v=>v>0, grow:v=>v<0, big:v=>v<0, boom:v=>v<0, poise:v=>v<0 };
+  function fxV192C(pn, soft){
+    const t={fat:0,grow:0,big:0,boom:0,poise:0};
+    P.forEach(tr=>{ const d=(pn[tr.key]??5)-5; if(!d) return; const side=d>0?'hi':'lo', pts=Math.abs(d);
+      X_FIELDS_V192C.forEach(f=>{ t[f]+=knobV192C(tr,side,f)*pts; }); });
+    X_FIELDS_V192C.forEach(f=>{ if(X_BAD_V192C[f](t[f])) t[f]*=soft; });
+    return { fatigueMult:+clamp(1+t.fat,.6,1.4).toFixed(3), growthMult:+clamp(1+t.grow,.85,1.15).toFixed(3),
+             bigGame:+clamp(t.big,-4,5).toFixed(1), boomMult:+clamp(1+t.boom,.4,2).toFixed(3),
+             poiseRate:+clamp(1+t.poise,.4,1.8).toFixed(3), v192C:1 };
+  }
+  // the levers that live OUTSIDE fxOf but are still personality: mirrored here so the page can say them.
+  // v171 D intensity (`aggrMultV171`: ±hardAggrKV171 ×Aggression lean, ±hardConfKV171 ×Confidence lean) and the
+  // v153 B locker room (`personaScoresV153B`: TOXIC / TEAM leans, lean = (v−5)/5).
+  const HARD_V192C = { aggression:['hardAggrKV171',.6], confidence:['hardConfKV171',.3] };
+  const CHEM_V192C = { // per lean unit: [toxic, team]
+    loyalty:[-1,1], confidence:[.45,-.25], eq:[-.5,.4], coachability:[-.35,.35], aggression:[.2,0] };
+  // one pole's every effect: [{up, per, tot, txt(n)}] — `per` is one point, `tot` at `pts` (drawbacks softened)
+  function effectsOf(tr, side, pts){
+    const fx = side==='hi'?tr.hiFx:tr.loFx, soft=softMult(), out=[];
+    // `sf`: this lever's drawback is one the Sports Psychologist softens (the v20 four + the v192C five)
+    const add=(up,per,fmt,sf)=>{ out.push({up, per:fmt(per), tot:pts?fmt(per*pts*(!up&&sf?soft:1)):null}); };
+    const pct=v=>(v>0?'+':'−')+Math.abs(Math.round(v*100))+'%', num=(v,dp)=>(v>0?'+':'−')+Math.abs(v).toFixed(dp==null?1:dp);
+    if(fx.ceil){ const ks=Object.keys(fx.ceil).map(k=>ATTR[k]||k.toUpperCase()).join('/'); add(true, CEIL_PER_PT, v=>'+'+Math.round(v*100)+'% max '+ks); }
+    if(fx.clash){ add(fx.clash<0, fx.clash, v=>num(-v*1.5)+' coach trust'+(v>0?', −'+v.toFixed(1)+'% snap share':'')); }
+    if(fx.inj) add(fx.inj<0, fx.inj, v=>pct(v)+' injury risk', 1);
+    if(fx.vr)  add(fx.vr<0, fx.vr, v=>pct(v)+' game-to-game swing', 1);
+    if(fx.perf)add(fx.perf>0, fx.perf, v=>num(v,2)+' to every stat each game', 1);
+    if(fx.gas) add(fx.gas<0, fx.gas, v=>pct(v)+' stamina burn on the field', 1);
+    if(fx.siq) add(fx.siq>0, fx.siq, v=>(v>0?'smart':'random')+' sprint timing ('+num(v,0)+' IQ for the stamina call)');
+    if(onV192C()){
+      const L={fat:v=>pct(v)+' season fatigue per game', grow:v=>pct(v)+' attribute growth a season',
+               big:v=>num(v)+' game rating in the playoffs', boom:v=>pct(v)+' chance of a monster game',
+               poise:v=>pct(v)+' Poise growth'};
+      X_FIELDS_V192C.forEach(f=>{ const v=knobV192C(tr,side,f); if(v) add(!X_BAD_V192C[f](v), v, L[f], 1); });
+    }
+    const h=HARD_V192C[tr.key];
+    if(h){ let k=.6; try{ k=window.TU?window.TU(h[0],h[1]):h[1]; }catch(e){} const v=(side==='hi'?1:-1)*k/5;
+      add(v>0, v, x=>pct(x)+' from playing HEAVY / EVERY SNAP'); }
+    const c=CHEM_V192C[tr.key];
+    if(c){ const sg=side==='hi'?1:-1, tox=sg*c[0]/5, team=sg*c[1]/5;
+      if(tox>0) add(false, tox, x=>'+'+x.toFixed(2)+' TOXIC lean (teammates may quit, chemistry sours)');
+      if(team>0) add(true, team, x=>'+'+x.toFixed(2)+' TEAM lean (a teammate may improve, chemistry warms)'); }
+    return out;
+  }
+  const tuV192C=(n,d)=>{ try{ return window.TU?window.TU(n,d):d; }catch(e){ return d; } };
+  // mirrors of 07's aggrMultV171 and personaScoresV153B (before the room's chemistry), for the page's totals
+  function hardMultV192C(pn){ const g=k=>pn[k]==null?0:(+pn[k]-5)/5;
+    return Math.round(clamp(1+tuV192C('hardAggrKV171',.6)*g('aggression')+tuV192C('hardConfKV171',.3)*g('confidence'),.4,1.9)*100)/100; }
+  function chemLeanV192C(pn){ const g=k=>pn[k]==null?0:(+pn[k]-5)/5; let tox=0,team=0;
+    for(const k in CHEM_V192C){ tox+=CHEM_V192C[k][0]*g(k); team+=CHEM_V192C[k][1]*g(k); }
+    return { tox:clamp(tox,0,2), team:clamp(team,0,2) }; }
+  function effectsHTML(tr, val){
+    const d=(val??5)-5, side=d>0?'hi':d<0?'lo':null, pts=Math.abs(d);
+    const col=(sd)=>{ const act=sd===side, E=effectsOf(tr, sd, act?pts:0);
+      return `<div class="pv192-col ${act?'act':''}"><div class="pv192-pole">${sd==='hi'?tr.hi:tr.lo}${act?` · ${pts} pt${pts===1?'':'s'}`:' · per pt'}</div>`+
+        E.map(e=>`<div class="pv192-e ${e.up?'up':'dn'}">${e.up?'▲':'▼'} ${act?e.tot:e.per}</div>`).join('')+`</div>`; };
+    return `<div class="pv192-fx">${col('lo')}${col('hi')}</div>`;
   }
   // footer chips describing the aggregate up/downsides
   function fxChips(pn){
@@ -114,6 +195,25 @@
     if(fx.gasBurn<0.99) out.push({up:true, t:'▲ '+Math.round((1-fx.gasBurn)*100)+'% slower stamina burn'});
     if(fx.sprintIQ>0)   out.push({up:true, t:'▲ smart stamina timing'});
     if(fx.sprintIQ<0)   out.push({up:false,t:'▼ wastes stamina at random'});
+    if(fx.v192C){ // v192C: the five new levers, every one with its number
+      const p=v=>Math.round(Math.abs(v-1)*100);
+      if(fx.fatigueMult<0.995) out.push({up:true, t:'▲ '+p(fx.fatigueMult)+'% less season fatigue'});
+      if(fx.fatigueMult>1.005) out.push({up:false,t:'▼ +'+p(fx.fatigueMult)+'% season fatigue'});
+      if(fx.growthMult>1.005)  out.push({up:true, t:'▲ +'+p(fx.growthMult)+'% attribute growth'});
+      if(fx.growthMult<0.995)  out.push({up:false,t:'▼ −'+p(fx.growthMult)+'% attribute growth'});
+      if(fx.bigGame>0)         out.push({up:true, t:'▲ +'+fx.bigGame+' rating in playoff games'});
+      if(fx.bigGame<0)         out.push({up:false,t:'▼ −'+Math.abs(fx.bigGame)+' rating in playoff games'});
+      if(fx.boomMult>1.005)    out.push({up:true, t:'▲ +'+p(fx.boomMult)+'% monster-game chance'});
+      if(fx.boomMult<0.995)    out.push({up:false,t:'▼ −'+p(fx.boomMult)+'% monster-game chance'});
+      if(fx.poiseRate>1.005)   out.push({up:true, t:'▲ Poise grows +'+p(fx.poiseRate)+'% faster'});
+      if(fx.poiseRate<0.995)   out.push({up:false,t:'▼ Poise grows −'+p(fx.poiseRate)+'% slower'});
+      const hk=hardMultV192C(pn);
+      if(hk>1.005) out.push({up:true, t:'▲ ×'+hk.toFixed(2)+' from playing HEAVY'});
+      if(hk<0.995) out.push({up:false,t:'▼ ×'+hk.toFixed(2)+' from playing HEAVY'});
+      const ch=chemLeanV192C(pn);
+      if(ch.tox>0.005)  out.push({up:false,t:'▼ TOXIC lean '+ch.tox.toFixed(2)+(ch.tox>=.35?' (teammates may quit)':'')});
+      if(ch.team>0.005) out.push({up:true, t:'▲ TEAM lean '+ch.team.toFixed(2)+(ch.team>=.35?' (a teammate may improve)':'')});
+    }
     if(masteryLvl()>0)  out.push({up:true, t:'🧘 Sports Psychologist L'+masteryLvl()+': drawbacks −'+Math.round((1-softMult())*100)+'%'});
     return out;
   }
@@ -134,6 +234,16 @@
     try{ window.__youPersonaFxV20 = p.personaFxV20; }catch(e){}
   };
   window.__personaCeilMap = ceilMap;
+  /* v192C: a save made before v192C carries a personaFxV20 without the new levers. Recompute ONLY the fx
+   * (never the one-time clash → trust / snap share, which was charged when he locked in), so an old save
+   * picks the new levers up without being re-billed. 07's `personaFxV192C` calls this lazily. */
+  window.__personaFxRefreshV192C = function(p){
+    if(!p||!p.personaV13) return p&&p.personaFxV20;
+    p.personaFxV20 = fxOf(p.personaV13);
+    try{ const s=st(); if(s&&s.player===p) window.__youPersonaFxV20 = p.personaFxV20; }catch(e){}
+    return p.personaFxV20;
+  };
+  window.__personaV192C = { P, fxOf, effectsOf, chemLean:chemLeanV192C, hardMult:hardMultV192C, view:()=>window.__personaViewV192C() };
   // re-export the fx on load for saves that already carry a persona
   try{ const s=st(); if(s&&s.player&&s.player.personaFxV20) window.__youPersonaFxV20=s.player.personaFxV20; }catch(e){}
 
@@ -150,7 +260,20 @@
         <div class="pv13-bar"><span class="pv13-lo">${t.lo}</span><u style="left:${base*10}%" title="rolled value"></u><i style="left:${pct}%"></i><span class="pv13-hi">${t.hi}</span><b style="width:${pct}%"></b></div>
         <button class="pv13-step" ${canUp?'':'disabled'} onclick="__personaStepV13('${t.key}',1)">+</button>
       </div>
-      ${val!==5?`<div class="pv13-fx">${val>5?t.hiTxt:t.loTxt}</div>`:`<div class="pv13-fx neutral">neutral — lean either way: both sides trade real upside for real cost</div>`}</div>`;
+      ${onV192C()?effectsHTML(t,val):val!==5?`<div class="pv13-fx">${val>5?t.hiTxt:t.loTxt}</div>`:`<div class="pv13-fx neutral">neutral — lean either way: both sides trade real upside for real cost</div>`}</div>`;
+  }
+  // v192C: the read-only row (the hub's "Personality" button): the bar and every effect, no steppers
+  function viewRowHTML(t, val){
+    const pct=val*10;
+    return `<div class="pv13-row"><div class="pv13-top"><span class="pv13-name">${t.name}</span><span class="pv13-val">${val}</span></div>
+      <div class="pv13-track"><div class="pv13-bar"><span class="pv13-lo">${t.lo}</span><i style="left:${pct}%"></i><span class="pv13-hi">${t.hi}</span><b style="width:${pct}%"></b></div></div>
+      ${effectsHTML(t,val)}</div>`;
+  }
+  // the Poise line both pages carry: what it is now (or where it starts) and how fast this personality grows it
+  function poiseLineV192C(pn, p){
+    const V=window.__V192C; if(!V||!onV192C()) return '';
+    const rate=(fxOf(pn).poiseRate)||1, now=p&&p.personaV13?V.poise(p):V.start();
+    return `<div class="pv192-poise">🧊 <b>POISE ${Math.round(now)}</b>/100 · grows <b>×${rate.toFixed(2)}</b> with this personality — low Poise swings games wide; high Poise narrows the swing and lifts the floor of a bad game.</div>`;
   }
   function render(){
     const wrap=document.getElementById('personaV13'); if(!wrap) return;
@@ -165,8 +288,45 @@
       ? `Adjustments left: <b>${bud-spent(persona)}</b> / ${bud}`
       : `<span style="color:var(--chalk-dim)">No adjustment points — you are who you rolled. <b style="color:var(--gold)">Earn Legacy medals</b> (and Identity Coach) for points to customize future careers.</span>`;
     foot.innerHTML = `<div class="pv13-pts">${ptsLine}</div>
-      <div class="pv13-boosts">${bStr} ${clashTxt} ${sideChips}</div>
+      <div class="pv13-boosts${onV192C()?' pv192-all':''}">${bStr} ${clashTxt} ${sideChips}</div>${onV192C()?poiseLineV192C(persona,null):''}
       <button class="pv13-lock" onclick="__personaConfirmV13()">Lock In Personality ›</button>`;
+  }
+  /* v192C: the personality page after lock-in — the same rows, every effect, read-only. Its own id, so the
+   * coach tour and the creation observer never mistake it for the roll. */
+  window.__personaViewV192C = function(){
+    const s=st(), p=s&&s.player; if(!p||!p.personaV13) return false;
+    cssV192C();
+    document.getElementById('personaViewV192C')?.remove();
+    const pn=p.personaV13, b=boosts(pn), c=p._personaClashV13!=null?p._personaClashV13:clashOf(pn);
+    const bStr=Object.entries(b).map(([k,v])=>`<span class="pv13-chip up">▲ +${v}% max ${ATTR[k]||k.toUpperCase()}</span>`).join('');
+    const clashTxt=c>0.05?`<span class="pv13-chip dn">▼ −${(c*1.5).toFixed(1)} coach trust, −${c.toFixed(1)}% snap share (at lock-in)</span>`:c<-0.05?`<span class="pv13-chip up">▲ +${(-c*1.5).toFixed(1)} coach trust (at lock-in)</span>`:'';
+    const chips=fxChips(pn).map(x=>`<span class="pv13-chip ${x.up?'up':'dn'}">${x.t}</span>`).join('');
+    document.body.insertAdjacentHTML('beforeend', `<div class="pv13-ovl pv192-view" id="personaViewV192C"><div class="pv13-panel">
+      <div class="pv13-head"><div class="pv13-kick">CAREER · WHO YOU ARE</div><div class="pv13-title">Personality</div>
+      <div class="pv13-sub">Every effect of every trait — the active side at its points, the other side per point.</div></div>
+      <div class="pv13-body">${P.map(t=>viewRowHTML(t, pn[t.key]??5)).join('')}</div>
+      <div class="pv13-foot"><div class="pv13-boosts pv192-all">${bStr} ${clashTxt} ${chips}</div>${poiseLineV192C(pn,p)}
+      <button class="pv13-lock" onclick="document.getElementById('personaViewV192C')?.remove()">Close</button></div>
+    </div></div>`);
+    return true;
+  };
+  function cssV192C(){
+    if(document.getElementById('pv192-css')) return;
+    const el=document.createElement('style'); el.id='pv192-css';
+    el.textContent=`
+.pv192-fx{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:4px}
+.pv192-col{font:400 9.5px/1.3 system-ui;color:#7f8ea3;min-width:0}
+.pv192-col.act{color:#c9d6e6}
+.pv192-pole{font:700 9px Oswald;letter-spacing:.6px;color:#8a99ad;text-transform:uppercase;margin-bottom:1px}
+.pv192-col.act .pv192-pole{color:var(--gold)}
+.pv192-e{overflow-wrap:anywhere}
+.pv192-col.act .pv192-e.up{color:#7fe0a0}.pv192-col.act .pv192-e.dn{color:#ff9a9a}
+.pv192-e s{text-decoration:none;opacity:.6}
+.pv13-boosts.pv192-all{max-height:18vh;overflow-y:auto}
+.pv192-poise{font:400 10.5px/1.35 system-ui;color:#b9c6d6;margin:0 auto 8px;max-width:520px}
+.pv192-poise b{color:#8fd3ff}
+.pv192-view{z-index:1210}`;
+    document.head.appendChild(el);
   }
   window.__personaStepV13 = function(key, dir){
     const cur = persona[key]??5, next = cur+dir, base = baseOf(key);
@@ -201,6 +361,7 @@
   function show(){
     if(document.getElementById('personaV13')) return;
     persona = fresh(); rolledBase = Object.assign({}, persona); shown=true;
+    cssV192C();
     document.body.insertAdjacentHTML('beforeend', overlayHTML());
     render();
   }

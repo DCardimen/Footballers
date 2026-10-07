@@ -605,7 +605,8 @@
       i = { disciplined: 5, feature: 11, explosive: 16, team: 9, recovery: -10 },
       r = Math.max(0, (e.age || 18) - 28) * 0.7,
       l = t.snaps || Math.round((e.snapShare || 0.2) * 65),
-      d = (i[a] ?? 7) + l * 0.12 + r;
+      d0 = (i[a] ?? 7) + l * 0.12 + r,
+      d = d0 > 0 ? d0 * fatigueMulV192C(e) : d0; /* v192C: Coasts wears less, Relentless more */
     ((n.fatigue = clamp(n.fatigue + d - n.recovery * 0.08, 0, 100)),
       (n.mentalLoad = clamp(n.mentalLoad + Math.abs((t.perf || 60) - 60) * 0.08 + (t.playoff ? 8 : 3) - 4, 0, 100)),
       n.consecutiveGames++);
@@ -12158,7 +12159,7 @@
       W = pl._wearV111 || (pl._wearV111 = { load: 0, lingering: [] });
     W.load = clamp99((W.load || 0) + C.load, TU("wearLoadMin", -40), TU("wearLoadMax", 180));
     const c = cv18(pl);
-    c.fatigue = clamp99((c.fatigue || 0) + C.load * wearFatKV147(), 0, 100);
+    c.fatigue = clamp99((c.fatigue || 0) + C.load * wearFatKV147() * (C.load > 0 ? fatigueMulV192C(pl) : 1) /* v192C */, 0, 100);
     const pct = cutPctV111(W.load),
       ks = pct < 0 ? cutStatsV111(pl) : [],
       cut = cutPtsV111(pl, pct, ks);
@@ -12939,10 +12940,10 @@
       d = 1 + (e.attrs.stamina - 10) * 0.0015;
     let c = hasTrait(e, "streaky") ? 23 : 15;
     c *= Math.max(0.5, 1 - treeFx("varDown") - gearV147("varDown")) * (seasonModFx("varMult") || 1);
-    let u = (s - i) * 2.4 + randRange(-c, c) * l + 50 + (t / n.games) * 2 + ((state && state._fateBoost) || 0);
+    let u = (s - i) * 2.4 + poiseShapeV192C(e, randRange(-c, c)) /* v192C: Poise narrows the swing, lifts the floor */ * l + 50 + (t / n.games) * 2 + ((state && state._fateBoost) || 0);
     (a.playoff && ((u += (treeFx("playoffPerf") + seasonModFx("playoffPerf")) * (TU("v190F", 1) ? 1 + nodeLvl("clutch") * 0.2 : 1)) /* v190 F: Clutch Gene — big-game bonuses +20% a level */, hasTrait(e, "xfactor") && (u += 12)),
       hasTrait(e, "butterFingers") && Math.random() < 0.12 && (u -= 18),
-      Math.random() < (hasTrait(e, "streaky") ? 0.06 : 0.04) && u > 40 && (u *= 1.5),
+      Math.random() < (hasTrait(e, "streaky") ? 0.06 : 0.04) * boomMulV192C(e) /* v192C: Volatile booms, Even-Keeled does not */ && u > 40 && (u *= 1.5),
       (u *= d));
     const p = clamp99(xi(u), 1, 100);
     const y = Math.random() < injChanceV54(e, a);
@@ -13297,6 +13298,7 @@
     let xt = 1;
     (hasTrait(e, "lateBloomer") && (xt *= e.age >= 16 ? 1.07 : 0.95),
       hasTrait(e, "slowStarter") && (xt *= e.seasonsSinceStart < 3 ? 0.94 : 1.05));
+    xt *= growthMulV192C(e); /* v192C: Relentless / Process / Coachable grow faster, Coasts / Win-Now / Stubborn slower */
     const _wv164 = watchV164C(e); /* v164 C: watched games grow him more, simmed games less (half the XP swing) */
     xt *= 1 + (_wv164.mult - 1) * TU("watchGrowthKV164C", 0.5);
     const ua =
@@ -15348,6 +15350,7 @@
       let xt = 1;
       (hasTrait(e, "lateBloomer") && (xt *= e.age >= 16 ? 1.07 : 0.95),
         hasTrait(e, "slowStarter") && (xt *= e.seasonsSinceStart < 3 ? 0.94 : 1.05));
+      xt *= growthMulV192C(e); /* v192C: the preview reads the same personality growth */
       const ua =
           treeFx("eGrowth") +
           gearFx("growth") +
@@ -20324,7 +20327,7 @@
     seed = clamp99(seed, 5, 100);
     const _gsB = e._gameScriptV23 && e._gameScriptV23.gsPass != null ? e._gameScriptV23.gsPass : null;
     e._gameScriptV23 = null;
-    const _fm146 = formRollV146(opts.varMult); /* v146 D: the plan's swing, rolled with the game it swings */
+    const _fm146 = formRollV146(opts.varMult, e); /* v146 D: the plan's swing, rolled with the game it swings */
     /* v111: the list the sim plays with is the wheel's swing PLUS v111's own — a lingering wear cut
      * still counting down, and this game's focus multiplier. Spending the game is a decay now, not a
      * wipe: an entry with no `games` countdown is dropped exactly as it always was. */
@@ -20354,6 +20357,9 @@
     }
     const etRoll = rollGamePerf(e, opts.perfSeed || 0, opts),
       injRoll = etRoll.injured;
+    try {
+      poiseGameV192C(e, opts); /* v192C: every game he plays steadies him a little */
+    } catch (_) {}
     const grader = typeof gradeGame === "function" ? gradeGame : window.__gradeGame;
     if (!g || !g.stat || typeof grader !== "function") {
       const sc = ia(e, etRoll.perf, opts);
@@ -27254,7 +27260,144 @@
     if (fx.varMult && fx.varMult !== 1) r.perf = clamp99(Math.round(50 + (r.perf - 50) * fx.varMult), 1, 100);
     if ((fx.injMult || 1) > 1 && !r.injured) r.injured = Math.random() < (fx.injMult - 1) * 0.06;
     else if ((fx.injMult || 1) < 1 && r.injured && Math.random() < 1 - fx.injMult) r.injured = !1;
+    /* v192C: the playoff lever — Brash / Instinctive rise in the games that decide a season, Humble / Cerebral shrink */
+    const fx192 = personaFxV192C(e);
+    if (fx192 && fx192.bigGame && a && a.playoff) {
+      r.perf = clamp99(Math.round(r.perf + fx192.bigGame), 1, 100);
+      r.bigGameV192C = fx192.bigGame;
+    }
     return r;
+  };
+  /* ===== v192C POISE — COOL UNDER PRESSURE =====
+   * The owner: "Please add a nerves stat which SLOWLY increases the variance of a good or a bad game. If there's
+   * a 70 percent variance for example, maybe 100 brings up the lower end. Call it clutch gene or something,
+   * cool under pressure, impacted by personality too."
+   *
+   * `player.poiseV192C`, 0-100. A new career starts at `poiseStartV192C` (10); a save from before v192C is seeded
+   * from the seasons he has already played (`poiseSeedPerSeasonV192C` 3 a season, to `poiseSeedMaxV192C` 55).
+   * GROWTH (`poiseGameV192C`, once a game, from `__aiSeasonGame` — every simmed and watched game passes there):
+   *   `poiseGainV192C` (0.3) × playoff `poisePlayoffKV192C` (2.5) / rivalry `poiseRivalKV192C` (1.6) × the
+   *   personality's `poiseRate` (Even-Keeled +12%/pt, Volatile −12%/pt, Composed +5%/pt — src/14) × (1 − poise /
+   *   `poiseSoftCapV192C` (115)): about a point every two regular games early, slowing as it climbs.
+   * THE SWING (`poiseShapeV192C(e, x)` reshapes a symmetric random swing x): width × lerp(`poiseWideV192C` 1.2,
+   *   `poiseNarrowV192C` 0.85, poise/100); the BAD half × (1 − `poiseLiftV192C` 0.4 × poise/100) — the floor
+   *   lifts; the GOOD half × (1 − `poiseTrimV192C` 0.15 × poise/100), so the average barely moves. It is applied
+   *   to the three per-game random swings both paths share: the game rating in `rollGamePerf` (quick sim and
+   *   the watched game's grade), the v146 D form roll (`formRollV146`: the attribute swing the watched game is
+   *   PLAYED with, stashed for the broadcast in `_simInV146`), and ca()'s ±6 week-rating swing (and the v146
+   *   projection's sd of it). Kill switch `TU("v192C", 0)`: no poise, no reshape, no new persona levers. */
+  function onV192C() {
+    return !!TU("v192C", 1);
+  }
+  // the persona fx with the v192C levers; an old save's fx is recomputed once (never its clash — src/14)
+  function personaFxV192C(e) {
+    if (!e || !onV192C()) return null;
+    let fx = e.personaFxV20;
+    if (e.personaV13 && (!fx || fx.v192C !== 1) && typeof window.__personaFxRefreshV192C === "function")
+      try {
+        fx = window.__personaFxRefreshV192C(e);
+      } catch (_) {}
+    return fx && fx.v192C ? fx : null;
+  }
+  function fatigueMulV192C(e) {
+    const fx = personaFxV192C(e);
+    return (fx && fx.fatigueMult) || 1;
+  }
+  function growthMulV192C(e) {
+    const fx = personaFxV192C(e);
+    return (fx && fx.growthMult) || 1;
+  }
+  function boomMulV192C(e) {
+    const fx = personaFxV192C(e);
+    return (fx && fx.boomMult) || 1;
+  }
+  function poiseStartV192C() {
+    return TU("poiseStartV192C", 10);
+  }
+  function poiseOfV192C(e) {
+    if (!e) return poiseStartV192C();
+    if (e.poiseV192C == null || !isFinite(e.poiseV192C)) {
+      const seasons = Math.max(0, e.seasonsSinceStart | 0);
+      e.poiseV192C = Math.round(
+        clamp99(poiseStartV192C() + seasons * TU("poiseSeedPerSeasonV192C", 3), 0, Math.max(poiseStartV192C(), TU("poiseSeedMaxV192C", 55)))
+      );
+    }
+    return clamp99(e.poiseV192C, 0, 100);
+  }
+  function poiseGameV192C(e, opts) {
+    if (!e || !onV192C()) return 0;
+    opts = opts || {};
+    const now = poiseOfV192C(e),
+      wk = curWeekV111(e),
+      rival = (opts.oppBoost && opts.oppBoost === TU("rivalOppBoost", 0.38)) || (wk && (wk.rivalV128 || wk.importance === "rivalry")),
+      stakes = opts.playoff ? TU("poisePlayoffKV192C", 2.5) : rival ? TU("poiseRivalKV192C", 1.6) : 1,
+      fx = personaFxV192C(e),
+      rate = (fx && fx.poiseRate) || 1,
+      gain = TU("poiseGainV192C", 0.3) * stakes * rate * Math.max(0, 1 - now / TU("poiseSoftCapV192C", 115));
+    e.poiseV192C = Math.round(clamp99(now + gain, 0, 100) * 100) / 100;
+    e._poiseLastV192C = Math.round(gain * 100) / 100;
+    return gain;
+  }
+  // the three factors at a poise: [width, bad-half, good-half]
+  function poiseFactorsV192C(p) {
+    const q = clamp99(p, 0, 100) / 100,
+      w = TU("poiseWideV192C", 1.2) + (TU("poiseNarrowV192C", 0.85) - TU("poiseWideV192C", 1.2)) * q;
+    return { w, lo: 1 - TU("poiseLiftV192C", 0.4) * q, hi: 1 - TU("poiseTrimV192C", 0.15) * q };
+  }
+  function poiseShapeV192C(e, x) {
+    if (!e || !onV192C() || !x) return x;
+    const F = poiseFactorsV192C(poiseOfV192C(e));
+    return x * F.w * (x < 0 ? F.lo : F.hi);
+  }
+  // the sd of a shaped U(−1,1) swing over the unshaped one (the v146 projection's spread)
+  function poiseSdMulV192C(e) {
+    if (!e || !onV192C()) return 1;
+    const F = poiseFactorsV192C(poiseOfV192C(e)),
+      a = F.w * F.hi,
+      b = F.w * F.lo;
+    return Math.sqrt(3 * ((a * a + b * b) / 6 - Math.pow((a - b) / 4, 2)));
+  }
+  function poiseBandV192C(p) {
+    return p >= 80 ? "ICE COLD" : p >= 60 ? "UNFAZED" : p >= 40 ? "SETTLED" : p >= 20 ? "JITTERY" : "RATTLED";
+  }
+  function poiseCardV192C(e) {
+    if (!e || !onV192C()) return "";
+    const p = poiseOfV192C(e),
+      F = poiseFactorsV192C(p),
+      fx = personaFxV192C(e),
+      rate = (fx && fx.poiseRate) || 1,
+      last = e._poiseLastV192C;
+    return `<div class="card poise-card-v192c"><div class="eyebrow">Poise · Cool Under Pressure</div>
+    <div style="display:flex;justify-content:space-between;gap:12px;align-items:center"><div><div class="h2" style="margin:0;color:#8fd3ff">${poiseBandV192C(p)}</div>
+    <div class="small">Game-to-game swing <b>×${F.w.toFixed(2)}</b> · a bad game's drop <b>×${(F.w * F.lo).toFixed(2)}</b> · a good game's rise <b>×${(F.w * F.hi).toFixed(2)}</b>. Grows slowly with every game — <b>×${TU("poisePlayoffKV192C", 2.5)}</b> in the playoffs, <b>×${TU("poiseRivalKV192C", 1.6)}</b> in a rivalry — and <b>×${rate.toFixed(2)}</b> for your personality${last ? ` (last game +${last.toFixed(2)})` : ""}.</div></div>
+    <div class="ovr-big" style="color:#8fd3ff">${Math.round(p)}</div></div>
+    <div class="small" style="margin-top:6px"><a href="#" onclick="window.__personaViewV192C&&window.__personaViewV192C();return false" style="color:var(--gold)">Personality — every effect ›</a></div></div>`;
+  }
+  const decorateV192C = decorateScreen;
+  decorateScreen = function () {
+    decorateV192C();
+    try {
+      const e = state.player,
+        t = byId("screen");
+      if (onV192C() && e && t && state.view === "hub" && !t.querySelector(".poise-card-v192c")) {
+        const a = t.querySelector(".age-card") || t.querySelector(".depth-card") || t.querySelector(".card");
+        a && a.insertAdjacentHTML("afterend", poiseCardV192C(e));
+      }
+    } catch (_) {}
+  };
+  window.__V192C = {
+    poise: e => poiseOfV192C(e || state.player),
+    start: () => poiseStartV192C(),
+    grow: (e, opts) => poiseGameV192C(e || state.player, opts),
+    shape: (e, x) => poiseShapeV192C(e || state.player, x),
+    factors: p => poiseFactorsV192C(p),
+    sdMul: e => poiseSdMulV192C(e || state.player),
+    fx: e => personaFxV192C(e || state.player),
+    fatigueMul: e => fatigueMulV192C(e || state.player),
+    growthMul: e => growthMulV192C(e || state.player),
+    boomMul: e => boomMulV192C(e || state.player),
+    card: e => poiseCardV192C(e || state.player),
+    band: poiseBandV192C
   };
   window.__V112_C = {
     htFrac: HT_FRAC_V112,
@@ -29156,7 +29299,7 @@
         load: loadOfV111(e) /* v111: what he is already carrying is a term in this game's injury roll */
       }),
       __omClr = (window.__oppMulV22 = null),
-      h = randRange(-6, 6) * (s.varMult || 1) * cv171,
+      h = poiseShapeV192C(e, randRange(-6, 6)) /* v192C */ * (s.varMult || 1) * cv171,
       p = ((e.composure103 || 50) - 50) * 0.06,
       m = ((e.momentum103 || 50) - 50) * 0.045;
     ((t.perf = Math.round(clamp99(_g17.perf + h + p + m, 1, 100))),
@@ -30119,9 +30262,9 @@
    *     thins with volume, `projThinV146`, the rest is per-game) combined with the plan's swing. The
    *     low–high on every row is the 80% band, stated in whole numbers.
    *  `scripts/v146Dcheck.mjs` holds the projection against the real booking path, game for game. */
-  function formRollV146(vm) {
+  function formRollV146(vm, e) {
     if (vm == null || !TU("planFormV146", 1)) return { pts: 0, buffs: [] };
-    const pts = Math.round(TU("planFormPtsV146", 3) * vm * (Math.random() * 2 - 1) * 10) / 10;
+    const pts = Math.round(TU("planFormPtsV146", 3) * vm * poiseShapeV192C(e, Math.random() * 2 - 1) /* v192C */ * 10) / 10;
     return { pts, buffs: pts ? SIM_KEYS_V111.map(k => ({ stat: k, amt: pts, v146: "form" })) : [] };
   }
   function liveInV146(t, a) {
@@ -30648,7 +30791,7 @@
         vmR = (e.eventChoice && e.eventChoice.varMult) || 1,
         pm = ((e.composure103 || 50) - 50) * 0.06 + ((e.momentum103 || 50) - 50) * 0.045,
         mu = 50 + (fit.perf.mu + (P ? P.ratingShift : 0) + 2.4 * dOvr + pm - 50) * vmR,
-        sd = vmR * Math.sqrt(fit.perf.sd * fit.perf.sd + 12 * vm * vm);
+        sd = vmR * Math.sqrt(fit.perf.sd * fit.perf.sd + 12 * vm * vm * Math.pow(poiseSdMulV192C(e), 2)) /* v192C */;
       grade = { mean: clamp99(mu, 1, 100), sd, lo: clamp99(mu - z * sd, 1, 100), hi: clamp99(mu + z * sd, 1, 100) };
     }
     return {
