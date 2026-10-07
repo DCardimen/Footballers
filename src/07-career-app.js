@@ -2742,6 +2742,34 @@
       physicalStart: 5,
       mentalStart: 5
     }[e];
+    /* v190 B: the stated numbers are paid — `prestigeCap` (v146) squashed every total past a small ceiling (+3 to every
+     * stat a game however many game-day levels he bought, team quality 0.12 against 1.2 on the tree, +4 starting points
+     * against +8), so most of a maxed node was a description. The ceilings are now what the tree can actually buy at
+     * full levels (and the injury tree reaches its stated 25%); past them — the FOREVER nodes, the medal rewards — the
+     * same soft taper. Kill switch `v190cap` 0 = the v146 ceilings. */
+    const big = TU("v190cap", 1)
+      ? {
+          startAll: 8,
+          perfFlat: 70,
+          advFlat: 32,
+          injDown: 0.84,
+          coachStart: 40,
+          snapFloor: 0.24,
+          cutSave: 0.5,
+          pointsFlat: 10,
+          goodLuck: 0.15,
+          depthPower: 0.42,
+          youthPerf: 45,
+          nflPerf: 48,
+          physicalStart: 30,
+          mentalStart: 40
+        }[e]
+      : null;
+    if (big != null && s != null) {
+      const n0 = t < 0 ? -1 : 1,
+        i0 = Math.abs(t);
+      return i0 <= big ? t : n0 * (big + Math.log1p(i0 - big) * big * 0.18);
+    }
     if (s == null) return t;
     const n = t < 0 ? -1 : 1,
       i = Math.abs(t);
@@ -5233,6 +5261,70 @@
     }
     return t;
   }
+  /* ===== v190 A GAME-DAY NODES, A SHARE OF THE MAN =====
+   * The owner: "skills that offer flat stats per game don't seem to appear. They might be too strong if working
+   * properly." They did not appear: `perfFlat` (Twin Engines, Zen Focus, Trash Talk, Aura, The Wall, Glass Cannon,
+   * Eternal Form) was added to his attributes only in the WATCHED game (`buildGameRosters`) — the Quick Play and the
+   * simmed week (`rollGamePerf`) never read it. And a flat +12 is a second player at Pee Wee (the league's bar is 16) and
+   * nothing in the Interstellar League (135). Now every point of `perfFlat` is ONE PERCENT of each attribute on game day,
+   * in every path (the watched game, the Quick Play, the season sim, the declare odds' `mr`), the whole tree capped at
+   * `perfPctCapV190` (30%). The skills screen shows the live total. Kill switch `v190perf` 0 = the old flat points. */
+  /* ===== v190 E THE WINDFALL, TO SCALE =====
+   * The owner: "the flat prestige gained from the cards … are so much higher than the actual prestige mechanic". The
+   * medal's "Prestige windfall" paid 20 + 6 a rank (medal 2: +32 PP) while a Pee Wee career pays ~4 and a High School
+   * one ~15 — the side card out-earned the career. Now it pays `windfallShareV190` (40%) of what a career pays you: the
+   * best of the last three careers' payouts (`state.payHistV190`, recorded at each settle) and this career's pot so
+   * far, at least `windfallMinV190` (3). It grows with you instead of in front of you. Kill switch `v190wind` 0. */
+  function windfallV190(rank) {
+    let ref = 0;
+    try {
+      const h = (state && state.payHistV190) || [];
+      ref = Math.max(0, ...h.slice(-3), careerPotV189(state && state.player));
+    } catch (_) {}
+    return Math.max(TU("windfallMinV190", 3), Math.round(ref * TU("windfallShareV190", 0.4)));
+  }
+  function payHistPushV190(pay) {
+    if (!state || !(pay > 0)) return;
+    const h = (state.payHistV190 = state.payHistV190 || []);
+    h.push(Math.round(pay));
+    h.length > 8 && h.splice(0, h.length - 8);
+  }
+  window.__V190 = {
+    perfPct: () => perfPctV190(),
+    teamLift: () => teamLiftPctV190(),
+    teamLiftD: C => teamLiftDV190(C),
+    windfall: r => windfallV190(r || 1),
+    payHist: () => ((state && state.payHistV190) || []).slice(),
+    fx: k => treeFx(k),
+    roll: (p, a) => rollGamePerf(p || state.player, 0, a || {}) /* moves coach trust — restore the player after sampling (v146 D) */
+  };
+  function perfPctOnV190() {
+    return !!TU("v190perf", 1);
+  }
+  function perfPctV190() {
+    if (!perfPctOnV190()) return 0;
+    return clamp99(treeFx("perfFlat") || 0, 0, TU("perfPctCapV190", 30)) / 100;
+  }
+  /* ===== v190 C THE TEAM NODES LIFT YOUR TEAMMATES =====
+   * The owner: "make sure the team based prestige upgrades are more specific in wording. And scale higher and start
+   * higher, given they are so cheap." The seven team nodes (Winning Culture, Dynasty Program, Booster Club, Crowd
+   * Favorite, GM's Eye, Fortress Home Field, Superteam) were "team quality" — summed, capped at 0.34, halved, ×0.1, ×40:
+   * a full Superteam moved the scoreline under a point. Now each is a stated PERCENT on every teammate's rating
+   * (`teamLiftV190` fx): your side's team OVR — the badge, the quick sim's pair and every man the watched game builds —
+   * is that much higher, all seven together capped at `teamLiftCapV190` (15% — measured at College, a maxed set moves a below-average side from 28% to 67% wins, ~+8 points a game; 30% made it 92%). `teamLiftDV190(C)` turns the percent
+   * into the quality factor both builders already read (ovr = base × (0.72 + C/2)), so the simmed and the watched week
+   * still agree (v76). Kill switch `v190team` 0 = the v153 B quality edge. */
+  function teamLiftOnV190() {
+    return !!TU("v190team", 1);
+  }
+  function teamLiftPctV190() {
+    if (!teamLiftOnV190()) return 0;
+    return clamp99(treeFx("teamLiftV190") || 0, 0, TU("teamLiftCapV190", 15));
+  }
+  function teamLiftDV190(C) {
+    const L = teamLiftPctV190() / 100;
+    return L > 0 ? 2 * L * (0.72 + 0.5 * C) : 0;
+  }
   function chaosTotal() {
     if (!state || !state.chaos) return 0;
     let e = 0;
@@ -5736,10 +5828,10 @@
           key: "workhorse",
           name: "Workhorse",
           icon: "🐎",
-          desc: "Stamina no longer drops from training.",
+          desc: "Training never costs him attributes.",
           cost: 10,
           mult: 1.6,
-          max: 3,
+          max: 1,
           req: { node: "lungs", lvl: 4 }
         },
         {
@@ -5766,7 +5858,7 @@
           key: "superhuman",
           name: "Superhuman",
           icon: "🦸",
-          desc: "Attribute soft-caps each season +15 higher.",
+          desc: "+60 potential ceiling per level.",
           cost: 45,
           mult: 2.3,
           max: 3,
@@ -5796,7 +5888,7 @@
           key: "recovery",
           name: "Rapid Recovery",
           icon: "🧊",
-          desc: "Injuries 2% rarer per level (v153 B: was 6%).",
+          desc: "Injuries 1.8% rarer per level.",
           cost: 7,
           mult: 1.5,
           max: 6,
@@ -5806,7 +5898,7 @@
           key: "engine",
           name: "Twin Engines",
           icon: "🔋",
-          desc: "+2 to ALL stats every game.",
+          desc: "+2% to every attribute a game, per level (cap +30%).",
           cost: 12,
           mult: 1.65,
           max: 6,
@@ -5873,7 +5965,7 @@
           key: "coachable",
           name: "Coachable",
           icon: "📋",
-          desc: "+1 upgrade point per season.",
+          desc: "+1 upgrade point per season (paid per game).",
           cost: 8,
           mult: 1.55,
           max: 8
@@ -5891,7 +5983,7 @@
           key: "clutch",
           name: "Clutch Gene",
           icon: "🔥",
-          desc: "+7 starting Grit; big-game bonuses +20%.",
+          desc: "+7 starting Grit and playoff bonuses +20%, per level.",
           cost: 6,
           mult: 1.45,
           max: 8
@@ -5903,7 +5995,7 @@
           key: "quickstudy",
           name: "Quick Study",
           icon: "📚",
-          desc: "Training focus effects +15% stronger.",
+          desc: "Training focus 3.5% stronger, plan risks 2% rarer — per level.",
           cost: 10,
           mult: 1.55,
           max: 6,
@@ -5913,7 +6005,7 @@
           key: "vet",
           name: "Veteran Presence",
           icon: "🧓",
-          desc: "+2 upgrade points per season.",
+          desc: "+2 upgrade points per season (paid per game).",
           cost: 14,
           mult: 1.7,
           max: 4,
@@ -5923,7 +6015,7 @@
           key: "prodigy",
           name: "Prodigy",
           icon: "🌟",
-          desc: "First 3 seasons of every career grant double growth.",
+          desc: "First 3 seasons grow +16% faster, per level.",
           cost: 22,
           mult: 1.9,
           max: 4,
@@ -5943,7 +6035,7 @@
           key: "mastermind",
           name: "Mastermind",
           icon: "♟️",
-          desc: "+10% growth AND +2 points per season.",
+          desc: "+2.5% growth AND +2 upgrade points per season, per level.",
           cost: 40,
           mult: 2.2,
           max: 3,
@@ -5985,11 +6077,11 @@
           key: "chipShoulder",
           name: "Chip on the Shoulder",
           icon: "😤",
-          desc: "Failed declares build +3 extra Determination.",
+          desc: "Passed over, he comes back angry: +3 starting Grit per level.",
           cost: 6,
           mult: 1.5,
           max: 5,
-          fx: { detPlus: 3 }
+          fx: { start_grit: 3 }
         },
         {
           key: "visionary",
@@ -6005,7 +6097,7 @@
           key: "zen",
           name: "Zen Focus",
           icon: "🧘",
-          desc: "+1 to ALL stats every game AND swings 4% smaller.",
+          desc: "+1% to every attribute a game and swings 4% smaller, per level.",
           cost: 15,
           mult: 1.7,
           max: 5,
@@ -6041,10 +6133,11 @@
           key: "goodProgram",
           name: "Winning Culture",
           icon: "🏆",
-          desc: "Your teams are a little stronger — a quarter percent of team quality per level, up to +1.5%. Decisions build the rest.",
+          desc: "Your teammates are rated +1% higher per level (Lv 6: +6%). Team nodes cap at +15%.",
           cost: 9,
           mult: 1.5,
-          max: 6
+          max: 6,
+          fx: { teamLiftV190: 1 }
         },
         {
           key: "extra",
@@ -6059,7 +6152,7 @@
           key: "gym",
           name: "Private Trainer",
           icon: "🏟️",
-          desc: "+5% attribute growth every season.",
+          desc: "+1.5% attribute growth every season, per level.",
           cost: 9,
           mult: 1.5,
           max: 6
@@ -6071,14 +6164,14 @@
           desc: "Begin career one level higher.",
           cost: 16,
           mult: 2.1,
-          max: 3,
+          max: 2,
           req: { honors: 5 }
         },
         {
           key: "spotlight",
           name: "Spotlight",
           icon: "📸",
-          desc: "Ranking climbs 20% faster from good seasons.",
+          desc: "Your ranking climbs 6% faster from good seasons, per level.",
           cost: 11,
           mult: 1.55,
           max: 6,
@@ -6088,7 +6181,7 @@
           key: "combineKing",
           name: "Combine King",
           icon: "🏅",
-          desc: "Combine event gains are doubled.",
+          desc: "Combine event gains ×2 at Lv 1, ×3 at Lv 2, ×4 at Lv 3.",
           cost: 12,
           mult: 1.6,
           max: 3,
@@ -6098,11 +6191,12 @@
           key: "dynastyTeam",
           name: "Dynasty Program",
           icon: "🏰",
-          desc: "Recruited by championship teams — +2% team quality per 5 levels & you carry them further.",
+          desc: "Your teammates are rated +2% higher per level (Lv 4: +8%). Team nodes cap at +15%.",
           cost: 18,
           mult: 1.75,
           max: 4,
-          req: { honors: 10 }
+          req: { honors: 10 },
+          fx: { teamLiftV190: 2 }
         },
         {
           key: "legacy",
@@ -6149,11 +6243,11 @@
           key: "boosters",
           name: "Booster Club",
           icon: "📣",
-          desc: "+1% team quality per 5 levels — the whole program lifts.",
+          desc: "Your teammates are rated +1% higher per level (Lv 6: +6%). Team nodes cap at +15%.",
           cost: 8,
           mult: 1.5,
           max: 6,
-          fx: { teamQual: 0.04 }
+          fx: { teamLiftV190: 1, teamQual: 0.04 }
         },
         {
           key: "january",
@@ -6403,12 +6497,12 @@
       icon: "🏕️",
       color: "#5aa0a0",
       nodes: [
-        { key: "campSpeed", name: "Speed Camp", icon: "💨", desc: "+3 starting Speed.", cost: 4, mult: 1.35, max: 8 },
+        { key: "campSpeed", name: "Speed Camp", icon: "💨", desc: "+4 starting Speed.", cost: 4, mult: 1.35, max: 8 },
         {
           key: "campStr",
           name: "Strength Camp",
           icon: "💪",
-          desc: "+3 starting Strength.",
+          desc: "+4 starting Strength.",
           cost: 4,
           mult: 1.35,
           max: 8
@@ -6417,17 +6511,17 @@
           key: "campHands",
           name: "Receiver Camp",
           icon: "🧤",
-          desc: "+3 starting Catching.",
+          desc: "+4 starting Catching.",
           cost: 4,
           mult: 1.35,
           max: 8
         },
-        { key: "campQB", name: "QB Academy", icon: "🎯", desc: "+3 starting Throwing.", cost: 4, mult: 1.35, max: 8 },
+        { key: "campQB", name: "QB Academy", icon: "🎯", desc: "+4 starting Throwing.", cost: 4, mult: 1.35, max: 8 },
         {
           key: "campDef",
           name: "Defense Camp",
           icon: "🛡️",
-          desc: "+3 starting Tackling.",
+          desc: "+4 starting Tackling.",
           cost: 4,
           mult: 1.35,
           max: 8
@@ -6436,7 +6530,7 @@
           key: "campIQ",
           name: "Chalk-Talk Camp",
           icon: "🧠",
-          desc: "+3 starting Awareness.",
+          desc: "+4 starting Awareness.",
           cost: 4,
           mult: 1.35,
           max: 8
@@ -6445,7 +6539,7 @@
           key: "allStarCamp",
           name: "All-Star Camp",
           icon: "🌟",
-          desc: "+2 to ALL starting attributes.",
+          desc: "+3 to ALL starting attributes.",
           cost: 14,
           mult: 1.7,
           max: 5,
@@ -6455,7 +6549,7 @@
           key: "proDay",
           name: "Pro Day Prep",
           icon: "📋",
-          desc: "+1 upgrade point per season.",
+          desc: "+1 upgrade point per season (paid per game).",
           cost: 10,
           mult: 1.6,
           max: 5,
@@ -6465,7 +6559,7 @@
           key: "megaCamp",
           name: "Elite Combine Camp",
           icon: "🔱",
-          desc: "+4 to ALL starting attributes.",
+          desc: "+6 to ALL starting attributes.",
           cost: 30,
           mult: 2,
           max: 3,
@@ -6543,7 +6637,7 @@
           key: "mixtape",
           name: "Viral Mixtape",
           icon: "🎬",
-          desc: "+1 recruiting star chance & +5% PP.",
+          desc: "+5% Prestige Points per level — the tape goes viral.",
           cost: 9,
           mult: 1.55,
           max: 5,
@@ -6553,7 +6647,7 @@
           key: "trashTalk",
           name: "Trash Talk",
           icon: "🗯️",
-          desc: "+1 to ALL stats every game — get in their heads.",
+          desc: "+1% to every attribute a game, per level.",
           cost: 10,
           mult: 1.6,
           max: 5,
@@ -6564,11 +6658,11 @@
           key: "crowdFavorite",
           name: "Crowd Favorite",
           icon: "📢",
-          desc: "+1.5% team quality per 10 levels — the stadium lifts them.",
+          desc: "Your teammates are rated +1% higher per level (Lv 6: +6%). Team nodes cap at +15%.",
           cost: 9,
           mult: 1.55,
           max: 6,
-          fx: { teamQual: 0.03 }
+          fx: { teamLiftV190: 1, teamQual: 0.03 }
         },
         {
           key: "primetime",
@@ -6585,7 +6679,7 @@
           key: "legendAura",
           name: "Aura",
           icon: "🔮",
-          desc: "+2 perf, swings 5% smaller, +2% advance.",
+          desc: "+2% to every attribute a game, swings 5% smaller, +2% advance — per level.",
           cost: 26,
           mult: 1.95,
           max: 4,
@@ -6644,7 +6738,7 @@
           key: "etForm",
           name: "Eternal Form",
           icon: "🌠",
-          desc: "Half a point to ALL stats every game. FOREVER repeatable.",
+          desc: "+0.5% to every attribute a game. FOREVER (cap +30%).",
           cost: 16,
           mult: 1.24,
           max: 999,
@@ -6658,7 +6752,7 @@
           cost: 18,
           mult: 1.26,
           max: 999,
-          fx: { pointsFlat: 1 }
+          fx: { wisdomPtsV190: 1 }
         },
         {
           key: "etAegis",
@@ -6868,7 +6962,7 @@
           key: "inevitable",
           name: "Inevitable",
           icon: "⚡",
-          desc: "+8 to the chance of being called up, per level. They come looking for him.",
+          desc: "+8% call-up chance per level (×1.5 on Apex: +12%).",
           cost: 6e4,
           mult: 2,
           max: 3,
@@ -6886,17 +6980,17 @@
           key: "gmEye",
           name: "GM's Eye",
           icon: "🔍",
-          desc: "A quarter percent of team quality per level — front office finds talent.",
+          desc: "Your teammates are rated +1.25% higher per level (Lv 6: +7.5%). Team nodes cap at +15%.",
           cost: 8,
           mult: 1.5,
           max: 6,
-          fx: { teamQual: 0.05 }
+          fx: { teamLiftV190: 1.25, teamQual: 0.05 }
         },
         {
           key: "oline_wall",
           name: "The Wall",
           icon: "🧱",
-          desc: "Your line protects: injuries 1.5% rarer, +1 perf.",
+          desc: "Injuries 1.5% rarer and +1% to every attribute a game, per level.",
           cost: 10,
           mult: 1.6,
           max: 5,
@@ -6918,12 +7012,12 @@
           key: "homeField",
           name: "Fortress Home Field",
           icon: "🏰",
-          desc: "+1% team quality per 5 levels & +2 playoff performance.",
+          desc: "Teammates +1.5% per level (Lv 5: +7.5%), +2 playoff perf. Team nodes cap at +15%.",
           cost: 14,
           mult: 1.65,
           max: 5,
           req: { honors: 9 },
-          fx: { teamQual: 0.04, playoffPerf: 2 }
+          fx: { teamLiftV190: 1.5, teamQual: 0.04, playoffPerf: 2 }
         },
         {
           key: "warRoom",
@@ -6940,12 +7034,12 @@
           key: "juggernautTeam",
           name: "Superteam",
           icon: "💫",
-          desc: "+3.5% team quality per 10 levels — a loaded roster every year.",
+          desc: "Your teammates are rated +2.5% higher per level (Lv 4: +10%). Team nodes cap at +15%.",
           cost: 24,
           mult: 1.9,
           max: 4,
           req: { honors: 15 },
-          fx: { teamQual: 0.07 }
+          fx: { teamLiftV190: 2.5, teamQual: 0.07 }
         },
         {
           key: "foreverFranchise",
@@ -7095,7 +7189,7 @@
         key: "glassCannon",
         name: "Glass Cannon",
         icon: "🔫",
-        desc: "+4 to ALL stats every game; injuries 18% more likely.",
+        desc: "+4% to every attribute a game; injuries 18% likelier — per level.",
         cost: 9,
         mult: 1.6,
         max: 5,
@@ -8011,8 +8105,8 @@
       rerolled = !0;
       hit = Math.random() < p;
     } // Loaded Dice, or the Oracle (v134)
-    if (!hit && nodeLvl("fateDestiny") > 0 && e._destinySeasonV124 !== (e.seasonsPlayed | 0)) {
-      e._destinySeasonV124 = e.seasonsPlayed | 0;
+    if (!hit && nodeLvl("fateDestiny") > 0 && e._destinySeasonV124 !== ((TU("v190F", 1) ? e.totalSeasons : e.seasonsPlayed) | 0)) {
+      e._destinySeasonV124 = (TU("v190F", 1) ? e.totalSeasons : e.seasonsPlayed) | 0; /* v190 F: seasonsPlayed is never set — it fired once a player */
       saved = hit = !0;
     } // Scripted Destiny
     const hedge = !hit && nodeLvl("fateHedge") > 0; // House Money
@@ -10641,7 +10735,7 @@
       t[v] = clamp99(Math.round(8 + randRange(-2, 4) + (s + i) * 0.55 + a), 1, n);
     }),
       (t.speed = clamp99(t.speed + nodeLvl("fastTwitch") * 6 + nodeLvl("campSpeed") * 4, 1, n)),
-      (t.acceleration = clamp99((t.acceleration || 10) + nodeLvl("fastTwitch") * 4 + nodeLvl("explosive") * 6, 1, n)),
+      (t.acceleration = clamp99((t.acceleration || 10) + nodeLvl("fastTwitch") * (TU("v190F", 1) ? 6 : 4) + nodeLvl("explosive") * (TU("v190F", 1) ? 8 : 6), 1, n)) /* v190 F: as stated */,
       (t.quickness = clamp99(t.quickness + nodeLvl("fastTwitch") * 6 + nodeLvl("explosive") * 8, 1, n)),
       (t.agility = clamp99(t.agility + nodeLvl("nimble") * 6 + nodeLvl("explosive") * 8, 1, n)),
       (t.strength = clamp99(t.strength + nodeLvl("frame") * 7 + nodeLvl("campStr") * 4, 1, n)),
@@ -12723,7 +12817,7 @@
   };
   function rollGamePerf(e, t = 0, a) {
     a = a || {};
-    const s = playerPower(e),
+    const s = playerPower(e) * (1 + perfPctV190()) /* v190 A: the game-day nodes reach the simmed game too */,
       n = LEVELS[e.level],
       i = n.need - 6 + chaosOppBoost(e.level) + seasonModFx("peerShift"),
       r = 1 + nodeLvl("clutch") * 0.02,
@@ -12732,7 +12826,7 @@
     let c = hasTrait(e, "streaky") ? 23 : 15;
     c *= Math.max(0.5, 1 - treeFx("varDown") - gearV147("varDown")) * (seasonModFx("varMult") || 1);
     let u = (s - i) * 2.4 + randRange(-c, c) * l + 50 + (t / n.games) * 2 + ((state && state._fateBoost) || 0);
-    (a.playoff && ((u += treeFx("playoffPerf") + seasonModFx("playoffPerf")), hasTrait(e, "xfactor") && (u += 12)),
+    (a.playoff && ((u += (treeFx("playoffPerf") + seasonModFx("playoffPerf")) * (TU("v190F", 1) ? 1 + nodeLvl("clutch") * 0.2 : 1)) /* v190 F: Clutch Gene — big-game bonuses +20% a level */, hasTrait(e, "xfactor") && (u += 12)),
       hasTrait(e, "butterFingers") && Math.random() < 0.12 && (u -= 18),
       Math.random() < (hasTrait(e, "streaky") ? 0.06 : 0.04) && u > 40 && (u *= 1.5),
       (u *= d));
@@ -12834,7 +12928,7 @@
   );
   function mr(e, t) {
     const a = LEVELS[t].need - 6 + chaosOppBoost(t);
-    return clamp99(xi((e - a) * 2.4 + 50 + treeFx("perfFlat")), 1, 100);
+    return perfPctOnV190() ? clamp99(xi((e * (1 + perfPctV190()) - a) * 2.4 + 50), 1, 100) : clamp99(xi((e - a) * 2.4 + 50 + treeFx("perfFlat")), 1, 100);
   }
   function prodStats(e, t, a, ng) {
     const s = LEVELS[a].games,
@@ -12892,6 +12986,7 @@
       let _adv = clamp99(
         (1 / (1 + Math.exp(-P))) * 100 +
           pathVal("advBonus", 0) +
+          (TU("v190F", 1) ? treeFx("advBonus") : 0) /* v190 F: Inevitable was read by nobody */ +
           treeFx("advFlat") +
           seasonModFx("advFlat") +
           gearV147("callUp"),
@@ -13076,13 +13171,13 @@
     });
     for (const R in Q) Q[R] = Math.round(Q[R]);
     const Me = 1 + nodeLvl("talent") * 0.018 + nodeLvl("gym") * 0.015 + nodeLvl("mastermind") * 0.025,
-      Fe = nodeLvl("prodigy") > 0 && e.seasonsSinceStart < 3 ? 1.16 : 1,
+      Fe = nodeLvl("prodigy") > 0 && e.seasonsSinceStart < 3 ? (TU("v190F", 1) ? 1 + 0.16 * nodeLvl("prodigy") : 1.16) : 1,
       he = clamp99((U - 32) / 58, 0, 1.15),
       Mt =
         b * 0.035 +
         (B ? 0.06 : 0) +
         (P.some(R => R && R.rivalV128 && R.won)
-          ? TU("rivalGrowth", 0.06)
+          ? TU("rivalGrowth", 0.06) * (TU("v190F", 1) ? RIVAL_MULT_V128() / 2 : 1) /* v190 F: Grudge Match scales the growth too */
           : 0) /* v128: everything the rivalry pays lands double, growth included */,
       da = clamp99(1 - u * 0.055, 0.72, 1);
     let xt = 1;
@@ -13217,6 +13312,7 @@
               (Math.round((U / 94) * ge + ge * 0.6 + e.attrs.awareness * 0.02) + g + N + H + oe) * _wv164.mult
             )) /* v164 C: the season's points ride the watched share */ +
         Math.floor(treeFx("pointsFlat") + gearFx("pointsFlat") + seasonModFx("pointsFlat") + gearV147("points")) +
+        Math.floor(treeFx("wisdomPtsV190")) /* v190 F: Eternal Wisdom, its own uncapped term (was pointsFlat, capped at 3) */ +
         repsV146(),
       de = prodStats(e.pos, U, e.level),
       ne = Object.values(state.tree || {}).reduce((R, O) => R + O, 0),
@@ -15131,7 +15227,7 @@
         b = ps && e.weekResults ? e.weekResults.filter(R => R.playoff && R.played && R.won).length : 0,
         B = !!(ps && ps.champion);
       const Me = 1 + nodeLvl("talent") * 0.018 + nodeLvl("gym") * 0.015 + nodeLvl("mastermind") * 0.025,
-        Fe = nodeLvl("prodigy") > 0 && e.seasonsSinceStart < 3 ? 1.16 : 1,
+        Fe = nodeLvl("prodigy") > 0 && e.seasonsSinceStart < 3 ? (TU("v190F", 1) ? 1 + 0.16 * nodeLvl("prodigy") : 1.16) : 1,
         he = clamp99((U - 32) / 58, 0, 1.15),
         Mt = b * 0.035 + (B ? 0.06 : 0),
         da = clamp99(1 - u * 0.055, 0.72, 1);
@@ -16251,7 +16347,7 @@
     function y(Y) {
       const _ = (ie, B) =>
         ie.map(b => {
-          const pe = clamp99(Y + randRange(-0.15, 0.15), 0.05, 1.7),
+          const pe = clamp99(Y + randRange(-0.15, 0.15), 0.05, teamLiftOnV190() ? 2.4 : 1.7) /* v190 C: room for the lift */,
             Q = m(pe);
           return { name: randName(), num: jerseyNum(b), pos: b, isOff: B, ovr: Q, attrs: h(b, simOvrV178(Q)), stat: p(b, pe) };
         });
@@ -16281,7 +16377,7 @@
      * is a 100-0 scoreline. So the roster is left exactly as it was, and the whole curve
      * is carried by the four play-level levers below, which act on the game rather than
      * on the team sheet. ===== */
-    const C = clamp99(
+    const C0 = clamp99(
         0.42 +
           t * 0.35 +
           teamPrestigeQV153B(_prF) +
@@ -16290,6 +16386,7 @@
         0.3,
         1.65
       ),
+      C = C0 + teamLiftDV190(C0) /* v190 C: the team nodes lift every teammate */,
       V = clamp99((_oppMul - 0.72) * 2, 0.36, 1.16),
       P = ((C0V178 = C), (V0V178 = V), y(C)) /* v178 N: the midpoint both rosters' attributes are drawn toward */,
       v = y(V),
@@ -17018,7 +17115,7 @@
             }
           if (_mu !== 1) _v *= clamp99(_mu, TU("focusMulFloor", 0.6), TU("focusMulCeil", TU("v171Cfocus", 1) ? 1.5 : 1.35)); /* v171 C: a hot focus reaches ×1.5 */
           /* v111: the focus is a multiplier, and it lands AFTER the body's swing */ _v +=
-            (treeFx("perfFlat") || 0) +
+            (perfPctOnV190() ? _v * perfPctV190() : treeFx("perfFlat") || 0) /* v190 A: a share of the man */ +
             ((window.__youPersonaFxV20 && window.__youPersonaFxV20.perfFlat) || 0) +
             gearAttrV147(k); /* v147 C: the gear on him */
         }
@@ -20247,7 +20344,7 @@
       const wk = opts.wk;
       if (wk && wk.opp && typeof __oppMulForV22 === "function") oppMul = __oppMulForV22(wk.opp);
     } catch (_e) {}
-    const C = clamp99(
+    const C0 = clamp99(
         0.42 +
           t * 0.35 +
           teamPrestigeQV153B(prF) +
@@ -20256,6 +20353,7 @@
         0.3,
         1.65
       ),
+      C = C0 + teamLiftDV190(C0) /* v190 C: the team nodes' lift, on top of everything else */,
       V = clamp99((oppMul - 0.72) * 2, 0.36, 1.16),
       ovr = Q => clamp99(Math.round(u * (0.72 + Q * 0.5)), 3, 999);
     // a playoff/seeding shift arrives as oppBoost — (theirRating - levelAvg)/180 —
@@ -20285,9 +20383,8 @@
     margin +=
       Math.min(
         0.34,
-        nodeLvl("goodProgram") * 0.05 * Math.min(1, (s + 1) / 4) +
-          nodeLvl("dynastyTeam") * 0.08 +
-          treeFx("teamQual") +
+        (teamLiftOnV190() ? 0 : nodeLvl("goodProgram") * 0.05 * Math.min(1, (s + 1) / 4) + nodeLvl("dynastyTeam") * 0.08) /* v190 C: now in the roster */ +
+          (teamLiftOnV190() ? 0 : treeFx("teamQual")) /* v190 C: the tree's share is the lift now */ +
           gearV147("teamQual")
       ) *
         teamNodeKV153B() /* v153 B: the tree's share of the team is halved */ *
@@ -24928,6 +25025,7 @@
       (state.pp += r),
       (e._vaultPayV137 = r + (e._ppBankV136 || 0)),
       flipPPSettleV186(e, r + (e._ppBankV136 || 0)) /* v186 F: the Prestige cards pay now */,
+      payHistPushV190(e._vaultPayV137) /* v190 E: what careers pay, for the medal windfall */,
       payoutBoostV150C(e, r, "gameover") /* v150 C H4 */,
       (state.prestige = +(state.prestige + honorGainV156A(l)).toFixed(1)) /* v156 A: no Honors — the medals are the rank */,
       (state.careersCompleted = (state.careersCompleted || 0) + (arr ? 0 : 1)) /* counted once, at the arrival */,
@@ -25006,13 +25104,15 @@
           eraMult(),
         s = 1 + nodeLvl("hof") * 0.3,
         n = Math.round(
-          (85 + e.totalSeasons * 0.75 + (e.titles || 0) * 6) * a * s * chaosEarnedMult(Math.max(7, e.level))
+          (85 + e.totalSeasons * 0.75 + (e.titles || 0) * 6) * a * s * chaosEarnedMult(Math.max(7, e.level)) +
+            (TU("v190F", 1) ? nodeLvl("legacy") * e.totalSeasons : 0) /* v190 F: Family Legacy pays on the UFF arrival too */
         ),
         i = prestigeStarReward(e, Math.max(7, e.level), !0);
       ((e._ppBankV136 = flushBankV136()),
         (state.pp += n),
         (e._vaultPayV137 = (e._vaultPayV137 || 0) + n + (e._ppBankV136 || 0)),
         flipPPSettleV186(e, n + (e._ppBankV136 || 0)) /* v186 F */,
+        payHistPushV190(n + (e._ppBankV136 || 0)) /* v190 E */,
         payoutBoostV150C(e, n, "win") /* v150 C H5 */,
         (state.prestige = +(state.prestige + honorGainV156A(i)).toFixed(1)) /* v156 A */,
         (state.bestLevel = 7),
@@ -25087,7 +25187,8 @@
   function tailPPV154(e, arr, mult, lv) {
     const n = Math.max(0, (e.totalSeasons | 0) - (arr.seasons | 0)),
       t = Math.max(0, (e.titles | 0) - (arr.titles | 0));
-    return Math.max(1, Math.round((n * TU("uffTailPPV154", 4) + t * 4) * mult * chaosEarnedMult(lv)));
+    const hof = TU("v190F", 1) ? 1 + nodeLvl("hof") * 0.3 : 1; /* v190 F: Hall of Fame Path pays on the UFF tail too */
+    return Math.max(1, Math.round((n * TU("uffTailPPV154", 4) + t * 4) * mult * hof * chaosEarnedMult(lv)));
   }
   function refreshHofV154(e, arr, lv) {
     const rows = state.hof || (state.hof = []),
@@ -32920,7 +33021,14 @@
           try {
             if (state) state._fateBoost = 0;
             // reset Scripted Destiny at the start of each season
-            if (state && state.player && (state.player.week || 0) <= 1) state._destinyUsed = false;
+            /* v190 F: player.week is never set, so this reset before EVERY game (every failed roll became a success) —
+             * now once a season, keyed on the season count */
+            if (TU("v190F", 1)) {
+              if (state && state.player && state._destinySeasonV190 !== (state.player.totalSeasons | 0)) {
+                state._destinySeasonV190 = state.player.totalSeasons | 0;
+                state._destinyUsed = false;
+              }
+            } else if (state && state.player && (state.player.week || 0) <= 1) state._destinyUsed = false;
             res = runFateRoll(planId);
             // apply the temporary attribute buff BEFORE the game is generated
             if (res && res.applied && p && p.attrs && p.attrs[res.attr] != null) {
@@ -37932,7 +38040,7 @@
     { id: "luckyDeck", icon: "🎲", name: "Loaded Deck", fx: { flipLuckV179: 1 }, ctx: "Rare, epic and legendary post-game cards turn up twice as often." },
     { id: "prodigy", icon: "🌟", name: "Born for It", fx: { eGrowth: 0.25 }, ctx: "+5% to every season's attribute growth, every career." },
     { id: "ironBody", icon: "🦴", name: "Iron Body", fx: { injDown: 0.08 }, ctx: "8% fewer injuries, every game, every career." },
-    { id: "pedigree", icon: "🏛️", name: "Program Pedigree", fx: { teamQual: 0.05 }, ctx: "Every team you join is a little better around you." },
+    { id: "pedigree", icon: "🏛️", name: "Program Pedigree", fx: { teamQual: 0.05, teamLiftV190: 1.5 }, ctx: "Every teammate is rated +1.5% higher, every game (on the team nodes' +15% cap)." },
     { id: "headStart", icon: "🚀", name: "Head Start", fx: { startPointsV179: 10 }, ctx: "Every new player starts with 10 upgrade points to spend." },
     { id: "paycheck", icon: "💵", name: "Golden Paycheck", fx: { payMultV179: 0.1 }, ctx: "+10% to every game's paycheck (the per-game upgrade points)." },
     { id: "titleHunter", icon: "🏆", name: "Title Hunter", fx: { titleMult: 0.15 }, ctx: "+15% Prestige Points from every championship." },
@@ -37998,7 +38106,7 @@
       dress = c => {
         const o = Object.assign({}, c, { fx: Object.assign({}, c.fx || {}) });
         if (c.id === "pp") {
-          o.amt = Math.round((20 + rank * 6) * eraMult() * Math.max(1, Math.sqrt(chaosPPMult())));
+          o.amt = TU("v190wind", 1) ? windfallV190(rank) : Math.round((20 + rank * 6) * eraMult() * Math.max(1, Math.sqrt(chaosPPMult())));
           o.name = "+" + fmtBigV179(o.amt) + " Prestige Points";
         }
         if (c.id === "start") {
@@ -38290,6 +38398,12 @@
       bankRainV189(state.player);
       return;
     }
+    // v190 D: the Legacy medal card sits under the report card, at the top — it was the last thing on the page
+    if (state.view === "result" && TU("v190top", 1)) {
+      const lg = sc.querySelector(".legacy-card-v152"),
+        first = sc.querySelector(".card");
+      if (lg && first && first !== lg && first.nextElementSibling !== lg) first.insertAdjacentElement("afterend", lg);
+    }
     // the season report: the season's bank, animated
     if (state.view === "result" && B && !sc.querySelector("#bankResultV189")) {
       const shown = B.to;
@@ -38308,9 +38422,12 @@
       const animate = !B.seenResult;
       B.seenResult = !0;
       const html = bankCardHtmlV189("bankResultV189", animate ? B.from : shown, shown, "PP this career has earned — paid into the Vault when it ends"),
-        first = sc.querySelector(".card"); /* after the report card — the screen's own title sits above it */
-      first ? first.insertAdjacentHTML("afterend", html) : sc.insertAdjacentHTML("afterbegin", html);
-      animate && countUpV189(sc.querySelector("#bankResultV189 .num"), B.from, shown, 1400);
+        first = sc.querySelector(".card"),
+        lgc = TU("v190top", 1) && sc.querySelector(".legacy-card-v152"),
+        anchor = lgc && first && first.nextElementSibling === lgc ? lgc : first; /* v190 D: under the medal card, beside it */
+      anchor ? anchor.insertAdjacentHTML("afterend", html) : sc.insertAdjacentHTML("afterbegin", html);
+      /* v190 D: fills with the Legacy XP bar — its pour starts 600 ms after the card is in view */
+      animate && setTimeout(() => countUpV189(sc.querySelector("#bankResultV189 .num"), B.from, shown, TU("potFillMsV190", 2400)), TU("v190top", 1) ? 600 : 0);
       return;
     }
     // the prestige screen: the pot as the last season left it
@@ -38705,7 +38822,7 @@
       if (!TU("v179L", 1) || !TU("v179", 1) || !TREE[e]) return h;
       for (const n of TREE[e].nodes) {
         const g = nodePotGainV179(n.key),
-          bm = branchFxV186((TREE_NODES[n.key] && TREE_NODES[n.key].branch) || n.branch || e) /* v186 */;
+          bm = TU("v190F", 1) && !n.fx ? 1 : branchFxV186((TREE_NODES[n.key] && TREE_NODES[n.key].branch) || n.branch || e) /* v186 · v190 F: the ×N only reaches fx nodes — say it only on them */;
         if (g < 0.95 && bm <= 1) continue;
         const k = h.indexOf(`vaultBuy('${n.key}')`);
         if (k < 0) continue;

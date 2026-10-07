@@ -260,7 +260,7 @@ ok(inj.nodeOn > 0.75 && inj.nodeOff < 0.4, 'Team Medical Staff + Unstoppable pay
 ok(inj.iron > 0.75, 'the Ironman path is no longer injury-proof', inj.iron.toFixed(2))
 ok(inj.healOn > inj.healOff && inj.healOn < 6, 'Miracle Hands still shortens a layoff, by much less', `${inj.healOff} → ${inj.healOn} of 6`)
 ok(inj.ironStep === 2 && inj.trainer === 6, 'Iron Body is +2 Durability a level; Trainer\'s Room a six-game layoff, not three')
-ok(!inj.desc.length || (/\+2 starting Durability/.test(inj.desc[0]) && /2% rarer/.test(inj.desc[1]) && /six games/.test(inj.desc[3])), 'and the node descriptions say the new numbers', inj.desc.join(' | ').slice(0, 160))
+ok(!inj.desc.length || (/\+2 starting Durability/.test(inj.desc[0]) && /(1\.8|2)% rarer/.test(inj.desc[1]) /* v190 F: 0.06 × 0.3 = 1.8% */ && /six games/.test(inj.desc[3])), 'and the node descriptions say the new numbers', inj.desc.join(' | ').slice(0, 160))
 
 // ---------- 5. My Plays Only ----------
 const plays = await M(async () => {

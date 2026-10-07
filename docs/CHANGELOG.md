@@ -10,6 +10,36 @@ Names in older entries are the career app's pre-v149 C minified names (`q`, `ms`
 `index.html` + `src/` (`docs/LAYOUT.md`).
 
 <!-- new entries go here, newest first -->
+- **v190 — every prestige upgrade does what it says.** (`src/07-career-app.js`, `src/31-legacy.js`.) The owner: "make sure
+  every Prestige upgrade does what it's supposed to … team based upgrades more specific … scale higher and start higher …
+  flat stats per game don't seem to appear … the flat prestige from the cards is so much higher than the actual prestige
+  mechanic … I don't see the medals on the post-season screen since it's at the bottom … fill the prestige bucket at the
+  same time."
+  - **A · Game-day nodes, a share of the man.** `perfFlat` (Twin Engines, Zen Focus, Trash Talk, Aura, The Wall, Glass
+    Cannon, Eternal Form) only reached the WATCHED game; Quick Play and season sims (`rollGamePerf`) never read it. Each
+    point is now 1% of every attribute on game day in every path (`perfPctV190`), capped at `perfPctCapV190` (30%).
+    Kill switch `v190perf`.
+  - **B · The stated numbers are paid.** The `treeFx` wrapper's `prestigeCap` (v146) squashed totals far below what the
+    nodes promise (+3 to every stat however many levels, +4 starting points against +8, the injury tree 14% against its
+    stated 25%). The ceilings are now what the tree can buy at full levels; past them, the same soft taper. `v190cap`.
+  - **C · The team nodes lift your teammates.** The seven team nodes were "team quality" worth under a point of margin
+    maxed. Each now names a percent on every teammate's rating — Winning Culture / Booster Club / Crowd Favorite +1%,
+    GM's Eye +1.25%, Fortress Home Field +1.5%, Dynasty Program +2%, Superteam +2.5% a level (and the Program Pedigree
+    medal +1.5%) — capped at +15% together (measured at College: a maxed set takes a below-average side from 28% to 67%
+    wins, ~+8 points a game; 30% made it 92%) (`teamLiftV190` fx → `teamLiftDV190`, read by `teamPairV76` and `buildGameRosters`
+    alike). `v190team`.
+  - **D · The medals at the top.** The Legacy medal card moves under the report card and the 🏦 pot under it; the pot fills
+    as the XP bar pours; the pour waits for the offseason body screen and the coach instead of playing unseen. `v190top`.
+  - **E · The windfall, to scale.** The medal's "Prestige windfall" paid 20 + 6 a rank (+32 at medal 2) when a Pee Wee career
+    pays ~4. Now 40% of what a career pays (the best of the last three payouts, `state.payHistV190`, or this pot). `v190wind`.
+  - **F · The audit.** Inevitable (`advBonus`) and Chip on the Shoulder (`detPlus`, now +3 starting Grit) were read by
+    nobody; Scripted Destiny reset before every game (every failed weekly roll became a success) and the season rewrite
+    fired once a player; Grudge Match skipped growth; Family Legacy skipped the UFF payout and Hall of Fame Path the UFF tail;
+    Prodigy's levels 2-4 did nothing; Clutch Gene's "big-game +20%" was variance; Fast-Twitch / Explosive short-changed
+    Acceleration; Eternal Wisdom was capped at +3 (own uncapped term `wisdomPtsV190`). Descriptions corrected where the code
+    was the balanced number (camps +4, All-Star/Elite camps +3/+6, Head Start max 2, Workhorse, Superhuman +60 ceiling, Private
+    Trainer +1.5%, Mastermind, Quick Study, Spotlight 6%, Combine King, Rapid Recovery 1.8%, Viral Mixtape, the +points
+    nodes). The shop's "×N effect" tag shows only on nodes it reaches. `v190F`. `v190check`.
 - **v189 D — the pot and the medal chooser, where you see them.** (`src/07-career-app.js`.) Playtest: "not seeing those
   changes". The 🏦 pot read the in-season PP bank, which normal play leaves near 0 (only titles, goals and objectives feed
   it), so it rarely drew; it is now `careerPotV189` — the career-end payout this career has earned so far (the

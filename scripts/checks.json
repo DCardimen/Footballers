@@ -1842,7 +1842,8 @@
     "v185",
     "v186",
     "v187",
-    "v189"
+    "v189",
+    "v190"
    ],
    "files": [],
    "checks": [
@@ -1851,6 +1852,7 @@
     "v186check",
     "v187check",
     "v189check",
+    "v190check",
     "medalrewardscheck",
     "v136check",
     "v178check"
@@ -4862,6 +4864,18 @@
   "v189check": {
    "file": "scripts/v189check.mjs",
    "desc": "v189 — a Quick Play card opens on the same YOUR GAME tiles as the live card and the season is summed from every played week; new medals open the reward chooser on the next screen (once a batch; off under an automated browser unless v189medalPrompt is 1); the 🏦 bank is not counted up mid-season, the season's end shows the BANKED pot on the report and the prestige screen, the career's end rains it into the Vault once a payout. No page errors.",
+   "areas": [
+    "season"
+   ],
+   "runtimeSec": 30,
+   "slow": false,
+   "needsServer": true,
+   "pureNode": false,
+   "flaky": []
+  },
+  "v190check": {
+   "file": "scripts/v190check.mjs",
+   "desc": "v190 — the game-day nodes are a percent of every attribute in every game (the simmed game too), capped at +30%; a maxed node pays its stated total (prestigeCap ceilings raised); the team nodes lift your side's team OVR by their stated percent, opponent untouched, capped at +15%; the medal windfall is 40% of what a career pays; the Legacy medal card and the pot sit at the top of the season report; Chip on the Shoulder and Inevitable apply. No page errors.",
    "areas": [
     "season"
    ],
