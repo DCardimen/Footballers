@@ -3209,6 +3209,7 @@ class Ot extends mt.Scene {
         }
       }
     } catch (_e) {}
+    try { this.drawCoverV192F(P); } catch (_e) {}   // v192 F: zones, man lines, the open man's sparkle
     // pending TD: celebrate the exact frame the carrier crosses the plane (sim space)
     if (P.pendTD) {
       const cm = this.markers[P.pendTD.idx];
@@ -4082,6 +4083,7 @@ class Ot extends mt.Scene {
   fireEvent(e, P) {
     const pay = P.payload;
     this.crowdReact(e, P);      // v57: the stands hear every play
+    try { this.coverEventV192F(e, P); } catch (er) {}   // v192 F: the coverage the sim played, for the picture
     try { this.sideReact(e); } catch (er) {}   // v79: so does the bench
 
     switch (e.type) {
@@ -5451,6 +5453,67 @@ class Ot extends mt.Scene {
     g.lineBetween(t.x, barY, t.x, barY - up);                // uprights point skyward
     g.lineBetween(b.x, barY, b.x, barY - up);
   }
+  /* ===== v192F THE COVERAGE ON THE BROADCAST (renderer) =====
+   * FieldSim's `zoneV192F` / `manV192F` / `openV192F` events (04, v192 F) are drawn live while the coverage holds:
+   *   ZONE FIELDS — each zone defender's area, a soft projected ellipse at his landmark sized by the coverage's shape
+   *     (deep zones blue, underneath zones gold), under the players; they fade out over `zoneFadeMsV192F` after the throw;
+   *   MAN LINES — a thin line on the grass from a man defender to his man (the bracket fainter), gone at the throw;
+   *   THE SPARKLE — a small twinkling star over a receiver while the sim has him open, gone at the throw.
+   * Everything ends at the throw, the catch, a sack, a scramble or the whistle. Kill switch `v192F` 0 (and the sim
+   * emits nothing then); `zoneFieldV192F` / `manLineV192F` / `sparkleV192F` 0 drop one layer. `window.__V192F_R` counts
+   * what was drawn. */
+  hookV192F() { return (window.__V192F_R = window.__V192F_R || { zones: 0, man: 0, sparks: 0, frames: 0, events: 0, last: null }); }
+  coverEventV192F(e, P) {
+    if (!P || !TU("v192F", 1)) return;
+    const C = P._covV192F || (P._covV192F = { zones: {}, man: {}, open: {}, endAt: null });
+    const type = e.type;
+    if (type === "zoneV192F") { C.zones[e.who] = { x: e.x, y: e.y, rx: e.rx, ry: e.ry, deep: !!e.deep, at: P.t }; this.hookV192F().events++; }
+    else if (type === "manV192F") { if (e.on) C.man[e.who] = { on: e.on, help: !!e.help, at: P.t }; else delete C.man[e.who]; this.hookV192F().events++; }
+    else if (type === "openV192F") { if (e.open) C.open[e.who] = { at: P.t, sep: e.sep }; else delete C.open[e.who]; this.hookV192F().events++; }
+    else if (/^(throw|catch|sack|scramble|tackle|handoff|interception|fumble|incomplete|throwaway)$/.test(type) && C.endAt == null) {
+      C.endAt = P.t; C.man = {}; C.open = {}; }
+  }
+  drawCoverV192F(P) {
+    const on = !!(P && TU("v192F", 1) && P._covV192F && !P.post && !P.done);
+    if (!on) { if (this.covG && this.covG.scene) this.covG.clear(); if (this.sparkG && this.sparkG.scene) this.sparkG.clear(); return; }
+    if (!this.covG || !this.covG.scene) this.covG = this.add.graphics().setDepth(TU("coverDepthV192F", 2.95));   // under every man (4+)
+    if (!this.sparkG || !this.sparkG.scene) this.sparkG = this.add.graphics().setDepth(TU("sparkDepthV192F", 19));
+    const g = this.covG, sg = this.sparkG, C = P._covV192F, H = this.hookV192F(), T = P.t || 0;
+    g.clear(); sg.clear(); H.frames++;
+    // the zones: on until the throw, then fading
+    const fade = C.endAt == null ? 1 : Math.max(0, 1 - (T - C.endAt) / Math.max(1, TU("zoneFadeMsV192F", 450)));
+    if (TU("zoneFieldV192F", 1) && fade > 0) {
+      const N = 30;
+      for (const who in C.zones) { const z = C.zones[who], grow = Math.min(1, (T - z.at) / 260 + 0.35), a = fade * grow;
+        const col = z.deep ? 0x6fb7ff : 0xffd97a, pts = [];
+        for (let i = 0; i < N; i++) { const th = i / N * Math.PI * 2, p = PJ(z.x + Math.cos(th) * z.rx * grow, z.y + Math.sin(th) * z.ry * grow); pts.push(new mt.Geom.Point(p.x, p.y)); }
+        g.fillStyle(col, TU("zoneFillAV192F", 0.085) * a).fillPoints(pts, true);
+        g.lineStyle(1.5, col, TU("zoneLineAV192F", 0.3) * a).strokePoints(pts, true);
+        H.zones++; }
+    }
+    if (C.endAt != null) return;   // the throw ends the man game and the open man
+    if (TU("manLineV192F", 1)) for (const who in C.man) {
+      const dm = this.markers[this.actorIdx(who)], om = this.markers[this.actorIdx(C.man[who].on)];
+      if (!dm || !om || !dm.root || !om.root) continue;
+      const a = Math.min(1, (T - C.man[who].at) / 200 + 0.2) * (C.man[who].help ? 0.55 : 1);
+      g.lineStyle(TU("manLineWV192F", 1.3), 0xff8f7a, TU("manLineAV192F", 0.42) * a).lineBetween(dm.root.x, dm.root.y, om.root.x, om.root.y);
+      g.fillStyle(0xff8f7a, 0.5 * a).fillCircle(dm.root.x, dm.root.y, 1.8);
+      H.man++; }
+    if (TU("sparkleV192F", 1)) for (const who in C.open) {
+      const m = this.markers[this.actorIdx(who)]; if (!m || !m.root) continue;
+      const s = m.root.scaleX || 1, age = T - C.open[who].at, head = TU("sparkleHeadV192F", 30) * s;
+      // two little four-point stars that twinkle out of phase over his head (still, under reduced motion)
+      const tw = REDUCED_MOTION ? 1 : 0.55 + 0.45 * Math.sin(age / 90);
+      const tw2 = REDUCED_MOTION ? 0.7 : 0.55 + 0.45 * Math.sin(age / 90 + 2.1);
+      const star = (x, y, r, k) => { const r2 = r * 0.28;
+        sg.fillStyle(0xfff4c2, 0.95 * k).fillPoints([{ x, y: y - r }, { x: x + r2, y: y - r2 }, { x: x + r, y }, { x: x + r2, y: y + r2 },
+          { x, y: y + r }, { x: x - r2, y: y + r2 }, { x: x - r, y }, { x: x - r2, y: y - r2 }], true);
+        sg.fillStyle(0xffffff, k).fillCircle(x, y, Math.max(0.8, r * 0.18)); };
+      const R = TU("sparkleRV192F", 5) * Math.max(0.7, s);
+      star(m.root.x + 7 * s, m.root.y - head, R * (0.7 + 0.3 * tw), Math.min(1, age / 120) * tw);
+      star(m.root.x - 6 * s, m.root.y - head + 7 * s, R * 0.6 * (0.7 + 0.3 * tw2), Math.min(1, age / 120) * tw2);
+      H.sparks++; H.last = { who, x: Math.round(m.root.x), y: Math.round(m.root.y - head) }; }
+  }
   // v16.3 pre-snap play preview (your team only). Shows the DESIGN of the play —
   // never the outcome — during the pre-snap beat, then clears at the snap. If your
   // team has the ball: routes, OL block direction, the RB's aim. If your defense is
@@ -5494,12 +5557,13 @@ class Ot extends mt.Scene {
       } else {
         const manLook = (Number(et.down) >= 3 && Number(et.toGo) <= 7);
         const wrs = M.map((m, i) => ({ m, i })).filter(o => o.i >= 0 && o.i <= 10 && o.m && (o.m.posLabel === "WR" || o.m.posLabel === "TE"));
+        const zk = TU("v192F", 1) ? TU("previewZoneKV192F", 1.35) : 1;   // v192 F: the preview's zones are bigger too
         M.forEach((m, i) => { if (i < 11 || !m) return; const lb = m.posLabel;
-          if (lb === "S") { const p = PJ(m.sx, m.sy); g.fillStyle(0xe0645a, 0.12).fillEllipse(p.x, p.y, 120, 58); g.lineStyle(1.5, 0xe0645a, 0.45).strokeEllipse(p.x, p.y, 120, 58); }
+          if (lb === "S") { const p = PJ(m.sx, m.sy); g.fillStyle(0xe0645a, 0.12).fillEllipse(p.x, p.y, 120 * zk, 58 * zk); g.lineStyle(1.5, 0xe0645a, 0.45).strokeEllipse(p.x, p.y, 120 * zk, 58 * zk); }
           else if (lb === "CB") {
             if (manLook && wrs.length) { const w = wrs.slice().sort((a, b) => Math.hypot(a.m.sx - m.sx, a.m.sy - m.sy) - Math.hypot(b.m.sx - m.sx, b.m.sy - m.sy))[0]; line(m.sx, m.sy, w.m.sx, w.m.sy, 0xe0645a, 0.6, 1.5); }
-            else { const p = PJ(m.sx, m.sy); g.lineStyle(1.5, 0xe0645a, 0.4).strokeCircle(p.x, p.y, 26); }
-          } else if (lb === "LB") { const p = PJ(m.sx, m.sy); g.lineStyle(1.5, 0xffd97a, 0.32).strokeCircle(p.x, p.y, 22); }
+            else { const p = PJ(m.sx, m.sy); g.fillStyle(0xe0645a, zk > 1 ? 0.07 : 0).fillCircle(p.x, p.y, 26 * zk); g.lineStyle(1.5, 0xe0645a, 0.4).strokeCircle(p.x, p.y, 26 * zk); }
+          } else if (lb === "LB") { const p = PJ(m.sx, m.sy); g.fillStyle(0xffd97a, zk > 1 ? 0.06 : 0).fillCircle(p.x, p.y, 22 * zk); g.lineStyle(1.5, 0xffd97a, 0.32).strokeCircle(p.x, p.y, 22 * zk); }
         });
         if (M[13]) label(M[13].sx, 118, manLook ? "MAN" : "ZONE", "#ff9fa5");
       }

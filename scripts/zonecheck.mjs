@@ -40,7 +40,10 @@ const out = await page.evaluate(() => {
     return { n, cmpPct:+(100*cmp/Math.max(1,n)).toFixed(1), ypa:+(yds/Math.max(1,n)).toFixed(2), cbDepth:m(cbDepth), zone:(V1.zoneTicks||0)-(V0.zoneTicks||0), breaks:(V1.breaks||0)-(V0.breaks||0) } }
   const R={}
   R.man=cell('man'); R.c2=cell('cover2'); R.c3=cell('cover3')
-  R.goMan=cell('man',['go','go','go','go']); R.goC3=cell('cover3',['go','go','go','go']); R.curlC3=cell('cover3',['curl','curl','curl','curl']); R.curlMan=cell('man',['curl','curl','curl','curl'])
+  // the route-vs-shell cells isolate the receivers: v192 F's back (a checkdown on a third of passes) is held in, so the
+  // go/curl numbers are the called routes against the shell and not diluted by short throws to him
+  const RB0={v192F:0}
+  R.goMan=cell('man',['go','go','go','go'],RB0); R.goC3=cell('cover3',['go','go','go','go'],RB0); R.curlC3=cell('cover3',['curl','curl','curl','curl'],RB0); R.curlMan=cell('man',['curl','curl','curl','curl'],RB0)
   R.c3off=cell('cover3',null,{v166Czone:0})
   window.RIB_TUNE={}; return R })
 await browser.close()
