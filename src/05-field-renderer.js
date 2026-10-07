@@ -127,7 +127,28 @@ function buildPersp() {
     if (u > lo) { const G = (t) => -1 / (q * (1 + q * (t - AU))); c += G(u) - G(lo); }
     return c;
   };
-  const s = mkS(kMax), C = mkC(kMax);
+  const sClamped = mkS(kMax), C = mkC(kMax);
+  /* ===== v192E THE NEAR FIELD KEEPS CONVERGING =====
+   * The owner: "Fix the distortion on the bottom part of the field in the live sim. This happens when you're too far
+   * to the north side of the field. The lines go from converging inward to parallel which I don't like."
+   * Behind the clamp point (v112's `nearCapV112`: the anchor itself, 8 yards behind the line) s was a constant, so every
+   * touchline, hash and sideline prop below it ran dead PARALLEL — and the further north the drive, the more of the
+   * frame that flat band filled (a return, a pick run back, the whistle's wide frame, a camera stopped by the world's
+   * top). A true pinhole cannot carry on there (it runs to infinity ~85 world px behind the anchor), and making the rows
+   * grow too would blow the world's height (v177 E) and the art's resolution (v112). So only the WIDTHS keep going:
+   * the rows keep the clamp's own density (C is untouched, so no row, world height, taper or y-position moves), and s
+   * grows LINEARLY in the depth behind the clamp, which with uniform rows is exactly what keeps a straight line straight
+   * on screen. Its rate starts at the pinhole's own (ds/dC = q both sides, so the touchlines carry straight through the
+   * anchor with no kink) and eases (`nearConvTauV192E` world px) to `nearConvV192E` of it, so the near field widens
+   * steadily: the touchlines lean in at ~a quarter of the angle they have ahead of the line, ~1.65x as wide 20 yards behind, ~2.1x at 50. Kill switch TU "v192Epersp" 0
+   * (or "v192E" 0): v112's flat band. ===== */
+  const convOn = TU("v192Epersp", TU("v192E", 1)) && q > 0;
+  const ucS = AU - (1 - 1 / kMax) / q, rConv = Math.max(0, Math.min(1, TU("nearConvV192E", 0.22))), tauConv = Math.max(1, TU("nearConvTauV192E", 40));
+  const s = !convOn ? sClamped : (u) => {
+    if (u >= ucS) return sClamped(u);
+    const d = ucS - u;
+    return kMax + q * kMax * kMax * (rConv * d + (1 - rConv) * tauConv * (1 - Math.exp(-d / tauConv)));
+  };
   const sN = s(AU + PERSP_AB);           // normalizer: the LOS row keeps the pre-v27 baseline size
   const total = C(FW);
   // ideal row density keeps the LOS yard spacing of the flat view; cap it so the whole
@@ -192,13 +213,13 @@ function buildPersp() {
       if (uk > 0 && need > 0 && km2 * uk > need) {
         const L = (need / km2) * uk / (uk - need / km2), Ck = km2 * L * uk / (L + uk), Cuk = C(uk);
         Cf = (u) => u >= uk ? Ck + C(u) - Cuk : Ck - km2 * L * (uk - Math.max(0, u)) / (L + uk - Math.max(0, u));
-        sf = (u) => u >= uk ? s(u) : kMax / (1 + (uk - u) / L);
-        d0 = sf(0) * sf(0); taper = { uk: +uk.toFixed(1), L: +L.toFixed(1), keep: +keep.toFixed(1), s0: +sf(0).toFixed(3) };
+        const sUk = s(uk); sf = (u) => u >= uk ? s(u) : sUk / (1 + (uk - u) / L);   // v192E: the taper starts from the width s has there (kMax when v192E is off)
+        d0 = Math.pow(kMax / (1 + uk / L), 2); taper = { uk: +uk.toFixed(1), L: +L.toFixed(1), keep: +keep.toFixed(1), s0: +sf(0).toFixed(3) };
       } else VB = VB0;                                // the ground ahead alone will not fit: the old cap, as before
     }
   }
   const total148 = Cf(FW);
-  PERSP = { s: sf, C: Cf, total: total148, sN, VB, kMax, d0, VB0, taper };
+  PERSP = { s: sf, C: Cf, total: total148, sN, VB, kMax, d0, VB0, taper, convV192E: !!convOn, ucV192E: ucS };
   try { if (window.__V177E) window.__V177E.tapered = !!taper; } catch (e) {}
   try { window.__V148 = Object.assign(window.__V148 || {}, { VB: +VB.toFixed(3), VB0: +VB0.toFixed(3), ideal: +(2 * PERSP_OA / (sN * sN)).toFixed(3), sN: +sN.toFixed(4), AU: +AU.toFixed(1), taper, lastRow: +(NSTOP + VB * total148).toFixed(1) }); } catch (e) {}
 }
@@ -2509,8 +2530,32 @@ class Ot extends mt.Scene {
    * `camFollowSidePx` past either side (inside the painting); every other mode keeps 0..FW. */
   camSideV145(cam) {
     const xb = this.camModeV112().follow ? Math.max(0, TU("camFollowSidePx", 180)) : 0;
-    try { const b = cam._bounds; if (!b || b.x !== -xb || b.width !== FW + 2 * xb || b.height !== WORLD_H) cam.setBounds(-xb, 0, FW + 2 * xb, WORLD_H); } catch (e) {}   // v177 E: and the world's height
+    try { const top = this.camTopV192E(cam), b = cam._bounds; if (!b || b.x !== -xb || b.y !== top || b.width !== FW + 2 * xb || b.height !== WORLD_H - top) cam.setBounds(-xb, top, FW + 2 * xb, WORLD_H - top); } catch (e) {}   // v177 E: and the world's height (v192E: and a screen above it)
     return xb;
+  }
+  /* v192E: how far ABOVE the world's top (y 0) the camera may go — the bowl's screen, on a drive deep in the north, is
+   * drawn above it (the far stand is near the anchor there and stands tall). While a pan holds it is the screen's own
+   * top; after it the allowance shrinks with the camera as it glides home, so nothing snaps it back down. */
+  camTopV192E(cam) {
+    const T = this._panTopV192E; if (!T) return 0;
+    if (!this._panV175) {
+      let wy = 0; try { wy = cam.midPoint.y - cam.height / (2 * cam.zoom); } catch (e) {}
+      T.top = Math.min(0, Math.max(T.top, Math.floor(wy)));
+      if (T.top >= 0) { this._panTopV192E = null; return 0; }
+    }
+    return T.top;
+  }
+  // v192E: the sky above the world's top, for a pan that goes there — the warp canvas's own top colour, under everything
+  skyCapV192E() {
+    const day = !!(this.wxV144 && this.wxV144().day), col = day ? String(TU("daySkyTopV144", "#4d86c4")) : "#010204";
+    const key = col + "|" + WORLD_H;
+    if (this._skyCapV192E && this._skyCapV192E.scene && this._skyCapKeyV192E === key) return this._skyCapV192E.setVisible(true);
+    const g = this._skyCapV192E && this._skyCapV192E.scene ? this._skyCapV192E : (this._skyCapV192E = this.add.graphics());
+    g.clear(); g.fillStyle(parseInt(col.replace("#", ""), 16) || 0x010204, 1);
+    g.fillRect(-FW, -TU("screenPanTopMaxV192E", 900) - 400, FW * 3, TU("screenPanTopMaxV192E", 900) + 401);
+    g.setDepth(0.59); this._skyCapKeyV192E = key;
+    try { this.stadium && this.stadium.cam && this.stadium.cam.ignore(g); } catch (e) {}
+    return g;
   }
   // v145: the you-player's marker, when this mode follows him and he is on the field this snap
   camMeV145(P) {
@@ -3942,6 +3987,99 @@ class Ot extends mt.Scene {
     const g = this.wearG; g.clear();
     for (const w of (this.wearV86 || [])) { const p = PJ(w.x, w.y);
       g.fillStyle(0x5e4b2c, Math.min(0.42, w.a * w.n)).fillEllipse(p.x, p.y + 6 * p.s, w.r * 2.2 * p.s, w.r * 1.1 * p.s); }
+    if (this._wearQ != null && this._divotQV192E != null && this._wearQ < this._divotQV192E) this.divotsV192E = [];   // v192E: a new game, fresh turf
+    this._divotQV192E = this._wearQ;
+    try { this.drawDivotsV192E(); } catch (e) {}   // v192E: the snap re-projects the turf, and the divots ride it
+  }
+  /* ===== v192E THE TURF REMEMBERS THE BIG HITS =====
+   * The owner: "Add some turf animation to the tackles. Indents that are left behind for major collisions on the field
+   * that last the rest of the game." v86's wear is a soft brown scuff for every tackle; a MAJOR collision now digs a
+   * DIVOT where the bodies met (the sim's impact point, `e.ix/e.iy`): a torn-up oval of dirt, a dark lip on the side the
+   * hit came from, a pale lip of turf shoved up on the far side, and a few clods of grass thrown out of it — laid
+   * along the direction of the hit, in SIM coordinates and drawn through PJ, so it foreshortens and rides the
+   * perspective like the yard lines under it, and it is redrawn at every snap's re-projection (`drawWearV86`).
+   * What counts as major (`divotMajorV192E`): a hit stick, a big hit, a knock-back of `divotKbV192E` (7) or more, a
+   * flight, a gang heap of three or more, a sack, or an impact over `divotImpactV192E` (0.8 of `impactShakeRef`); a
+   * carrier who TRUCKS a tackler digs one too. When it lands the turf ANIMATES: the hole opens over `divotDigMsV192E`
+   * (260 ms) and `divotClodsV192E` (5) clods spray out of it and fall back. It lasts the rest of the game (a new game
+   * starts on fresh turf, as v86's wear does), capped at `divotMaxV192E` (36, the oldest goes); two hits on the same
+   * spot deepen one divot instead of stacking. One Graphics object under the men (depth 0.92, above the wear, below the
+   * lines and every shadow), redrawn only when one is dug or the projection changes — nothing per frame. Render-only:
+   * no sim actor, no stat, no Math.random() the sim reads (the shape's seed is the spot). Kill switch TU "v192Edivot" 0
+   * (or "v192E" 0). `window.__V192E.divots` / `.made`; v192Echeck. ===== */
+  divotMajorV192E(e) {
+    if (!e) return false;
+    const kb = Number(e.kb || 0), impK = Math.max(0, Number(e.impact || 0)) / Math.max(1, TU("impactShakeRef", 90));
+    return !!(e.hitStick || e.bigHit || e.sack || kb >= TU("divotKbV192E", 7) || (e.flyVz && Number(e.flyVz) > 0) ||
+      (e.gang && Number(e.handsOn || 0) >= TU("divotGangV192E", 2)) || impK >= TU("divotImpactV192E", 0.8));
+  }
+  addDivotV192E(x, y, ang, weight) {
+    if (!TU("v192Edivot", TU("v192E", 1)) || !Number.isFinite(x) || !Number.isFinite(y)) return null;
+    const D = this.divotsV192E || (this.divotsV192E = []);
+    const w = Math.max(0.6, Math.min(1.6, weight || 1));
+    const V = (window.__V192E = window.__V192E || { pans: 0, aboveTop: 0, divots: 0, made: 0, crowd: { home: 0, away: 0, flips: 0 } });
+    for (const d of D) if (Math.abs(d.x - x) < TU("divotMergePxV192E", 8) && Math.abs(d.y - y) < TU("divotMergePxV192E", 8)) {
+      d.w = Math.min(1.9, d.w + 0.25); d.n++; d.dig = 0; this.divotClodsV192E(x, y, ang, w); this.drawDivotsV192E(); V.made++; return d;
+    }
+    const seed = (Math.abs(Math.round(x * 7.31 + y * 13.7)) % 997) / 997;
+    const d = { x, y, ang: Number.isFinite(ang) ? ang : 0, w, n: 1, seed, dig: 0 };
+    D.push(d);
+    while (D.length > Math.max(1, TU("divotMaxV192E", 36))) D.shift();
+    V.made++; V.divots = D.length;
+    this.divotClodsV192E(x, y, d.ang, w);
+    // the dig: the hole opens over a quarter second (a few redraws of one Graphics, then it is still)
+    if (REDUCED_MOTION) d.dig = 1;
+    else { try { this.tweens.addCounter({ from: 0, to: 1, duration: TU("divotDigMsV192E", 260), ease: "Cubic.easeOut",
+      onUpdate: (tw) => { d.dig = tw.getValue(); this.drawDivotsV192E(); }, onComplete: () => { d.dig = 1; this.drawDivotsV192E(); } }); } catch (e) { d.dig = 1; } }
+    this.drawDivotsV192E();
+    return d;
+  }
+  drawDivotsV192E() {
+    const D = this.divotsV192E || [];
+    if (!this.divotG) { if (!D.length || !this.add) return; this.divotG = this.add.graphics().setDepth(0.92); }
+    const g = this.divotG; g.clear();
+    if (!TU("v192Edivot", TU("v192E", 1))) return;
+    const R0 = TU("divotRadiusV192E", 5.5);
+    for (const d of D) {
+      const dig = d.dig == null ? 1 : d.dig, len = R0 * d.w * (0.4 + 0.6 * dig), wid = len * 0.52;
+      const ca = Math.cos(d.ang), sa = Math.sin(d.ang);
+      // a ring in SIM space (along the hit, across it), each point through PJ: the divot lies on the ground
+      const ring = (cx, cy, a, b, jit) => { const pts = [];
+        for (let i = 0; i < 12; i++) { const t = (i / 12) * Math.PI * 2, r = 1 + jit * Math.sin(t * 3 + d.seed * 6.28) * 0.5;
+          const lx = Math.cos(t) * a * r, ly = Math.sin(t) * b * r;
+          const p = PJ(cx + lx * ca - ly * sa, cy + lx * sa + ly * ca); pts.push({ x: p.x, y: p.y }); }
+        return pts; };
+      const off = (k) => ({ x: d.x - ca * len * k, y: d.y - sa * len * k });
+      const back = off(0.28), fwd = off(-0.42);
+      // the torn turf shoved up past the hole (pale), the dark lip the hit came in over, then the dirt
+      g.fillStyle(0x8fbf5a, 0.55 * dig).fillPoints(ring(fwd.x, fwd.y, len * 0.55, wid * 1.05, 0.25), true);
+      g.fillStyle(0x1f2a12, 0.6 * dig).fillPoints(ring(back.x, back.y, len * 0.95, wid * 1.08, 0.18), true);
+      g.fillStyle(0x4a3720, 0.92).fillPoints(ring(d.x, d.y, len, wid, 0.22), true);
+      g.fillStyle(0x2b1f12, 0.55).fillPoints(ring(back.x, back.y, len * 0.6, wid * 0.55, 0.15), true);   // the deepest part, at the back
+      // a few loose clods round it
+      for (let i = 0; i < 3; i++) { const t = d.seed * 6.28 + i * 2.1, rr = len * (1.25 + 0.25 * i);
+        const p = PJ(d.x + Math.cos(t) * rr * 0.8 - ca * len * 0.3, d.y + Math.sin(t) * rr * 0.5);
+        g.fillStyle(i % 2 ? 0x5a4326 : 0x6f9c45, 0.8 * dig).fillRect(p.x - p.s * 1.2, p.y - p.s * 0.7, p.s * 2.4, p.s * 1.4); }
+    }
+    try { const V = window.__V192E; if (V) { V.divots = D.length; V.drawn = (V.drawn || 0) + 1; } } catch (e) {}
+  }
+  // the turf thrown up out of the hole: a handful of clods on short arcs, gone in under a second
+  divotClodsV192E(x, y, ang, w) {
+    if (REDUCED_MOTION || !this.add || !this.tweens) return;
+    const n = Math.max(0, Math.round(TU("divotClodsV192E", 5) * Math.min(1.4, w)));
+    const p0 = PJ(x, y);
+    for (let i = 0; i < n; i++) {
+      const spread = (i / Math.max(1, n - 1) - 0.5) * 1.6, a = ang + spread;
+      const dist = (10 + Math.random() * 12) * w, q = PJ(x + Math.cos(a) * dist, y + Math.sin(a) * dist);
+      const sz = Math.max(1.5, p0.s * (1.6 + Math.random() * 1.4));
+      try {
+        const c = this.add.rectangle(p0.x, p0.y, sz * 1.4, sz, i % 2 ? 0x5a4326 : 0x5f8f3c).setDepth(3.52).setAngle(Math.random() * 90);
+        const up = (14 + Math.random() * 16) * p0.s, dur = 420 + Math.random() * 260, a0 = c.angle, spin = (Math.random() < 0.5 ? -1 : 1) * 260;
+        this.tweens.addCounter({ from: 0, to: 1, duration: dur, onUpdate: (tw) => { const k = tw.getValue();
+            c.setPosition(p0.x + (q.x - p0.x) * k, p0.y + (q.y - p0.y) * k - up * 4 * k * (1 - k)).setAngle(a0 + spin * k); },
+          onComplete: () => { try { c.destroy(); } catch (e) {} } });
+      } catch (e) {}
+    }
   }
 
   actorIdx(id) { return id ? (id[0] === "o" ? +id.slice(3) : 11 + +id.slice(3)) : -1; }
@@ -4725,6 +4863,9 @@ class Ot extends mt.Scene {
         // fixed-height fold below (the style, the hit stick) stands aside for it.
         const willFly112 = !!(m && TU("flyV112", 1) && e.flyWho && e.flyWho === e.carrier && Number(e.flyVz) > 0);
         try { this.addWearV86(ixV109, iyV109, (big ? 9 : 6) * (0.8 + impK * 0.5), 0.08); } catch (er) {}   // v86: the turf remembers the pile (v109: where the bodies met)
+        try { if (this.divotMajorV192E(e)) {   // v192E: a major collision digs a divot that stays all game
+          const hAng = m && tk ? Math.atan2(m.sy - tk.sy, m.sx - tk.sx) : Math.atan2(0, (P.script.meta.dir || 1) * -1);
+          this.addDivotV192E(ixV109, iyV109, hAng, 0.85 + impK * 0.4 + (e.hitStick || e.bigHit ? 0.25 : 0) + Math.min(0.3, Number(e.kb || 0) * 0.02)); } } catch (er) {}
         /* v86 TACKLE STYLES — read off the geometry the sim already resolved. Where the
          * tackler is relative to the carrier's heading says what kind of tackle it was:
          * from behind is a drag-down, square with knock-back is a knock-back, low or from
@@ -5142,6 +5283,9 @@ class Ot extends mt.Scene {
           this.hookV109C1().quietTrucks++; break; }
         this.slowMoment(P);
         this.hitFx(e.x, e.y, Number(e.kb || 0) >= 8, false, e);   // v109: the rings at the point he was run through, along the carrier's line
+        try { if (e.hitStick || Number(e.flyVz) > 0 || Number(e.kb || 0) >= TU("divotKbV192E", 7)) {   // v192E: run through hard enough, the turf keeps the mark
+          const cm = this.markers[this.actorIdx(e.carrier)];
+          this.addDivotV192E(e.x, e.y, cm && m ? Math.atan2(m.sy - cm.sy, m.sx - cm.sx) : 0, 1 + Math.min(0.3, Number(e.kb || 0) * 0.02)); } } catch (er) {}
         /* v112 THE HIT HAS WEIGHT: run through this hard and the beaten man leaves his feet. The
          * arc flies him back along the truck's own knock-back — the ground the sim already moved
          * him — and lands him in `down`, so the badge, the shake and the freeze still fire below. */
@@ -7012,9 +7156,13 @@ class Ot extends mt.Scene {
         for (let j = 0; j <= NS; j++) {
           const u = this.crowdInvertC(cMax * (j / NS));
           const p = this.crowdProject(u, wall.vv);
+          /* v192E: behind the clamp point the stand follows the widening field out (sx), but keeps the clamp's own scale
+           * for its height and its texture — the rows there do not grow, and the bowl's ONE height below is solved off
+           * these samples, so the stands (and the screen on the bowl) stay exactly the size they were */
+          const kSide = P.convV192E && u < P.ucV192E ? P.kMax / P.sN : p.k;
           // w: distance along the wall, in world units. x: where on the FIELD this
           // sits, which is what the roar's wave measures its distance from.
-          pts.push({ w: u, x: fieldX(u), sx: p.x, sy: p.y, k: p.k, c: 0, vv: wall.vv });
+          pts.push({ w: u, x: fieldX(u), sx: p.x, sy: p.y, k: kSide, c: 0, vv: wall.vv, ex: kSide !== p.k ? FW / 2 + (p.x - FW / 2) * kSide / p.k : p.x });
         }
       } else {
         // The curve, sampled dense in t and then RESAMPLED by arc length. Uniform t
@@ -7072,7 +7220,7 @@ class Ot extends mt.Scene {
       for (let j = 0; j < NP; j++) {
         const dc = Math.abs(pts[j + 1].c - pts[j].c);
         if (dc < 1e-6) continue;
-        const seg = Math.hypot(pts[j + 1].sx - pts[j].sx, pts[j + 1].sy - pts[j].sy);
+        const seg = Math.hypot((pts[j + 1].ex ?? pts[j + 1].sx) - (pts[j].ex ?? pts[j].sx), pts[j + 1].sy - pts[j].sy);   // v192E: measured where the clamp put it
         est.push(stripH * seg / (dc * pts[j].k));
       }
       est.sort((x2, y2) => x2 - y2);
@@ -7622,6 +7770,33 @@ class Ot extends mt.Scene {
       grab:      ["\uD83E\uDD1C", "\uD83D\uDE2C"],                                                            // 🤜 😬
       horseCollar: ["\uD83D\uDE21", "\uD83E\uDD2C"],                                                          // 😡 🤬
     };
+    /* v192E: the book was one list per moment whichever way it went for the stands — the home crowd watching the
+     * visitors score sent up 🎉. A moment that went AGAINST the crowd now gets its own groan, and the few moments whose
+     * faces were groans (an incompletion, a fumble) get a cheer when they went FOR it. */
+    if (TU("v192Ecrowd", TU("v192E", 1))) {
+      const NEG = {
+        td:        ["😩", "💔", "🤦", "😤"],                    // 😩 💔 🤦 😤
+        score:     ["😩", "💔", "🤦"],
+        fgResult:  ["😩", "🤦", "😒"],                                       // 😩 🤦 😒
+        pick:      ["😱", "🤬", "🤦", "💔"],                    // 😱 🤬 🤦 💔
+        fumble:    ["😱", "🤦", "😡"],                                        // 😱 🤦 😡
+        recover:   ["😩", "🤦", "💔"],
+        sack:      ["😬", "😩", "🤕"],                                        // 😬 😩 🤕
+        safety:    ["😩", "🤦", "💔"],
+        firstdown: ["😒", "😤", "🙄"],                                        // 😒 😤 🙄
+        tackleHit: ["😬", "🤕", "😩"],
+        qbHit:     ["😬", "🤕", "😩"],
+        pancake:   ["😬", "🤕", "🙄"],
+        catch:     ["😬", "😩", "🙄"],
+        swat:      ["😩", "🤦", "😒"],
+      };
+      const POS = {
+        incomplete:["👏", "🙌", "🚫"],                                        // 👏 🙌 🚫
+        fumble:    ["💪", "🔥", "🙌", "👀"],                    // 💪 🔥 🙌 👀
+      };
+      if (!good) return NEG[type] || ["😩", "🤦", "😤", "😬", "🙈", "💔", "😡"];
+      if (POS[type]) return POS[type];
+    }
     const own = B[type];
     if (own && own.length) return own;
     return good
@@ -7704,6 +7879,21 @@ class Ot extends mt.Scene {
     const t = T[e.type]; if (!t) return;
     let ours = true;
     try { ours = ((P && P.payload && P.payload.offense) !== "them") === !!t[1]; } catch (er) {}
+    /* ===== v192E THE HOME CROWD CHEERS THE HOME TEAM =====
+     * The owner: "For away games, ensure the home town team's positive emoji happen on a good play and negative on a bad
+     * play." `ours` above is good-for-YOUR-team, and the stands were treated as your crowd at every game — so on the road
+     * the home crowd cheered your touchdowns and groaned at their own team's. The stands are the HOME crowd: on an away
+     * game (`window.__homeGameV93 === false`, set by the career app per week) good-for-you is bad-for-them, so the cheer,
+     * the shout and the faces all flip. And a missed field goal is a defensive moment, not the kicking team's. The faces
+     * themselves follow (`emoBookV101` now has a groan for every moment it has a cheer for). Kill switch TU "v192Ecrowd" 0
+     * (or "v192E" 0). `window.__V192E.crowd` (`home`, `away`, `flips`, `last`). ===== */
+    if (TU("v192Ecrowd", TU("v192E", 1))) {
+      if (e.type === "fgResult" && e.good === false) ours = !ours;
+      const away = window.__homeGameV93 === false;
+      if (away) ours = !ours;
+      try { const V = (window.__V192E = window.__V192E || { pans: 0, aboveTop: 0, divots: 0, made: 0, crowd: { home: 0, away: 0, flips: 0 } });
+        V.crowd[away ? "away" : "home"]++; if (away) V.crowd.flips++; V.crowd.last = { type: e.type, away, good: ours, offense: P && P.payload ? P.payload.offense : null }; } catch (er) {}
+    }
     const amt = t[0] * (ours ? 1 : TU("crowdAwayFrac", 0.3));
     const atX = e && e.x != null ? e.x : (P && P.losX);
     this.crowdCheer(amt, atX);
@@ -8656,7 +8846,30 @@ class Ot extends mt.Scene {
     const cam = this.cameras.main, V = window.__V175;
     const want = TU("screenPanFracV175", 0.42) * FW / Math.max(1, R.w);
     const tz = this.camZoomFitV112(Math.min(want, cam.zoom * TU("screenPanZoomInMaxV175", 1.25)));
-    this.camSpringV109(cam, R.x + R.w / 2, R.y + R.h * TU("screenPanLowV175", 1.1), tz, delta, TU("screenPanStiffV175", 0.22));
+    /* ===== v192E THE PAN REACHES THE SCREEN FROM ANYWHERE =====
+     * The owner: "The pan to the jumbotron doesn't work when too close to the other side of the field." The screen hangs
+     * over the far bowl, and the bowl is drawn through the same perspective as the field: with the line deep in the north
+     * the far stand is close to the anchor, stands tall, and lifts the screen ABOVE the world's top (y −48 on the
+     * opponent's 5) — and the camera's bounds stopped at y 0, so the pan arrived on the stand under a half-cut screen.
+     * Now the pan lets the camera above the world by exactly what the screen needs (`screenPanTopPadV192E` of its height
+     * above it; `camTopV192E` / `camSideV145`), and the sky is carried up behind it (`skyCapV192E`) so the frame above
+     * the bowl is sky, not the page. The allowance follows the camera back down after the snap. The target also keeps
+     * the whole screen in the frame when the frame is too short for the v175 framing (`screenPanLowV175` under it).
+     * Kill switch TU "v192Epan" 0 (or "v192E" 0): v175's bounds. ===== */
+    let ty = R.y + R.h * TU("screenPanLowV175", 1.1);
+    if (TU("v192Epan", TU("v192E", 1))) {
+      const pad = R.h * TU("screenPanTopPadV192E", 0.35), top = Math.floor(R.y - pad);
+      if (top < 0) {
+        this._panTopV192E = { top: Math.max(-TU("screenPanTopMaxV192E", 900), top) };
+        this.camSideV145(cam);
+        try { this.skyCapV192E(); } catch (e) {}
+      }
+      const hh = FVH / (2 * tz);
+      ty = Math.min(ty, R.y - pad + hh);   // the screen's top (and a little above it) inside the frame, wherever the frame is
+      const V192 = (window.__V192E = window.__V192E || { pans: 0, aboveTop: 0, divots: 0, made: 0, crowd: { home: 0, away: 0, flips: 0 } });
+      if (PN._v192E !== 1) { PN._v192E = 1; V192.pans++; if (top < 0) V192.aboveTop++; V192.lastPan = { rectY: Math.round(R.y), top: Math.min(0, top) }; }
+    }
+    this.camSpringV109(cam, R.x + R.w / 2, ty, tz, delta, TU("screenPanStiffV175", 0.22));
     if (V) { V.frames++; try { const wv = cam.worldView; V.inFrame = R.x >= wv.x - 1 && R.x + R.w <= wv.x + wv.width + 1 && R.y >= wv.y - 1 && R.y + R.h <= wv.y + wv.height + 1; if (V.inFrame) V.inFrameFrames = (V.inFrameFrames || 0) + 1; } catch (e) {} }
     return true;
   }
@@ -10659,7 +10872,7 @@ class Ot extends mt.Scene {
     // and the WHOLE scene (art + sprites + lines) recedes with one consistent curve.
     { const lxw = fx(losYd), losU = VDIR > 0 ? lxw : FW - lxw; ANCHOR_U = losU - PERSP_AB; }
     buildPersp();
-    try { const cm = this.cameras && this.cameras.main, b = cm && cm._bounds; if (b && b.height !== WORLD_H) cm.setBounds(b.x, 0, b.width, WORLD_H); } catch (e) {}   // v177 E: the camera may go where the world now reaches
+    try { const cm = this.cameras && this.cameras.main, b = cm && cm._bounds, top = cm ? this.camTopV192E(cm) : 0; if (b && (b.height !== WORLD_H - top || b.y !== top)) cm.setBounds(b.x, top, b.width, WORLD_H - top); } catch (e) {}   // v177 E: the camera may go where the world now reaches (v192E: a pan's allowance above it glides out, not snaps)
     const key162 = this.fieldKeyV162A(losYd), V162 = window.__V162A;
     if (key162 && key162 === this._fieldKeyV162A) V162.skips++;   // v162 A: the same bake is already on screen
     else {
