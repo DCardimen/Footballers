@@ -123,8 +123,9 @@ if (!process.env.SKIP_LIVE) {
     ok(!!fired, 'a gang tackle could be fired on a live carrier')
     if (fired) {
       const seen = new Map()
-      for (let k = 0; k < 40; k++) {
+      for (let k = 0; k < 100; k++) {   // up to ~6 s: a loaded box runs the fold timers late
         await page.waitForTimeout(60)
+        if (k > 40 && await page.evaluate(() => (window.__V191C_R || {}).falls >= 2)) break
         const r = await page.evaluate(() => window.__G191.men.map(j => { const m = window.__gridironScene.markers[j]; return m ? String(m.forceState || '') : '?' }))
         r.forEach((st, n) => { const s = seen.get(n) || new Set(); s.add(st); seen.set(n, s) })
       }
