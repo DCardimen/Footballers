@@ -51,7 +51,7 @@ Every gameplay dial reads through `TU(key, default)`, so values can be retuned l
 
 The full history, newest first, is [`docs/CHANGELOG.md`](docs/CHANGELOG.md) — add new entries there.
 
-- **v190 — every prestige upgrade does what it says.** The per-game stat nodes now work in Quick Play and sims (as a % of every attribute), maxed nodes pay their stated numbers, team nodes name a teammate-rating % (up to +30%), the medal PP windfall scales with your careers, and the Legacy medal card and pot sit at the top of the season report. `v190check`.
+- **v190 — every prestige upgrade does what it says.** The per-game stat nodes now work in Quick Play and sims (as a % of every attribute), maxed nodes pay their stated numbers, team nodes name a teammate-rating % (up to +15%), the medal PP windfall scales with your careers, and the Legacy medal card and pot sit at the top of the season report. `v190check`.
 - **v189 — one stat line.** The Quick Play card shows the same YOUR GAME stats as the live card (and the season counts simmed weeks); new medal rewards pop up before your next game; the banked PP shows at the season's end as a filling pot and rains into the Vault when the career ends. `v189check`.
 - **v188 — no real team's look.** Every kit palette is an original pair (they were exact NFL colours) and `namecheck` guards it; the Bengal uniform is the Snow Tiger, the Longhorns / Razorbacks / Buccaneers are the Steers / Warthogs / Corsairs, the Griddy is Heel Clicks. `docs/IP-AUDIT.md`.
 - **v187 — medal looks are earned.** Every 10 medals earns a look automatically (rarer as the medals climb, worn at once), no longer a reward choice; one ring re-picks every medal reward. `v187check`.

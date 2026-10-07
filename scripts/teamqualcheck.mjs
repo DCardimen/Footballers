@@ -43,12 +43,17 @@ const res = await page.evaluate(() => {
     return { us: +(us / N).toFixed(2), them: +(them / N).toFixed(2), win: +(won / N * 100).toFixed(1) }
   }
   const MAXED = { goodProgram: 6, dynastyTeam: 4, boosters: 6, crowdFavorite: 6, gmEye: 6, juggernautTeam: 4, homeField: 5 }
+  // v190 C moved the team nodes onto a stated teammate-rating lift; the v68 claim is checked on the old path (v190team 0),
+  // and the lift is bounded below
+  window.RIB_TUNE = window.RIB_TUNE || {}; window.RIB_TUNE.v190team = 0
   const base = run({}, 0.1)
   const nerfed = run(MAXED, 0.1)
   const old = run(MAXED, 1)
+  delete window.RIB_TUNE.v190team
+  const lift = run(MAXED, 0.1)
   st.tree = {}
   delete window.RIB_TUNE.teamQualK
-  return { base, nerfed, old }
+  return { base, nerfed, old, lift }
 })
 console.log('no tree      :', JSON.stringify(res.base))
 console.log('maxed, v68   :', JSON.stringify(res.nerfed))
@@ -70,6 +75,12 @@ ok(gainNew < 2.5, 'and a maxed tree no longer swings a game on its own', '+' + g
 // a maxed tree is worth ~10x less than it was, and +1.4 points a game.
 ok(res.nerfed.win - res.base.win < 15, 'win rate moves by an edge, not a landslide',
   '+' + (res.nerfed.win - res.base.win).toFixed(1) + 'pp (was +' + (res.old.win - res.base.win).toFixed(1) + 'pp)')
+
+// v190 C: the team nodes lift your teammates by their stated percent, capped at +15% together — a real edge, not the game
+const liftGain = res.lift.us - res.lift.them - (res.base.us - res.base.them), liftWin = res.lift.win - res.base.win
+console.log('maxed, v190 C:', JSON.stringify(res.lift))
+ok(liftGain > 4 && liftGain < 11, 'v190 C: a maxed team tree (the +15% cap) is about a touchdown a game', '+' + liftGain.toFixed(2) + ' margin')
+ok(liftWin < 50, 'v190 C: and it moves the win rate by an edge, not a sure thing', '+' + liftWin.toFixed(1) + 'pp')
 
 console.log('page errors:', errs.length ? '\n' + errs.join('\n') : 'NONE')
 console.log('VERDICT: ' + (fail === 0 && errs.length === 0 ? 'PASS' : 'FAIL') + `  (${pass} ok, ${fail} failed)`)

@@ -116,9 +116,11 @@ const hooks = await page.evaluate(() => {
   const trust = tree => at(tree, () => { let s = 0; for (let i = 0; i < 40; i++) s += A.newPlayer(S, 'RB').coachTrust; return s / 40 })
   out.coach = [trust({}), trust({ handPicked: 3 })]
   // an injury rolled through the real materializer
-  const inj = tree => at(tree, () => { const q = A.newPlayer(S, 'RB'); q.pos = 'RB'; S.player = q; let n = 0, w = 0
+  // paired: both runs draw the same random stream (25 unpaired injuries were noisier than Lv 2's 15%)
+  const inj = tree => at(tree, () => { const R0 = Math.random; let sd = 12345; Math.random = () => ((sd = (sd * 1103515245 + 12345) % 2147483648) / 2147483648)
+    try { const q = A.newPlayer(S, 'RB'); q.pos = 'RB'; S.player = q; let n = 0, w = 0
     for (let i = 0; i < 200 && n < 25; i++) { const wk = { injured: true }; if (q.conditionV11) q.conditionV11.injury = null; A.materializeInjuryV134(q, wk); const j = q.conditionV11 && q.conditionV11.injury; if (j && !j.seasonEnding && !j.knock) { n++; w += j.weeksRemaining || 0 } }
-    return n ? +(w / n).toFixed(2) : null })
+    return n ? +(w / n).toFixed(2) : null } finally { Math.random = R0 } })
   out.injWeeks = [inj({}), inj({ fastHeal: 2 })]
   return out
 })
@@ -131,10 +133,11 @@ ok(Math.abs(hooks.fat[0] - .8) < 1e-9 && Math.abs(hooks.fat[1] - .84) < 1e-9 && 
 ok(hooks.heal.join() === '4,4,3,1', 'Miracle Hands (v153 B: 7.5% a level): a 4-game injury is 4, then 3; a 1-game knock stays 1', hooks.heal.join('/'))
 ok(hooks.injWeeks[0] != null && hooks.injWeeks[1] != null && hooks.injWeeks[1] <= hooks.injWeeks[0], 'and the real injury materializer hands out shorter layoffs', hooks.injWeeks.join(' → '))
 ok(hooks.points[1] - hooks.points[0] === 8, 'Endless Reps: +4 season points a level on the season roll\'s total', hooks.points.join(' → '))
-ok(hooks.pp[1] - hooks.pp[0] === 1, 'Dragon\'s Hoard: +100% to the settlement\'s ppMult', hooks.pp.join(' → '))
+// v186: the Impossible branch pays its fx ×2 (`branchFxV186`) — the shop's tag says so
+ok(hooks.pp[1] - hooks.pp[0] === 2, 'Dragon\'s Hoard: +100% to the settlement\'s ppMult (×2, the Impossible branch)', hooks.pp.join(' → '))
 ok(hooks.coach[1] - hooks.coach[0] >= 25, 'Hand-Picked: a new player (through the real newPlayer) starts ~+30 coach trust at Lv 3', hooks.coach.join(' → '))
-ok(Math.abs(hooks.prod[1] - hooks.prod[0] - .5) < 1e-9, 'Box-Score Myth: +50% statProd at Lv 2', hooks.prod.join(' → '))
-ok(hooks.ceil[1] - hooks.ceil[0] === 25, 'Beyond Potential: +25 ceilPlus', hooks.ceil.join(' → '))
+ok(Math.abs(hooks.prod[1] - hooks.prod[0] - 1) < 1e-9, 'Box-Score Myth: +50% statProd at Lv 2 (×2, the Impossible branch)', hooks.prod.join(' → '))
+ok(hooks.ceil[1] - hooks.ceil[0] === 50, 'Beyond Potential: +25 ceilPlus (×2, the Impossible branch)', hooks.ceil.join(' → '))
 ok(hooks.stars[1] > hooks.stars[0], 'Born Five-Star: new players are rated higher', hooks.stars.join(' → '))
 
 // ---- 6. the screen and the vault can carry millions ----

@@ -5311,7 +5311,7 @@
    * Favorite, GM's Eye, Fortress Home Field, Superteam) were "team quality" — summed, capped at 0.34, halved, ×0.1, ×40:
    * a full Superteam moved the scoreline under a point. Now each is a stated PERCENT on every teammate's rating
    * (`teamLiftV190` fx): your side's team OVR — the badge, the quick sim's pair and every man the watched game builds —
-   * is that much higher, all seven together capped at `teamLiftCapV190` (30%). `teamLiftDV190(C)` turns the percent
+   * is that much higher, all seven together capped at `teamLiftCapV190` (15% — measured at College, a maxed set moves a below-average side from 28% to 67% wins, ~+8 points a game; 30% made it 92%). `teamLiftDV190(C)` turns the percent
    * into the quality factor both builders already read (ovr = base × (0.72 + C/2)), so the simmed and the watched week
    * still agree (v76). Kill switch `v190team` 0 = the v153 B quality edge. */
   function teamLiftOnV190() {
@@ -5319,7 +5319,7 @@
   }
   function teamLiftPctV190() {
     if (!teamLiftOnV190()) return 0;
-    return clamp99(treeFx("teamLiftV190") || 0, 0, TU("teamLiftCapV190", 30));
+    return clamp99(treeFx("teamLiftV190") || 0, 0, TU("teamLiftCapV190", 15));
   }
   function teamLiftDV190(C) {
     const L = teamLiftPctV190() / 100;
@@ -5828,7 +5828,7 @@
           key: "workhorse",
           name: "Workhorse",
           icon: "🐎",
-          desc: "Training costs him nothing: the program's attribute drawbacks (stamina, strength, the rest) never apply.",
+          desc: "Training never costs him attributes.",
           cost: 10,
           mult: 1.6,
           max: 1,
@@ -5858,7 +5858,7 @@
           key: "superhuman",
           name: "Superhuman",
           icon: "🦸",
-          desc: "+60 potential ceiling per level (+20, tripled by the ceiling boost) — every soft cap moves with it.",
+          desc: "+60 potential ceiling per level.",
           cost: 45,
           mult: 2.3,
           max: 3,
@@ -5888,7 +5888,7 @@
           key: "recovery",
           name: "Rapid Recovery",
           icon: "🧊",
-          desc: "Injuries 1.8% rarer per level (the whole injury tree caps at 25%).",
+          desc: "Injuries 1.8% rarer per level.",
           cost: 7,
           mult: 1.5,
           max: 6,
@@ -5898,7 +5898,7 @@
           key: "engine",
           name: "Twin Engines",
           icon: "🔋",
-          desc: "+2% to EVERY attribute in every game, per level — watched, Quick Play or simmed (all game-day nodes together top out at +30%).",
+          desc: "+2% to every attribute a game, per level (cap +30%).",
           cost: 12,
           mult: 1.65,
           max: 6,
@@ -5965,7 +5965,7 @@
           key: "coachable",
           name: "Coachable",
           icon: "📋",
-          desc: "+1 upgrade point per season (paid across the season\'s games, at each game\'s pay rate).",
+          desc: "+1 upgrade point per season (paid per game).",
           cost: 8,
           mult: 1.55,
           max: 8
@@ -5983,7 +5983,7 @@
           key: "clutch",
           name: "Clutch Gene",
           icon: "🔥",
-          desc: "Per level: +7 starting Grit; playoff bonuses +20% bigger; Grit's pull on a game swing 2% stronger.",
+          desc: "+7 starting Grit and playoff bonuses +20%, per level.",
           cost: 6,
           mult: 1.45,
           max: 8
@@ -5995,7 +5995,7 @@
           key: "quickstudy",
           name: "Quick Study",
           icon: "📚",
-          desc: "Per level: training focus effects 3.5% stronger and the training plan's risk rolls 2% rarer.",
+          desc: "Training focus 3.5% stronger, plan risks 2% rarer — per level.",
           cost: 10,
           mult: 1.55,
           max: 6,
@@ -6005,7 +6005,7 @@
           key: "vet",
           name: "Veteran Presence",
           icon: "🧓",
-          desc: "+2 upgrade points per season (paid across the season\'s games, at each game\'s pay rate).",
+          desc: "+2 upgrade points per season (paid per game).",
           cost: 14,
           mult: 1.7,
           max: 4,
@@ -6015,7 +6015,7 @@
           key: "prodigy",
           name: "Prodigy",
           icon: "🌟",
-          desc: "The first 3 seasons of every career grow +16% faster per level (Lv 4: +64%).",
+          desc: "First 3 seasons grow +16% faster, per level.",
           cost: 22,
           mult: 1.9,
           max: 4,
@@ -6097,7 +6097,7 @@
           key: "zen",
           name: "Zen Focus",
           icon: "🧘",
-          desc: "+1% to EVERY attribute in every game AND game-to-game swings 4% smaller, per level.",
+          desc: "+1% to every attribute a game and swings 4% smaller, per level.",
           cost: 15,
           mult: 1.7,
           max: 5,
@@ -6133,11 +6133,11 @@
           key: "goodProgram",
           name: "Winning Culture",
           icon: "🏆",
-          desc: "Your teammates are rated +2% higher per level (Lv 6: +12%). Every teammate, every game — the quick sim and the watched game alike; all seven team nodes together cap at +30%.",
+          desc: "Your teammates are rated +1% higher per level (Lv 6: +6%). Team nodes cap at +15%.",
           cost: 9,
           mult: 1.5,
           max: 6,
-          fx: { teamLiftV190: 2 }
+          fx: { teamLiftV190: 1 }
         },
         {
           key: "extra",
@@ -6191,12 +6191,12 @@
           key: "dynastyTeam",
           name: "Dynasty Program",
           icon: "🏰",
-          desc: "Championship programs recruit you: your teammates are rated +4% higher per level (Lv 4: +16%). Every teammate, every game — the quick sim and the watched game alike; all seven team nodes together cap at +30%.",
+          desc: "Your teammates are rated +2% higher per level (Lv 4: +8%). Team nodes cap at +15%.",
           cost: 18,
           mult: 1.75,
           max: 4,
           req: { honors: 10 },
-          fx: { teamLiftV190: 4 }
+          fx: { teamLiftV190: 2 }
         },
         {
           key: "legacy",
@@ -6243,11 +6243,11 @@
           key: "boosters",
           name: "Booster Club",
           icon: "📣",
-          desc: "The boosters pay for talent: your teammates are rated +2% higher per level (Lv 6: +12%). Every teammate, every game — the quick sim and the watched game alike; all seven team nodes together cap at +30%.",
+          desc: "Your teammates are rated +1% higher per level (Lv 6: +6%). Team nodes cap at +15%.",
           cost: 8,
           mult: 1.5,
           max: 6,
-          fx: { teamLiftV190: 2, teamQual: 0.04 }
+          fx: { teamLiftV190: 1, teamQual: 0.04 }
         },
         {
           key: "january",
@@ -6549,7 +6549,7 @@
           key: "proDay",
           name: "Pro Day Prep",
           icon: "📋",
-          desc: "+1 upgrade point per season (paid across the season\'s games, at each game\'s pay rate).",
+          desc: "+1 upgrade point per season (paid per game).",
           cost: 10,
           mult: 1.6,
           max: 5,
@@ -6647,7 +6647,7 @@
           key: "trashTalk",
           name: "Trash Talk",
           icon: "🗯️",
-          desc: "+1% to EVERY attribute in every game, per level — get in their heads.",
+          desc: "+1% to every attribute a game, per level.",
           cost: 10,
           mult: 1.6,
           max: 5,
@@ -6658,11 +6658,11 @@
           key: "crowdFavorite",
           name: "Crowd Favorite",
           icon: "📢",
-          desc: "The stadium lifts them: your teammates are rated +2% higher per level (Lv 6: +12%). Every teammate, every game — the quick sim and the watched game alike; all seven team nodes together cap at +30%.",
+          desc: "Your teammates are rated +1% higher per level (Lv 6: +6%). Team nodes cap at +15%.",
           cost: 9,
           mult: 1.55,
           max: 6,
-          fx: { teamLiftV190: 2, teamQual: 0.03 }
+          fx: { teamLiftV190: 1, teamQual: 0.03 }
         },
         {
           key: "primetime",
@@ -6679,7 +6679,7 @@
           key: "legendAura",
           name: "Aura",
           icon: "🔮",
-          desc: "Per level: +2% to every attribute in every game, swings 5% smaller, +2% advance chance.",
+          desc: "+2% to every attribute a game, swings 5% smaller, +2% advance — per level.",
           cost: 26,
           mult: 1.95,
           max: 4,
@@ -6738,7 +6738,7 @@
           key: "etForm",
           name: "Eternal Form",
           icon: "🌠",
-          desc: "+0.5% to EVERY attribute in every game. FOREVER repeatable (all game-day nodes together top out at +30%).",
+          desc: "+0.5% to every attribute a game. FOREVER (cap +30%).",
           cost: 16,
           mult: 1.24,
           max: 999,
@@ -6962,7 +6962,7 @@
           key: "inevitable",
           name: "Inevitable",
           icon: "⚡",
-          desc: "+8% to the chance of being called up to the next level, per level (the Apex ×1.5 makes it +12%). They come looking for him.",
+          desc: "+8% call-up chance per level (×1.5 on Apex: +12%).",
           cost: 6e4,
           mult: 2,
           max: 3,
@@ -6980,17 +6980,17 @@
           key: "gmEye",
           name: "GM's Eye",
           icon: "🔍",
-          desc: "The front office finds talent: your teammates are rated +2.5% higher per level (Lv 6: +15%). Every teammate, every game — the quick sim and the watched game alike; all seven team nodes together cap at +30%.",
+          desc: "Your teammates are rated +1.25% higher per level (Lv 6: +7.5%). Team nodes cap at +15%.",
           cost: 8,
           mult: 1.5,
           max: 6,
-          fx: { teamLiftV190: 2.5, teamQual: 0.05 }
+          fx: { teamLiftV190: 1.25, teamQual: 0.05 }
         },
         {
           key: "oline_wall",
           name: "The Wall",
           icon: "🧱",
-          desc: "Per level: your line protects — injuries 1.5% rarer and +1% to every attribute in every game.",
+          desc: "Injuries 1.5% rarer and +1% to every attribute a game, per level.",
           cost: 10,
           mult: 1.6,
           max: 5,
@@ -7012,12 +7012,12 @@
           key: "homeField",
           name: "Fortress Home Field",
           icon: "🏰",
-          desc: "Per level: your teammates are rated +3% higher (Lv 5: +15%) and +2 performance in every playoff game. Every teammate, every game — the quick sim and the watched game alike; all seven team nodes together cap at +30%.",
+          desc: "Teammates +1.5% per level (Lv 5: +7.5%), +2 playoff perf. Team nodes cap at +15%.",
           cost: 14,
           mult: 1.65,
           max: 5,
           req: { honors: 9 },
-          fx: { teamLiftV190: 3, teamQual: 0.04, playoffPerf: 2 }
+          fx: { teamLiftV190: 1.5, teamQual: 0.04, playoffPerf: 2 }
         },
         {
           key: "warRoom",
@@ -7034,12 +7034,12 @@
           key: "juggernautTeam",
           name: "Superteam",
           icon: "💫",
-          desc: "A loaded roster every year: your teammates are rated +5% higher per level (Lv 4: +20%). Every teammate, every game — the quick sim and the watched game alike; all seven team nodes together cap at +30%.",
+          desc: "Your teammates are rated +2.5% higher per level (Lv 4: +10%). Team nodes cap at +15%.",
           cost: 24,
           mult: 1.9,
           max: 4,
           req: { honors: 15 },
-          fx: { teamLiftV190: 5, teamQual: 0.07 }
+          fx: { teamLiftV190: 2.5, teamQual: 0.07 }
         },
         {
           key: "foreverFranchise",
@@ -7189,7 +7189,7 @@
         key: "glassCannon",
         name: "Glass Cannon",
         icon: "🔫",
-        desc: "Per level: +4% to EVERY attribute in every game; injuries 18% more likely.",
+        desc: "+4% to every attribute a game; injuries 18% likelier — per level.",
         cost: 9,
         mult: 1.6,
         max: 5,
@@ -38040,7 +38040,7 @@
     { id: "luckyDeck", icon: "🎲", name: "Loaded Deck", fx: { flipLuckV179: 1 }, ctx: "Rare, epic and legendary post-game cards turn up twice as often." },
     { id: "prodigy", icon: "🌟", name: "Born for It", fx: { eGrowth: 0.25 }, ctx: "+5% to every season's attribute growth, every career." },
     { id: "ironBody", icon: "🦴", name: "Iron Body", fx: { injDown: 0.08 }, ctx: "8% fewer injuries, every game, every career." },
-    { id: "pedigree", icon: "🏛️", name: "Program Pedigree", fx: { teamQual: 0.05, teamLiftV190: 3 }, ctx: "Every teammate is rated +3% higher, every game (v190: on the team nodes' +30% cap)." },
+    { id: "pedigree", icon: "🏛️", name: "Program Pedigree", fx: { teamQual: 0.05, teamLiftV190: 1.5 }, ctx: "Every teammate is rated +1.5% higher, every game (on the team nodes' +15% cap)." },
     { id: "headStart", icon: "🚀", name: "Head Start", fx: { startPointsV179: 10 }, ctx: "Every new player starts with 10 upgrade points to spend." },
     { id: "paycheck", icon: "💵", name: "Golden Paycheck", fx: { payMultV179: 0.1 }, ctx: "+10% to every game's paycheck (the per-game upgrade points)." },
     { id: "titleHunter", icon: "🏆", name: "Title Hunter", fx: { titleMult: 0.15 }, ctx: "+15% Prestige Points from every championship." },

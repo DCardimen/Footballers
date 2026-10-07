@@ -4875,7 +4875,7 @@
   },
   "v190check": {
    "file": "scripts/v190check.mjs",
-   "desc": "v190 — the game-day nodes are a percent of every attribute in every game (the simmed game too), capped at +30%; a maxed node pays its stated total (prestigeCap ceilings raised); the team nodes lift your side's team OVR by their stated percent, opponent untouched, capped at +30%; the medal windfall is 40% of what a career pays; the Legacy medal card and the pot sit at the top of the season report; Chip on the Shoulder and Inevitable apply. No page errors.",
+   "desc": "v190 — the game-day nodes are a percent of every attribute in every game (the simmed game too), capped at +30%; a maxed node pays its stated total (prestigeCap ceilings raised); the team nodes lift your side's team OVR by their stated percent, opponent untouched, capped at +15%; the medal windfall is 40% of what a career pays; the Legacy medal card and the pot sit at the top of the season report; Chip on the Shoulder and Inevitable apply. No page errors.",
    "areas": [
     "season"
    ],

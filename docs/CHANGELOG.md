@@ -23,9 +23,10 @@ Names in older entries are the career app's pre-v149 C minified names (`q`, `ms`
     nodes promise (+3 to every stat however many levels, +4 starting points against +8, the injury tree 14% against its
     stated 25%). The ceilings are now what the tree can buy at full levels; past them, the same soft taper. `v190cap`.
   - **C · The team nodes lift your teammates.** The seven team nodes were "team quality" worth under a point of margin
-    maxed. Each now names a percent on every teammate's rating — Winning Culture / Booster Club / Crowd Favorite +2%,
-    GM's Eye +2.5%, Fortress Home Field +3%, Dynasty Program +4%, Superteam +5% a level (and the Program Pedigree medal
-    +3%) — capped at +30% together (`teamLiftV190` fx → `teamLiftDV190`, read by `teamPairV76` and `buildGameRosters`
+    maxed. Each now names a percent on every teammate's rating — Winning Culture / Booster Club / Crowd Favorite +1%,
+    GM's Eye +1.25%, Fortress Home Field +1.5%, Dynasty Program +2%, Superteam +2.5% a level (and the Program Pedigree
+    medal +1.5%) — capped at +15% together (measured at College: a maxed set takes a below-average side from 28% to 67%
+    wins, ~+8 points a game; 30% made it 92%) (`teamLiftV190` fx → `teamLiftDV190`, read by `teamPairV76` and `buildGameRosters`
     alike). `v190team`.
   - **D · The medals at the top.** The Legacy medal card moves under the report card and the 🏦 pot under it; the pot fills
     as the XP bar pours; the pour waits for the offseason body screen and the coach instead of playing unseen. `v190top`.

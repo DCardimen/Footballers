@@ -1,7 +1,7 @@
 // Dev check: v190 (src/07-career-app.js, src/31-legacy.js).
 //   A: GAME-DAY NODES — `perfFlat` is a percent of every attribute on game day, in the simmed game too (`rollGamePerf`)
 //   B: THE STATED NUMBERS ARE PAID — `prestigeCap` ceilings are what the tree can buy (Position Guru ×8 = +8 starts)
-//   C: THE TEAM NODES LIFT YOUR TEAMMATES — Superteam ×4 = +20% on your side's team OVR, capped at +30% together
+//   C: THE TEAM NODES LIFT YOUR TEAMMATES — Superteam ×4 = +10% on your side's team OVR, capped at +15% together
 //   D: THE MEDALS AT THE TOP — the Legacy card sits under the report card, the pot under it
 //   E: THE WINDFALL, TO SCALE — the medal's PP windfall is a share of what a career pays
 //   F: the audit's fixes — Chip on the Shoulder, Inevitable
@@ -72,8 +72,8 @@ const C = await M(() => {
   S.tree = {}
   return { a: a.us, b: b.us, ratio: +(b.us / a.us).toFixed(3), lift, cap, oppSame: a.opp === b.opp }
 })
-ok(C.lift === 20 && C.ratio >= 1.17 && C.ratio <= 1.23 && C.oppSame, 'Superteam ×4: your side\'s team OVR +20%, the opponent untouched', C)
-ok(C.cap === 30, 'the team nodes together cap at +30%', C)
+ok(C.lift === 10 && C.ratio >= 1.07 && C.ratio <= 1.13 && C.oppSame, 'Superteam ×4: your side\'s team OVR +10%, the opponent untouched', C)
+ok(C.cap === 15, 'the team nodes together cap at +15%', C)
 
 // E: the windfall
 const E = await M(() => {
