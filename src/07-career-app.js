@@ -30753,7 +30753,7 @@
         : [[1, 0, 0]];
     bands.forEach(b => fz.forEach(z => sc.push([b[0] * z[0], b[1] + z[1], z[2]])));
     const lin = s => kap * s[1] + kS * 1.35 * s[2],
-      c = kap * 1.15 * (P ? P.formPts : 0),
+      c = kap * 1.15 * (P ? P.formPts : 0) * poiseSdMulV192C(e) /* v192C: Poise shapes the form roll this models */,
       sh = x => (x < 1e-6 ? 1 : Math.sinh(x) / x),
       EM = sc.reduce((a, s) => a + s[0] * Math.exp(lin(s)), 0) * sh(c),
       EM2 = sc.reduce((a, s) => a + s[0] * Math.exp(2 * lin(s)), 0) * sh(2 * c),
