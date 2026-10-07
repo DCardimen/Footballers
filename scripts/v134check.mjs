@@ -47,7 +47,8 @@ console.log('goals:', JSON.stringify(goals))
 ok(goals.n >= 18, 'the board lists every goal', String(goals.n))
 ok(goals.dfl && goals.dfl.pp === 10000, 'the DFL title as its MVP pays 10,000 PP', JSON.stringify(goals.dfl))
 ok(goals.gal && goals.gal.pp === 1000000, 'the Interstellar title as its MVP pays 1,000,000 PP', JSON.stringify(goals.gal))
-ok(Math.min(...goals.pps) >= 15 && goals.pps.filter(p => p >= 100).length >= 8, 'the rest scale from tens to thousands — nothing on the board is pocket change any more', JSON.stringify(goals.pps))
+// v192 A: the board's other rows pay a tenth of the v134 scale (the flat side money is nerfed); the two big ones keep their face
+ok(Math.min(...goals.pps) >= 1 && goals.pps.filter(p => p >= 10).length >= 8 && goals.pps.filter(p => p >= 1e4).length === 2, 'the rest pay a tenth of the v134 scale (v192 A) — the two big ones keep 10,000 and 1,000,000', JSON.stringify(goals.pps))
 ok(goals.sub, 'and the screen says what the two big ones pay')
 // the MVP+title checks need BOTH
 const mvp = await page.evaluate(() => {

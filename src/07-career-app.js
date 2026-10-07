@@ -5281,6 +5281,7 @@
       const h = (state && state.payHistV190) || [];
       ref = Math.max(0, ...h.slice(-3), careerPotV189(state && state.player));
     } catch (_) {}
+    if (flatPPOnV192A()) return Math.max(TU("windfallMinV192A", 1), Math.round(ref * TU("windfallShareV192A", 0.1))); /* v192 A */
     return Math.max(TU("windfallMinV190", 3), Math.round(ref * TU("windfallShareV190", 0.4)));
   }
   function payHistPushV190(pay) {
@@ -9229,13 +9230,143 @@
       saveGame(),
       state.view === "settings" && screenSettings());
   }
+  /* ===== v192 A THE ECONOMY, TO SCALE =====
+   * The owner: "Nerf the flat prestige from milestones by 90% … Remove any flat prestige gained early. It doesn't make
+   * sense to have 20 or 50 prestige on your first career then 509 from milestones. … Nerf the flat attributes gained per
+   * game, too strong. … The weekly rolls should be a flat percent bonus … which can go above any cap. … Remove the
+   * milestone perk of 2 cards in one game. That should be a high cost impossible prestige upgrade worth 1 million plus.
+   * … Too many stats go to just one or two for the card flip. They should be random stats … improved in the prestige
+   * menu to more or less focus on key stats … a longer term goal."
+   * Measured (scripts/careersim.mjs + a state.pp tap, smart player, fresh accounts): a first career paid ~8 PP for the
+   * career and ~60 more on the side — challenges 55, the title 3, milestones 2 — then +23% of all of it on the flip cards.
+   *   FLAT PP. Every flat side payment — level milestones, challenges (`chalMult`), the season orders/contracts, a title,
+   *     the nemesis, the Daily Drive, the old deck's PP card, the Legacy medal bounties — pays `flatPPShareV192A` (10%) of
+   *     its face (never under 1). What is banked that way (`state.ppBankFlatV192A`) is paid at the career's settle up to
+   *     `flatPPCapV192A` (half) of what the career itself pays (at least `flatPPMinV192A`, 3) — the side money grows with the
+   *     payout instead of in front of it. The medal windfall is `windfallShareV192A` (10%) of a career's pay, min 1.
+   *     Not flat (untouched): the UFF / Interstellar title-as-MVP challenges (`BIG_GOALS_V192A`), the career settle, the UFF season pay, Compound Interest, scrapping gear, refunds.
+   *   PER-GAME ATTRIBUTES. Practice reps bank `repsNerfV192A` (50%) of what they did; the Extra reps card is
+   *     `flipRepsV192A` (0.25 of a point, was 0.5).
+   *   THE FATE ROLL. The plan's number is now a percent of the rolled attribute for the game (`fatePctMultV192A` ×), and
+   *     the buff may pass the attribute cap (reverted after the game, as before).
+   *   THE EXTRA CARD. No longer a medal reward (the medal's stored fx is ignored); an Impossible node (`extraCard`,
+   *     150,000 × the branch's ×8 = 1.2M PP).
+   *   THE FLIP'S STAT. The Extra reps and +1 Permanent cards draw a stat from the position's weighted stats
+   *     (weight^`flipFocusExpV192A`, 0.5 — spread); FOCUSED REPS (Mental, 5 levels) adds `focusRepsStepV192A` (0.6) to
+   *     the exponent a level, so the key stats take more of the draws.
+   * Kill switch TU "v192A" 0 = all of it off (each piece: fatePctV192A / flatPPV192A / repsV192A / extraCardV192A /
+   * flipStatV192A). `window.__V192A`; `v192Acheck`. */
+  function onV192A(k) {
+    return !!TU("v192A", 1) && (!k || !!TU(k, 1));
+  }
+  // ---- the fate roll: a percent of the attribute
+  function fatePctOnV192A() {
+    return onV192A("fatePctV192A");
+  }
+  function fatePtsV192A(p, attr, pct) {
+    const cur = Number(p && p.attrs && p.attrs[attr]) || 10;
+    return Math.max(1, Math.round((cur * pct) / 100));
+  }
+  function fatePctTxtV192A(v) {
+    return (Math.abs(v - Math.round(v)) < 0.05 ? Math.round(v) : (+v).toFixed(1)) + "%";
+  }
+  // ---- flat PP: a tenth of the face, and the banked part capped by the career's own payout
+  const BIG_GOALS_V192A = { dflMvpTitle: 1, galaxyMvpTitle: 1 }; /* the two feats the whole game points at: never scaled */
+  const FLAT_WHY_V192A = { milestone: 1, goal: 1, objective: 1, title: 1, nemesis: 1, daily: 1, flipV178: 1, bounty: 1 };
+  function flatPPOnV192A() {
+    return onV192A("flatPPV192A");
+  }
+  function flatFaceV192A(n) {
+    n = Number(n) || 0;
+    if (!flatPPOnV192A() || !(n > 0)) return Math.round(n);
+    return Math.max(1, Math.round(n * TU("flatPPShareV192A", 0.1)));
+  }
+  function flatCapV192A(pay) {
+    return Math.max(TU("flatPPMinV192A", 3), Math.round((Number(pay) || 0) * TU("flatPPCapV192A", 0.5)));
+  }
+  // the flat part of the bank that the settle `pay` does not cover (0 while off)
+  function flatCutV192A(pay) {
+    if (!flatPPOnV192A() || !state) return 0;
+    const flat = Math.min(state.ppBankFlatV192A || 0, bankedV136());
+    return Math.max(0, flat - flatCapV192A(pay));
+  }
+  // ---- per-game attributes
+  function repsMultV192A() {
+    return onV192A("repsV192A") ? TU("repsNerfV192A", 0.5) : 1;
+  }
+  function flipRepsV192A() {
+    return onV192A("repsV192A") ? TU("flipRepsV192A", 0.25) : TU("flipRepsV182", 0.5);
+  }
+  // ---- the extra card: an Impossible node, not a medal
+  function extraPicksV192A() {
+    return onV192A("extraCardV192A") ? nodeLvl("extraCard") : Math.round(medalFxV179("flipPicksV179"));
+  }
+  // ---- the flip's stat: a weighted draw over the position's stats; Focused Reps sharpens it
+  function flipFocusExpV192A() {
+    return TU("flipFocusExpV192A", 0.5) + nodeLvl("focusReps") * TU("focusRepsStepV192A", 0.6);
+  }
+  function flipStatWeightsV192A(e) {
+    const W = (e && POSITIONS[e.pos] && POSITIONS[e.pos].w) || {},
+      x = flipFocusExpV192A(),
+      keys = Object.keys(W).filter(k => e.attrs && e.attrs[k] != null && W[k] > 0);
+    return keys.map(k => [k, Math.pow(W[k], x)]);
+  }
+  function flipStatV192A(e, w, salt) {
+    const ws = flipStatWeightsV192A(e);
+    if (!ws.length) return null;
+    const F = w && w.payV178 && w.payV178.flip,
+      rng = seededRng(e.seasonSeed || 0, e.level || 0, e.totalSeasons || 0, (w && w.week) || 0, (w && w.opp) || "", F ? F.picked.length : 0, salt || "", "flipStatV192A"),
+      tot = ws.reduce((a, c) => a + c[1], 0);
+    let r = rng() * tot;
+    for (const [k, v] of ws) if ((r -= v) <= 0) return k;
+    return ws[ws.length - 1][0];
+  }
+  TREE.impossible.nodes.push({
+    key: "extraCard",
+    name: "The Extra Card",
+    icon: "🃏",
+    desc: "One more card pick after EVERY game — two simmed, three watched.",
+    cost: 15e4,
+    mult: 1,
+    max: 1,
+    req: { honors: 34 }
+  });
+  TREE.mental.nodes.push({
+    key: "focusReps",
+    name: "Focused Reps",
+    icon: "🎯",
+    desc: "The Extra reps and +1 Permanent cards lean harder on your position's KEY stats, per level (at Lv 0 they spread across every stat the position uses).",
+    cost: 6,
+    mult: 1.7,
+    max: 5,
+    req: { honors: 5 }
+  });
+  ["extraCard", "focusReps"].forEach(k => {
+    const b = k === "extraCard" ? "impossible" : "mental",
+      n = TREE[b].nodes.find(x => x.key === k);
+    TREE_NODES[k] || (TREE_NODES[k] = { ...n, branch: b });
+  });
+  window.__V192A = {
+    fate: id => (window.__fateAttrFor ? window.__fateAttrFor(id) : null),
+    flatFace: n => flatFaceV192A(n),
+    flatCap: pay => flatCapV192A(pay),
+    flatCut: pay => flatCutV192A(pay),
+    repsMult: () => repsMultV192A(),
+    flipReps: () => flipRepsV192A(),
+    extraPicks: () => extraPicksV192A(),
+    focusExp: () => flipFocusExpV192A(),
+    weights: e => flipStatWeightsV192A(e || (state && state.player)),
+    stat: (w, salt) => flipStatV192A(state.player, w || {}, salt),
+    milestone: lv => flatFaceV192A(Math.round((MILESTONE_PP[lv] || 0) * (1 + treeFx("mileMult")) * chaosEarnedMult(lv)))
+  };
   const MILESTONE_PP = [0, 2, 4, 8, 14, 24, 40, 70, 220];
   function grantMilestone(e) {
     state.milestones || (state.milestones = {});
     const t = LEVELS[e].key;
     if (state.milestones[t]) return 0;
     state.milestones[t] = !0;
-    const a = Math.round((MILESTONE_PP[e] || 0) * (1 + treeFx("mileMult")) * chaosEarnedMult(e));
+    let a = Math.round((MILESTONE_PP[e] || 0) * (1 + treeFx("mileMult")) * chaosEarnedMult(e));
+    a = flatFaceV192A(a); /* v192 A: a tenth of it (1 or 2 early) */
     return (a > 0 && bankPPV136(a, "milestone"), a);
   } /* ===== v134 THE GOALS ARE WORTH CHASING =====
    * The challenge board paid 6 to 150 PP for feats that take whole careers: a UFF title was 10 PP, the
@@ -9431,17 +9562,23 @@
     }
     state.ppBankV136 = (state.ppBankV136 || 0) + n;
     state.ppBankLogV136 = (state.ppBankLogV136 || []).concat({ n, why: why || "", at: Date.now() }).slice(-40);
+    if (flatPPOnV192A() && FLAT_WHY_V192A[why]) state.ppBankFlatV192A = (state.ppBankFlatV192A || 0) + n; /* v192 A */
     return n;
   }
   function bankedV136() {
     return typeof state < "u" && state ? state.ppBankV136 || 0 : 0;
   }
-  function flushBankV136() {
-    const b = bankedV136();
+  // v192 A: `pay` (the career's own settle) caps the flat part of the bank — what it does not cover is not paid
+  function flushBankV136(pay) {
+    const cut = pay != null ? flatCutV192A(pay) : 0,
+      b = bankedV136() - cut;
     state.ppBankV136 = 0;
     state.ppBankLogV136 = [];
+    state.ppBankFlatV192A = 0;
+    if (cut > 0) state.flatCutV192A = { cut, pay: Math.round(pay), at: Date.now() };
+    if (pay != null && state.player) state.player._flatCutV192A = cut;
     if (b > 0) state.pp += b;
-    return b;
+    return Math.max(0, b);
   }
   window.__V136_C = { bank: bankPPV136, banked: bankedV136, flush: flushBankV136, banking: bankingV136 };
   /* ===== v151 B HE LOOKS THE PART (the career app's side) =====
@@ -10033,8 +10170,10 @@
           n = s.check(state, e || (state.player && state.player.seasonStats));
         } catch {}
         if (n) {
-          const i = Math.round(s.pp * (1 + treeFx("chalMult")) * chaosPPMult());
-          ((state.challenges[s.id] = !0), bankPPV136(i, "goal"), (t += i), a.push(s.icon + " " + s.name));
+          const big = !!BIG_GOALS_V192A[s.id] /* v192 A: the two titles the whole game points at keep their face */,
+            raw = Math.round(s.pp * (1 + treeFx("chalMult")) * chaosPPMult()),
+            i = big ? raw : flatFaceV192A(raw);
+          ((state.challenges[s.id] = !0), bankPPV136(i, big ? "goalBig" : "goal"), (t += i), a.push(s.icon + " " + s.name));
         }
       }),
       !state.challenges.natlNo1 && state.player && state.player.lastSeasonLine)
@@ -10050,7 +10189,7 @@
           if (r.lowerBetter ? l.every(u => d <= u.line[i.primary]) : l.every(u => d >= u.line[i.primary])) {
             state.challenges.natlNo1 = !0;
             const u = CHALLENGES.find(p => p.id === "natlNo1"),
-              h = Math.round(u.pp * (1 + treeFx("chalMult")) * chaosPPMult());
+              h = flatFaceV192A(Math.round(u.pp * (1 + treeFx("chalMult")) * chaosPPMult())); /* v192 A */
             (bankPPV136(h, "goal"), (t += h), a.push(u.icon + " " + u.name));
           }
         }
@@ -10822,7 +10961,7 @@
     ((byId("screen").innerHTML = `
     <div class="eyebrow">Career Challenges · ${e}/${CHALLENGES.length} complete</div>
     <div class="h1">Prove It</div>
-    <div class="sub">One-time feats that pay permanent Prestige Points — banked, and paid the day the career ends. They stay done forever — chase them across careers. The two at the bottom are the whole game: the UFF title <b>as its MVP</b> pays <b style="color:var(--gold)">10,000</b>, the Interstellar title as its MVP pays <b style="color:var(--gold)">1,000,000</b>.</div>
+    <div class="sub">One-time feats that pay permanent Prestige Points — banked, and paid the day the career ends${flatPPOnV192A() ? " (the side money a career banks is paid up to half of what the career itself pays)" : ""}. They stay done forever — chase them across careers. The two at the bottom are the whole game: the UFF title <b>as its MVP</b> pays <b style="color:var(--gold)">10,000</b>, the Interstellar title as its MVP pays <b style="color:var(--gold)">1,000,000</b>.</div>
     <div class="mt" style="margin-top:14px">
     ${CHALLENGES.map(t => {
       const a = !!state.challenges[t.id];
@@ -10830,7 +10969,7 @@
         <div class="ic">${t.icon}</div>
         <div class="si"><div class="st">${t.name} ${a ? '<span style="color:var(--good)">✓ DONE</span>' : ""}</div>
           <div class="sd">${t.desc}</div></div>
-        <div style="font-family:'Oswald';font-weight:700;color:${a ? "var(--good)" : "var(--gold)"};white-space:nowrap">${a ? "+" : ""}${t.pp.toLocaleString("en-US")} PP</div>
+        <div style="font-family:'Oswald';font-weight:700;color:${a ? "var(--good)" : "var(--gold)"};white-space:nowrap">${a ? "+" : ""}${(BIG_GOALS_V192A[t.id] ? t.pp : flatFaceV192A(t.pp)).toLocaleString("en-US")} PP</div>
       </div>`;
     }).join("")}
     </div>
@@ -13371,6 +13510,7 @@
       ((be = Math.round(
         (2 + Math.round(e.level * 0.8)) * (1 + treeFx("titleMult") + seasonModFx("ppMult")) * chaosPPMult() * eraMult()
       )),
+      (be = flatFaceV192A(be)) /* v192 A */,
       bankPPV136(be, "title"),
       (e.titles = (e.titles || 0) + 1),
       (state.titlesWon = (state.titlesWon || 0) + 1),
@@ -13520,7 +13660,7 @@
       ((Ke = O.lowerBetter ? De <= Ae : De >= Ae),
         Ke &&
           ((e.nemesis.beaten = (e.nemesis.beaten || 0) + 1),
-          bankPPV136(Math.round(2 * chaosPPMult() * eraMult()), "nemesis")));
+          bankPPV136(flatFaceV192A(Math.round(2 * chaosPPMult() * eraMult())), "nemesis") /* v192 A */));
     }
     ((e.lastSeasonLine = { level: e.level, pos: e.pos, statLine: { ...de }, avg: Math.round(U) }),
       (e.lastTeamRecord = {
@@ -14943,7 +15083,7 @@
       e.contracts && e.contracts.length
         ? `<div class="card tight" style="border-color:rgba(90,208,201,.45)">
       <div class="l" style="font-size:10px;color:#5ad0c9;letter-spacing:2px;margin-bottom:6px">📜 SEASON CONTRACTS — cash in at season's end</div>
-      ${e.contracts.map(C => `<div class="contract-row"><span>◇ ${C.desc}</span><b>+${C.pp} PP</b></div>`).join("")}
+      ${e.contracts.map(C => `<div class="contract-row"><span>◇ ${C.desc}</span><b>+${flatFaceV192A(C.pp)} PP</b></div>`).join("")}
     </div>`
         : ""
     }
@@ -20908,7 +21048,7 @@
               break;
           }
         } catch {}
-        const c = d ? Math.round(l.pp * chaosPPMult() * eraMult()) : 0;
+        const c = d ? flatFaceV192A(Math.round(l.pp * chaosPPMult() * eraMult())) : 0; /* v192 A */
         return (
           d && (bankPPV136(c, "objective"), (state.objectivesCompleted = (state.objectivesCompleted || 0) + 1)),
           { ...l, ok: d, paid: c }
@@ -21141,7 +21281,7 @@
   }
   function legacyBountyV152(m) {
     const k = m >= 500 && m % 500 === 0 ? 10 : m % 50 === 0 ? 3 : 1;
-    return Math.round(TU("legacyBountyV152", 25) * Math.pow(m / 10, 1.5) * k);
+    return flatFaceV192A(Math.round(TU("legacyBountyV152", 25) * Math.pow(m / 10, 1.5) * k)); /* v192 A: a tenth */
   }
   function legacyRingXpV152(level) {
     return level >= 8 ? TU("legacyRingIslV152", 4000) : level >= 7 ? TU("legacyRingXpV152", 2500) : 0;
@@ -25149,7 +25289,7 @@
       l = arr ? 0 : prestigeStarReward(e, a, !1);
     e._settled ||
       ((e._settled = !0),
-      (e._ppBankV136 = flushBankV136()),
+      (e._ppBankV136 = flushBankV136(r)) /* v192 A: the career's pay caps the flat bank */,
       (state.pp += r),
       (e._vaultPayV137 = r + (e._ppBankV136 || 0)),
       flipPPSettleV186(e, r + (e._ppBankV136 || 0)) /* v186 F: the Prestige cards pay now */,
@@ -25187,7 +25327,7 @@
         <div class="statbox"><div class="n">+${bigOrRawV179(r + (e._ppBankV136 || 0) + (e._ppDoubledV149E || 0))}</div><div class="l">PP Earned</div></div>
       </div>
       ${u > 0 ? `<div class="threshold-note" style="margin-top:8px;text-align:center">💰 Your legacy bonuses boosted PP earnings by <b style="color:var(--gold)">+${u}%</b></div>` : ""}
-      ${e._ppBankV136 ? `<div class="threshold-note bank-note-v136" style="margin-top:6px;text-align:center">🏦 <b style="color:var(--gold)">+${e._ppBankV136} PP</b> of that was banked during the career — goals, titles, seasons — and paid now, at the end.</div>` : ""}
+      ${e._ppBankV136 ? `<div class="threshold-note bank-note-v136" style="margin-top:6px;text-align:center">🏦 <b style="color:var(--gold)">+${e._ppBankV136} PP</b> of that was banked during the career — goals, titles, seasons — and paid now, at the end.${e._flatCutV192A > 0 ? ` The side money (goals, milestones, titles) pays up to half of what the career itself pays — ${e._flatCutV192A} PP more went unpaid.` : ""}</div>` : ""}
     </div>
     ${legacyCardV152("career")}
     <div class="h2">Career Log</div>
@@ -25236,7 +25376,7 @@
             (TU("v190F", 1) ? nodeLvl("legacy") * e.totalSeasons : 0) /* v190 F: Family Legacy pays on the UFF arrival too */
         ),
         i = prestigeStarReward(e, Math.max(7, e.level), !0);
-      ((e._ppBankV136 = flushBankV136()),
+      ((e._ppBankV136 = flushBankV136(n)) /* v192 A */,
         (state.pp += n),
         (e._vaultPayV137 = (e._vaultPayV137 || 0) + n + (e._ppBankV136 || 0)),
         flipPPSettleV186(e, n + (e._ppBankV136 || 0)) /* v186 F */,
@@ -25644,17 +25784,19 @@
       l &&
         !d &&
         ((t.dailyClaimed = a),
-        bankPPV136(3, "daily"),
+        bankPPV136(flatFaceV192A(3), "daily") /* v192 A */,
         pushStory(
           "🎁",
           "Daily Drive complete",
-          bankingV136()
-            ? "Three Prestige Points banked — paid when this career ends."
-            : "Three Prestige Points added to your legacy."
+          flatPPOnV192A()
+            ? "+" + flatFaceV192A(3) + " Prestige Point" + (flatFaceV192A(3) === 1 ? "" : "s") + (bankingV136() ? " banked — paid when this career ends." : " added to your legacy.")
+            : bankingV136()
+              ? "Three Prestige Points banked — paid when this career ends."
+              : "Three Prestige Points added to your legacy."
         ),
         setTimeout(() => bigMoment("DAILY DRIVE COMPLETE", "+3 Prestige Points", "good"), 250),
         saveGame()),
-      `<div class="card mission-card"><div class="objective-head"><div class="objective-icon">⚡</div><div><div class="objective-kicker" style="color:var(--violet)">DAILY DRIVE</div><div class="objective-title">${d ? "All rewards claimed" : r.filter(c => c.done).length + "/3 missions complete"}</div></div></div><div>${r.map(c => `<div class="mission-row ${c.done ? "done" : ""}"><div class="mi">${c.done ? "✅" : c.ic}</div><div class="mtx"><b>${c.name}</b><small>${c.desc}</small></div><div class="mission-prize">+${c.pp} PP</div></div>`).join("")}</div></div>`
+      `<div class="card mission-card"><div class="objective-head"><div class="objective-icon">⚡</div><div><div class="objective-kicker" style="color:var(--violet)">DAILY DRIVE</div><div class="objective-title">${d ? "All rewards claimed" : r.filter(c => c.done).length + "/3 missions complete" + (flatPPOnV192A() ? " · all three: +" + flatFaceV192A(3) + " PP" : "")}</div></div></div><div>${r.map(c => `<div class="mission-row ${c.done ? "done" : ""}"><div class="mi">${c.done ? "✅" : c.ic}</div><div class="mtx"><b>${c.name}</b><small>${c.desc}</small></div><div class="mission-prize">${flatPPOnV192A() ? "" : "+" + c.pp + " PP"}</div></div>`).join("")}</div></div>`
     );
   }
   function storyFeedHtml() {
@@ -30499,7 +30641,9 @@
             attr: a.attr,
             name: a.name,
             amount: a.amount,
-            hedge: nodeLvl("fateHedge") >= 1 ? Math.max(1, Math.round(a.amount * 0.3)) : 0,
+            pct: a.pct != null ? a.pct : null /* v192 A: the buff is a percent of the attribute */,
+            hedgePct: a.pct != null && nodeLvl("fateHedge") >= 1 ? a.hedgePct : null,
+            hedge: nodeLvl("fateHedge") >= 1 ? (a.pct != null ? a.hedge : Math.max(1, Math.round(a.amount * 0.3))) : 0,
             label: F.label
           };
       } catch (_) {}
@@ -33093,12 +33237,20 @@
         var pool = (p && POSITIONS[p.pos] && Object.keys(POSITIONS[p.pos].w)) || ATTR_KEYS;
         var attr = pool[Math.floor(seed() * pool.length)] || "speed";
         var amount = Math.max(2, Math.round((def ? def.win : 6) * 0.9));
-        return {
+        var out = {
           attr: attr,
           amount: amount,
           name: (ATTR_INFO[attr] && ATTR_INFO[attr].name) || attr,
           icon: (ATTR_INFO[attr] && ATTR_INFO[attr].icon) || "🎲"
         };
+        /* v192 A: the plan's number is a PERCENT of the attribute (+12% Speed), not flat points — see fatePctOnV192A */
+        if (fatePctOnV192A()) {
+          out.pct = amount * TU("fatePctMultV192A", 1);
+          out.amount = fatePtsV192A(p, attr, out.pct);
+          out.hedgePct = out.pct * 0.3;
+          out.hedge = fatePtsV192A(p, attr, out.hedgePct);
+        }
+        return out;
       }
       window.__fateAttrFor = fateAttrFor; // for tests
       function runFateRoll(planId) {
@@ -33119,10 +33271,18 @@
         }
         var out = fateAttrFor(planId);
         // HIT: full temporary buff. DECLINED (miss): nothing, unless House Money grants a partial buff.
-        var amount = success ? out.amount : nodeLvl("fateHedge") >= 1 ? Math.max(1, Math.round(out.amount * 0.3)) : 0;
+        var amount = success
+          ? out.amount
+          : nodeLvl("fateHedge") >= 1
+            ? out.pct != null
+              ? out.hedge
+              : Math.max(1, Math.round(out.amount * 0.3))
+            : 0;
+        var pct = out.pct != null ? (success ? out.pct : amount > 0 ? out.hedgePct : 0) : null;
         if (state) {
           state._fateMiss = success ? 0 : (state._fateMiss || 0) + 1;
-          state._fateLast = amount > 0 ? "+" + amount + " " + out.name : "DECLINED";
+          state._fateLast =
+            amount > 0 ? "+" + (pct != null ? fatePctTxtV192A(pct) : amount) + " " + out.name : "DECLINED";
         }
         return {
           success: success,
@@ -33130,6 +33290,7 @@
           odds: odds,
           attr: out.attr,
           amount: amount,
+          pct: pct,
           name: out.name,
           icon: out.icon,
           applied: amount > 0,
@@ -33161,7 +33322,11 @@
             // apply the temporary attribute buff BEFORE the game is generated
             if (res && res.applied && p && p.attrs && p.attrs[res.attr] != null) {
               applied = { attr: res.attr, before: p.attrs[res.attr] };
-              p.attrs[res.attr] = clamp99(p.attrs[res.attr] + res.amount, 1, attrCap());
+              /* v192 A: a percent buff may pass the attribute cap (this one game only — reverted below) */
+              p.attrs[res.attr] =
+                res.pct != null
+                  ? Math.max(1, p.attrs[res.attr] + res.amount)
+                  : clamp99(p.attrs[res.attr] + res.amount, 1, attrCap());
             }
           } catch (e) {
             console.warn("[fate] roll error", e);
@@ -33211,10 +33376,15 @@
             if (plan.trust) fx.push((plan.trust > 0 ? "+" : "") + plan.trust + " trust");
           }
           var oc2 = fateAttrFor(m[1]);
-          var winTxt = "HIT → " + oc2.icon + " +" + oc2.amount + " " + oc2.name + " this game";
+          var winTxt =
+            oc2.pct != null
+              ? "HIT → " + oc2.icon + " +" + fatePctTxtV192A(oc2.pct) + " " + oc2.name + " this game (+" + oc2.amount + ", may pass the cap)"
+              : "HIT → " + oc2.icon + " +" + oc2.amount + " " + oc2.name + " this game";
           var failTxt =
             nodeLvl("fateHedge") >= 1
-              ? "MISS → partial +" + Math.max(1, Math.round(oc2.amount * 0.3)) + " " + oc2.name + " (House Money)"
+              ? oc2.pct != null
+                ? "MISS → partial +" + fatePctTxtV192A(oc2.hedgePct) + " " + oc2.name + " (+" + oc2.hedge + ", House Money)"
+                : "MISS → partial +" + Math.max(1, Math.round(oc2.amount * 0.3)) + " " + oc2.name + " (House Money)"
               : "MISS → Fate declines · no change";
           var perks = [];
           if (nodeLvl("fateOdds")) perks.push("🎲+" + nodeLvl("fateOdds") * 4 + "%");
@@ -36295,7 +36465,7 @@
     if (!on178("reps")) return [];
     const cap = attrCap(),
       ceil = e.potentialCeil || cap,
-      k = TU("repsV178", 0.08) * clamp99((Number(perf) || 50) / 70, 0.4, 1.4) * mult * (1 + 0.25 * (hits || 0));
+      k = TU("repsV178", 0.08) * repsMultV192A() /* v192 A: half */ * clamp99((Number(perf) || 50) / 70, 0.4, 1.4) * mult * (1 + 0.25 * (hits || 0));
     return keyAttrsV178(e).map(a => {
       const cur = e.attrs[a] || 1,
         damp = cur >= ceil ? 0.25 : clamp99(1 - (cur / cap) * 0.55, 0.35, 1);
@@ -36487,18 +36657,23 @@
       e.paidV178 = (e.paidV178 || 0) + n;
       applyFlipV178.pts = n;
     } else if (id === "reps") {
-      const g = TU("flipRepsV182", 0.5),
-        r = repAttrV178(e, keys[0] || "speed", g);
+      /* v192 A: a quarter point, on a stat drawn from the position's (Focused Reps leans it to the key ones) */
+      const g = flipRepsV192A(),
+        k192 = onV192A("flipStatV192A") ? flipStatV192A(e, w, "reps") : null,
+        r = repAttrV178(e, k192 || keys[0] || "speed", g);
       say = "Extra reps · " + r.name + (r.up ? " +1!" : " +" + g);
     } else if (id === "trust") e.coachTrust = clamp99((e.coachTrust != null ? e.coachTrust : 50) + TU("flipTrustV182", 3), 0, 100);
-    else if (id === "pp") bankPPV136(TU("flipPPV182", 3), "flipV178");
+    else if (id === "pp") bankPPV136(flatFaceV192A(TU("flipPPV182", 3)), "flipV178"); /* v192 A */
     else if (id === "gear") {
       try {
         const g = dropGear(1, "Card flip");
         say = "Gear drop · " + ((g && g.name) || "new gear");
       } catch (_) {}
     } else if (id === "attr") {
-      const k = keys.slice().sort((a, b) => (e.attrs[a] || 0) - (e.attrs[b] || 0))[0] || "speed";
+      const k =
+        (onV192A("flipStatV192A") && flipStatV192A(e, w, "attr")) /* v192 A: a drawn stat, not the weakest key one */ ||
+        keys.slice().sort((a, b) => (e.attrs[a] || 0) - (e.attrs[b] || 0))[0] ||
+        "speed";
       const a182 = TU("flipAttrV182", 1);
       e.attrs[k] = clamp99((e.attrs[k] || 1) + a182, 1, attrCap());
       say = "+" + a182 + " " + ((ATTR_INFO[k] && ATTR_INFO[k].name) || k) + " · permanent";
@@ -36702,7 +36877,7 @@
       coach: coachReceiptV178(e, w, perf, won, ctx.live),
       reps: practiceV178(e, perf, wmul, hits),
       stock: stockV178(e, perf, won),
-      flip: on178("flip") ? flipDealV179(e, w, Math.min(3, (watched ? 2 : 1) + Math.round(medalFxV179("flipPicksV179")))) : null,
+      flip: on178("flip") ? flipDealV179(e, w, Math.min(3, (watched ? 2 : 1) + extraPicksV192A() /* v192 A: the Impossible node, not the medal */)) : null,
       title: pot.title,
       shown: !!ctx.card
     });
@@ -38263,7 +38438,7 @@
       };
     let opts;
     if (major) {
-      const left = MEDAL_MAJOR_V179.filter(c => !M.owned[c.id] && !(c.id === "skinMajor" && TU("v187", 1))).map(c => Object.assign({ w: 1, rar: "legendary" }, c));
+      const left = MEDAL_MAJOR_V179.filter(c => !M.owned[c.id] && !(c.id === "skinMajor" && TU("v187", 1)) && !(c.id === "fourthCard" && onV192A("extraCardV192A")) /* v192 A: an Impossible node now */).map(c => Object.assign({ w: 1, rar: "legendary" }, c));
       opts = pickW(left.length >= 2 ? left : left.concat(MEDAL_GREATER_V179.map(c => Object.assign({ w: 1, rar: "epic" }, c))), 2);
     } else opts = pickW(MEDAL_SMALL_V179, 3);
     opts = opts.map(dress).filter(Boolean).slice(0, 2);
@@ -38477,7 +38652,7 @@
     } catch (_) {
       r = 0;
     }
-    const base = (r || 0) + bankedV136(),
+    const base = (r || 0) + bankedV136() - flatCutV192A(r || 0) /* v192 A: the flat bank the payout does not cover */,
       pct = (flipOnV186() && e.flipPPPctV186) || 0;
     return Math.round(base * (1 + pct / 100));
   }
@@ -38823,7 +38998,7 @@
       eGrowth: () => `+${pct(v * 0.22)} attribute growth every season`,
       advFlat: () => `+${nf1V179(v)}% declare odds · +${nf1V179(v * TU("verdictPerOddsV179", 1))} on the scouts' verdict ceiling · +${nf1V179(v * TU("secondLookPerOddsV179", 1.5))}% GM's second look`,
       flipLuckV179: () => `rare / epic / legendary post-game cards ${pct(v)} likelier`,
-      flipPicksV179: () => `+${nf1V179(v)} card pick after every game`,
+      flipPicksV179: () => (onV192A("extraCardV192A") ? "The Extra Card — retired as a medal (v192: an Impossible node now)" : `+${nf1V179(v)} card pick after every game`),
       pointsFlat: () => `+${nf1V179(v)} upgrade point${v === 1 ? "" : "s"} every season`,
       injDown: () => `${pct(v)} fewer injuries`,
       teamQual: () => `+${pct(v)} team quality around you`,

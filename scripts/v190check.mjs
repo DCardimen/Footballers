@@ -83,7 +83,7 @@ const E = await M(() => {
   S.payHistV190 = []
   return { pot, w }
 })
-ok(E.w === Math.max(3, Math.round(Math.max(30, E.pot) * 0.4)), 'the medal windfall is 40% of what a career pays (the best recent payout or this pot)', E)
+ok(E.w === Math.max(1, Math.round(Math.max(30, E.pot) * 0.1)), 'the medal windfall is a share of what a career pays (the best recent payout or this pot) — 10% since v192 A (was 40%)', E)
 
 // D: the medals at the top of the season report
 await seed({ level: 2 })
