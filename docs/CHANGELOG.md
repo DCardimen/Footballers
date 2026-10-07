@@ -10,6 +10,13 @@ Names in older entries are the career app's pre-v149 C minified names (`q`, `ms`
 `index.html` + `src/` (`docs/LAYOUT.md`).
 
 <!-- new entries go here, newest first -->
+- **v189 D — the pot and the medal chooser, where you see them.** (`src/07-career-app.js`.) Playtest: "not seeing those
+  changes". The 🏦 pot read the in-season PP bank, which normal play leaves near 0 (only titles, goals and objectives feed
+  it), so it rarely drew; it is now `careerPotV189` — the career-end payout this career has earned so far (the
+  `screenGameOver` formula, or `tailPPV154` past the UFF arrival, + the bank, + the flip's PP %), labelled THIS CAREER'S
+  POT. The report's pot was counting up UNDER the offseason body screen (v132 `#growV132`); it now waits for it to close.
+  The medal chooser opened under the coach's season summary (`__RIB_COACH.isOpen`); it now waits for the coach, the body
+  screen and any overlay. `v189check` (13).
 - **v189 — one stat line, the medal reward comes to you, the bank at the season's end.** (`src/07-career-app.js`.)
   - **One stat line (A).** The Quick Play card opens on the same YOUR GAME tiles as the live card (every box-score line,
     the season, the pace) and the same season race. Every played week carries its box score, so the season is summed
