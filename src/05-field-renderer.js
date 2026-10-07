@@ -4668,6 +4668,14 @@ class Ot extends mt.Scene {
           break;
         }
         if (tk) { tk._whiffed = true; tk.forceState = "dive";
+          /* v191 D: a whiff is a LAUNCH — if the lunge never got him off the ground he leaves his feet now, longer and
+           * higher than a wrap, facing the man he reached for, and lands just past him */
+          if (TU("v191whiff", 1)) {
+            const c191 = this.markers[this.actorIdx(e.carrier)];
+            if (c191 && c191.root) { const a = PJ(tk.sx, tk.sy), b = PJ(c191.sx, c191.sy); this.faceMarker(tk, b.x - a.x, b.y - a.y); }
+            if (!(tk._launchUntil > tk.tms)) { tk._launchT0 = tk.tms; tk._launchUntil = tk.tms + TU("whiffAirMsV191", 260); tk._launchH = TU("whiffHV191", 5); }
+            (window.__V191D_R = window.__V191D_R || { whiffs: 0, late: 0 }).whiffs++;
+          }
           /* v139: he does not snap to the turf a fifth of a second after leaving his feet — he
            * finishes the arc he is already in, LANDS on it (the puff, the skid and the wear are
            * the landing, not the miss), lies there a beat and gets up like any other down man. */
@@ -4701,6 +4709,7 @@ class Ot extends mt.Scene {
         if (mine) { this.flash(e.x, e.y, 0xf0bb45); this.popText(e.x, e.y - 44, "YOUR TACKLE!", "#f0bb45", 13); }
         else if (TU("v191tackle", 1) && TU("tackleFlashV191", 1)) this.flash(e.x, e.y, 0xffffff);
         this.hitFx(e.x, e.y, big, !!e.bigHit, e); vib(big ? 40 : 18);
+        if (TU("v191whiff", 1)) this.lateDiverV191(P, e);
         this.puffFx(ixV109, iyV109, big ? 4 : 2);
         /* v153 A: forward progress — the official spots the ball where his progress stopped, not where the pile left him */
         const fp153 = TU("v153A", 1) && Number.isFinite(e.fpX) && Number(e.fpYd) > 0;
@@ -5969,6 +5978,43 @@ class Ot extends mt.Scene {
    * — the turf puff on the landing frame, and `startPostV86` gets them up after the whistle like the tackler. The contact
    * itself now always lands: a short hitstop (`hitStopTackleV191`) and a white flash (`tackleFlashV191`). Kill switch
    * `v191tackle` 0. `window.__V191C_R` counts the falls. */
+  /* ===== v191 D THE LATE DIVER =====
+   * The owner: "add whiffed tackles as well, defender launches but misses slightly." The sim's whiffs (`tackleWhiff`)
+   * now always leave the ground (above). And on a share of tackles (`lateDiveP_V191`, 0.35) a defender who was still
+   * closing — not the tackler, not in the heap, within `lateDivePxV191` — launches at the carrier a beat late and lands
+   * just short of the pile: the dive frame, the hop, the puff and skid, down, and up again after the whistle. It is drawn
+   * only: no event, no stat, no yard. `window.__V191D_R`. */
+  lateDiverV191(P, e) {
+    if (!P || !P.script || Math.random() >= TU("lateDiveP_V191", 0.35)) return;
+    const cm = this.markers[this.actorIdx(e.carrier)], tk = this.markers[this.actorIdx(e.tackler)];
+    if (!cm || !cm.root) return;
+    const skip = new Set([e.tackler, e.carrier].concat(e.sup || [], e.downV153A || []));
+    const offSide = this.actorIdx(e.carrier) < 11;
+    let best = null, bd = 1e9;
+    this.markers.forEach((m, j) => {
+      if (!m || !m.root || m === cm || m === tk || m.forceState || (j < 11) === offSide || j > 21) return;
+      const id = P.script.actors[j] && P.script.actors[j].id;
+      if (skip.has(id)) return;
+      const d = Math.hypot(m.sx - cm.sx, m.sy - cm.sy);
+      if (d > TU("lateDiveMinPxV191", 14) && d < TU("lateDivePxV191", 60) && d < bd) { bd = d; best = m; }
+    });
+    if (!best) return;
+    const m = best, a = PJ(m.sx, m.sy), b = PJ(cm.sx, cm.sy);
+    this.faceMarker(m, b.x - a.x, b.y - a.y);
+    const air = TU("lateDiveAirMsV191", 280), delay = TU("lateDiveDelayMsV191", 90);
+    this.time.delayedCall(delay, () => {
+      if (m.active === false || (m.forceState && m.forceState !== "grab")) return;
+      m._whiffed = true; m.forceState = "dive"; m._launchT0 = m.tms; m._launchUntil = m.tms + air; m._launchH = TU("lateDiveHV191", 4.5);
+      (window.__V191D_R = window.__V191D_R || { whiffs: 0, late: 0 }).late++;
+      this.time.delayedCall(air, () => {
+        if (m.active === false || m.forceState !== "dive") return;
+        m.forceState = "down"; m._launchUntil = 0; m._launchH = 0;
+        this.puffFx(m.sx, m.sy, 3); this.skidFx(m.sx, m.sy);
+        try { this.addWearV86(m.sx, m.sy, 5, .07); } catch (er) {}
+      });
+      this.time.delayedCall(air + TU("whiffDownMsV139", 580), () => { if (m.forceState === "down") { m.forceState = "getupSeq"; m.seqT = m.tms; m._whiffed = false; } });
+    });
+  }
   gangFallV191(sm, carrier, i) {
     const R = (window.__V191C_R = window.__V191C_R || { falls: 0, dives: 0 });
     const fold = () => { if (sm.active === false || sm.forceState === "getupSeq") return; sm.forceState = "tackleSeq"; sm.seqT = sm.tms; sm._lean = 0; };

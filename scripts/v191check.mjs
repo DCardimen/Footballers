@@ -4,6 +4,8 @@
 //   B: THE LOCKER ROOM — six FOREVER team nodes at ×1.04 a level: each level is +1 OVR to the next teammate of a group
 //      (`lockerAddsV191`), the Captain's Table to the weakest; never the you-player; the quick sim's team pair carries the
 //      same total over the 22; the shop shows the branch
+//   D: THE LATE DIVER / THE WHIFF LAUNCH — a missed tackle always leaves the ground; a late defender launches at a
+//      tackle and lands short (drawn only)
 //   C: THE GANG GOES DOWN — FieldSim puts a scrum's defenders in the heap (`downV153A`); on the broadcast every man in it
 //      leaves his feet (`gangFallV191`: the first in a short dive) and folds into the tackle sequence, then gets up
 // No page errors.  GAME_URL=http://localhost:5173/ node scripts/v191check.mjs   (SKIP_LIVE=1 skips the broadcast)
@@ -110,7 +112,8 @@ if (!process.env.SKIP_LIVE) {
         if (D.length < 3) return null
         const id = j => P.script.actors[j].id, cid = id(P.carrierId)
         sc.fireEvent({ __inj: true, type: 'scrumV177A', t: P.t, carrier: cid, by: id(D[0].j), def: D.slice(0, 2).map(d => id(d.j)), off: [], ms: 900, dir: 1, drift: 0, x: cm.sx, y: cm.sy }, P)
-        window.__V191C_R = { falls: 0, dives: 0 }
+        window.__V191C_R = { falls: 0, dives: 0 }; window.__V191D_R = { whiffs: 0, late: 0 }
+        window.RIB_TUNE = Object.assign(window.RIB_TUNE || {}, { lateDiveP_V191: 1, lateDivePxV191: 400, lateDiveMinPxV191: 0 })
         sc.fireEvent({ __inj: true, type: 'tackle', t: P.t, tackler: id(D[0].j), carrier: cid, x: cm.sx, y: cm.sy, gang: true, sup: [id(D[1].j)], handsOn: 3, downV153A: [id(D[1].j), id(D[2].j)], kb: 2, style: 'wrap' }, P)
         window.__G191 = { men: [D[1].j, D[2].j] }
         return window.__G191
@@ -129,6 +132,25 @@ if (!process.env.SKIP_LIVE) {
       const R = await page.evaluate(() => window.__V191C_R)
       ok(st.every(s => s.includes('tackleSeq')), 'every man in the heap goes to the ground (tackleSeq), not left grabbing', st)
       ok(R && R.falls >= 2 && R.dives >= 1, 'the first of them leaves his feet in a dive', R)
+      const D = await page.evaluate(() => window.__V191D_R)
+      ok(D && D.late >= 1, 'a late defender launches at the tackle and misses (drawn only)', D)
+      // a whiff: the man who missed leaves his feet, facing the carrier
+      let W = null
+      for (let i = 0; i < 300 && !W; i++) {
+        W = await page.evaluate(() => {
+          const sc = window.__gridironScene, P = sc && sc.play
+          if (!P || !P.script || !P.snapped || P.done || !(P.carrierId >= 0) || P.carrierId > 21) return null
+          const cm = sc.markers[P.carrierId]; if (!cm || !cm.root || cm.forceState) return null
+          const D = sc.markers.map((m, j) => ({ m, j })).filter(({ m, j }) => m && m.root && !m.forceState && j !== P.carrierId && (j < 11) !== (P.carrierId < 11))
+          if (!D.length) return null
+          const d = D[0], id = j => P.script.actors[j].id
+          d.m._launchUntil = 0
+          sc.fireEvent({ __inj: true, type: 'tackleWhiff', t: P.t, who: id(d.j), carrier: id(P.carrierId), x: d.m.sx, y: d.m.sy }, P)
+          return { air: d.m._launchUntil > d.m.tms, h: d.m._launchH, st: d.m.forceState }
+        })
+        if (!W) { await page.evaluate(() => { const b = [...document.querySelectorAll('button')].find(q => /^(CONTINUE|NEXT PLAY|NEXT)$/i.test((q.innerText || '').trim()) && q.offsetParent); if (b) b.click() }); await page.waitForTimeout(80) }
+      }
+      ok(W && W.air && W.h >= 4 && W.st === 'dive', 'a missed tackle is a launch: he leaves his feet at the carrier', W)
     }
   }
 }

@@ -27,7 +27,12 @@ Names in older entries are the career app's pre-v149 C minified names (`q`, `ms`
     fired on `grab`; the scrum's defenders were never put in the heap. FieldSim now lists them (`downV153A`), and
     `gangFallV191` takes each man out of the scrum, the first in a short dive at the carrier, and folds every one into the
     tackle sequence; `startPostV86` gets them up after the whistle. Every tackle now lands with a short hitstop and a white
-    contact flash, not only the big ones. `v191tackle`. `v191check`.
+    contact flash, not only the big ones. `v191tackle`.
+  - **D · Whiffs and late divers.** "Add whiffed tackles … defender launches but misses slightly." A sim whiff
+    (`tackleWhiff`) always leaves the ground now — facing the carrier, longer and higher than a wrap — and lands past
+    him. And on 35% of tackles (`lateDiveP_V191`) a defender still closing launches a beat late and lands short of the
+    pile, then gets up (`lateDiverV191`) — drawn only: no event, stat or yard, so the run game is untouched. `v191whiff`.
+    `v191check`.
 - **v190 — every prestige upgrade does what it says.** (`src/07-career-app.js`, `src/31-legacy.js`.) The owner: "make sure
   every Prestige upgrade does what it's supposed to … team based upgrades more specific … scale higher and start higher …
   flat stats per game don't seem to appear … the flat prestige from the cards is so much higher than the actual prestige
