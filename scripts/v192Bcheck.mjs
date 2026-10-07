@@ -46,7 +46,7 @@ const A = await M(() => {
   const want = (1 + 3 * 0.2 + 2 * 0.35) * Math.pow(1.2, 2) * X.tierPPMult(p) * X.pathVal('ppMult', 1) * X.chaosEarnedMult(p.level)
   return { html: b.innerHTML, hidden: b.hidden, mult: window.__V192B.mult().total, want, pot: window.__V189.pot(p), shown: window.__V189.shown(), tally: p.ppFlatV192B, sw: tb.scrollWidth, cw: tb.clientWidth, chipR: Math.round(b.getBoundingClientRect().right), barR: Math.round(tb.getBoundingClientRect().right) }
 })
-ok(!A.hidden && A.html.includes('×' + A.mult.toFixed(2)) && /🏦25K/.test(A.html), 'the 🏦 chip shows × the career multiplier over the pot', A.html)
+ok(!A.hidden && A.html.includes('×' + A.mult.toFixed(2)) && /🏦[\d.,]+[KM]?/.test(A.html) && A.shown > 0, /* v192 A caps the flat bank at half the pay, so the pot is not the raw 25K */ 'the 🏦 chip shows × the career multiplier over the pot', A.html)
 ok(Math.abs(A.mult - A.want) < 1e-6, 'the × is the payout formula\'s multiplier (tree nodes × era × tier × path × chaos)', { mult: A.mult, want: A.want })
 ok(A.sw <= A.cw && A.chipR <= A.barR, 'the top bar fits 360 px — nothing clipped', A)
 ok(A.tally && A.tally.goal === 25000 && A.tally.milestone === 120, 'flat PP banked this career is tallied by where it came from', A.tally)
@@ -113,7 +113,7 @@ ok(D3.shop === 'shop' && D3.after === 'menu' && !D3.player, 'a vow ("Train smart
 
 // 3: the career's end opens the Vault, its one exit the main menu
 await setup({ level: 3, seasons: 7, titles: 1, tune: { v192Bvault: 1 } })
-await M(() => { const S = window.__GRIDIRON_AUDIT__.getState(); window.__V136_C.bank(300, 'goal'); S.bankShownV189 = window.__V189.pot(S.player); window.go('gameover') })
+await M(() => { document.getElementById('bankRainV189')?.remove() /* an earlier step's rain (4.2 s) is not this one */; const S = window.__GRIDIRON_AUDIT__.getState(); window.__V136_C.bank(300, 'goal'); S.bankShownV189 = window.__V189.pot(S.player); window.go('gameover') })
 await page.waitForFunction(() => { const r = document.getElementById('ribVault'); return r && r.classList.contains('up') && r.classList.contains('career-end-v192b') }, null, { timeout: 8000 }).catch(() => null)
 await page.waitForTimeout(1200)
 const V = await M(() => {
