@@ -1843,7 +1843,8 @@
     "v186",
     "v187",
     "v189",
-    "v190"
+    "v190",
+    "v191"
    ],
    "files": [],
    "checks": [
@@ -1853,6 +1854,7 @@
     "v187check",
     "v189check",
     "v190check",
+    "v191check",
     "medalrewardscheck",
     "v136check",
     "v178check"
@@ -4880,6 +4882,19 @@
     "season"
    ],
    "runtimeSec": 30,
+   "slow": false,
+   "needsServer": true,
+   "pureNode": false,
+   "flaky": []
+  },
+  "v191check": {
+   "file": "scripts/v191check.mjs",
+   "desc": "v191 — the core branches cost ×24 (were ×6; nodes priced in thousands keep ×6), Impossible ×8 (was ×500); the Locker Room's six FOREVER team nodes hand +1 OVR a level round a position group (the Captain's Table to the weakest), never the you-player, and the quick sim's team pair carries the same total; FieldSim puts a scrum's defenders in the heap and on the broadcast every man in it goes to the ground (the first in a dive). No page errors.",
+   "areas": [
+    "season",
+    "broadcast"
+   ],
+   "runtimeSec": 60,
    "slow": false,
    "needsServer": true,
    "pureNode": false,
