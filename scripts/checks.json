@@ -1863,7 +1863,8 @@
     "v136check",
     "v178check",
     "v192Acheck",
-    "v192Bcheck"
+    "v192Bcheck",
+    "v192Ccheck"
    ]
   }
  },
@@ -4962,6 +4963,18 @@
    ],
    "runtimeSec": 180,
    "slow": true,
+   "needsServer": true,
+   "pureNode": false,
+   "flaky": []
+  },
+  "v192Ccheck": {
+   "file": "scripts/v192Ccheck.mjs",
+   "desc": "v192 — every personality pole has a real upside and downside and the page shows every effect; Poise (cool under pressure) grows slowly, narrows the game-to-game swing and lifts a bad game's floor in the quick sim and the watched game alike, the mean barely moving.",
+   "areas": [
+    "season"
+   ],
+   "runtimeSec": 90,
+   "slow": false,
    "needsServer": true,
    "pureNode": false,
    "flaky": []
