@@ -536,7 +536,9 @@
       c.__lgAt || (c.__lgAt = Date.now());
       var split = !!document.querySelector("#screen > .hubv75-tabs") || Date.now() - c.__lgAt > 1000;
       if (!split) { setTimeout(soon, 250); return; }
-      var vis = c.getClientRects().length > 0 && !c.closest(".hubv97-fold:not(.on)");
+      // v190 D: never under the offseason body screen (v132) or the coach — the pour waits until the report is in view
+      var cover = document.getElementById("growV132") || (window.__RIB_COACH && window.__RIB_COACH.isOpen && (gstate() || {}).view === "result");
+      var vis = !cover && c.getClientRects().length > 0 && !c.closest(".hubv97-fold:not(.on)");
       if (vis) pour(c);
       var t = document.querySelector('.hubv75-tab[data-sec="xp"]'); if (t) t.classList.toggle("lg-tab-pulse", !vis && !c.__lgPour);
     });
