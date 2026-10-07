@@ -5296,6 +5296,8 @@
     windfall: r => windfallV190(r || 1),
     payHist: () => ((state && state.payHistV190) || []).slice(),
     fx: k => treeFx(k),
+    locker: men => lockerAddsV191(men),
+    lockerTotal: () => lockerTotalV191(),
     roll: (p, a) => rollGamePerf(p || state.player, 0, a || {}) /* moves coach trust — restore the player after sampling (v146 D) */
   };
   function perfPctOnV190() {
@@ -5314,6 +5316,48 @@
    * is that much higher, all seven together capped at `teamLiftCapV190` (15% — measured at College, a maxed set moves a below-average side from 28% to 67% wins, ~+8 points a game; 30% made it 92%). `teamLiftDV190(C)` turns the percent
    * into the quality factor both builders already read (ovr = base × (0.72 + C/2)), so the simmed and the watched week
    * still agree (v76). Kill switch `v190team` 0 = the v153 B quality edge. */
+  const LOCKER_V191 = {
+    lkSkill: ["QB", "RB", "WR", "TE"],
+    lkLine: ["OL"],
+    lkFront: ["DL", "LB"],
+    lkBack: ["CB", "S"],
+    lkCaptain: "weakest",
+    lkAll: "all"
+  };
+  function lockerOnV191() {
+    return !!TU("v191locker", 1);
+  }
+  // the Locker Room's levels, handed round each group: one +1 OVR per level to the next man (roster order), the
+  // Captain's Table to the weakest man each time. `men` is one side's 22 (the you-player is never in a group).
+  function lockerAddsV191(men) {
+    const add = men.map(() => 0);
+    if (!lockerOnV191() || !state || !state.tree) return add;
+    for (const k in LOCKER_V191) {
+      const L = Math.min(5000, state.tree[k] | 0);
+      if (!L) continue;
+      const g = LOCKER_V191[k],
+        idx = men.map((m, i) => i).filter(i => men[i] && !men[i].you && (g === "all" || g === "weakest" || g.includes(men[i].pos)));
+      if (!idx.length) continue;
+      if (g === "weakest") {
+        for (let n = 0; n < L; n++) {
+          let best = idx[0];
+          for (const i of idx) if ((men[i].ovr || 0) + add[i] < (men[best].ovr || 0) + add[best]) best = i;
+          add[best]++;
+        }
+      } else {
+        const q = Math.floor(L / idx.length),
+          r = L % idx.length;
+        idx.forEach((i, n) => (add[i] += q + (n < r ? 1 : 0)));
+      }
+    }
+    return add;
+  }
+  function lockerTotalV191() {
+    if (!lockerOnV191() || !state || !state.tree) return 0;
+    let t = 0;
+    for (const k in LOCKER_V191) t += Math.min(5000, state.tree[k] | 0);
+    return t;
+  }
   function teamLiftOnV190() {
     return !!TU("v190team", 1);
   }
@@ -6766,6 +6810,74 @@
         }
       ]
     },
+    /* ===== v191 B THE LOCKER ROOM =====
+     * The owner: "add some team based upgrades that are cheaper and scale slower. Like +1 overall to another teammate …
+     * not super meaningful, but over the long run (100 levels plus) starts to make a real impact." Six FOREVER nodes at a
+     * near-flat price (×1.04 a level, branch price ×1): each level is +1 OVR to ONE teammate of a position group, handed
+     * round the group in roster order (`lockerAddsV191`) — 100 levels of Trench Brothers is +20 OVR on each of the five
+     * linemen. The watched game raises those men (their OVR and the attributes drawn from it, `buildGameRosters`); the quick
+     * sim's team pair adds the same total over the 22 (`teamPairV76`). Kill switch `v191locker` 0. */
+    locker: {
+      name: "Locker Room",
+      icon: "🤝",
+      color: "#7fd1b9",
+      nodes: [
+        {
+          key: "lkSkill",
+          name: "Huddle Mates",
+          icon: "🏈",
+          desc: "+1 OVR a level to one of your QBs, RBs, WRs or TEs — the next man in line each time. FOREVER repeatable.",
+          cost: 15,
+          mult: 1.04,
+          max: 999
+        },
+        {
+          key: "lkLine",
+          name: "Trench Brothers",
+          icon: "🧱",
+          desc: "+1 OVR a level to one of your offensive linemen — the next man in line each time. FOREVER repeatable.",
+          cost: 15,
+          mult: 1.04,
+          max: 999
+        },
+        {
+          key: "lkFront",
+          name: "Front Seven",
+          icon: "🦬",
+          desc: "+1 OVR a level to one of your defensive linemen or linebackers — the next man in line each time. FOREVER repeatable.",
+          cost: 15,
+          mult: 1.04,
+          max: 999
+        },
+        {
+          key: "lkBack",
+          name: "No-Fly Zone",
+          icon: "🛡️",
+          desc: "+1 OVR a level to one of your cornerbacks or safeties — the next man in line each time. FOREVER repeatable.",
+          cost: 15,
+          mult: 1.04,
+          max: 999
+        },
+        {
+          key: "lkCaptain",
+          name: "Captain's Table",
+          icon: "🍽️",
+          desc: "+1 OVR a level to the lowest-rated teammate on your side — the weakest link first. FOREVER repeatable.",
+          cost: 20,
+          mult: 1.04,
+          max: 999
+        },
+        {
+          key: "lkAll",
+          name: "Team Dinners",
+          icon: "🍖",
+          desc: "+1 OVR a level to one teammate anywhere on the roster, round the whole team. FOREVER repeatable.",
+          cost: 12,
+          mult: 1.04,
+          max: 999
+        }
+      ]
+    },
     apex: {
       name: "Apex",
       icon: "🏔️",
@@ -7370,7 +7482,9 @@
     let t = e.cost * Math.pow(e.mult, nodeLvl(e.key));
     const a = currentPath(),
       s = (TREE_NODES[e.key] && TREE_NODES[e.key].branch) || e.branch;
-    t *= branchPriceV179(s); /* v179 E: the late branches priced for a chaos-era income */
+    t *= TU("v191price", 1) && e.cost >= 1e3 && s !== "apex" && s !== "impossible" && s !== "eternal" && s !== "locker"
+      ? TU("corePriceV179", 6) /* v191 A: a node already priced in thousands (Free Agency) keeps its v179 price */
+      : branchPriceV179(s); /* v179 E: the late branches priced for a chaos-era income */
     return (a && a.cheapBranch && s === a.cheapBranch && (t *= 0.75), Math.max(1, Math.round(t)));
   }
   const PATH_HONORS = 6;
@@ -16358,7 +16472,7 @@
       1,
       (state.prestige || 0) / 15 +
         (state.rosterPrestigeV158 ? Object.values(state.rosterPrestigeV158).reduce((A2, B2) => A2 + B2, 0) : 0) / 50 +
-        ((state.tree ? Object.values(state.tree).reduce((A2, B2) => A2 + B2, 0) : 0) / 70) *
+        ((state.tree ? Object.values(state.tree).reduce((A2, B2) => A2 + B2, 0) - lockerTotalV191() : 0) / 70) * /* v191 B: the Locker Room pays its own +1s */
           clamp99(TU("teamQualK", 0.1), 0, 1)
     ); /* ===== v76 MARGIN CURVE (1/5) — where the blowouts came from =====
      * usQ is .42 + seed*.35 + prestige*1.05 (up to 1.65) while oppQ can only ever reach
@@ -16417,6 +16531,17 @@
         seen.add(nm2);
       });
     })();
+    // v191 B: the Locker Room — each named teammate's +1s, his attributes redrawn from the new number
+    if (lockerOnV191()) {
+      const side = [...P.off, ...P.def],
+        adds = lockerAddsV191(side);
+      side.forEach((m, i) => {
+        if (!adds[i] || !m || m.you) return;
+        m.ovr = clamp99(m.ovr + adds[i], 3, 999);
+        m.lockerV191 = adds[i];
+        m.attrs = h(m.pos, simOvrV178(m.ovr));
+      });
+    }
     const ce = Y => Math.round([...Y.off, ...Y.def].reduce((_, ie) => _ + ie.ovr, 0) / 22);
     return (
       (P.ovr = ce(P)),
@@ -20326,7 +20451,7 @@
       1,
       (state.prestige || 0) / 15 +
         (state.rosterPrestigeV158 ? Object.values(state.rosterPrestigeV158).reduce((a2, b2) => a2 + b2, 0) : 0) / 50 +
-        ((state.tree ? Object.values(state.tree).reduce((a2, b2) => a2 + b2, 0) : 0) / 70) *
+        ((state.tree ? Object.values(state.tree).reduce((a2, b2) => a2 + b2, 0) - lockerTotalV191() : 0) / 70) * /* v191 B */
           clamp99(TU("teamQualK", 0.1), 0, 1)
     );
     // the same seed the live engine builds its roster from, so the two agree
@@ -20358,7 +20483,10 @@
       ovr = Q => clamp99(Math.round(u * (0.72 + Q * 0.5)), 3, 999);
     // a playoff/seeding shift arrives as oppBoost — (theirRating - levelAvg)/180 —
     // so it is folded in as an OVR move on their side rather than a separate axis
-    return { us: ovr(C), opp: clamp99(Math.round(ovr(V) + (Number(opts.oppBoost) || 0) * 40), 3, 999) };
+    return {
+      us: clamp99(ovr(C) + Math.round(lockerTotalV191() / 22) /* v191 B: the Locker Room's +1s, over the 22 */, 3, 999),
+      opp: clamp99(Math.round(ovr(V) + (Number(opts.oppBoost) || 0) * 40), 3, 999)
+    };
   }
   window.__TEAMPAIR_V76 = (e, opts) => teamPairV76(e || state.player, opts);
   /* ===== v68 TEAM QUALITY IS A NUDGE, NOT A CHEAT CODE =====
@@ -37754,8 +37882,14 @@
   // v179 E: chaos multiplies PP 3·1.16^c, so the UFF's income runs into the millions by chaos ~20 and the billions by
   // ~60; the Apex and Impossible branches were priced for the old curve (5K–60K, 100K–10M) and fell in the first UFF
   // careers. They are priced for the stage they belong to now: Apex ×`apexPriceV179`, Impossible ×`impossiblePriceV179`.
+  /* v191 A: re-priced on a measured run (careersim, smart player): the core branches at ×6 were ~80 levels after the
+   * FIRST career and close to maxed by the sixth (choices stopped mattering); Impossible at ×500 opened at 50M PP — ~650
+   * late careers. Core ×24 (`corePriceV191`), Impossible ×8 (`impossiblePriceV191`). `v191price` 0 = the v179 prices. */
   function branchPriceV179(b) {
     if (!TU("v179", 1)) return 1;
+    if (TU("v191price", 1) && b !== "apex" && b !== "eternal" && b !== "locker")
+      return b === "impossible" ? TU("impossiblePriceV191", 8) : TU("corePriceV191", 24);
+    if (b === "locker") return 1;
     return b === "impossible"
       ? TU("impossiblePriceV179", 500)
       : b === "apex"

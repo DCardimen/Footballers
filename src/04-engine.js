@@ -4711,7 +4711,7 @@ window.__visionRadiusV96 = visionRadiusV96;
                   else { fpV153A = { fpX: G.fpLxV153A, fpYd: +(lostPx / YD).toFixed(2) }; c._fpSpotV153A = G.fpLxV153A; Vfp.fp++; Vfp.fpYd += lostPx / YD; }
                 }
               }
-              const downV153A = G.bigStick ? undefined : gangDownV153A(c, dfd.id, G.sup.concat(G.joined), !!G.gang, G.handsOn + G.joined.length);
+              const downV153A = G.bigStick ? undefined : gangDownV153A(c, dfd.id, G.sup.concat(G.joined, TU("v191tackle", 1) && G.scrum ? G.scrum.def : [] /* v191 C: the scrum's defenders go down too */), !!G.gang, G.handsOn + G.joined.length);
               emit("tackle", { tackler: dfd.id, carrier: c.id, x: c.lx, y: c.y, ...(fpV153A || null), ...(downV153A ? { downV153A } : null),
                 gang: !!G.gang, bigHit: G.bigStick || G.kb > 11, bothFall: G.bothFall,
                 stayUp: G.stayUp && !G.joined.length, kb: Math.round(G.kb), drive: Math.round(G.drive),

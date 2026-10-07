@@ -10,6 +10,29 @@ Names in older entries are the career app's pre-v149 C minified names (`q`, `ms`
 `index.html` + `src/` (`docs/LAYOUT.md`).
 
 <!-- new entries go here, newest first -->
+- **v191 — prices that keep you buying, the Locker Room, and the gang goes down.** (`src/07-career-app.js`,
+  `src/04-engine.js`, `src/05-field-renderer.js`.) The owner: "I don't want it to take multiple seasons for a meaningful
+  full reward. There should be something to dump points into almost always … team based upgrades that are cheaper and scale
+  slower. Like +1 overall to another teammate … group tackles still remain pushing or grabbing. Group tacklers fall to the
+  ground and get back up."
+  - **A · Prices.** Measured (careersim, smart player): at ×6 the core branches were ~80 levels after the first career and
+    close to maxed by the sixth; Impossible at ×500 opened at 50M PP (~650 late careers). Core ×24 (`corePriceV191`; a node
+    already priced in thousands, Free Agency, keeps ×6), Impossible ×8 (`impossiblePriceV191`). `v191price`.
+  - **B · The Locker Room.** A new FOREVER branch: Huddle Mates (QB/RB/WR/TE), Trench Brothers (OL), Front Seven (DL/LB),
+    No-Fly Zone (CB/S), Captain's Table (the weakest teammate first) and Team Dinners (anyone) — 12–20 PP, ×1.04 a level,
+    each level +1 OVR to the next teammate in the group (`lockerAddsV191`); 100 levels of Trench Brothers is +20 on each
+    lineman. The watched game raises those men (OVR and the attributes drawn from it); the quick sim's team pair carries the
+    same total over the 22; the levels do not count toward the tree's team-prestige share. `v191locker`.
+  - **C · The gang goes down.** Group tacklers stayed up pushing: the scrum pose cleared `grab` and the wrapped-in fold only
+    fired on `grab`; the scrum's defenders were never put in the heap. FieldSim now lists them (`downV153A`), and
+    `gangFallV191` takes each man out of the scrum, the first in a short dive at the carrier, and folds every one into the
+    tackle sequence; `startPostV86` gets them up after the whistle. Every tackle now lands with a short hitstop and a white
+    contact flash, not only the big ones. `v191tackle`.
+  - **D · Whiffs and late divers.** "Add whiffed tackles … defender launches but misses slightly." A sim whiff
+    (`tackleWhiff`) always leaves the ground now — facing the carrier, longer and higher than a wrap — and lands past
+    him. And on 35% of tackles (`lateDiveP_V191`) a defender still closing launches a beat late and lands short of the
+    pile, then gets up (`lateDiverV191`) — drawn only: no event, stat or yard, so the run game is untouched. `v191whiff`.
+    `v191check`.
 - **v190 — every prestige upgrade does what it says.** (`src/07-career-app.js`, `src/31-legacy.js`.) The owner: "make sure
   every Prestige upgrade does what it's supposed to … team based upgrades more specific … scale higher and start higher …
   flat stats per game don't seem to appear … the flat prestige from the cards is so much higher than the actual prestige
