@@ -617,3 +617,29 @@ body.rib-howto-open{overflow:hidden!important}
 @media (min-width:760px){
   .rib9-medalbox-v153d{align-self:flex-start;width:min(520px,calc(100% - 28px));margin:0 0 0 14px}
 }
+
+/* ===== v192D EVEN TILES — every main-menu option the same size =====
+   The owner: "organize the main menu options so the choices are all the same size". The guide was a full-width strip,
+   the profile two columns wide, and the rows grew to whatever their longest sub-line wrapped to. Under .rib9-even-v192d
+   (rib-menu.js; RIB_TUNE.v192D = 0 drops the class) every tile is one cell of one grid — 3 across on a phone (4 rows of
+   3), 6 across from 760px (2 rows of 6) — every row the same height, and a sub-line is clamped to two lines. */
+.rib9-tiles.rib9-even-v192d{grid-template-columns:repeat(3,minmax(0,1fr));grid-auto-rows:136px;align-items:stretch}
+.rib9-even-v192d>.rib9-tile,
+.rib9-even-v192d>.rib9-tile.rib9-tile-guide,
+.rib9-even-v192d>.rib9-tile.rib9-tile-profile-v153d{grid-column:auto;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;
+  min-width:0;min-height:0;height:100%;gap:2px;padding:10px 5px 9px;text-align:center}
+.rib9-even-v192d>.rib9-tile img,
+.rib9-even-v192d>.rib9-tile-guide img,
+.rib9-even-v192d>.rib9-tile-profile-v153d img{flex:0 0 auto;width:54px;height:54px;margin:0 0 5px}
+.rib9-even-v192d>.rib9-tile-profile-v153d img{width:50px;height:50px;margin:2px 0 7px}
+.rib9-even-v192d>.rib9-tile-guide:after{content:none}
+.rib9-even-v192d>.rib9-tile b{max-width:100%;font-size:clamp(11.5px,3.5vw,14px);letter-spacing:1px;line-height:1.1;white-space:normal;align-self:auto}
+.rib9-even-v192d>.rib9-tile small{max-width:100%;min-height:2.6em;font-size:8.5px;letter-spacing:1px;line-height:1.3;white-space:normal;align-self:auto;margin-top:0;
+  display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.rib9-even-v192d>.rib9-tile-coach small{display:block;text-align:center}
+.rib9-even-v192d>.rib9-tile-coach small .rib9-sw{display:inline-block;vertical-align:middle;margin-right:4px}
+@media (min-width:760px){
+  .rib9-tiles.rib9-even-v192d{grid-template-columns:repeat(6,minmax(0,1fr));grid-auto-rows:150px}
+  .rib9-even-v192d>.rib9-tile b{font-size:14px;letter-spacing:1.3px}
+  .rib9-even-v192d>.rib9-tile small{font-size:9px}
+}

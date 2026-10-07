@@ -222,3 +222,6 @@
   #ribVault .rv-pop.go,#ribVault .rv-pop.mile.go{animation:rvPopFade .8s ease forwards}
   @keyframes rvPopFade{0%{opacity:0}20%{opacity:1}100%{opacity:0}}
 }
+
+/* ===== v192D THE HOLD FOLLOWS THE FINGER ===== no long-press callout / magnifier over the money while a hold is steered */
+#ribVault,#ribVault canvas.rv-stage{-webkit-touch-callout:none}

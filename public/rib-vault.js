@@ -1502,6 +1502,8 @@
     };
     this.cv.addEventListener('pointerup', up);
     this.cv.addEventListener('pointercancel', up);
+    // v192 D: a capture the browser takes back (the canvas hidden, a system gesture) ends the hold too, never strands it
+    this.cv.addEventListener('lostpointercapture', up);
     this.cv.addEventListener('pointermove', function (e) {
       if (id === null) return;
       var b = self.cv.getBoundingClientRect();
@@ -1515,7 +1517,8 @@
        * and the gesture becomes a drag. Nothing is ever charged twice for it. */
       if (!self.dragging) {
         var d = Math.abs(px - self.pressAt.x) + Math.abs(py - self.pressAt.y);
-        if (d > 13) { self.release(); self.startDrag(px, py); }
+        // v192 D: a hold that is pouring into an upgrade stays a hold — the finger STEERS it (`steerV192D`)
+        if (d > 13 && !(self.steerV192D && self.steerV192D(px, py))) { self.release(); self.startDrag(px, py); }
       }
       if (self.dragging) self.moveDrag(px, py, px - from.x, py - from.y);
     });
@@ -4040,4 +4043,109 @@
   };
   D.pileHit = function (x, y) { return V.scene ? V.scene.onPileV173(x, y) : false; };
   window.__V173 = { on: on, MIN_RX: MIN_RX, MIN_RY: MIN_RY, PAD: PAD, MILESTONES: MILESTONES };
+})();
+
+/* ===== v192D THE HOLD FOLLOWS THE FINGER — a pour you can steer =====
+ *
+ * The owner: "In the prestige menu when holding down, it's finicky. Be able to hold down one and move your
+ * finger on hold and the coins will follow your finger. Ensure once held down it moves dynamically."
+ *
+ * Why it was finicky: v137 B turned ANY press that travelled 13 px into a drag of the coin under the
+ * finger — and a thumb resting on glass wanders 13 px on its own. The drag released the hold, so the pour
+ * stopped dead (and the x2..x16 ramp was lost) every time the hand shifted.
+ *
+ *   THE HOLD STAYS   while the press is pouring into an upgrade (a target, not yet funded, PP to spend),
+ *                    moving the finger never ends it. The pointer is captured on the canvas (v137), so the
+ *                    finger can wander off the pile — even over the funding card — and the pour goes on;
+ *                    only lifting it (or the browser taking the capture back: `lostpointercapture`) stops it.
+ *   IT FOLLOWS       every coin the pour throws leaves from where the finger IS now: over the pile, the coin
+ *                    under it (as before); off the pile, the finger itself. The light, the shake, the kicks
+ *                    and the "+N PP" pops already read `touch`, which every move updates — and a moving
+ *                    finger ploughs: every `vaultTrailPxV192D` px it travels knocks a coin loose under it.
+ *   STILL A DRAG     with nothing to pour into (no upgrade picked, funded, or no PP), a press that travels
+ *                    picks up a coin exactly as v137 B did.
+ *   MONEY            UNCHANGED. Nothing here reads or writes a balance: the pour is still `tick`'s STAGES
+ *                    and `pour`, the purchase is still ONE `onCommit` -> `window.buy` (rib-vault-bridge.js).
+ *   KILL SWITCH      `RIB_TUNE.v192D = 0` (read on every move) restores v137 B's 13 px drag exactly.
+ *
+ * Hooks: `__RIB_VAULT_DEV.v192D()`. Check: `v192Dcheck`. */
+(function () {
+  'use strict';
+  var C = window.__RIB_VAULT_CTRL, D = window.__RIB_VAULT_DEV, M = window.__RIB_VAULT_MODEL;
+  if (!C || !D || !M) return;
+  var Vault = C.Vault, V = D.v;
+
+  function on() { try { return !(window.RIB_TUNE && window.RIB_TUNE.v192D === 0); } catch (e) { return true; } }
+  function knob(name, dflt) { try { var t = window.RIB_TUNE; return t && typeof t[name] === 'number' ? t[name] : dflt; } catch (e) { return dflt; } }
+  function freshStats() { return { steers: 0, travel: 0, trailKicks: 0, fromFinger: 0, fromPile: 0 }; }
+
+  /* Called by v137's pointermove once a press has travelled past 13 px. True = the hold keeps going and
+   * the finger steers it; false = v137 B's drag. */
+  Vault.prototype.steerV192D = function (px, py) {
+    if (!on() || !this.holding || this.dragging || !this.scene) return false;
+    var P = this.payday;
+    if (P && !P.done) return false;
+    if (!this.target || this.committed || this.remaining() <= 0 || this.spendable() <= 0) return false;
+    var st = this.statsV192D || (this.statsV192D = freshStats());
+    var last = this.lastSteerV192D || this.pressAt || { x: px, y: py };
+    var step = Math.abs(px - last.x) + Math.abs(py - last.y);
+    st.steers++; st.travel += step;
+    this.lastSteerV192D = { x: px, y: py };
+    this.steeringV192D = true;
+    // the finger ploughs: a coin knocked loose under it every so many px of travel, rate-limited
+    this.trailAccV192D = (this.trailAccV192D || 0) + step;
+    var now = performance.now(), s = this.scene;
+    if (this.trailAccV192D >= knob('vaultTrailPxV192D', 26) && now - (this._trailAtV192D || 0) > knob('vaultTrailMsV192D', 70)) {
+      this.trailAccV192D = 0; this._trailAtV192D = now;
+      if (s.kickV173 && s.onPileV173 && s.onPileV173(px, py)) st.trailKicks += s.kickV173(px, py, 1, 0.75) || 0;
+    }
+    var G = s.glowV173;
+    if (G) { G.hx = px; G.hy = py; G.pulse = Math.max(G.pulse, 0.45); }
+    return true;
+  };
+
+  /* the coins leave from the finger: off the pile, the flight starts at the finger itself */
+  var baseThrow = Vault.prototype.throwCoin;
+  Vault.prototype.throwCoin = function (worth) {
+    var t = this.touch, s = this.scene;
+    if (!on() || !this.holding || !this.steeringV192D || !t || !s || !s.onPileV173 || s.onPileV173(t.x, t.y)) {
+      if (this.steeringV192D && this.statsV192D) this.statsV192D.fromPile++;
+      return baseThrow.call(this, worth);
+    }
+    var pick = s.pickSurface(t.x, t.y);
+    var den = pick.i >= 0 ? M.denOf(s.slots.slot[pick.i], s.mix) : this.denFor(worth);
+    this.lastDen = den;
+    var from = { x: t.x + (Math.random() - 0.5) * 18, y: t.y + (Math.random() - 0.5) * 12 };
+    var f = s.launch(den, from, { size: pick.s, dur: 520 });
+    s.burst(from.x, from.y, den);
+    if (this.statsV192D) this.statsV192D.fromFinger++;
+    this.lastFlyV192D = f ? { x: Math.round(f.x0), y: Math.round(f.y0) } : null;
+  };
+
+  /* a new press starts a fresh steer; a release ends it */
+  var basePress = Vault.prototype.press;
+  Vault.prototype.press = function (x, y) {
+    this.steeringV192D = false; this.lastSteerV192D = null; this.trailAccV192D = 0;
+    return basePress.call(this, x, y);
+  };
+  var baseRelease = Vault.prototype.release;
+  Vault.prototype.release = function () {
+    this.steeringV192D = false;
+    return baseRelease.call(this);
+  };
+  var baseOpen = Vault.prototype.open;
+  Vault.prototype.open = function (opts) {
+    this.statsV192D = freshStats();
+    this.steeringV192D = false;
+    return baseOpen.call(this, opts);
+  };
+
+  D.v192D = function () {
+    var st = V.statsV192D || {};
+    return { on: on(), steering: !!V.steeringV192D, holding: !!V.holding, dragging: !!V.dragging, stage: V.stage || 0,
+      touch: V.touch ? { x: Math.round(V.touch.x), y: Math.round(V.touch.y) } : null,
+      lastFly: V.lastFlyV192D || null,
+      steers: st.steers || 0, travel: Math.round(st.travel || 0), trailKicks: st.trailKicks || 0,
+      fromFinger: st.fromFinger || 0, fromPile: st.fromPile || 0 };
+  };
 })();
