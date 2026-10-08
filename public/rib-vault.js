@@ -162,15 +162,8 @@
     // and the thin shoulder was the other half of why this looked like spilled change.
     prof: function (q) { q = Math.min(1, Math.max(0, q));
       return Math.max(0, Math.pow(Math.cos(q * Math.PI * 0.5), 0.92) * (0.90 + 0.10 * Math.cos(q * 3.1))); },
-    lobe: function (th) {
-      /* v193 K: the lobe was lopsided — its odd harmonics pushed the heap's left flank 17% further out than its
-       * right (1.20 vs 1.02 of R at the two ends of the x axis), so the pile's outline sat up to 30 px left of
-       * the door it is poured under. Averaged with its own mirror (x -> -x is th -> PI - th) it keeps every
-       * front/back wobble and is the same width either side. `RIB_TUNE.v193K = 0` restores the old outline. */
-      return v193KOn() ? (lobeRawV137(th) + lobeRawV137(Math.PI - th)) / 2 : lobeRawV137(th);
-    }
+    lobe: function (th) { return 1 + 0.17 * Math.sin(th * 2 + 0.7) + 0.11 * Math.sin(th * 3 - 1.9) + 0.06 * Math.sin(th * 5 + 0.3); }
   };
-  function lobeRawV137(th) { return 1 + 0.17 * Math.sin(th * 2 + 0.7) + 0.11 * Math.sin(th * 3 - 1.9) + 0.06 * Math.sin(th * 5 + 0.3); }
   function v193KOn() { try { return !(window.RIB_TUNE && window.RIB_TUNE.v193K === 0); } catch (e) { return true; } }
 
   /* ---------- the slots ---------- */
@@ -230,19 +223,7 @@
 
   function buildSlots(coinBudget) {
     var R = rng(SEED), s = [], cum = [], total = 0, i = 0, grid = {};
-    /* v193 K: THE HEAP STANDS ON ITS MIDDLE. A coin's side (left or right of the door) is the one free choice in
-     * where it lands — the lobe is mirror-symmetric, so x -> -x keeps every coin on the mound's surface. A coin
-     * that would push the heap's OUTLINE out goes to the side whose outline is shorter; any other coin goes to
-     * the lighter side. Both are measured the way the screen draws them (hoardBox: x * PILE.dx * k * CAM.spread
-     * plus 0.6 of a coin's drawn size, per unit of the camera's span — the constants mirror CAM and PILE below),
-     * so at every balance the outline and the weight are centred under the door. No extra random draw is spent:
-     * the seed's sequence, and so every other property of every coin, is exactly what it was. */
-    var balance = v193KOn(), balX = 0, extL = 0, extR = 0;
-    function sideV193K(x, z) {
-      var kz = 1 / (1 + (0.27 + z * 0.26) * 2.35), e = Math.abs(x) * 1.20 * kz * 0.62 + 0.6 * Math.pow(kz, 1.28) * 78 / 430;
-      if (e > Math.min(extL, extR)) return extL <= extR ? -1 : 1;    // it reaches past the shorter side: it goes there
-      return balX > 0 ? -1 : 1;                                     // inside the outline: to the lighter side
-    }
+    var balance = v193KOn();
     while (total < coinBudget) {
       var u = Math.min(0.9999, total / coinBudget);
       var th, q, spill, rr, h, sink, x0, z0, y0, tries = 0;
@@ -264,7 +245,6 @@
         sink = 0.80 + 0.20 * R();
         x0 = Math.cos(th) * rr;
         z0 = Math.sin(th) * rr * 0.62;           // the hoard is an ellipse on the floor
-        if (balance) x0 = Math.abs(x0) * sideV193K(x0, z0);   // v193 K: left or right of the door, by the outline and the weight
         y0 = h * sink;
       } while (!claimFree(grid, x0, z0, y0) && ++tries < CLAIM_TRIES);
       var ck = claimKey(x0, z0, y0);
@@ -303,12 +283,31 @@
       if (total + k > coinBudget) k = coinBudget - total;   // land exactly on the budget,
       s[s.length - 1].cnt = k;                              // so a re-pour draws the same
       total += k; cum.push(total); i++;                     // number of coins it did before
-      if (balance) {
-        var kz5 = 1 / (1 + (0.27 + z0 * 0.26) * 2.35), e5 = Math.abs(x0) * 1.20 * kz5 * 0.62 + 0.6 * Math.pow(kz5, 1.28) * 78 / 430 * s[s.length - 1].size;
-        if (x0 < 0) extL = Math.max(extL, e5); else extR = Math.max(extR, e5);
-        balX += x0 * k;
-      }
       if (i > 4000) break;                       // a belt for the braces
+    }
+    /* v193 K: THE HEAP STANDS ON ITS MIDDLE. The pour above is v137's, draw for draw (the same columns, sizes,
+     * faces, mix — `vaultcheck`'s hoard), but `MOUND.lobe`'s odd harmonics reach 17% further out on the left than
+     * on the right (1.20 vs 1.02 of R along the x axis), so the heap sat up to 30 px left of the door. Which SIDE a coin lies on is the one free choice: in pour order,
+     * a coin that would push the heap's OUTLINE out goes to the side whose outline is shorter, any other coin to
+     * the lighter side (x -> -x; the same distance out, the same height, the same depth) — unless a coin already
+     * lies there, when it keeps its side. Both are measured the way the screen draws them (hoardBox: x * PILE.dx *
+     * k * CAM.spread, plus 0.6 of a coin's drawn size, per unit of the camera's span — the constants mirror CAM
+     * and PILE below), so at every balance the weight and the outline stand under the door. No random draw is
+     * spent, and the physics' surface (`surfaceAt`) is v137's. `RIB_TUNE.v193K = 0` restores the old heap. */
+    if (balance) {
+      var grid2 = {}, balX = 0, extL = 0, extR = 0;
+      for (i = 0; i < s.length; i++) {
+        var c = s[i], ax = Math.abs(c.x), kz5 = 1 / (1 + (0.27 + c.z * 0.26) * 2.35);
+        var e5 = ax * 1.20 * kz5 * 0.62 + 0.6 * Math.pow(kz5, 1.28) * 78 / 430 * c.size;
+        var side = e5 > Math.min(extL, extR) ? (extL <= extR ? -1 : 1) : (balX > 0 ? -1 : 1);
+        var nx = ax * side;
+        if (nx !== c.x && !claimFree(grid2, nx, c.z, c.y) && claimFree(grid2, c.x, c.z, c.y)) nx = c.x;
+        c.x = nx;
+        var ck2 = claimKey(nx, c.z, c.y);
+        (grid2[ck2] || (grid2[ck2] = [])).push([nx, c.z, c.y]);
+        if (nx < 0) extL = Math.max(extL, e5); else extR = Math.max(extR, e5);
+        balX += nx * c.cnt;
+      }
     }
     /* v193 K: CENTRED UNDER THE DOOR. What is left after the side rule above — one coin's overshoot of the
      * outline, a little weight — is taken out with one constant for every coin (so the prefix rule, N coins =

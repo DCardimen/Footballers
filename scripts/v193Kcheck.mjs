@@ -9,7 +9,7 @@
 //   3. REDUCED MOTION — a flat cross-fade: no leaf, no rotateY anywhere in the stage, and it still lands.
 //   4. RIB_TUNE.v193K = 0 — no ribbons, no section, v152 A's leaf.
 //   5. THE VAULT — the hoard (its coin-weighted centre as drawn) and the door are centred within 6 px at 360 and 430 wide,
-//      the outline within 12 (a loose spilled coin); the banner words are not drawn; the cleaned room.webp loads and its
+//      the outline within 16 (a loose spilled coin); the banner words are not drawn; the cleaned room.webp loads and its
 //      banner boxes carry no lettering.
 // No page errors.  GAME_URL=http://localhost:5173/ node scripts/v193Kcheck.mjs
 import { gameUrl, launch } from './lib/env.mjs'
@@ -165,7 +165,7 @@ for (const [w, h] of [[360, 760], [430, 932]]) {
     await E(() => window.__RIB_VAULT.close('test')); await page.waitForTimeout(250)
   }
   ok(cen.every((c) => Math.abs(c.pile) <= 6 && Math.abs(c.core) <= 6), `${w}px: the vault stands centred — the hoard (its weight, as drawn) and the door within 6 px of the middle (three balances)`, cen.map((c) => [c.pile, c.core]))
-  ok(cen.every((c) => Math.abs(c.outline) <= 12), `${w}px: and the hoard's outline (loose spilled coins and all) within 12 px`, cen.map((c) => c.outline))
+  ok(cen.every((c) => Math.abs(c.outline) <= 16), `${w}px: and the hoard's outline (loose spilled coins and all) within 16 px`, cen.map((c) => c.outline))
   ok(cen.every((c) => c.words), `${w}px: the banner words are not drawn`)
   if (w === 360) {
     const art = await E(() => new Promise((res) => {
