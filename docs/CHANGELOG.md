@@ -10,6 +10,12 @@ Names in older entries are the career app's pre-v149 C minified names (`q`, `ms`
 `index.html` + `src/` (`docs/LAYOUT.md`).
 
 <!-- new entries go here, newest first -->
+- **v193 G · Gear that stays interesting.** Levels no longer flatten: each rarity has a level ceiling — common 25,
+  rare 40, epic 60, legendary 85, mythic 110 (TU `gearLvlMax…V193G`) — the season's +5 stops there (in the bag and on
+  the body; a piece received above it keeps its level), and the row / compare panel read `Lv N / MAX` and "maxed — a
+  rarer piece grows further". Selling gear is now flat side income under v192 A's cap (`flatWhyV192A`: banked, paid at
+  the settle up to half the career's own pay), and a sale with no career running pays `gearSellIdleShareV193G` (half);
+  every price on screen is what the sale pays now, and the dialogs say why. Kill switch `TU("v193G", 0)`. `v193Acheck`.
 - **v193 A · The gear grows, and sells.** Every piece has a level — received at 1 + 5 × the league level it dropped at,
   and +5 to everything in the bag and on the body at every season's end — and the level is a flat +1% a level (cap ×2.5)
   on every bonus the piece carries, in both reads (`gearFx`, `gearTotalsV147`). SCRAP is SELL: 1 / 3 / 8 / 20 / 50 by
