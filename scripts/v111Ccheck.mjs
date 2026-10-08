@@ -241,7 +241,7 @@ const exact = await page.evaluate(() => {
     cells,
     want: [sg(D.load), Math.round(D.injPct) + '%', (Number(D.gamesMissed) || 0).toFixed(1), sg(D.statCut || 0)],
     drvMul: drv.map(d => d.k + ' ' + d.mul).join(' '),
-    wantDrv: 'DURABILITY ×' + D.durMul.toFixed(2) + ' OPPONENT ×' + D.oppMul.toFixed(2) + ' STAKES ×' + D.stakes.toFixed(2),
+    wantDrv: 'DURABILITY ×' + (Math.round(D.durMul * 10) / 10).toFixed(1) + ' OPPONENT ×' + (Math.round(D.oppMul * 10) / 10).toFixed(1) + ' STAKES ×' + (Math.round(D.stakes * 10) / 10).toFixed(1), // v193 N: one decimal
   }
 })
 console.log('exact:', JSON.stringify(exact))

@@ -68,12 +68,11 @@ ok(P1.attrLines.length > 10 && P1.attrLines.every(l => !/\d\.\d/.test(l)), 'ever
 ok(P1.off.all === P1.fx.perfFlat && !Object.keys(P1.off.by).length && !P1.offPersona && P1.offAll, 'kill switch v193N 0: the old all-stats perfFlat in the accessor, the old sheet and the old chip', P1.off)
 ok(P1.oldFlat.by && P1.oldFlat.by.grit === 2 && P1.oldFlat.all === 0 && P1.oldFx && P1.oldFx.grit === 2, 'an old save\'s fx (perfFlat only) is recomputed into the per-attribute map', P1.oldFlat)
 
-// the live accessor: a watched-game attribute read carries the one-attribute flat
-const raw = await M(() => {
-  const S = window.S, p = S.player
-  const src = (window.__simGameV2 || '').toString()
-  return { hasHelper: /personaGameFlatV193N/.test(document.documentElement.innerHTML) || true }
-})
+// the live accessor (`_raw` in simGameV2) adds the per-attribute map, read once a game — never the persona's perfFlat directly
+const SRC = await M(async () => (await fetch('src/07-career-app.js')).text())
+const rawAt = SRC.indexOf('_raw = (w, k) => {'), rawBlock = SRC.slice(rawAt, SRC.indexOf('return _v;', rawAt))
+ok(rawAt > 0 && /_pf193N\.all\s*\+\s*\(_pf193N\.by\[k\]\s*\|\|\s*0\)/.test(rawBlock) && !/__youPersonaFxV20\.perfFlat/.test(rawBlock) && /_pf193N\s*=\s*personaGameFlatV193N\(/.test(SRC),
+  'the game accessor (_raw) adds the one-attribute flat (_pf193N.by[k]), not the persona perfFlat on every attribute')
 
 // ---------------------------------------------------------------- 2. stats are whole: drive a real season with fractional attributes
 await M(() => {
@@ -95,7 +94,7 @@ await M(() => {
     const hits = []
     lines.forEach(l => {
       if (/(?<![\d.])\d+\.\d{2,}/.test(l)) hits.push(tag + ' · 2+ decimals · ' + l.slice(0, 150))
-      else if (l.length < 100 && attrRe.test(l) && /(?<![\d.v])\d+\.\d(?!\d)/.test(l)) hits.push(tag + ' · attr/OVR decimal · ' + l.slice(0, 150))
+      else if (l.length < 100 && attrRe.test(l) && /(?<![\d.v×])\d+\.\d(?![\d%])/.test(l)) hits.push(tag + ' · attr/OVR decimal · ' + l.slice(0, 150))
     })
     return hits
   }
@@ -142,11 +141,26 @@ const drive = await M(async (NEUTRAL) => {
 }, NEUTRAL)
 ok(drive.view === 'season' && drive.weeks > 0, 'a real season is under way with a fractional player', drive)
 
-const visit = async (tag, fn, wait = 350) => { await M(fn); await page.waitForTimeout(wait); return M(t => ({ view: window.S.view, lines: window.__scanAllV193N(t) }), tag) }
+const visit = async (tag, fn, wait = 350) => { await M(fn); await page.waitForTimeout(wait); return M(t => ({ view: window.S.view, lines: window.__scanAllV193N(t),
+  // the pieces each visit is there to read
+  has: ['#simCardV178', '#pgHeroV186', '#growV132', '.gear-cmp-v147', '.gear-sum-v147', '.up-group-v97', '.poise-card-v192c'].filter(q => document.querySelector(q)) }), tag) }
 const seen = {}
 seen.season = await visit('season', () => window.go('season'))
 // one quick-play week: the YOUR GAME card (heroHtmlV189) and the season race
-seen.simcard = await visit('quick-play card', async () => { window.playWeek(false) }, 900)
+seen.simcard = await visit('quick-play card', async () => { const b = document.querySelector('#dock button[onclick="playWeek(false)"]'); b ? b.click() : window.playWeek(false) }, 1200)
+// YOUR GAME (heroHtmlV189 — the live post-game card and the quick-play card both draw it): the week just played, and a
+// box whose numbers are fractional (a season summed from fractional lines must still print whole numbers)
+seen.hero = await M(() => {
+  const p = window.S.player, V = window.__V189, w = (p.weekResults || []).filter(x => x && x.played && x.statLine).slice(-1)[0]
+  const frac = { carries: 7, rush: 47.25, td: 1, longest: 18.5, rec: 12.333, fum: 0 }, sb = V.seasonBox(p, w && w.statLine, w)
+  const host = document.createElement('div'); host.id = 'heroProbeV193N'
+  host.innerHTML = (w ? V.hero(p, w.statLine, sb.box, sb.n) : '') + V.hero(p, frac, { carries: 30.5, rush: 151.75, td: 2, longest: 33, rec: 40.4, fum: 1 }, 3)
+  document.body.appendChild(host)
+  const r = { view: window.S.view, lines: 0, has: host.querySelector('#pgHeroV186') ? ['#pgHeroV186'] : [], played: !!w }
+  window.__hitsV193N.push(...window.__scanV193N(host, 'YOUR GAME card')); r.lines = window.__hitsV193N.length
+  host.remove()
+  return r
+})
 await M(() => { try { window.__V178 && window.__V178.closeCard && window.__V178.closeCard() } catch (e) {} document.querySelectorAll('.decision-overlay,#simCardV178').forEach(x => x.remove()); window.go('season') })
 await page.waitForTimeout(300)
 // the pregame wizard: every page
@@ -160,11 +174,12 @@ const pre = await M(async () => {
   const pages = window.__V136_PAGES ? window.__V136_PAGES.active() : []
   let n = 0
   for (let i = 0; i < pages.length; i++) { window.__V112_D.go(i); await sleep(450); n += window.__scanAllV193N('pregame ' + pages[i]) }
+  const sheet = !!document.querySelector('#pregameV1513 #preStatsV25')
   try { window.__V112_D.go(0); await sleep(200); window.__v112BackD() } catch (e) {}
   document.getElementById('pregameV1513')?.remove()
-  return { opened: true, pages, n }
+  return { opened: true, pages, n, sheet }
 })
-ok(pre.opened && pre.pages.length >= 5, 'the pregame wizard opened and every page was read', pre.pages)
+ok(pre.opened && pre.pages.length >= 5 && pre.sheet, 'the pregame wizard opened and every page was read (the stat sheet among them)', pre.pages)
 // the rest of the season, then the report and the growth screen
 const end = await M(async () => {
   const sleep = ms => new Promise(r => setTimeout(r, ms))
@@ -201,6 +216,8 @@ if (process.env.REPORT) { const seenTxt = new Set(); console.log('      hits (ea
 ok(hits.length === 0, 'no stat screen shows a number with 2+ decimals, or a decimal on an attribute / OVR line', hits.slice(0, 12))
 const want = { season: 'season', hub: 'hub', upgrade: 'upgrade', rank: 'rank', stats: 'stats', profile: 'profile', locker: 'locker', compare: 'locker', training: 'training', result: 'result' }
 ok(Object.keys(want).every(k => seen[k] && seen[k].view === want[k]), 'every screen was visited (the view each visit landed on)', Object.fromEntries(Object.entries(seen).map(([k, v]) => [k, v.view])))
+ok(seen.hero.played && seen.hero.has.includes('#pgHeroV186') && seen.grow.has.includes('#growV132') && seen.compare.has.includes('.gear-cmp-v147') && seen.locker.has.includes('.gear-sum-v147') && seen.upgrade.has.includes('.up-group-v97') && seen.hub.has.includes('.poise-card-v192c'),
+  'and each drew what it was visited for (YOUR GAME for the week just played, the growth screen, the gear compare and totals, the skill groups, the Poise card)', Object.fromEntries(Object.entries(seen).map(([k, v]) => [k, v.has])))
 ok(errs.length === 0, 'no page errors', errs.slice(0, 4))
 console.log(`\n${pass} passed, ${fail} failed`)
 await browser.close()

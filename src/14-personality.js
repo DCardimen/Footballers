@@ -253,8 +253,8 @@
       if(fx.poiseRate>1.005)   out.push({up:true, t:'▲ Poise grows +'+p(fx.poiseRate)+'% faster'});
       if(fx.poiseRate<0.995)   out.push({up:false,t:'▼ Poise grows −'+p(fx.poiseRate)+'% slower'});
       const hk=hardMultV192C(pn);
-      if(hk>1.005) out.push({up:true, t:'▲ ×'+hk.toFixed(2)+' from playing HEAVY'});
-      if(hk<0.995) out.push({up:false,t:'▼ ×'+hk.toFixed(2)+' from playing HEAVY'});
+      if(hk>1.005) out.push({up:true, t:'▲ ×'+hk.toFixed(1)+' from playing HEAVY'});
+      if(hk<0.995) out.push({up:false,t:'▼ ×'+hk.toFixed(1)+' from playing HEAVY'});
       const ch=chemLeanV192C(pn);
       if(ch.tox>0.005)  out.push({up:false,t:'▼ TOXIC lean '+ch.tox.toFixed(2)+(ch.tox>=.35?' (teammates may quit)':'')});
       if(ch.team>0.005) out.push({up:true, t:'▲ TEAM lean '+ch.team.toFixed(2)+(ch.team>=.35?' (a teammate may improve)':'')});
@@ -318,7 +318,7 @@
   function poiseLineV192C(pn, p){
     const V=window.__V192C; if(!V||!onV192C()) return '';
     const rate=(fxOf(pn).poiseRate)||1, now=p&&p.personaV13?V.poise(p):V.start();
-    return `<div class="pv192-poise">🧊 <b>POISE ${Math.round(now)}</b>/100 · grows <b>×${rate.toFixed(2)}</b> with this personality — low Poise swings games wide; high Poise narrows the swing and lifts the floor of a bad game.</div>`;
+    return `<div class="pv192-poise">🧊 <b>POISE ${Math.round(now)}</b>/100 · grows <b>×${rate.toFixed(1)}</b> with this personality — low Poise swings games wide; high Poise narrows the swing and lifts the floor of a bad game.</div>`;
   }
   function render(){
     const wrap=document.getElementById('personaV13'); if(!wrap) return;

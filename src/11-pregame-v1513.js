@@ -1,4 +1,7 @@
 
+/* v193 N STATS ARE WHOLE: a multiplier on a stat screen shows ONE decimal at most (×1.2, never ×1.15 / ×1.00) —
+ * rounded at display, never stored. 07's `mulTxtV193N` is the same rule. */
+function mulTxtV193N(x){x=Number(x);return Number.isFinite(x)?(Math.round(x*10)/10).toFixed(1):"";}
 /* v15.13: consecutive-play football recovery + pregame top-five screen */
 (function(){
 'use strict';
@@ -292,7 +295,7 @@ function v111LedgerHTML(pl,wk,key){
     :(window.__V120&&window.__V120.askOver&&window.__V120.askOver(key))?`You asked above your share: the coach gives you ${Math.round(share*100)}% of the unit's snaps for now — from here it is the ball that moves, and the asking costs body.`
     :`You watch ${Math.round((1-share)*100)}% of your unit's snaps from the sideline.`;
   const buy=`<div class="v111-row"><span>Team snaps</span><b style="color:#8fe0a0">${v111Pct(u.share)}</b></div>`
-    +`<div class="v111-row"><span>Touch share</span><b style="color:#8fe0a0">×${(Math.round(tm*100)/100).toFixed(2)}</b></div>`
+    +`<div class="v111-row"><span>Touch share</span><b style="color:#8fe0a0">×${mulTxtV193N(tm)}</b></div>`
     +`<div class="v111-row"><span>Role</span><b>${esc(u.label||V111_STEP[key].n)}</b></div>`
     +`<div class="v111-note">${note}</div>`;
   // below NORMAL the bill is NEGATIVE — the week pays load back — so the wear row is signed and
@@ -310,7 +313,7 @@ function v171HardHTML(pl,wk){const M=window.__V111;if(!M||typeof M.intensity!=="
   const tag=I.pct>0?"RECKLESS":I.pct<0?"PLAYING IT SAFE":"STEADY",col=I.pct>0?"#ff9b5a":I.pct<0?"#8ec3ee":"var(--chalk)",a=Math.abs(I.pct),c=Math.round(a*8)/10;
   const line=I.pct>0?`<b style="color:#8fe0a0">+${a}%</b> strength, speed, burst, tackling, blocking, grit · <b style="color:#e8938b">−${c}%</b> discipline, −${Math.round(a*5)/10}% ball security`
     :I.pct<0?`<b style="color:#e8938b">−${a}%</b> to the hard-play stats · <b style="color:#8fe0a0">+${c}%</b> discipline, +${Math.round(a*5)/10}% ball security`:"Your ordinary game — nothing extra, nothing held back.";
-  const ag=I.mult>1.02?`🔥 Your aggression turns going hard into ×${I.mult.toFixed(2)}`:I.mult<0.98?`🧊 Composed: going hard only pays ×${I.mult.toFixed(2)}`:"";
+  const ag=I.mult>1.02?`🔥 Your aggression turns going hard into ×${mulTxtV193N(I.mult)}`:I.mult<0.98?`🧊 Composed: going hard only pays ×${mulTxtV193N(I.mult)}`:"";
   return`<div class="v171-hard"><h4>HOW HARD YOU PLAY · <b style="color:${col}">${tag}</b></h4><div class="v171-hl">${line}</div>${ag?`<div class="v171-ag">${ag}</div>`:""}</div>`}
 /* v120: what the fatigue does to him — before this game and after it, and what that many points of
  * fatigue take off (or add to) every attribute, read off the same slope the sim plays on */
@@ -326,7 +329,7 @@ function v111PartsHTML(pl,wk,key){
   const f=v111ForecastV111(pl,wk,key),parts=Array.isArray(f.parts)?f.parts:[];
   if(!parts.length) return '';
   return parts.filter(p=>p&&p.label!=null).map(p=>{const m=Number(p.mul);
-    const txt=Number.isFinite(m)?"×"+(Math.round(m*100)/100).toFixed(2):"";
+    const txt=Number.isFinite(m)?"×"+mulTxtV193N(m):"";
     return `<span class="v111-chip${Number.isFinite(m)&&m<1?' easy':''}">${esc(p.label)}${txt?` <b>${txt}</b>`:''}</span>`}).join('')
     +`<span class="v111-chip easy">fatigue after <b>${Math.round(Number(f.fatigueAfter)||0)}</b></span>`;
 }
@@ -337,7 +340,7 @@ function v111StepsHTML(key){
 function v111FocusHTML(pl,wk){
   const sel=wk&&wk.focusV111||null;
   return v111FocusListV111(pl&&pl.pos).map(f=>`<button class="gs-card-v23 v111-focus${f.key===sel?' gs-sel':''}" data-key="${esc(f.key)}" id="v111Focus_${esc(f.key)}" onclick="__v111PickFocusV111('${esc(f.key)}')">
-    <div class="gs-card-top"><span class="gs-ico">${f.icon||'🎯'}</span><b>${esc(f.name||f.key)}</b><span class="v111-mul${f.tier?' t-'+esc(f.tier.toLowerCase()):''}">×${(Math.round((Number(f.mul)||1.2)*100)/100).toFixed(2)} ${esc(((window.__statLabelV25&&window.__statLabelV25(f.stat))||f.stat||'').toUpperCase())}${f.tier==='HOT'?' 🔥':f.tier==='OFF'?' ⚠️':''}</span></div>
+    <div class="gs-card-top"><span class="gs-ico">${f.icon||'🎯'}</span><b>${esc(f.name||f.key)}</b><span class="v111-mul${f.tier?' t-'+esc(f.tier.toLowerCase()):''}">×${mulTxtV193N((Number(f.mul)||1.2))} ${esc(((window.__statLabelV25&&window.__statLabelV25(f.stat))||f.stat||'').toUpperCase())}${f.tier==='HOT'?' 🔥':f.tier==='OFF'?' ⚠️':''}</span></div>
     <div class="gs-why">${esc(f.desc||'')}</div></button>`).join('');
 }
 function v111PlanHTML(){
@@ -561,10 +564,10 @@ function v112ImpactHTMLD(){
   const row=(k,v,c)=>`<div class="v112-imp-row"><span>${k}</span><b${c?` style="color:${c}"`:""}>${v}</b></div>`;
   const swing=body?body.pct:null;
   return `<div class="v112-imp" id="v112ImpD"><h4>📈 THE IMPACT ON NEXT GAME</h4>`
-    +row("Involvement",`${esc(u.label||V111_STEP[key].n)} · ${v111Pct(u.share)} snaps · ×${(Math.round((Number(u.touchMul)||1)*100)/100).toFixed(2)} ball`)
-    +row("Game focus",foc?`${esc(foc.name||foc.key)} · ×${(Math.round((Number(foc.mul)||1.2)*100)/100).toFixed(2)} ${esc(lab(foc.stat))}`:"None — nothing sharpened",foc?"#8fe0a0":"var(--chalk-dim)")
+    +row("Involvement",`${esc(u.label||V111_STEP[key].n)} · ${v111Pct(u.share)} snaps · ×${mulTxtV193N((Number(u.touchMul)||1))} ball`)
+    +row("Game focus",foc?`${esc(foc.name||foc.key)} · ×${mulTxtV193N((Number(foc.mul)||1.2))} ${esc(lab(foc.stat))}`:"None — nothing sharpened",foc?"#8fe0a0":"var(--chalk-dim)")
     +(swing!=null?row("Body",`${swing>0?"+"+swing:swing||0}% to every attribute`,swing>0?"#8fe0a0":swing<0?"#e8938b":"var(--chalk)"):"")
-    +(ling.length?row("Lingering",ling.map(b=>`${esc(lab(b.stat))} ${b.mul!=null?"×"+(Math.round(Number(b.mul)*100)/100).toFixed(2):v111Sig(b.amt)} (${b.games|0}g)`).join(", "),"#e8938b"):"")
+    +(ling.length?row("Lingering",ling.map(b=>`${esc(lab(b.stat))} ${b.mul!=null?"×"+mulTxtV193N(Number(b.mul)):v111Sig(b.amt)} (${b.games|0}g)`).join(", "),"#e8938b"):"")
     +row("Wear this game",v111Sig(wear),wear>.05?"#e8938b":wear<-.05?"#8fe0a0":"var(--chalk)")
     +row("Injury at this load",inj+"%",inj>=24?"#e8938b":inj<=12?"#8fe0a0":"var(--gold)")
     +row("Games it costs",(Math.round(miss*10)/10).toFixed(1))
@@ -842,7 +845,7 @@ function v146CardD(id){const X=window.__V146,f=X&&X.facts(null,id),V=window.__PR
   const fPct=f.fate&&f.fate.pct!=null,fP=v=>(Math.abs(v-Math.round(v))<0.05?Math.round(v):(+v).toFixed(1))+"%";
   h+=row("Fate roll",f.fate?(fPct?`${Math.round(f.fate.odds*100)}% for +${fP(f.fate.pct)} ${esc(f.fate.name)} (+${f.fate.amount})${f.fate.hedge?` (miss: +${fP(f.fate.hedgePct||0)}, +${f.fate.hedge})`:""}`:`${Math.round(f.fate.odds*100)}% for +${f.fate.amount} ${esc(f.fate.name)}${f.fate.hedge?` (miss: +${f.fate.hedge})`:""}`):"none on this plan",f.fate?"":"var(--chalk-dim)");
   h+=row("Form swing",`±${(Math.round(f.formPts*10)/10).toFixed(1)} to every attribute · grade ±${Math.round(f.gradeSwing)}`);
-  h+=row("Body",`injury ${f.pInj!=null?Math.round(f.pInj*100)+"%":"—"}${f.injBase!=null?` <small>(${Math.round(f.injBase*100)}% × plan ${(Math.round(f.injMul*100)/100).toFixed(2)})</small>`:""} · fatigue +${f.fatigue}`,f.inj>.04?"#e8938b":f.inj<0?"#8fe0a0":"");
+  h+=row("Body",`injury ${f.pInj!=null?Math.round(f.pInj*100)+"%":"—"}${f.injBase!=null?` <small>(${Math.round(f.injBase*100)}% × plan ${mulTxtV193N(f.injMul)})</small>`:""} · fatigue +${f.fatigue}`,f.inj>.04?"#e8938b":f.inj<0?"#8fe0a0":"");
   h+=row("After the game",[f.trust&&`trust ${sg(f.trust)}`,f.comp&&`composure ${sg(f.comp)}`,f.mom&&`momentum ${sg(f.mom)}`,f.snap&&`snaps ${sg(f.snap*100)}%`].filter(Boolean).join(" · ")||"nothing carries");
   h+=`</div><div class="v146-var"><b style="color:${v146VarColD(H&&H.pct)}">VARIANCE ${H&&H.pct!=null?"±"+H.pct+"%":"…"}</b><span>${H&&H.pct!=null?`engine ±${H.sim}% · this plan ±${H.plan}%. `:""}How far above or below the projection this game can land.</span></div>`;
   return h}
@@ -928,7 +931,7 @@ function v193TeamD(){const el=document.getElementById("v193Team");if(!el)return;
   if(!pv||!pv.us||!pv.us.players){el.innerHTML=head+nudge+`<div class="v135-none">The roster is drawn at kickoff.</div>`;return}
   const chip=(t,c)=>`<i class="${c||""}">${t}</i>`;
   const man=m=>{const chips=[];
-    if(m.you){chips.push(chip("YOU","you"));if(foc)chips.push(chip(`×${(Math.round((Number(foc.mul)||1.2)*100)/100).toFixed(2)} ${esc(lab(foc.stat))} focus`,"g"));if(f)chips.push(chip(`${esc(f.icon||"📋")} ${esc(f.name)}`,"p"));ts.slice(0,3).forEach(t=>chips.push(chip(esc(t.v),t.good?"g":"r")))}
+    if(m.you){chips.push(chip("YOU","you"));if(foc)chips.push(chip(`×${mulTxtV193N((Number(foc.mul)||1.2))} ${esc(lab(foc.stat))} focus`,"g"));if(f)chips.push(chip(`${esc(f.icon||"📋")} ${esc(f.name)}`,"p"));ts.slice(0,3).forEach(t=>chips.push(chip(esc(t.v),t.good?"g":"r")))}
     else{if(m.locker)chips.push(chip(`+${m.locker} Locker Room`,"g"));if(m.lift)chips.push(chip(`+${n1(m.lift)} team nodes`,"g"));if(tl)chips.push(chip(`${tl>0?"+":"−"}${n1(Math.abs(tl))}% plan`,tl>0?"g":"r"));if(m.star)chips.push(chip("⭐ STAR","s"));if(m.weak)chips.push(chip("WEAK LINK","r"))}
     return`<div class="v193-man${m.you?" you":""}" data-pos="${esc(m.pos)}"><span class="num">#${m.num!=null?m.num:"—"}</span><span class="pos">${esc(m.pos)}</span><span class="nm">${esc(m.name)}</span><span class="ovr">${m.ovr}</span><span class="chips">${chips.join("")}</span></div>`};
   const off=pv.us.players.filter(m=>m.off),def=pv.us.players.filter(m=>!m.off);
@@ -1015,7 +1018,7 @@ function v171CardD(c,on){const sg=v=>(v>0?"+":v<0?"−":"±")+Math.abs(v);
   return`<button type="button" class="v171-c r${c.risk}${on?" on":""}${c.locked?" locked":""}" data-call="${esc(c.id)}"${c.locked?" disabled":""} onclick="__v171PickD('${esc(c.id)}')">
     <i>${c.locked?"🔒":esc(c.icon)}</i><div class="v171-cb"><b>${esc(c.name)} <s>${c.side==="D"?"DEFENSE":"OFFENSE"}</s></b>
     ${c.locked?`<small>Locked — earn more say with the coach and the locker room.</small>`:`<small>${esc(c.pitch)}</small>
-    <div class="v171-tags"><span class="rk">${V171_RISK[c.risk]}</span><span>SWING ×${c.varMult.toFixed(2)}</span>${c.edgePct>0?`<span class="up">+${c.edgePct}% ${esc(c.edge.join(" & "))}</span>`:""}</div>
+    <div class="v171-tags"><span class="rk">${V171_RISK[c.risk]}</span><span>SWING ×${mulTxtV193N(c.varMult)}</span>${c.edgePct>0?`<span class="up">+${c.edgePct}% ${esc(c.edge.join(" & "))}</span>`:""}</div>
     <div class="v171-goal"><b>WIN IF</b> ${esc(c.goal)}</div>
     <div class="v171-pay"><span class="ok">✓ trust ${sg(c.ok.trust)} · hype ${sg(c.ok.hype)} · chem ${sg(c.ok.chem)}</span><span class="no">✗ trust ${sg(c.no.trust)}${c.no.hype?` · hype ${sg(c.no.hype)}`:""}${c.no.chem?` · chem ${sg(c.no.chem)}`:""}</span></div>${on?v171ProjD(c.id):""}`}</div></button>`}
 function v171CallsD(soft){const el=document.getElementById("v171Calls");if(!el)return;const O=v171OfferD();if(!O){el.innerHTML="";return}
@@ -1024,7 +1027,7 @@ function v171CallsD(soft){const el=document.getElementById("v171Calls");if(!el)r
   el.innerHTML=`<div class="v171-mc" id="v171Board"><div class="v171-sub">🧠 THE MATCHUP CALL <small>${open.length} of ${O.calls.length} open${locked?` · ${locked} locked`:""}</small></div>
     <div class="v171-face"><span class="st">⭐ ${esc(I.star.tier)} ${esc(I.star.pos)} <b>#${I.star.num} ${esc(I.star.name)}</b></span><span class="wk">🎯 WEAK ${esc(I.weak.pos)} <b>#${I.weak.num} ${esc(I.weak.name)}</b></span><span class="sg">💪 ${esc(unit[I.strong.unit])} +${Math.round(I.strong.pct*100)}%</span><span class="sf">🩹 ${esc(unit[I.soft.unit])} −${Math.round(I.soft.pct*100)}%</span></div>
     <div class="v171-say"><span>YOUR SAY</span><div><i style="width:${Math.round(O.say*100)}%"></i></div><b>${Math.round(O.say*100)}%</b></div>
-    <div class="v171-saynote">Coach trust, team chemistry and Field General decide how many calls you get and how hard the staff runs them (×${O.str.toFixed(2)}).</div>
+    <div class="v171-saynote">Coach trust, team chemistry and Field General decide how many calls you get and how hard the staff runs them (×${mulTxtV193N(O.str)}).</div>
     <div class="v171-list">${O.calls.filter(c=>!c.locked).map(c=>v171CardD(c,c.id===O.chosen)).join("")}
     <button type="button" class="v171-c coach${!O.chosen?" on":""}" data-call="" onclick="__v171PickD('')"><i>📋</i><div class="v171-cb"><b>Coach's script</b><small>No call — the staff plays it straight. Nothing riding on it either way.</small></div></button>
     ${O.calls.filter(c=>c.locked).map(c=>v171CardD(c,false)).join("")}</div></div>`}
