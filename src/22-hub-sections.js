@@ -225,6 +225,13 @@
     },
   };
   const ICON = { lead: "🏅", odds: "🎯", xp: "🎖️", card: "🪪", case: "🏆", book: "📖", sims: "⏭", gear: "🎒", style: "🎨", now: "🏈", body: "🩹", skills: "📈", team: "🏟", story: "📖", nodes: "🌳", perks: "🧠", sched: "📅", league: "🏆", opp: "🎯", progs: "🏋️", pick: "✅", role: "⚔️", game: "🎮", sound: "🔊", field: "📐", family: "👨‍👦", save: "💾", danger: "⚠️", grade: "🅰️", season: "🏟", stats: "📊", growth: "🌱", epitaph: "🥀", totals: "📊", best: "⭐", log: "📜", end: "🏁", life: "🌅", legacy: "👨‍👦" };
+  /* ===== v193 V ICONS IN THE MENU'S STYLE (22's share) =====
+   * a tab's icon is the menu-style icon set's (src/24-bottom-nav.js `ribIconV193V`, "sec:<key>"); the emoji
+   * above is its fallback, and what `TU("v193V", 0)` draws */
+  function ricV193V(k) {
+    const e = ICON[k] || "•";
+    try { return window.ribIconV193V ? window.ribIconV193V("sec:" + k, e) : e } catch (er) { return e }
+  }
   const TAB = { locker: "gear", hub: "now", shop: "nodes", season: "sched", settings: "game", result: "grade", declineResult: "epitaph", gameover: "end", win: "end" };
 
   function cfg() { const s = window.S, C = (s && VIEWS[s.view]) || null; return C && C.when && !C.when() ? null : C }
@@ -373,7 +380,7 @@
     tabs.className = "hubv75-tabs";
     tabs.innerHTML = live.map(s =>
       `<button type="button" class="hubv75-tab${s.k === on ? " on" : ""}" data-sec="${s.k}">` +
-      `<i>${ICON[s.k] || "•"}</i>${s.name}</button>`).join("");
+      `<i>${ricV193V(s.k)}</i>${s.name}</button>`).join("");
     const frag = document.createDocumentFragment();
     for (const el of head) frag.appendChild(el);          // the screen's own header, always up
     frag.appendChild(tabs);

@@ -26625,6 +26625,16 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
     }
   }
   let branchTab = "physical";
+  /* ===== v193 V ICONS IN THE MENU'S STYLE (07's share: the tree's branch tabs) =====
+   * each branch tab wears its glyph from the menu-style icon set (src/24-bottom-nav.js `ribIconV193V`) in the
+   * branch's own colour as the metal; the node icons in the lists stay emoji. Before 24 has loaded (the boot's
+   * first draw) and under `TU("v193V", 0)` it is the emoji. */
+  function branchIconV193V(key, branch) {
+    try {
+      if (TU("v193V", 1) && typeof window.ribIconV193V === "function") return window.ribIconV193V("branch:" + key, branch.icon, { tint: branch.color });
+    } catch (e) {}
+    return branch.icon;
+  }
   function screenPrestige() {
     const e = Object.values(state.tree || {}).reduce((n, i) => n + i, 0);
     byId("screen").innerHTML = `
@@ -26638,7 +26648,7 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
       ${Object.entries(TREE)
         .map(
           ([n, i]) =>
-            `<button class="branch-tab ${branchTab === n ? "active" : ""}" onclick="setBranch('${n}')" style="flex:1;min-width:70px;padding:9px 4px;border-radius:9px;border:1px solid ${branchTab === n ? i.color : "var(--line)"};background:${branchTab === n ? i.color + "22" : "transparent"};color:${branchTab === n ? i.color : "var(--chalk-dim)"};font-family:'Oswald';font-weight:600;font-size:13px;cursor:pointer">${i.icon} ${i.name}</button>`
+            `<button class="branch-tab ${branchTab === n ? "active" : ""}" onclick="setBranch('${n}')" style="flex:1;min-width:70px;padding:9px 4px;border-radius:9px;border:1px solid ${branchTab === n ? i.color : "var(--line)"};background:${branchTab === n ? i.color + "22" : "transparent"};color:${branchTab === n ? i.color : "var(--chalk-dim)"};font-family:'Oswald';font-weight:600;font-size:13px;cursor:pointer">${branchIconV193V(n, i)} ${i.name}</button>`
         )
         .join("")}
     </div>
