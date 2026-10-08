@@ -622,11 +622,15 @@
           0,
           n.injury.weeksRemaining - (a === "recovery" || a === "recover" ? 2 : 1)
         )),
-        n.injury.weeksRemaining <= 0 && ((e.recentlyRecoveredV11 = n.injury.severity), (n.injury = null))),
+        n.injury.weeksRemaining <= 0 &&
+          (healNoteV193W(e, n.injury, "game") /* v193 W: back from it */,
+          (e.recentlyRecoveredV11 = n.injury.severity),
+          (n.injury = null))),
       (n.fatigue = clamp(n.fatigue - u * (1 + gearV147("recovery")), 0, 100)),
       t.injured &&
         !n.injury &&
-        (n.injury = rollInjury(e, seededRng(e.seasonSeed, e.level, t.week, t.opp, t.perf, "injury-roll"))),
+        ((n.injury = rollInjury(e, seededRng(e.seasonSeed, e.level, t.week, t.opp, t.perf, "injury-roll"))),
+        hurtNoteV193W(e, t, n.injury, "game") /* v193 W: hurt in the game itself — the pop-up */),
       { fatigueDelta: d - u, condition: n }
     );
   }
@@ -22876,12 +22880,26 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
     // v54: a knock costs no games — it is a one-week wear penalty. Clear last week's
     // before rolling this one, or isWornV18 would keep -10% on the player all season.
     if (c.injury && c.injury.knock && (c.injury.weeksRemaining || 0) <= 0) c.injury = null;
+    const forceV193W = window.__forceInjV193W || null; /* dev: v193Wcheck forces an injury this week (name, weeks, severity, knock) */
+    if (forceV193W && !c.injury) wk.injured = !0;
     if (!wk.injured) return;
     if (c.injury) {
       c.injury.weeksRemaining = (c.injury.weeksRemaining || 0) + 1;
       return;
     }
     let inj = rollInjuryV18(e);
+    if (forceV193W) {
+      window.__forceInjV193W = forceV193W.keep ? forceV193W : null;
+      inj = {
+        name: forceV193W.name || "MCL sprain",
+        severity: forceV193W.knock ? 1 : forceV193W.severity || 2,
+        weeksRemaining: forceV193W.knock ? 0 : forceV193W.weeks != null ? forceV193W.weeks : 2,
+        recurrence: forceV193W.recurrence != null ? forceV193W.recurrence : 0.3
+      };
+      forceV193W.knock && (inj.knock = !0);
+      forceV193W.seasonEnding && ((inj.seasonEnding = !0), (inj.weeksRemaining = 99), (inj.severity = 4));
+    }
+    const rawWeeksV193W = inj ? inj.weeksRemaining : 0; /* v193 W: before Trainer's Room / Miracle Hands / gear */
     if (window.__forceSeasonEnderV134) {
       inj = inj || { name: "Torn ACL", severity: 3, weeksRemaining: 99, recurrence: 0.2 };
       inj.seasonEnding = !0;
@@ -22895,9 +22913,10 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
       e._trainerRoomUsedV134 = !0;
       wk.trainerRoomV134 = !0;
       try {
-        toast(
-          "🏥 TRAINER'S ROOM — " + inj.name + " was a season-ender. He is back in " + inj.weeksRemaining + " games."
-        );
+        injPopOnV193W() ||
+          toast(
+            "🏥 TRAINER'S ROOM — " + inj.name + " was a season-ender. He is back in " + inj.weeksRemaining + " games."
+          ); /* v193 W: the pop-up says it */
       } catch (x) {}
     }
     /* v146 C: Miracle Hands -- a 2+ game injury is shorter, never under one game; season-enders untouched */
@@ -22905,6 +22924,9 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
     if (inj) {
       c.injury = inj;
       wk.injName = inj.name;
+      inj.rawWeeksV193W = rawWeeksV193W;
+      hurtNoteV193W(e, wk, inj, "week"); /* v193 W: the pop-up, on the next screen */
+      if (injPopOnV193W()) return;
       try {
         toast(
           inj.seasonEnding
@@ -22943,8 +22965,9 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
       if (inj.weeksRemaining <= 0) {
         e.recentlyRecoveredV18 = inj.name;
         c.injury = null;
+        healNoteV193W(e, inj, "sat"); /* v193 W: the cleared pop-up */
         try {
-          toast("✅ Healed: " + inj.name + " — cleared to play");
+          injPopOnV193W() || toast("✅ Healed: " + inj.name + " — cleared to play");
         } catch (x) {}
       }
     }
@@ -23024,6 +23047,9 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
       w.played = !0;
       const g = state._liveGame;
       g && g.usScore != null && g.plays && bookLiveGameV85(e, w, g);
+      try {
+        g && g.plays && injPopOnV193W() && (w.hurtPlayV193W = hurtPlayOfV193W(g)); /* v193 W: the snap an in-game injury happened on */
+      } catch (_) {}
       uffTitleGameV156C(e, w) /* v156 C: winning the UFF title game unlocks 4× */;
     }
     ((state._oppName = null), goView("season"));
@@ -23037,7 +23063,10 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
     // v18: the offseason heals — season-enders clear, lingering knocks fade, fatigue resets
     {
       const c = cv18(e);
-      if (c.injury && (c.injury.seasonEnding || Math.random() < 0.7)) c.injury = null;
+      if (c.injury && (c.injury.seasonEnding || Math.random() < 0.7)) {
+        healNoteV193W(e, c.injury, "offseason"); /* v193 W */
+        c.injury = null;
+      }
       c.fatigue = Math.max(0, Math.min(30, (c.fatigue || 0) - 40));
     }
     const t = simSeason(e);
@@ -39383,6 +39412,328 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
       `<div class="small" style="color:var(--chalk-dim);margin:0 0 6px">Simmed — no snaps to replay. Watch a week live to see every play.</div><div class="stat-sec-label">THIS GAME</div><div class="fullbox">${box}</div>`
     );
   }
+  /* ===== v193 W INJURIES SAY WHAT AND HOW LONG =====
+   * The owner: "Pop up notifications on injury: what happened, how long you'll be out for." An injury was a toast
+   * ("🩹 MCL sprain — out 2 games") that went by in two seconds, often over a screen change. Every NEW injury to him
+   * now opens a pop-up, once, on the first screen after it happens — never on the live view, never over the post-game
+   * card, the Quick Play card, a pregame / growth screen, a decision, the coach or another dialog (`injBlockedV193W`).
+   * It is made where the injury is: `materializeInjuryV18` (the week's roll — the injury he takes into the week, which
+   * sits that game) and `updateConditionAfterGame` (the knock that turned into an injury in the game itself — on a
+   * watched week, the play it happened on: `hurtPlayOfV193W`, his last contact snap, kept on the week by
+   * `finishWeekGame`). Each is a note on `player.injQV193W` (the save carries it, so a reload still shows it), in
+   * order: a quick-simmed run with two injuries shows both, one after the other, with each one's own numbers.
+   *   the card: an icon by body part, the name and the severity; WHAT HAPPENED (the play — "Hit low on a 7-yard run,
+   *   2nd quarter" — or the week and the opponent); HOW LONG, read off the live injury when it is shown
+   *   (`weeksRemaining`, `mustSitV18`, the schedule: "Out 3 games — back for Week 9 vs Rivals"; once healed, the
+   *   games it actually cost); WHAT IT MEANS, every number from the code that applies it — the snaps
+   *   (`conditionModifiers`: none while out, −11% a severity point while hurt), −10% to every attribute while hurt
+   *   (`fatigueMulV120`'s `condWorn`), the game-rating cost, the re-injury risk (the recurrence through
+   *   `injPlanMultV54`), and what shortens it (Miracle Hands `healWeeksV146`, Trainer's Room `trainerWeeksV153B`, the
+   *   Injury Time Out gear, a Recovery week) — and a button to the body (the condition card).
+   * Haptic `error` then `heavy`. `injury.seenV193W` marks it shown. When it heals (`sitOutWeekV18`, the week's
+   * condition update, the offseason) a smaller "Back from injury — cleared to play" pop-up follows (haptic `success`).
+   * The old toasts stand down while it is on. Kill switch `TU("v193Winj", 0)`: the toasts, no pop-ups.
+   * `window.__V193W` (`queue`, `shown`, `pump`, `force`); `v193Wcheck`. */
+  function injPopOnV193W() {
+    return !!TU("v193Winj", 1);
+  }
+  const INJ_W = { shown: [], last: null, timer: 0 };
+  function injIdV193W() {
+    return "i" + Date.now().toString(36) + Math.floor(Math.random() * 1e6).toString(36);
+  }
+  function hurtNoteV193W(e, wk, inj, src) {
+    if (!injPopOnV193W() || !e || !inj) return;
+    try {
+      inj.idV193W || (inj.idV193W = injIdV193W());
+      inj.seenV193W = !1;
+      const Q = (e.injQV193W = Array.isArray(e.injQV193W) ? e.injQV193W : []),
+        wi = e.weekResults && wk ? e.weekResults.indexOf(wk) : -1;
+      // the knock he took into the week became this injury in the game: one pop-up, the injury's
+      if (src === "game") for (let k = Q.length - 1; k >= 0; k--) if (Q[k].k === "hurt" && Q[k].knock && Q[k].wi === wi) Q.splice(k, 1);
+      const play = src === "game" && wk && wk.liveBookedV85 && wk.hurtPlayV193W ? wk.hurtPlayV193W : null;
+      Q.push({
+        k: "hurt",
+        id: inj.idV193W,
+        name: String(inj.name || "Injury"),
+        sev: inj.severity || 1,
+        knock: !!inj.knock,
+        se: !!inj.seasonEnding,
+        rec: Number(inj.recurrence) || 0,
+        wk0: inj.weeksRemaining || 0,
+        raw: inj.rawWeeksV193W != null ? inj.rawWeeksV193W : inj.weeksRemaining || 0,
+        trainer: !!(wk && wk.trainerRoomV134),
+        src,
+        wi,
+        opp: wk ? String(wk.opp || "") : "",
+        live: !!(wk && wk.liveBookedV85),
+        play,
+        lvl: e.level | 0,
+        season: e.totalSeasons | 0
+      });
+      while (Q.length > 12) Q.shift();
+      injSoonV193W();
+    } catch (_) {}
+  }
+  function healNoteV193W(e, inj, how) {
+    if (!injPopOnV193W() || !e || !inj || inj.knock) return;
+    try {
+      const Q = (e.injQV193W = Array.isArray(e.injQV193W) ? e.injQV193W : []),
+        ws = e.weekResults || [],
+        nx = ws.findIndex(w => w && !w.played),
+        hurt = Q.find(q => q.k === "hurt" && q.id && q.id === inj.idV193W);
+      // the week he is back for: the next one on the schedule — but a heal booked while this week is being processed is back for the one after it
+      hurt && (hurt.healedWi = nx);
+      Q.push({ k: "heal", id: inj.idV193W || "", name: String(inj.name || "Injury"), how: how || "", wi: how === "offseason" ? -1 : nx, lvl: e.level | 0, season: e.totalSeasons | 0 });
+      while (Q.length > 12) Q.shift();
+      injSoonV193W();
+    } catch (_) {}
+  }
+  // his last contact snap in a watched game: the play an in-game injury happened on
+  function hurtPlayOfV193W(g) {
+    const ps = ((g && g.plays) || []).filter(t => t && t.involved && !t.header && !t.penalty && /^(run|pass)$/.test(String(t.event || "")));
+    if (!ps.length) return null;
+    const contact = ps.filter(t => {
+      const d = String(t.desc || "").toUpperCase();
+      return t.offense === "us" ? !t.oob && !t.scored && !/INCOMPLETE|INTERCEPT|THROWS IT AWAY/.test(d) : /TACKLE|BRING|DOWN|STOP|SACK|HIT/.test(d);
+    });
+    const t = (contact.length ? contact : ps)[(contact.length ? contact : ps).length - 1];
+    return { q: t.quarter || 1, clock: String(t.clock || ""), yd: Number(t.yards) || 0, ev: String(t.event), off: t.offense === "us", sack: /SACK/i.test(String(t.desc || "")) };
+  }
+  function injPartV193W(name) {
+    const n = String(name || "").toLowerCase();
+    if (/concussion|head/.test(n)) return { ic: "🧠", part: "head", verb: "Took a shot to the head", hurt: "Took a hit to the head" };
+    if (/ankle|turf toe|achilles|foot/.test(n)) return { ic: "🦶", part: /toe/.test(n) ? "foot" : "ankle", verb: /achilles/.test(n) ? "Felt the Achilles go" : /toe/.test(n) ? "Jammed his toe in the turf" : "Rolled his ankle", hurt: /achilles/.test(n) ? "Felt the Achilles go" : /toe/.test(n) ? "Jammed his toe" : "Rolled his ankle" };
+    if (/knee|mcl|acl/.test(n)) return { ic: "🦵", part: "knee", verb: "Hit low — the knee buckled", hurt: "Hurt his knee" };
+    if (/hamstring|muscle|groin|quad|calf/.test(n)) return { ic: "🦵", part: "leg", verb: "Felt the " + (/hamstring/.test(n) ? "hamstring" : "muscle") + " grab", hurt: "Tweaked his " + (/hamstring/.test(n) ? "hamstring" : "leg") };
+    if (/shoulder|labrum|collarbone/.test(n)) return { ic: "💪", part: /collarbone/.test(n) ? "collarbone" : "shoulder", verb: "Landed hard on his shoulder", hurt: "Hurt his shoulder" };
+    if (/hand|wrist|finger|thumb/.test(n)) return { ic: "✋", part: "hand", verb: "Jammed his hand", hurt: "Hurt his hand" };
+    if (/rib/.test(n)) return { ic: "🫁", part: "ribs", verb: "Took a helmet in the ribs", hurt: "Bruised his ribs" };
+    return { ic: "🩹", part: "body", verb: "Went down", hurt: "Got hurt" };
+  }
+  function injSevV193W(q) {
+    return q.se ? "SEASON-ENDING" : q.knock ? "KNOCK" : q.sev >= 3 ? "SEVERE" : q.sev >= 2 ? "MODERATE" : "MINOR";
+  }
+  function injWeekLabelV193W(e, i) {
+    const ws = (e && e.weekResults) || [],
+      w = ws[i];
+    if (!w) return "next season";
+    const reg = ws.filter(x => !x.playoff),
+      lab = w.playoff ? String(w.round || "the playoffs") : "Week " + (reg.indexOf(w) + 1);
+    return lab + (w.opp ? (homeWeekV93(w, i) ? " vs " : " @ ") + w.opp : "");
+  }
+  // what happened, in a sentence
+  function injWhatV193W(e, q) {
+    const P = injPartV193W(q.name),
+      wkL = q.wi >= 0 ? injWeekLabelV193W(e, q.wi) : "this week";
+    if (q.play) {
+      const p = q.play,
+        ord = p.q > 4 ? "in overtime" : ["", "1st", "2nd", "3rd", "4th"][p.q] + " quarter",
+        yd = p.yd,
+        what = p.ev === "pass" ? (p.sack ? "sack" : "pass") : "run",
+        gain = yd > 0 ? "a " + yd + "-yard " + (p.off && p.ev === "pass" ? "catch" : what) : yd < 0 ? "a " + what + " for a loss of " + Math.abs(yd) : "a " + what + " that went nowhere";
+      return `${P.verb} ${p.off ? "on " + gain : "making the stop on " + gain}, ${ord}${p.clock ? " (" + p.clock + ")" : ""} — ${wkL}.`;
+    }
+    if (q.src === "game") return `${P.verb} in the game — ${wkL}.`;
+    if (q.knock) return `${P.hurt} going into ${wkL} — a knock; he plays through it.`;
+    return `${P.hurt} in practice before ${wkL} — he did not dress for the game.`;
+  }
+  // how long — read off the live injury and the schedule when it is shown
+  function injHowLongV193W(e, q) {
+    const c = cv18(e),
+      ws = e.weekResults || [],
+      cur = c.injury && c.injury.idV193W === q.id ? c.injury : null,
+      unplayed = ws.map((w, i) => (w && !w.played ? i : -1)).filter(i => i >= 0),
+      missed = q.wi >= 0 ? ws.filter((w, i) => i >= q.wi && w && w.satOut && w.injName === q.name).length : 0;
+    if (cur && cur.seasonEnding) return { out: missed + unplayed.length, backWi: -1, txt: `Out for the season${missed ? " — " + missed + " game" + (missed > 1 ? "s" : "") + " so far" : ""}. He is back next season.`, sitting: !0, season: !0 };
+    if (cur && mustSitV18(e)) {
+      const left = cur.weeksRemaining || 0,
+        out = missed + left,
+        bw = unplayed[left] != null ? unplayed[left] : -1;
+      return { out, left, backWi: bw, sitting: !0, txt: `Out ${out} game${out === 1 ? "" : "s"}${missed && left ? " (" + missed + " missed, " + left + " to go)" : ""} — back for ${bw >= 0 ? injWeekLabelV193W(e, bw) : "next season"}.` };
+    }
+    if (cur) {
+      const left = cur.weeksRemaining || 0,
+        bw = unplayed[left] != null ? unplayed[left] : -1;
+      return left > 0
+        ? { out: missed, left, backWi: bw, hurt: !0, txt: `Plays hurt for the next ${left} game${left === 1 ? "" : "s"} — full strength for ${bw >= 0 ? injWeekLabelV193W(e, bw) : "next season"}.` }
+        : { out: missed, left: 0, backWi: unplayed[0] != null ? unplayed[0] : -1, hurt: !0, txt: "Plays through it — gone by next week." };
+    }
+    // healed already (a quick-simmed run): what it cost
+    const bw = q.healedWi != null ? q.healedWi : unplayed[0] != null ? unplayed[0] : -1;
+    return { out: missed, left: 0, backWi: bw, healed: !0, txt: missed ? `Missed ${missed} game${missed === 1 ? "" : "s"} — back for ${bw >= 0 ? injWeekLabelV193W(e, bw) : "next season"}.` : `Played through it — healed by ${bw >= 0 ? injWeekLabelV193W(e, bw) : "next season"}.` };
+  }
+  // what it means — every number read from the code that applies it
+  function injMeansV193W(e, q, H) {
+    const rows = [],
+      worn = Math.round((1 - TU("condWorn", 0.9)) * 100),
+      cur = cv18(e).injury,
+      sevN = q.knock ? 1 : Math.min(3, q.sev || 1),
+      perf = sevN * 5 + Math.min(8, (cur && cur.idV193W === q.id ? cur.weeksRemaining : q.wk0) || 0);
+    if (H.sitting) rows.push(["SNAPS", "None while he is out — every week he sits is a DNP on the schedule."]);
+    else if (H.healed) rows.push(["SNAPS", H.out ? `None for the ${H.out} game${H.out === 1 ? "" : "s"} he sat — DNPs on the schedule.` : "He played through it."]);
+    else rows.push(["SNAPS", `−${Math.round(sevN * 11)}% of his snaps while it heals.`]);
+    if (H.healed) rows.push(["BODY", `Back to full strength — the −${worn}% to every attribute ended with it.`]);
+    else if (H.sitting) rows.push(["BODY", `He sits until it heals, and comes back whole — the −${worn}% to every attribute a hurt man plays at is gone when it is.`]);
+    else rows.push(["BODY", `−${worn}% to every attribute while he plays on it, and about −${perf} game rating.`]);
+    if (!H.sitting && !H.healed && q.rec > 0) {
+      let k = 1;
+      try {
+        const r = conditionModifiers(e).injuryRisk || 0,
+          r0 = Math.max(0, r - q.rec * 0.18);
+        k = injPlanMultV54({ injury: r }) / Math.max(0.01, injPlanMultV54({ injury: r0 }));
+      } catch (_) {}
+      rows.push(["RE-INJURY", `${k >= 1.05 ? "×" + (Math.round(k * 10) / 10).toFixed(1) + " injury risk each game he plays on it" : "a little likelier while it heals"} (${Math.round(q.rec * 100)}% recurrence).`]);
+    } else rows.push(["RE-INJURY", "None once it heals — the risk goes with the injury."]);
+    const fh = nodeLvl("fastHeal"),
+      fhPct = Math.round(TU("fastHealStepV146", 0.25) * injNodeKV153B() * 1000) / 10,
+      gr = Math.round(gearV147("injDur") * injGearKV153B() * 100),
+      tr = nodeLvl("trainerRoom") > 0,
+      bits = [];
+    bits.push(fh ? `Miracle Hands ${fh} (−${Math.round(fhPct * fh * 10) / 10}% layoff)` : `Miracle Hands (−${fhPct}% layoff a level, in the Vault)`);
+    bits.push(tr ? (e._trainerRoomUsedV134 && !q.trainer ? "Trainer's Room (used this career)" : `Trainer's Room (a season-ender becomes ${trainerWeeksV153B()} games, once a career)`) : `Trainer's Room (a season-ender becomes ${trainerWeeksV153B()} games, once a career — in the Vault)`);
+    bits.push(gr ? `your Injury Time Out gear (−${gr}%)` : "Injury Time Out gear");
+    if (!H.sitting && !H.healed) bits.push("a Recovery week (heals two games a game)");
+    const applied = q.trainer ? ` Trainer's Room turned a season-ender into ${q.wk0} games.` : q.raw > q.wk0 ? ` They cut this one from ${q.raw} to ${q.wk0} games.` : "";
+    rows.push(["SHORTER", bits.join(" · ") + "." + applied]);
+    return rows;
+  }
+  function injBlockedV193W() {
+    if (!state || !state.player || state.view === "live" || state.view === "splash") return !0;
+    try {
+      if (window.ribDialog && window.ribDialog.isOpen) return !0;
+      if (window.__RIB_COACH && window.__RIB_COACH.isOpen) return !0;
+      if (document.querySelector("#pgOverlayV13,#simCardV178,.decision-overlay,.gameplan-overlay,#pregameV1513,#growthV42,#growV132,.life-event-overlay-v12,#rib-vault-v137,.onboard,#personaV13")) return !0;
+      const sp = document.getElementById("splash");
+      if (sp && !sp.classList.contains("gone") && sp.getBoundingClientRect().height > 0) return !0;
+    } catch (_) {}
+    return !1;
+  }
+  function injSoonV193W(ms) {
+    clearTimeout(INJ_W.timer);
+    INJ_W.timer = setTimeout(injPumpV193W, ms != null ? ms : 450);
+  }
+  function injPumpV193W() {
+    const e = state && state.player,
+      Q = e && Array.isArray(e.injQV193W) ? e.injQV193W : null;
+    if (!injPopOnV193W() || !Q || !Q.length || INJ_W.open) return !1;
+    if (injBlockedV193W()) return !1;
+    const q = Q[0];
+    // a note from an earlier season is stale (its week numbers are last year's): drop it quietly — the offseason's own
+    // "healed over the winter" excepted
+    if ((q.season | 0) !== (e.totalSeasons | 0) && !(q.k === "heal" && q.how === "offseason")) {
+      Q.shift();
+      return injPumpV193W();
+    }
+    INJ_W.open = q;
+    const D = window.ribDialog,
+      html = q.k === "heal" ? injHealHtmlV193W(e, q) : injHtmlV193W(e, q);
+    INJ_W.last = { k: q.k, id: q.id, name: q.name, at: Date.now() };
+    INJ_W.shown.push(INJ_W.last);
+    INJ_W.shown.length > 40 && INJ_W.shown.shift();
+    try {
+      if (q.k === "heal") buzzV193O("success");
+      else {
+        buzzV193O("error");
+        setTimeout(() => buzzV193O("heavy"), 260);
+      }
+    } catch (_) {}
+    const done = v => {
+      INJ_W.open = null;
+      const i = Q.indexOf(q);
+      i >= 0 && Q.splice(i, 1);
+      try {
+        const cur = cv18(e).injury;
+        cur && cur.idV193W === q.id && q.k === "hurt" && (cur.seenV193W = !0);
+        saveGame();
+      } catch (_) {}
+      if (v === "body") injToBodyV193W();
+      injSoonV193W(500);
+    };
+    const btns = q.k === "heal" ? [{ label: "Back to work", value: "ok", kind: "primary" }] : [{ label: "🩺 His body", value: "body" }, { label: "Got it", value: "ok", kind: "primary" }];
+    if (D && D.show) D.show({ title: q.k === "heal" ? "BACK FROM INJURY" : "INJURY", html, buttons: btns, cancelValue: "ok" }).then(done, done);
+    else {
+      try {
+        window.alert((q.k === "heal" ? "Back from injury: " : "Injury: ") + q.name);
+      } catch (_) {}
+      done("ok");
+    }
+    return !0;
+  }
+  function injHtmlV193W(e, q) {
+    const P = injPartV193W(q.name),
+      H = injHowLongV193W(e, q),
+      M = injMeansV193W(e, q, H),
+      sev = injSevV193W(q),
+      col = q.se || q.sev >= 3 ? "#ff6b6b" : q.knock || q.sev < 2 ? "#ffb347" : "#ff8a5c";
+    return `<div class="inj-pop-v193w" data-id="${escHtml(q.id)}" data-out="${H.out}" data-back-wi="${H.backWi}" data-sev="${escHtml(sev)}" style="font:13px/1.45 system-ui,sans-serif;color:#d6e0ea;white-space:normal">
+      <div style="display:flex;align-items:center;gap:12px;margin:2px 0 10px"><div style="flex:0 0 auto;width:54px;height:54px;border-radius:14px;display:flex;align-items:center;justify-content:center;font-size:30px;background:radial-gradient(circle at 50% 40%,${col}44,#0000 70%),#0b111a;border:1px solid ${col}88">${P.ic}</div>
+      <div style="min-width:0"><div class="inj-name-v193w" style="font:700 20px/1.1 Oswald,Impact,sans-serif;letter-spacing:.6px;color:#fff">${escHtml(q.name)}</div><div style="margin-top:3px"><span style="font:700 10px Oswald,sans-serif;letter-spacing:1.6px;color:${col};border:1px solid ${col}88;border-radius:8px;padding:1px 6px">${sev}</span> <span style="font-size:11px;color:#9fb0c2">${escHtml(P.part.toUpperCase())}</span></div></div></div>
+      <div style="font:700 10px Oswald,sans-serif;letter-spacing:1.6px;color:#f0bb45">WHAT HAPPENED</div>
+      <div class="inj-what-v193w" style="margin:2px 0 9px">${escHtml(injWhatV193W(e, q))}</div>
+      <div style="font:700 10px Oswald,sans-serif;letter-spacing:1.6px;color:#f0bb45">HOW LONG</div>
+      <div class="inj-how-v193w" style="margin:2px 0 9px;font:700 16px/1.3 Oswald,sans-serif;letter-spacing:.3px;color:${col}">${escHtml(H.txt)}</div>
+      <div style="font:700 10px Oswald,sans-serif;letter-spacing:1.6px;color:#f0bb45">WHAT IT MEANS</div>
+      <div class="inj-means-v193w" style="margin-top:3px;display:flex;flex-direction:column;gap:4px">${M.map(r => `<div style="display:flex;gap:8px;align-items:baseline"><b style="flex:0 0 74px;font:700 9.5px Oswald,sans-serif;letter-spacing:1.2px;color:#9fb0c2">${r[0]}</b><span style="flex:1;font-size:12px">${escHtml(r[1])}</span></div>`).join("")}</div>
+    </div>`;
+  }
+  function injHealHtmlV193W(e, q) {
+    const P = injPartV193W(q.name),
+      ws = e.weekResults || [],
+      missed = ws.filter(w => w && w.satOut && w.injName === q.name).length,
+      wkL = q.wi >= 0 && ws[q.wi] ? injWeekLabelV193W(e, q.wi) : "next season";
+    return `<div class="inj-heal-v193w" data-id="${escHtml(q.id)}" data-back-wi="${q.wi}" style="font:13px/1.45 system-ui,sans-serif;color:#d6e0ea;white-space:normal;text-align:center">
+      <div style="font-size:34px;line-height:1">${P.ic}✅</div>
+      <div style="font:700 19px/1.15 Oswald,Impact,sans-serif;letter-spacing:.6px;color:#7fe0a0;margin:6px 0 2px">CLEARED TO PLAY</div>
+      <div class="inj-heal-txt-v193w">${escHtml(q.name)} has healed${q.how === "offseason" ? " over the offseason" : ""}. ${q.how === "offseason" ? "He starts the new season healthy." : "He is back for " + escHtml(wkL) + "."}</div>
+      ${missed ? `<div style="margin-top:4px;font-size:11.5px;color:#9fb0c2">It cost him ${missed} game${missed === 1 ? "" : "s"} this season.</div>` : ""}
+    </div>`;
+  }
+  // the body: the condition card on the season screen (the hub carries it too)
+  function injToBodyV193W() {
+    try {
+      if (state.view !== "season" && state.view !== "hub") window.go(state.player && state.player.weekResults ? "season" : "hub");
+      setTimeout(() => {
+        const c = document.querySelector("#screen .condition-card-v11");
+        if (c) {
+          c.scrollIntoView({ block: "center", behavior: "smooth" });
+          c.classList.add("inj-flash-v193w");
+          c.style.boxShadow = "0 0 0 2px #ff8a5c, 0 0 22px #ff8a5c66";
+          setTimeout(() => (c.style.boxShadow = ""), 2200);
+        }
+      }, 120);
+    } catch (_) {}
+  }
+  const decV193W = decorateScreen;
+  decorateScreen = function () {
+    decV193W();
+    try {
+      const e = state && state.player;
+      e && Array.isArray(e.injQV193W) && e.injQV193W.length && injSoonV193W(700);
+    } catch (_) {}
+  };
+  // the screens that close themselves (the post-game card, the Quick Play card) do not always re-render: look again now and then
+  setInterval(() => {
+    try {
+      const e = state && state.player;
+      e && Array.isArray(e.injQV193W) && e.injQV193W.length && !INJ_W.open && injPumpV193W();
+    } catch (_) {}
+  }, 1500);
+  window.__V193W = {
+    get queue() {
+      return (state && state.player && state.player.injQV193W) || [];
+    },
+    get shown() {
+      return INJ_W.shown;
+    },
+    get open() {
+      return INJ_W.open;
+    },
+    pump: () => injPumpV193W(),
+    blocked: () => injBlockedV193W(),
+    force: o => (window.__forceInjV193W = o || { name: "MCL sprain", weeks: 2, severity: 2 }),
+    howLong: q => injHowLongV193W(state.player, q),
+    play: g => hurtPlayOfV193W(g)
+  };
   function closeCardV178() {
     const el = document.getElementById("simCardV178");
     el && el.remove();

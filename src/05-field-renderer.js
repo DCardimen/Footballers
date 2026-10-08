@@ -2862,7 +2862,8 @@ class Ot extends mt.Scene {
     let relV193W = chosenV193W * Math.min(cineScale, antic);
     /* v193 W: the big play's automatic slow motion is a CEILING on the rate, never a factor on it — the slower of
      * the two wins, so it can never stack with the v37 / v102 / badge slow-mo into a freeze (hitStop stays its own) */
-    try { const bsV193W = this.bigSlowRateV193W(P, chosenV193W, delta); if (bsV193W != null) relV193W = Math.min(relV193W, bsV193W); } catch (e) {}
+    try { const bsV193W = this.bigSlowRateV193W(P, chosenV193W, delta); if (bsV193W != null) relV193W = Math.min(relV193W, bsV193W);
+      const BW = window.__V193W_SLOW; if (BW) { BW.applied = relV193W; if (BW.rec) { BW.samples.push({ at: Math.round(performance.now()), r: +relV193W.toFixed(3), w: +(bsV193W == null ? chosenV193W : bsV193W).toFixed(3), ch: chosenV193W }); if (BW.samples.length > 900) BW.samples.shift(); } } } catch (e) {}
     const spd = relV193W * TU("basePlayRate", 0.7);
     P.t += delta * spd;
     const S = P.script, T = Math.min(Math.max(0, P.t - (P.delay || 0)), S.duration);
@@ -4382,7 +4383,6 @@ class Ot extends mt.Scene {
       r = chosen + (tgt - chosen) * k;
     }
     B.rate = r == null ? chosen : Math.min(chosen, r); B.rateAt = now;
-    if (B.rec) { B.samples.push({ at: Math.round(now), r: +B.rate.toFixed(3), ch: chosen }); if (B.samples.length > 600) B.samples.shift(); }
     return r;
   }
   // THE PLAN, once a play: is it big, and which scripted event is the moment
