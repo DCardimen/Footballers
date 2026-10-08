@@ -11323,15 +11323,23 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
   function gearLvlPctV193(it) {
     return Math.round((gearLvlMultV193(it) - 1) * 100);
   }
+  /* v193 S: the ECONOMY stats (Prestige Points and upgrade points — the base effects `ppMult` / `pointsFlat`, the mods
+   * `ppGain` / `points`) grow at `gearLvlEconShareV193S` (a quarter) of the level's rate: at ×2.5 a maxed piece's PP bonus
+   * was ×2.5 too, and the owner wants the slow scaling kept. Every other stat takes the whole level. Knob 1 = full rate. */
+  const GEAR_ECON_V193S = { ppMult: 1, pointsFlat: 1, ppGain: 1, points: 1 };
+  function gearLvlMultForV193S(it, key) {
+    const m = gearLvlMultV193(it);
+    return GEAR_ECON_V193S[key] ? 1 + (m - 1) * TU("gearLvlEconShareV193S", 0.25) : m;
+  }
   /* one rolled modifier's value on this piece, at its level (an integer modifier stays an integer) */
   function gearModValV193(it, m) {
-    const v = (+m.v || 0) * gearLvlMultV193(it),
+    const v = (+m.v || 0) * gearLvlMultForV193S(it, m.k),
       d = gearDefV147(m.k);
     return d && d.int ? Math.round(v) : v;
   }
   /* the base effect's value at the level */
   function gearBaseValV193(it) {
-    return (+it.val || 0) * gearLvlMultV193(it);
+    return (+it.val || 0) * gearLvlMultForV193S(it, it.eff);
   }
   function gearSellPriceV193(it) {
     if (!it) return 0;

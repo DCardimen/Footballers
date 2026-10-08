@@ -356,6 +356,20 @@ ok(shell.over <= 2, 'the locker fits the shell at 820x760', JSON.stringify(shell
 ok(!shell.squeezed || shell.listH >= 240 || shell.over > 2, 'when the shell squeezes the list it keeps at least 240px (FILL_MIN_V193)', JSON.stringify({ listH: shell.listH, squeezed: shell.squeezed }))
 
 ok(errs.length === 0, 'no page errors', errs.slice(0, 3).join(' | '))
+// ---- v193 S: the economy stats take a quarter of the level ----
+const ec = await page.evaluate(() => {
+  const S = window.S, V = window.__V147C
+  const it = V.roll({ id: 'ec_pp', slot: 'chain', rarity: 'legendary', eff: 'ppMult', val: 0.2, name: 'Test Chain', icon: '📿' }, 0)
+  it.mods = []; it.lvlV193 = 150; it.lvl0V193 = 1
+  const sp = { id: 'ec_sp', slot: 'cleats', rarity: 'legendary', eff: 'power', val: 4, name: 'Test Cleats', icon: '👟' }
+  const it2 = V.roll(sp, 0); it2.mods = []; it2.lvlV193 = 150; it2.lvl0V193 = 1
+  S.inventory = [it, it2]; S.equipped = { chain: it, cleats: it2 }
+  const F = window.__V193A.fx, pp = F('ppMult'), pw = F('power')
+  window.RIB_TUNE.gearLvlEconShareV193S = 1; const ppFull = F('ppMult'); delete window.RIB_TUNE.gearLvlEconShareV193S
+  return { pp, pw, ppFull }
+})
+ok(near(ec.pp, 0.2 * 1.375, 1e-6) && near(ec.pw, 4 * 2.5, 1e-6), 'v193 S: a maxed piece\'s PP bonus grows ×1.375 (a quarter of the level), every other stat ×2.5', JSON.stringify(ec))
+ok(near(ec.ppFull, 0.2 * 2.5, 1e-6), 'v193 S: gearLvlEconShareV193S 1 gives the economy stats the whole level again', JSON.stringify(ec))
 console.log(JSON.stringify({ pass, fail }))
 console.log('page errors:', errs.length)
 await browser.close()
