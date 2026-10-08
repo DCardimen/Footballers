@@ -80,10 +80,12 @@ const R = await M(() => {
   p.practiceV178 = {}
   window.__V179.applyFlip('reps', { week: 1, opp: 'X' })
   r.bank = Object.values(p.practiceV178).reduce((a, b) => a + b, 0)
+  r.want = window.__V193X ? 0.25 * window.__V193X.perPoint() * 20 / 100 : 0.25   // v193 X: the quarter point is a percent of the stat (College calibration)
+  window.RIB_TUNE.v193X = 0; p.practiceV178 = {}; window.__V179.applyFlip('reps', { week: 2, opp: 'X' }); r.bankX0 = Object.values(p.practiceV178).reduce((a, b) => a + b, 0); delete window.RIB_TUNE.v193X
   window.RIB_TUNE.v192A = 0; r.offMult = V.repsMult(); r.offCard = V.flipReps(); delete window.RIB_TUNE.v192A
   return r
 })
-ok(R.mult === 0.5 && R.card === 0.25 && Math.abs(R.bank - 0.25) < 1e-9, 'practice reps ×0.5, the Extra reps card a quarter point', R)
+ok(R.mult === 0.5 && R.card === 0.25 && Math.abs(R.bank - R.want) < 1e-9 && Math.abs(R.bankX0 - 0.25) < 1e-9, 'practice reps ×0.5, the Extra reps card a quarter point (v193 X: as a percent of the stat; v193X 0 the flat quarter)', R)
 ok(R.offMult === 1 && R.offCard === 0.5, 'v192A 0: the old reps', R)
 
 // ---- 4: the fate roll
@@ -108,18 +110,22 @@ const T = await M(() => {
   r.last = S._fateLast
   r.card = window.__V192A.fate('team')
   window.RIB_TUNE.v192A = 0; for (const x in p.attrs) p.attrs[x] = 40; r.off = window.__fateAttrFor('explosive'); delete window.RIB_TUNE.v192A
+  // v193 X re-bases the percent on the rolls' College calibration (a flat point = rollPctPerPointV193X %); v193X 0 = one for one
+  r.want20 = window.__V193X ? window.__V193X.pct(20) : 20; r.want12 = window.__V193X ? window.__V193X.pct(12) : 12
+  window.RIB_TUNE.v193X = 0; r.x0 = window.__fateAttrFor('explosive'); delete window.RIB_TUNE.v193X
   return r
 })
-ok(T.at40.pct === 20 && T.at40.amount === 8, 'explosive is +20% of the attribute (40 → +8)', T.at40)
-ok(T.seen.length >= 2 && T.seen[0] === T.hi + 200 && T.after === T.hi, 'a hit buffs past the cap for the game, then reverts', { seen: T.seen, after: T.after, err: T.err })
-ok(/^\+20% /.test(T.last || ''), 'the last-roll text reads as a percent', T.last)
+ok(T.at40.pct === T.want20 && T.at40.amount === Math.round(40 * T.want20 / 100), 'explosive is a percent of the attribute (+20 → +' + T.want20 + '%, 40 → +' + Math.round(40 * T.want20 / 100) + ')', T.at40)
+ok(T.x0.pct === 20 && T.x0.amount === 8, 'v193X 0: one for one (+20%, 40 → +8)', T.x0)
+ok(T.seen.length >= 2 && T.seen[0] === T.hi + Math.round(T.hi * T.want20 / 100) && T.after === T.hi, 'a hit buffs past the cap for the game, then reverts', { seen: T.seen, after: T.after, err: T.err })
+ok(new RegExp('^\\+' + T.want20 + '% ').test(T.last || ''), 'the last-roll text reads as a percent', T.last)
 ok(T.off.pct == null && T.off.amount === 20, 'v192A 0: the old flat +20', T.off)
 // the plan card text
 const card = await M(() => {
   const d = document.createElement('div'); d.innerHTML = '<button class="gameplan-choice" onclick="chooseGamePlanV11(\'feature\')"><div class="gameplan-meta"></div></button>'; document.body.appendChild(d)
   window.__decoratePlans(d); const t = (d.querySelector('.fate-odds-row') || {}).innerText || ''; d.remove(); return t
 })
-ok(/\+12% .* this game \(\+\d+, may pass the cap\)/.test(card), 'the plan card shows the percent and the points', card)
+ok(new RegExp('\\+' + T.want12 + '% .* this game \\(\\+\\d+, may pass the cap\\)').test(card), 'the plan card shows the percent (v193 X: re-based, whole) and the points', card)
 
 // ---- 5: the extra card
 await setup()

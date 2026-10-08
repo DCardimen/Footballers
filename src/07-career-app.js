@@ -11712,7 +11712,11 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
   /* a piece's flat attribute roll as the percent of the typical attribute at the tier it dropped at */
   function gearFlatToPctV193X(v, tier) {
     const f = Number(v) || 0;
-    return f > 0 ? Math.max(1, Math.round((f / refAttrV193X(tier, true)) * 100)) : 0;
+    /* never past the cap: one piece cannot carry more than the whole slot-set may (an early-tier roll against a small sheet) */
+    /* `gearRefMinTierV193X` (0): price a piece from below that tier against that tier's sheet instead — the lever if early
+     * drops (a small sheet, so a big percent) crowd the late ones out */
+    const t = Math.max(tier | 0, TU("gearRefMinTierV193X", 0) | 0);
+    return f > 0 ? Math.min(gearPctCapV193X(), Math.max(1, Math.round((f / refAttrV193X(t, true)) * 100))) : 0;
   }
   /* once per piece, while on: the a_* modifiers become percents (the flat value kept for the kill switch) */
   function gearPctEnsureV193X(it) {
