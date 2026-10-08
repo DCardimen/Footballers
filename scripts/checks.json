@@ -36,7 +36,8 @@
     "v193Ccheck",
     "v193Dcheck",
     "v193Bcheck",
-    "v193Jcheck"
+    "v193Jcheck",
+    "v193Pcheck"
    ]
   },
   "docs": {
@@ -886,7 +887,8 @@
     "v88check",
     "declarecheck",
     "v85check",
-    "v193Echeck"
+    "v193Echeck",
+    "v193Pcheck"
    ]
   },
   "badges": {
@@ -1358,7 +1360,8 @@
    "checks": [
     "declarecheck",
     "v150Acheck",
-    "v193Dcheck"
+    "v193Dcheck",
+    "v193Pcheck"
    ]
   },
   "modes": {
@@ -5075,6 +5078,20 @@
     "prestige-pacing"
    ],
    "runtimeSec": 30,
+   "slow": false,
+   "needsServer": true,
+   "pureNode": false,
+   "flaky": []
+  },
+  "v193Pcheck": {
+   "file": "scripts/v193Pcheck.mjs",
+   "desc": "v193 E top-1% floor end to end — a real Varsity season puts a strong RB in the national top 1%; the floor under his declare is 99–99.5 (the old curve under 99); the hub declare advances him on a 98.5 roll; 300 declares from that moment ≥ 97% reach College",
+   "areas": [
+    "rank",
+    "declare",
+    "smoke"
+   ],
+   "runtimeSec": 40,
    "slow": false,
    "needsServer": true,
    "pureNode": false,
