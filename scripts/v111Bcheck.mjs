@@ -165,7 +165,7 @@ ok(Math.abs(num(V.cost, 'wear') - Math.round(fc.load)) < 1, 'WEAR on screen is f
 ok(Math.abs(num(V.cost, 'injury') - Math.round(fc.injPct)) < 1, 'INJURY on screen is forecast.injPct', `${num(V.cost, 'injury')}% vs ${Math.round(fc.injPct)}%`)
 ok(Math.abs(num(V.cost, 'games out') - Math.round(fc.gamesMissed * 10) / 10) < .06, 'GAMES OUT on screen is forecast.gamesMissed', `${num(V.cost, 'games out')} vs ${(Math.round(fc.gamesMissed * 10) / 10).toFixed(1)}`)
 ok(Math.abs(num(V.buy, 'snap') - Math.round(us.share * 100)) < 1, 'TEAM SNAPS on screen is usage.share', `${num(V.buy, 'snap')}% vs ${Math.round(us.share * 100)}%`)
-ok(Math.abs(num(V.buy, 'touch') - Math.round(us.touchMul * 100) / 100) < .011, 'TOUCH SHARE on screen is usage.touchMul', `${num(V.buy, 'touch')} vs ${us.touchMul}`)
+ok(Math.abs(num(V.buy, 'touch') - Math.round(us.touchMul * 10) / 10) < .011, 'TOUCH SHARE on screen is usage.touchMul (v193 N: one decimal)', `${num(V.buy, 'touch')} vs ${us.touchMul}`)
 
 // 4. why this week is expensive
 const parts = Array.isArray(fc.parts) ? fc.parts : []
