@@ -41,8 +41,9 @@ await page.evaluate(() => {
   // this check's own read of the drawn skin — no neighbour vote, no code shared with skinMaskV151D:
   //   core: the drawn skin's saturated orange-brown (hue 8-31), never the football's brown (g under .47 r), and the
   //         colour of most of the warm pixels around it (a pants or stripe shadow is a minority among the gold)
-  //   loose: warm (hue 8-46), mid-saturation (.2-.75), mid-lightness (50-215), touching skin (the core; plus the mask
-  //          when it is the generator's — the runtime mask is what is under test, so it is never evidence) and with at
+  //   loose: warm (hue 8-46), mid-saturation (.2-.75), mid-lightness (50-215), touching skin — the core on the field
+  //          cells (the runtime mask is what is under test, so it is never evidence), the generator's own mask on the
+  //          bodies (they carry skin-toned motion streaks the core read would call skin) — and with at
   //          least as much skin around it as saturated kit gold (sat .75+ or hue 46+) — a highlight on an arm, not a
   //          pants highlight
   function skinRead (raw, w, h, mask, trust) {
@@ -63,10 +64,10 @@ await page.evaluate(() => {
     }
     for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
       const i = y * w + x
-      if (core[i] || (mask && mask[i])) { out[i] = 1; continue }
+      if ((trust ? 0 : core[i]) || (mask && mask[i])) { out[i] = 1; continue }
       if (!cand[i]) continue
       let s = 0, k = 0
-      for (let yy = Math.max(0, y - 1); yy <= Math.min(h - 1, y + 1); yy++) for (let xx = Math.max(0, x - 1); xx <= Math.min(w - 1, x + 1); xx++) { const j = yy * w + xx; if (j === i) continue; if (core[j] || (trust && mask && mask[j])) s++; else if (kit[j]) k++ }
+      for (let yy = Math.max(0, y - 1); yy <= Math.min(h - 1, y + 1); yy++) for (let xx = Math.max(0, x - 1); xx <= Math.min(w - 1, x + 1); xx++) { const j = yy * w + xx; if (j === i) continue; if (trust ? mask && mask[j] : core[j]) s++; else if (kit[j]) k++ }
       if (s > 0 && s >= k) out[i] = 2
     }
     return out
@@ -155,7 +156,7 @@ const CEL = await page.evaluate(async ({ P1, KITS }) => {
           const a = C.audit(raw, kit, mask, K.p2, true), n = a.bad + a.loose
           G.cells++; G.skin += a.skin; G.bad += a.bad; G.loose += a.loose; if (n > 2) G.over++
           if (n > G.worstN) { G.worstN = n; G.worst = name + '#' + k + '@' + s + 'x' }
-          if (n > 2 && s === 1) top.push({ tag: tag + '/' + K.name, src: name + '#' + k, n, flag: a.flag, raw: raw.toDataURL(), out: kit.toDataURL() })
+          if (n > 2) top.push({ tag: tag + '/' + K.name, src: name + '#' + k, n, flag: a.flag, raw: raw.toDataURL(), out: kit.toDataURL() })
         }
       }
     }
@@ -211,6 +212,22 @@ const OFF = await page.evaluate(({ P1, P2 }) => {
   } finally { delete window.RIB_TUNE.skinGrowV193I }
   return { cells, n, over }
 }, { P1, P2: KITS[0].p2 })
+const BOFF = await page.evaluate(async ({ P1, P2 }) => {
+  const C = window.__V193I_CHK, asset = (p) => window.__RIB_ASSET ? window.__RIB_ASSET(p) : './public/' + p
+  const loadMask = (p) => new Promise((res) => { const im = new Image(); im.onload = () => { const c = document.createElement('canvas'); c.width = im.width; c.height = im.height; const x = c.getContext('2d'); x.drawImage(im, 0, 0); const d = x.getImageData(0, 0, im.width, im.height).data, m = new Uint8Array(im.width * im.height); for (let i = 0; i < m.length; i++) m[i] = d[i * 4] > 127 ? 1 : 0; res({ m, w: im.width }) }; im.onerror = () => res(null); im.src = asset(p) })
+  const API = window.__V161A, M = API.manifest(), MS = await loadMask('celebrations/cel_v161a_skin_1x.png')
+  window.RIB_TUNE = window.RIB_TUNE || {}; window.RIB_TUNE.skinGrowV193I = 0
+  let n = 0, over = 0, frames = 0
+  try {
+    for (const name of Object.keys(M.anims)) M.anims[name].frames.forEach((fr, k) => {
+      const raw = API.frameCanvas(name, k, 1, null), kit = API.frameCanvas(name, k, 1, { p1: P1, p2: P2, tone: '#4f3121' }), w = raw.width, h = raw.height, mask = new Uint8Array(w * h)
+      for (let j = 0; j < w * h; j++) mask[j] = MS.m[(fr.r[1] + ((j / w) | 0)) * MS.w + fr.r[0] + (j % w)]
+      const a = C.audit(raw, kit, mask, P2, true); frames++; n += a.bad + a.loose; if (a.bad + a.loose > 2) over++
+    })
+  } finally { delete window.RIB_TUNE.skinGrowV193I }
+  return { frames, n, over }
+}, { P1, P2: KITS[0].p2 })
+ok(BOFF.n > 0 && BOFF.over > 0 && CEL.out['v161A bodies/orange'].over === 0, 'and on the bodies: with TU skinGrowV193I 0 the v161 A frames wear skin highlights in p2 again (the generator\'s mask alone misses them)', `OFF ${BOFF.n} px, ${BOFF.over}/${BOFF.frames} frames over ${SKIN_P2_MAX} at 1x`)
 const onTot = Object.values(report['field/orange'].groups).reduce((s, G) => s + G.bad + G.loose, 0)
 ok(OFF.n > onTot && OFF.over > 0, 'the grow pass is what closes it: with TU skinGrowV193I 0 the field cells leak skin into p2 again', `OFF ${OFF.n} px, ${OFF.over} cells over ${SKIN_P2_MAX}; ON ${onTot} px`)
 
