@@ -39,7 +39,8 @@
     "v193Jcheck",
     "v193Pcheck",
     "v193Icheck",
-    "v193Ocheck"
+    "v193Ocheck",
+    "v193Vcheck"
    ]
   },
   "docs": {
@@ -314,7 +315,8 @@
     "vaultcheck",
     "walk",
     "v193Ccheck",
-    "v193Mcheck"
+    "v193Mcheck",
+    "v193Vcheck"
    ],
    "look": [
     "`node scripts/v146Eshot.mjs`"
@@ -4594,7 +4596,7 @@
   },
   "v164Fcheck": {
    "file": "scripts/v164Fcheck.mjs",
-   "desc": "v164 F / G / H — on a live game: a message is said on the stadium's big screen (mode msg, the feed camera down, the tag 📣, back to the feed after its time), a v95 badge and a live-view toast go there instead of over the field, the slim ribbon when the screen is out of frame, the Settings row turns it off; the 🐢 slider is gone from the HUD (v193 W) and setSlowV164F still runs the loop at 0.30×; his sack dance fires once a play by position (an LB backflips), a man on the ground does not dance; a swim / shed plays the arm-over and staggers the blocker, paired linemen in the block pose rock into each other, the juke sequence runs at its TU frame time; kill switches; no page errors.",
+   "desc": "v164 F / G / H — on a live game: a message is said on the stadium's big screen (mode msg, the feed camera down, the tag 📣, back to the feed after its time), a v95 badge and a live-view toast go there instead of over the field, the slim ribbon when the screen is out of frame, the Settings row turns it off; the 🐢 slider runs the loop at 0.30× and a speed button snaps it back; his sack dance fires once a play by position (an LB backflips), a man on the ground does not dance; a swim / shed plays the arm-over and staggers the blocker, paired linemen in the block pose rock into each other, the juke sequence runs at its TU frame time; kill switches; no page errors.",
    "areas": [
     "live",
     "field",
@@ -5216,6 +5218,19 @@
    "pureNode": false,
    "flaky": [],
    "loadSensitive": true
+  },
+  "v193Vcheck": {
+   "file": "scripts/v193Vcheck.mjs",
+   "desc": "v193 V — icons in the menu's style: at 390x844 @3x every bottom-nav tab shows a loaded icon element (the menu tiles' football / dumbbell / coin / gear art, a drawn SVG calendar for SEASON), 20-28 px, no emoji text, labels kept, 36 px targets, the lit tab's gold glow; the section bar and its spray carry the tab's icon (hub, season, tree, locker, profile); every tree branch tab a drawn icon in its own colour, names kept, not clipped; a failed image gives its emoji back; TU v193V 0 = the emoji everywhere; the bar fits 360 px; at 900 px every section tab strip (hub, season, settings, tree, locker, profile) shows icons",
+   "areas": [
+    "shell",
+    "smoke"
+   ],
+   "runtimeSec": 65,
+   "slow": false,
+   "needsServer": true,
+   "pureNode": false,
+   "flaky": []
   }
  }
 }
