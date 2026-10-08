@@ -260,7 +260,7 @@
       "html.shell-v146 .topbar .mute-v151e,html.shell-v146 .topbar .team-creator-btn-v153{flex:none!important;width:36px!important;height:36px!important;min-width:36px!important}",
       "html.shell-v146 #tickV146{padding:0!important;height:24px!important;display:flex!important;align-items:center!important}",
       "html.shell-v146 #tickV146 li{font-size:11px!important;letter-spacing:1.4px!important}",
-      "#tickTitleV153{position:absolute!important;left:0!important;top:0!important;bottom:0!important;z-index:2!important;display:flex!important;align-items:center!important;padding:0 22px 0 12px!important;font:700 11px/1 Oswald,sans-serif!important;letter-spacing:1.6px!important;color:#ffd66b!important;white-space:nowrap!important;background:linear-gradient(90deg,#0b0c0f 76%,rgba(11,12,15,0))!important;pointer-events:none!important}",
+      "#tickTitleV153{position:absolute!important;left:0!important;top:0!important;bottom:0!important;z-index:2!important;display:flex!important;align-items:center!important;padding:0 40px 0 12px!important;font:700 11px/1 Oswald,sans-serif!important;letter-spacing:1.6px!important;color:#ffd66b!important;white-space:nowrap!important;background:linear-gradient(90deg,#0b0c0f 62%,rgba(11,12,15,0))!important /* v193: a wider fade, no letter peeks beside the title */;pointer-events:none!important}",
       "#tickTitleV153:empty{display:none!important}",
       /* the bottom: the bar, the section tabs, the dock's chips */
       "html.shell-v146 #navV139 button{min-height:44px!important;justify-content:center!important}",
