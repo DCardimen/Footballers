@@ -109,17 +109,26 @@ const Q = await M(() => {
   const pages = L.pages(), tiles = strip ? [...strip.querySelectorAll('.qb-tile-v193l')] : []
   const distinct = pages.every((pg) => new Set(pg.map((x) => x.branch)).size === pg.length)
   const sortedFirsts = pages.every((pg, i) => !i || pg[0].cost >= pages[i - 1][0].cost)
-  const first = pages[0][0], pp0 = S.pp
+  const first = pages[0][0], pp0 = S.pp, keys0 = first.key
+  // v193 U: a tap opens the Vault on that node (the bridge's open is stubbed to read it); quickVaultV193U 0 buys at once
+  const VB = window.__RIB_VAULT_BRIDGE, vOpen = VB && VB.open; let opened = null
+  if (VB) VB.open = (o) => { opened = o && o.key }
   tiles[0].click()
+  const vault = { opened, lvAfterTap: S.tree[first.key] || 0, ppAfterTap: S.pp }
+  if (VB) VB.open = vOpen
+  window.RIB_TUNE.quickVaultV193U = 0
+  document.querySelector('#spendNowV193E .qb-tile-v193l').click()
+  delete window.RIB_TUNE.quickVaultV193U
   const bought = { lv: S.tree[first.key] || 0, paid: pp0 - S.pp, cost: first.cost }
   document.querySelector('#spendNowV193E .qb-nav-v193l button:last-child').click()
   const pg1 = L.page(), keys1 = [...document.querySelectorAll('#spendNowV193E .qb-tile-v193l')].map((b) => b.dataset.key)
   const off = document.querySelector('#spendNowV193E .qb-tile-v193l.off'), ppB = S.pp; off && off.click()
   document.querySelector('#spendNowV193E .qb-nav-v193l button:first-child').click()
-  return { top, n: tiles.length, distinct, sortedFirsts, bought, pg1, keys1, want1: pages[1].map((x) => x.key), offSafe: !off || S.pp === ppB, back: L.page() }
+  return { top, n: tiles.length, distinct, sortedFirsts, bought, vault, hasBridge: !!VB, keys0, pg1, keys1, want1: pages[1].map((x) => x.key), offSafe: !off || S.pp === ppB, back: L.page() }
 })
 ok(Q.top && Q.n === 4 && Q.distinct, 'QUICK BUY sits at the top (under the PP banner, above the branch tabs): four tiles, no branch twice on a page', Q)
-ok(Q.bought.lv === 1 && Q.bought.paid === Q.bought.cost, 'one tap buys the tile\'s node at once, at its price', Q.bought)
+ok(!Q.hasBridge || (Q.vault.opened === Q.keys0 && Q.vault.lvAfterTap === 0), 'v193 U: a tap opens the Vault on that node (nothing is bought until the vault spends it)', Q.vault)
+ok(Q.bought.lv === 1 && Q.bought.paid === Q.bought.cost, 'quickVaultV193U 0: one tap buys the tile\'s node at once, at its price', Q.bought)
 ok(Q.pg1 === 1 && Q.keys1.join() === Q.want1.join() && Q.back === 0 && Q.sortedFirsts, '▶ steps to the next four (pricier), ◀ steps back', Q)
 ok(Q.offSafe, 'a tile you cannot afford yet buys nothing')
 

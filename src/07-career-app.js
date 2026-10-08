@@ -5386,7 +5386,7 @@
         return `<button type="button" class="sn-row-v193e qb-tile-v193l${can ? "" : " off"}" data-key="${x.key}" style="--qb-c:${b.color}" onclick="quickBuyV193L('${x.key}')" title="${escHtml(b.name)}"${can ? "" : ' aria-disabled="true"'}><span class="qb-n-v193l"><i>${x.icon}</i> ${escHtml(x.name)}</span><b class="qb-p-v193l">${ppFmtV146(x.cost)} PP${can ? "" : `<em> · ${ppFmtV146(x.cost - pp)} away</em>`}</b></button>`;
       };
     return `<div class="card tight spend-v193e qb-v193l" id="spendNowV193E">
-  <div class="qb-h-v193l"><div class="l sn-k-v193e">⚡ QUICK BUY <small>${n} affordable · tap to buy</small></div><div class="qb-nav-v193l"><button type="button" class="qb-arr-v193l" onclick="quickPageV193L(-1)" ${quickPageIxV193L ? "" : "disabled"} aria-label="Cheaper upgrades">◀</button><span>${quickPageIxV193L + 1}/${pages.length}</span><button type="button" class="qb-arr-v193l" onclick="quickPageV193L(1)" ${quickPageIxV193L < pages.length - 1 ? "" : "disabled"} aria-label="Pricier upgrades">▶</button></div></div>
+  <div class="qb-h-v193l"><div class="l sn-k-v193e">⚡ QUICK BUY <small>${n} affordable · tap to open the vault</small></div><div class="qb-nav-v193l"><button type="button" class="qb-arr-v193l" onclick="quickPageV193L(-1)" ${quickPageIxV193L ? "" : "disabled"} aria-label="Cheaper upgrades">◀</button><span>${quickPageIxV193L + 1}/${pages.length}</span><button type="button" class="qb-arr-v193l" onclick="quickPageV193L(1)" ${quickPageIxV193L < pages.length - 1 ? "" : "disabled"} aria-label="Pricier upgrades">▶</button></div></div>
   <div class="qb-grid-v193l">${page.map(tile).join("")}</div>
 </div>`;
   }
@@ -5406,6 +5406,13 @@
     const cost = nodeCost(n);
     if ((state.pp || 0) < cost) {
       showToast("🔒 " + n.name + " — " + ppFmtV146(cost - (state.pp || 0)) + " PP away");
+      return;
+    }
+    /* v193 U: the owner — "quick buy prestige should take you to the vault": a tap opens the Vault on that node, as the
+     * tree's own buttons do (`vaultBuy`: the hold-to-spend scene; it falls back to the plain purchase when the vault
+     * cannot open). `quickVaultV193U` 0 = the instant purchase. */
+    if (TU("quickVaultV193U", 1) && typeof vaultBuy === "function") {
+      vaultBuy(key);
       return;
     }
     (typeof window.buy === "function" ? window.buy : buyNode)(key); /* the tree's own purchase (v137: PP buys go through window.buy) */
