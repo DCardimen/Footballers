@@ -362,7 +362,8 @@
    "desc": "v142 — the ⓘ beside a stat, the stat cards, adding an attribute",
    "anchors": [
     "v164 E",
-    "v142"
+    "v142",
+    "v193 N"
    ],
    "files": [],
    "checks": [
@@ -372,7 +373,8 @@
     "walk",
     "shot",
     "scrollcheck",
-    "capcheck"
+    "capcheck",
+    "v193Ncheck"
    ]
   },
   "sim-keys": {
@@ -855,7 +857,8 @@
    "checks": [
     "v85check",
     "bodycheck",
-    "wheelcheck"
+    "wheelcheck",
+    "v193Ncheck"
    ]
   },
   "between-plays": {
@@ -5162,6 +5165,18 @@
     "vault"
    ],
    "runtimeSec": 135,
+   "slow": false,
+   "needsServer": true,
+   "pureNode": false,
+   "flaky": []
+  },
+  "v193Ncheck": {
+   "file": "scripts/v193Ncheck.mjs",
+   "desc": "v193 N — personality gives a stat: each perf pole (Win-Now / Process → Grit, Coasts → Awareness, Me-First / Team-First → Vision) moves ONE attribute by a whole number in the game accessor (_raw) and the sheet (effAttrsV85), never every stat; the page says \"▲ +2 Grit\"; an old save's fx is recomputed; kill switch v193N 0 = the old all-stats perfFlat. Stats are whole: a fractional player (47.38, 12.5, 99.999 …, fractional gear) played into a real season, every stat screen visited (season, YOUR GAME, every pregame page, the report, the growth screen, hub, skill sheet, Recruiting Board, leaders, profile, locker + compare, training board) — no number with 2+ decimals, no decimal on an attribute / OVR line. REPORT=1 lists hits. No page errors.",
+   "areas": [
+    "season"
+   ],
+   "runtimeSec": 100,
    "slow": false,
    "needsServer": true,
    "pureNode": false,

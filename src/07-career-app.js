@@ -13778,13 +13778,13 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
         .slice(0, 3)
         .map(
           d =>
-            `<span><i>${escHtml(d.k)}</i><b style="color:${d.mul >= 1.25 ? "#ff8a80" : d.mul >= 1.08 ? "var(--gold)" : d.mul <= 0.92 ? "#7fe0a0" : "var(--chalk)"}">×${(Number(d.mul) || 1).toFixed(2)}</b><s>${escHtml(d.note || "")}</s></span>`
+            `<span><i>${escHtml(d.k)}</i><b style="color:${d.mul >= 1.25 ? "#ff8a80" : d.mul >= 1.08 ? "var(--gold)" : d.mul <= 0.92 ? "#7fe0a0" : "var(--chalk)"}">×${mulTxtV193N(Number(d.mul) || 1)}</b><s>${escHtml(d.note || "")}</s></span>`
         )
         .join("")}</div>
       ${(() => {
         const x = R.drivers.slice(3).filter(d => Math.abs((Number(d.mul) || 1) - 1) >= 0.01); // a driver doing nothing is not a driver
         return x.length
-          ? `<div class="wearv111-xtra">${x.map(d => escHtml(d.k.toLowerCase()) + " ×" + (Number(d.mul) || 1).toFixed(2)).join(" · ")}</div>`
+          ? `<div class="wearv111-xtra">${x.map(d => escHtml(d.k.toLowerCase()) + " ×" + mulTxtV193N(Number(d.mul) || 1)).join(" · ")}</div>`
           : "";
       })()}</div>`;
       const ling = R.linger.length
@@ -16115,7 +16115,7 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
       const base = pl.attrs[k] || 0,
         b = buffs[k],
         eff = EF.eff[k] != null ? EF.eff[k] : b ? base + (b.max ? 10 : b.amt) : base,
-        amt = eff - base;
+        amt = Math.round(eff) - Math.round(base); /* v193 N: whole numbers — the stored value keeps its fraction */
       const sc = clamp99(typeof drSoftCap === "function" ? drSoftCap(pl, k) : cap, 1, cap);
       const L164 = barLapV164E(Math.min(base, eff)); /* v164 E: the 250 scale, drawn on the lap the lower value is on */
       const scale = L164 ? L164.scale : Math.min(cap, Math.max(sc, base, eff)),
@@ -16162,7 +16162,7 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
         : "") /* v131: the price of starting over belongs where you read the sheet it changed */ +
       bodyBadgeV85(pl) +
       (FOC
-        ? `<div id="preFocusV111" style="display:flex;align-items:center;gap:6px;margin:0 0 7px;font:600 11px Barlow Condensed,sans-serif;color:#8fe0a0"><span>🎯 GAME FOCUS · ${FOC.name || FOC.key}</span><b style="font:700 11px Oswald,sans-serif">×${(Math.round((Number(FOC.mul) || 1.2) * 100) / 100).toFixed(2)} ${(ATTR_INFO[FOC.stat] && ATTR_INFO[FOC.stat].name) || FOC.stat}</b><span style="color:var(--chalk-dim);font-weight:400">this game only</span></div>`
+        ? `<div id="preFocusV111" style="display:flex;align-items:center;gap:6px;margin:0 0 7px;font:600 11px Barlow Condensed,sans-serif;color:#8fe0a0"><span>🎯 GAME FOCUS · ${FOC.name || FOC.key}</span><b style="font:700 11px Oswald,sans-serif">×${mulTxtV193N(Number(FOC.mul) || 1.2)} ${(ATTR_INFO[FOC.stat] && ATTR_INFO[FOC.stat].name) || FOC.stat}</b><span style="color:var(--chalk-dim);font-weight:400">this game only</span></div>`
         : ``) +
       list.map(row).join("") +
       `</div>`
@@ -16197,8 +16197,10 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
    * current training program, the games played and the games left, drawn as a
    * hollow green extension the real gain fills in at season's end. */
   function effAttrsV85(e) {
-    const out = { mult: 1, buffs: {}, muls: {}, eff: {}, delta: {}, gear: {} };
+    const out = { mult: 1, buffs: {}, muls: {}, eff: {}, delta: {}, gear: {}, persona: {} };
     if (!e || !e.attrs) return out;
+    /* v193 N: the personality's one-attribute game-day flat, as _raw adds it (kill switch: the old all-stats flat) */
+    const pf = personaGameFlatV193N(e.personaFxV20, e);
     const mult = (out.mult = condMultV54(e));
     /* v111: the sheet reads the wheel's flat swing AND v111's own entries — a lingering wear cut
      * counting its games down, and this game's focus pick, which is a MULTIPLIER rather than an
@@ -16214,7 +16216,11 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
         mu = out.muls[k] ? clamp99(out.muls[k], TU("focusMulFloor", 0.6), TU("focusMulCeil", TU("v171Cfocus", 1) ? 1.5 : 1.35)) : 1,
         v = Math.max(
           1,
-          Math.round((Math.round(a * mult) + (out.buffs[k] || 0)) * mu) + (out.gear[k] = gearAttrV147(k))
+          Math.round(
+            Math.round((Math.round(a * mult) + (out.buffs[k] || 0)) * mu) +
+              (out.persona[k] = pf.by[k] || 0) /* OFF (v193N 0): the old sheet, which never drew perfFlat */ +
+              (out.gear[k] = gearAttrV147(k))
+          )
         );
       /* v147 C: gear lands last, as in _raw */ out.eff[k] = v;
       out.delta[k] = v - a;
@@ -18210,6 +18216,8 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
                 return null;
               }
             })(),
+      // v193 N: the personality's game-day flat, read once a game ({ all, by: {attr: n} })
+      _pf193N = personaGameFlatV193N(window.__youPersonaFxV20, state && state.player),
       _raw = (w, k) => {
         let _v = w && w.attrs && w.attrs[k];
         if (!(_v > 0)) _v = TU("v141Fallback", 1) ? (w && Number(w.ovr)) || 45 : 45;
@@ -18226,8 +18234,8 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
             }
           if (_mu !== 1) _v *= clamp99(_mu, TU("focusMulFloor", 0.6), TU("focusMulCeil", TU("v171Cfocus", 1) ? 1.5 : 1.35)); /* v171 C: a hot focus reaches ×1.5 */
           /* v111: the focus is a multiplier, and it lands AFTER the body's swing. v193 E: the tree's game-day percent is
-           * gone; what remains is the personality page's own two-sided nudge (src/14) and the gear on him */ _v +=
-            ((window.__youPersonaFxV20 && window.__youPersonaFxV20.perfFlat) || 0) +
+           * gone; what remains is the personality page's own nudge (src/14 — v193 N: ONE attribute per pole) and the gear on him */ _v +=
+            _pf193N.all + (_pf193N.by[k] || 0) +
             gearAttrV147(k); /* v147 C: the gear on him */
         }
         /* v171 A: their face, the call's cuts and lifts, the plan's team lift — as rating POINTS (the fraction × `mulPtsV171`),
@@ -28284,6 +28292,37 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
       } catch (_) {}
     return fx && fx.v192C ? fx : null;
   }
+  /* ===== v193 N PERSONALITY GIVES A STAT, AND STATS ARE WHOLE =====
+   * The personality's game-day flat (src/14 `attrFlatV193N`): each `perf` pole moves ONE attribute by a whole number
+   * (Win-Now / Process → Grit, Coasts → Awareness, Me-First / Team-First → Vision) instead of v20's `perfFlat` on
+   * EVERY attribute. Returns { all, by }: `all` lands on every attribute (only the kill switch's old path), `by[k]` on
+   * one. Read once a game by simGameV2's accessor (`_raw`) and by `effAttrsV85` (the sheets). A save whose fx predates
+   * v193 N is recomputed (never re-billed — src/14 `__personaFxRefreshV192C`). Kill switch `TU("v193N", 0)`: the old
+   * all-stats `perfFlat`. The stats-are-whole half lives at each screen's display (rounded there, never stored). */
+  function personaGameFlatV193N(fx, e) {
+    if (e && e.personaV13 && (!fx || fx.v193N !== 1) && typeof window.__personaFxRefreshV192C === "function")
+      try {
+        fx = window.__personaFxRefreshV192C(e);
+      } catch (_) {}
+    if (!fx) return { all: 0, by: {} };
+    if (!TU("v193N", 1)) return { all: Number(fx.perfFlat) || 0, by: {} };
+    return { all: 0, by: fx.attrFlatV193N || {} };
+  }
+  /* the stats-are-whole half: a multiplier on a stat screen shows ONE decimal at most (×1.2, never ×1.15 / ×1.00);
+   * src/11 carries the same global. Rounded at display, never stored. */
+  function mulTxtV193N(x) {
+    x = Number(x);
+    return isFinite(x) ? (Math.round(x * 10) / 10).toFixed(1) : "";
+  }
+  // a multiplier as a whole percent change (×1.16 → +16%, ×0.85 → −15%, ×1 → ±0%)
+  function pctTxtV193N(x) {
+    const d = Math.round(((Number(x) || 1) - 1) * 100);
+    return (d > 0 ? "+" : d < 0 ? "−" : "±") + Math.abs(d) + "%";
+  }
+  window.__V193N = {
+    flat: e => personaGameFlatV193N((e || state.player) && (e || state.player).personaFxV20, e || state.player),
+    mul: mulTxtV193N
+  };
   function fatigueMulV192C(e) {
     const fx = personaFxV192C(e);
     return (fx && fx.fatigueMult) || 1;
@@ -28354,7 +28393,7 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
       last = e._poiseLastV192C;
     return `<div class="card poise-card-v192c"><div class="eyebrow">Poise · Cool Under Pressure</div>
     <div style="display:flex;justify-content:space-between;gap:12px;align-items:center"><div><div class="h2" style="margin:0;color:#8fd3ff">${poiseBandV192C(p)}</div>
-    <div class="small">Game-to-game swing <b>×${F.w.toFixed(2)}</b> · a bad game's drop <b>×${(F.w * F.lo).toFixed(2)}</b> · a good game's rise <b>×${(F.w * F.hi).toFixed(2)}</b>. Grows slowly with every game — <b>×${TU("poisePlayoffKV192C", 2.5)}</b> in the playoffs, <b>×${TU("poiseRivalKV192C", 1.6)}</b> in a rivalry — and <b>×${rate.toFixed(2)}</b> for your personality${last ? ` (last game +${last.toFixed(2)})` : ""}.</div></div>
+    <div class="small">Game-to-game swing <b>${pctTxtV193N(F.w)}</b> · a bad game's drop <b>${pctTxtV193N(F.w * F.lo)}</b> · a good game's rise <b>${pctTxtV193N(F.w * F.hi)}</b>. Grows slowly with every game — <b>${pctTxtV193N(TU("poisePlayoffKV192C", 2.5))}</b> in the playoffs, <b>${pctTxtV193N(TU("poiseRivalKV192C", 1.6))}</b> in a rivalry — and <b>${pctTxtV193N(rate)}</b> for your personality${last ? ` (last game ${last >= 0.5 ? "+" + Math.round(last) : "under a point"})` : ""}.</div></div>
     <div class="ovr-big" style="color:#8fd3ff">${Math.round(p)}</div></div>
     <div class="small" style="margin-top:6px"><a href="#" onclick="window.__personaViewV192C&&window.__personaViewV192C();return false" style="color:var(--gold)">Personality — every effect ›</a></div></div>`;
   }
@@ -33934,7 +33973,7 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
       bonus = TU("watchXpBonusV164C", 0.25),
       cut = TU("simXpCutV164C", 0.15),
       mult = Math.round((1 + bonus * share - cut * (1 - share)) * 100) / 100;
-    return { share, watched, simmed, games, mult, label: (mult >= 1 ? "Watched live ×" : "Simmed ×") + mult.toFixed(2) + " (" + Math.round(share * 100) + "% watched)" };
+    return { share, watched, simmed, games, mult, label: (mult >= 1 ? "Watched live ×" : "Simmed ×") + mulTxtV193N(mult) + " (" + Math.round(share * 100) + "% watched)" };
   }
   function titleXpMultV164C() {
     return TU("v164Cwatch", 1) ? Math.max(1, TU("titleXpMultV164C", 2)) : 1;
@@ -33956,7 +33995,7 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
     const w = t && t.watchV164C;
     if (!w || !w.games || !TU("v164Cwatch", 1)) return "";
     const up = w.mult >= 1;
-    return `<span class="injury-badge watch-badge-v164c" style="background:${up ? "rgba(107,191,89,.15)" : "rgba(178,59,59,.18)"};border-color:${up ? "var(--good)" : "var(--blood)"};color:${up ? "var(--good)" : "var(--blood)"}">📺 ${Math.round(w.share * 100)}% watched · XP ×${w.mult.toFixed(2)}</span>`;
+    return `<span class="injury-badge watch-badge-v164c" style="background:${up ? "rgba(107,191,89,.15)" : "rgba(178,59,59,.18)"};border-color:${up ? "var(--good)" : "var(--blood)"};color:${up ? "var(--good)" : "var(--blood)"}">📺 ${Math.round(w.share * 100)}% watched · XP ×${mulTxtV193N(w.mult)}</span>`;
   }
   window.__V164C = { watch: () => watchV164C(state && state.player), titleMult: titleXpMultV164C, cutRisk: () => simCutRiskV164C(state && state.player), seasonXp: (e, t) => legacySeasonXpV152(e || (state && state.player), t || {}), badge: watchBadgeV164C };
   /* ===== v164 D LIVE SIM ONLY =====
@@ -36823,7 +36862,7 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
           .map(v => `<div class="small" style="margin-top:3px">${escHtml(lockerLineV153B(v))}</div>`)
           .join(
             ""
-          )}${L.ovrDelta ? `<div class="small" style="margin-top:4px;color:var(--chalk-dim)">Team rating ${L.ovrDelta > 0 ? "+" : ""}${L.ovrDelta.toFixed(1)} OVR from these moves.</div>` : ""}</div>`
+          )}${L.ovrDelta ? `<div class="small" style="margin-top:4px;color:var(--chalk-dim)">${Math.round(L.ovrDelta) ? `Team rating ${L.ovrDelta > 0 ? "+" : ""}${Math.round(L.ovrDelta)} OVR from these moves.` : `These moves shift the team rating by under 1 OVR.`}</div>` : ""}</div>`
       );
       if (L.seen < L.events.length) {
         const fresh = L.events.slice(L.seen);
@@ -38899,7 +38938,10 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
       G = Math.max(n, L.games || 10),
       derived = /AVG|C\/ATT|LONG|PCT|%|RTG|RATE|PEN/i;
     n = Math.max(1, n || 1);
-    (liveBoxLine(p.pos, box || {}) || []).forEach(r => (sea[r[0]] = r[1]));
+    /* v193 N: a stat line is whole (a rate — AVG, PCT, RTG — one decimal at most); rounded here, never in the box */
+    const wholeV193N = (lab, v) => (typeof v === "number" && isFinite(v) ? (derived.test(lab) ? Math.round(v * 10) / 10 : Math.round(v)) : v);
+    (liveBoxLine(p.pos, box || {}) || []).forEach(r => (sea[r[0]] = wholeV193N(r[0], r[1])));
+    rows.forEach(r => (r[1] = wholeV193N(r[0], r[1])));
     const tiles = rows
       .map(r => {
         const lab = r[0],
@@ -39950,7 +39992,7 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
   }
   function fmtMultV192B(x) {
     x = +x || 1;
-    return x >= 1000 ? fmtBigV179(Math.round(x)) : x >= 100 ? String(Math.round(x)) : x >= 10 ? x.toFixed(1) : x.toFixed(2);
+    return x >= 1000 ? fmtBigV179(Math.round(x)) : x >= 100 ? String(Math.round(x)) : mulTxtV193N(x).replace(/\.0$/, ""); /* v193 N: one decimal (was two under ×10); a whole multiplier reads ×1 */
   }
 
   // ---- 1/2: the multiplier, part by part (the same terms as screenGameOver's `s` × chaosEarnedMult × the Prestige cards)

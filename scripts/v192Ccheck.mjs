@@ -119,9 +119,11 @@ const old = await M(() => {
   pl.coachTrust = 41; pl.snapShare = 0.3; pl._personaClashV13 = 1.7
   delete pl.poiseV192C; pl.seasonsSinceStart = 5
   const fx = window.__V192C.fx(pl)
-  return { v: fx && fx.v192C, fat: fx && fx.fatigueMult, trust: pl.coachTrust, share: pl.snapShare, poise: window.__V192C.poise(pl), you: window.__youPersonaFxV20 === pl.personaFxV20 }
+  return { v: fx && fx.v192C, fat: fx && fx.fatigueMult, trust: pl.coachTrust, share: pl.snapShare, poise: window.__V192C.poise(pl), you: window.__youPersonaFxV20 === pl.personaFxV20,
+    attr: fx && fx.attrFlatV193N, flat: window.__V193N && window.__V193N.flat(pl) }   // v193 N: the perfFlat becomes one attribute per pole
 })
 ok(old.v === 1 && old.fat < 1 && old.trust === 41 && old.share === 0.3 && old.you, 'an old save\'s fx gains the v192C levers; coach trust / snap share untouched', old)
+ok(old.attr && old.attr.awareness === -1 && old.attr.vision === 1 && Object.keys(old.attr).length === 2 && old.flat && old.flat.all === 0, 'v193 N: the old save\'s all-stats perfFlat (−1) becomes Coasts −1 Awareness, Me-First +1 Vision — nothing on every stat', old.attr)
 ok(old.poise === 25, 'an old save is seeded Poise from the seasons he has played (10 + 3 × 5)', old.poise)
 
 // ---------- 4. POISE: the distribution at 0 / 50 / 100 ----------

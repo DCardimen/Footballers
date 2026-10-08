@@ -36,7 +36,7 @@
       hiFx:{ceil:{stamina:.22}, inj:-.02, perf:-.15, x:{grow:.03}},
       loFx:{perf:.35, inj:.02, x:{grow:-.03}},
       hiTxt:'▲ max STA, durable &nbsp;▼ slower early production',
-      loTxt:'▲ produces NOW (+flat stats every game) &nbsp;▼ overuse injury risk, no ceiling gain'},
+      loTxt:'▲ produces NOW (+GRIT every game) &nbsp;▼ overuse injury risk, no ceiling gain'},
     {key:'workethic', name:'Work Ethic', lo:'Coasts', hi:'Relentless',
       hiFx:{ceil:{acceleration:.24,agility:.20,stamina:.16}, clash:-.5, gas:.05, x:{grow:.03, fat:.05}},
       loFx:{gas:-.05, perf:-.2, clash:.2, x:{fat:-.08, grow:-.03}},
@@ -45,8 +45,8 @@
     {key:'loyalty', name:'Loyalty', lo:'Me-First', hi:'Team-First',
       hiFx:{ceil:{blocking:.24,grit:.10}, clash:-.8, perf:-.1, x:{}},
       loFx:{perf:.25, clash:.6, x:{}},
-      hiTxt:'▲ max BLK/GRIT, coaches trust you &nbsp;▼ shares the spotlight (−flat stats)',
-      loTxt:'▲ hunts stats (+flat stats) &nbsp;▼ clashes, trust erodes'},
+      hiTxt:'▲ max BLK/GRIT, coaches trust you &nbsp;▼ shares the spotlight (−VIS every game)',
+      loTxt:'▲ hunts stats (+VIS every game) &nbsp;▼ clashes, trust erodes'},
     {key:'confidence', name:'Confidence', lo:'Humble', hi:'Brash',
       hiFx:{ceil:{speed:.20,burst:.28}, clash:.6, vr:.04, x:{big:.6}},
       loFx:{ceil:{awareness:.10}, clash:-.6, inj:-.02, vr:-.02, x:{big:-.4}},
@@ -97,8 +97,40 @@
     if(inj>0)inj*=soft; if(vr>0)vr*=soft; if(perf<0)perf*=soft; if(gas>0)gas*=soft;
     const out = { injMult:clamp(1+inj,.6,1.6), varMult:clamp(1+vr,.7,1.5),
              perfFlat:Math.round(perf*10)/10, gasBurn:clamp(1+gas,.6,1.5), sprintIQ:Math.round(siq) };
+    out.attrFlatV193N = attrFlatV193N(pn, soft); out.v193N = 1;
     if(onV192C()) Object.assign(out, fxV192C(pn, soft));
     return out;
+  }
+  /* ===== v193 N PERSONALITY GIVES A STAT, AND STATS ARE WHOLE =====
+   * The owner: "Personality shouldn't give that many all stats, maybe a flat attribute gain is fine."
+   * The v20 `perf` poles (Win-Now, Process, Coasts, Me-First, Team-First) each summed `perf × pts` into
+   * `perfFlat` — a flat add to EVERY attribute in the watched game. Now each of those poles moves ONE attribute
+   * that fits it (`ATTR_OF_POLE_V193N`), by the same `perf × pts` rounded to a whole number (a drawback is
+   * softened by the Sports Psychologist first, as before). `fxOf` carries the map as `attrFlatV193N`
+   * ({attr: ±n}); 07 reads it in the game's attribute accessor (`_raw`, via `personaGameFlatV193N`) and in
+   * `effAttrsV85` (the sheets). `perfFlat` is still computed, for the kill switch: `TU("v193N", 0)` = the old
+   * all-stats flat. The page says "▲ +2 Grit" / "▼ −1 Awareness". */
+  const ATTR_OF_POLE_V193N = {
+    longterm:  { lo:'grit',      hi:'grit' },       // Win-Now empties it all today; Process saves something for later
+    workethic: { lo:'awareness' },                  // Coasts skips the film
+    loyalty:   { lo:'vision',    hi:'vision' }      // Me-First hunts his own lane; Team-First looks for everyone else's
+  };
+  const NAME_V193N = { speed:'Speed', strength:'Strength', quickness:'Quickness', agility:'Agility', awareness:'Awareness',
+    catching:'Catching', throwing:'Throwing', tackling:'Tackling', grit:'Grit', stamina:'Stamina', injuryResist:'Durability',
+    vision:'Vision', acceleration:'Acceleration', jumping:'Jumping', blocking:'Blocking', ballControl:'Ball Control', discipline:'Discipline' };
+  function onV193N(){ try{ return !!(window.TU ? window.TU("v193N",1) : 1); }catch(e){ return true; } }
+  const attrOfPoleV193N = (tr, side) => (ATTR_OF_POLE_V193N[tr.key]||{})[side] || 'grit';
+  const attrNameV193N = k => NAME_V193N[k] || (k.charAt(0).toUpperCase()+k.slice(1));
+  // a whole number, rounded half away from zero (−0.5 → −1, never −0)
+  const wholeV193N = v => { const n=Math.sign(v)*Math.round(Math.abs(v)); return n||0; };
+  // one pole's whole-number gain at `pts` (a drawback softened by the Sports Psychologist)
+  function poleFlatV193N(fx, pts, soft){ const v=(fx.perf||0)*pts; return wholeV193N(v<0 ? v*soft : v); }
+  function attrFlatV193N(pn, soft){
+    const m={};
+    P.forEach(tr=>{ const d=(pn[tr.key]??5)-5; if(!d) return; const side=d>0?'hi':'lo', fx=side==='hi'?tr.hiFx:tr.loFx; if(!fx.perf) return;
+      const n=poleFlatV193N(fx, Math.abs(d), soft); if(!n) return; const k=attrOfPoleV193N(tr, side); m[k]=(m[k]||0)+n; });
+    for(const k in m) if(!m[k]) delete m[k];
+    return m;
   }
   /* ===== v192C PERSONALITY, BOTH SIDES =====
    * The owner: "Each side should have clear positives and negatives. Some clearly don't have any positives.
@@ -147,7 +179,15 @@
     if(fx.clash){ add(fx.clash<0, fx.clash, v=>num(-v*1.5)+' coach trust'+(v>0?', −'+v.toFixed(1)+'% snap share':'')); }
     if(fx.inj) add(fx.inj<0, fx.inj, v=>pct(v)+' injury risk', 1);
     if(fx.vr)  add(fx.vr<0, fx.vr, v=>pct(v)+' game-to-game swing', 1);
-    if(fx.perf)add(fx.perf>0, fx.perf, v=>num(v,2)+' to every stat each game', 1);
+    if(fx.perf){
+      if(onV193N()){ // v193 N: one attribute, whole numbers — the per-point column says where the first point lands
+        const k=attrOfPoleV193N(tr, side), nm=attrNameV193N(k), sg=n=>(n>0?'+':'−')+Math.abs(n), up=fx.perf>0;
+        let first=0; for(let q=1;q<=5;q++){ if(poleFlatV193N(fx,q,soft)){ first=q; break; } }
+        const at5=poleFlatV193N(fx,5,soft), n=pts?poleFlatV193N(fx,pts,soft):0;
+        out.push({up, per: first ? sg(up?1:-1)+' '+nm+' from '+first+' pt'+(first===1?'':'s')+(Math.abs(at5)>1?' ('+sg(at5)+' at 5)':'') : 'no '+nm+' change',
+          tot: pts ? (n ? sg(n)+' '+nm+' every game' : first ? 'no '+nm+' change yet ('+sg(up?1:-1)+' from '+first+' pts)' : 'no '+nm+' change') : null});
+      } else add(fx.perf>0, fx.perf, v=>num(v,2)+' to every stat each game', 1);
+    }
     if(fx.gas) add(fx.gas<0, fx.gas, v=>pct(v)+' stamina burn on the field', 1);
     if(fx.siq) add(fx.siq>0, fx.siq, v=>(v>0?'smart':'random')+' sprint timing ('+num(v,0)+' IQ for the stamina call)');
     if(onV192C()){
@@ -187,10 +227,15 @@
     if(fx.varMult>1.01) out.push({up:false,t:'▼ boom/bust: ±'+Math.round((fx.varMult-1)*100)+'% swingier games'});
     if(fx.varMult<0.99) out.push({up:true, t:'▲ steadier games (−'+Math.round((1-fx.varMult)*100)+'% swings)'});
     /* v101: a swing under a full point is stated in words — the sheet never prints a fraction */
+    if(onV193N()){ // v193 N: one attribute per pole, whole numbers
+      const m=fx.attrFlatV193N||{};
+      Object.keys(m).forEach(k=>{ const n=m[k]; if(n>0) out.push({up:true, t:'▲ +'+n+' '+attrNameV193N(k)}); else if(n<0) out.push({up:false, t:'▼ −'+Math.abs(n)+' '+attrNameV193N(k)}); });
+    } else {
     if(fx.perfFlat>=1)  out.push({up:true, t:'▲ +'+Math.round(fx.perfFlat)+' to all stats every game'});
     else if(fx.perfFlat>0) out.push({up:true, t:'▲ a nudge to all stats every game'});
     if(fx.perfFlat<=-1) out.push({up:false,t:'▼ '+Math.round(fx.perfFlat)+' to all stats every game'});
     else if(fx.perfFlat<0) out.push({up:false,t:'▼ a shade off all stats every game'});
+    }
     if(fx.gasBurn>1.01) out.push({up:false,t:'▼ +'+Math.round((fx.gasBurn-1)*100)+'% stamina burn'});
     if(fx.gasBurn<0.99) out.push({up:true, t:'▲ '+Math.round((1-fx.gasBurn)*100)+'% slower stamina burn'});
     if(fx.sprintIQ>0)   out.push({up:true, t:'▲ smart stamina timing'});
@@ -208,8 +253,8 @@
       if(fx.poiseRate>1.005)   out.push({up:true, t:'▲ Poise grows +'+p(fx.poiseRate)+'% faster'});
       if(fx.poiseRate<0.995)   out.push({up:false,t:'▼ Poise grows −'+p(fx.poiseRate)+'% slower'});
       const hk=hardMultV192C(pn);
-      if(hk>1.005) out.push({up:true, t:'▲ ×'+hk.toFixed(2)+' from playing HEAVY'});
-      if(hk<0.995) out.push({up:false,t:'▼ ×'+hk.toFixed(2)+' from playing HEAVY'});
+      if(hk>1.005) out.push({up:true, t:'▲ ×'+hk.toFixed(1)+' from playing HEAVY'});
+      if(hk<0.995) out.push({up:false,t:'▼ ×'+hk.toFixed(1)+' from playing HEAVY'});
       const ch=chemLeanV192C(pn);
       if(ch.tox>0.005)  out.push({up:false,t:'▼ TOXIC lean '+ch.tox.toFixed(2)+(ch.tox>=.35?' (teammates may quit)':'')});
       if(ch.team>0.005) out.push({up:true, t:'▲ TEAM lean '+ch.team.toFixed(2)+(ch.team>=.35?' (a teammate may improve)':'')});
@@ -230,7 +275,7 @@
     p.coachTrust = clamp(Math.round((p.coachTrust!=null?p.coachTrust:50) - c*1.5), 5, 100);
     p.snapShare  = clamp((p.snapShare!=null?p.snapShare:0.12) - Math.max(0,c)*0.01, 0.04, 0.98);
     p._personaClashV13 = c;
-    p.personaFxV20 = fxOf(pn);     // { injMult, varMult, perfFlat, gasBurn, sprintIQ }
+    p.personaFxV20 = fxOf(pn);     // { injMult, varMult, perfFlat, gasBurn, sprintIQ, attrFlatV193N }
     try{ window.__youPersonaFxV20 = p.personaFxV20; }catch(e){}
   };
   window.__personaCeilMap = ceilMap;
@@ -243,7 +288,7 @@
     try{ const s=st(); if(s&&s.player===p) window.__youPersonaFxV20 = p.personaFxV20; }catch(e){}
     return p.personaFxV20;
   };
-  window.__personaV192C = { P, fxOf, effectsOf, chemLean:chemLeanV192C, hardMult:hardMultV192C, view:()=>window.__personaViewV192C() };
+  window.__personaV192C = { P, fxOf, effectsOf, ATTR_OF_POLE_V193N, attrFlatV193N:pn=>attrFlatV193N(pn, softMult()), chemLean:chemLeanV192C, hardMult:hardMultV192C, view:()=>window.__personaViewV192C() };
   // re-export the fx on load for saves that already carry a persona
   try{ const s=st(); if(s&&s.player&&s.player.personaFxV20) window.__youPersonaFxV20=s.player.personaFxV20; }catch(e){}
 
@@ -273,7 +318,7 @@
   function poiseLineV192C(pn, p){
     const V=window.__V192C; if(!V||!onV192C()) return '';
     const rate=(fxOf(pn).poiseRate)||1, now=p&&p.personaV13?V.poise(p):V.start();
-    return `<div class="pv192-poise">🧊 <b>POISE ${Math.round(now)}</b>/100 · grows <b>×${rate.toFixed(2)}</b> with this personality — low Poise swings games wide; high Poise narrows the swing and lifts the floor of a bad game.</div>`;
+    return `<div class="pv192-poise">🧊 <b>POISE ${Math.round(now)}</b>/100 · grows <b>×${rate.toFixed(1)}</b> with this personality — low Poise swings games wide; high Poise narrows the swing and lifts the floor of a bad game.</div>`;
   }
   function render(){
     const wrap=document.getElementById('personaV13'); if(!wrap) return;
