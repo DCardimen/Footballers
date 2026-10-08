@@ -34,7 +34,12 @@ async function open(vp, dpr, mobile) {
   await page.waitForTimeout(700)
   return { ctx, page }
 }
-const go = async (page, v, ms = 700) => { await page.evaluate((v) => window.go(v), v); await page.waitForTimeout(ms) }
+// a view, then (under load the sectioner waits for the render to settle) its section bar / tab strip
+const go = async (page, v, ms = 700, sel) => {
+  await page.evaluate((v) => window.go(v), v); await page.waitForTimeout(ms)
+  if (sel) await page.waitForFunction((s) => !!document.querySelector(s), sel, { timeout: 12000 }).catch(() => null)
+  await page.waitForFunction(() => [...document.querySelectorAll('img.ric-v193v')].every((i) => i.complete), null, { timeout: 8000 }).catch(() => null)
+}
 
 /* what an icon slot holds: the icon element, whether it loaded, its size, any emoji text left beside it */
 const PROBE = () => {
@@ -71,7 +76,7 @@ const good = (p, lo = 20, hi = 28) => p.icon && p.loaded && !p.text && !p.fb && 
   // the section bar and its spray
   const bars = {}
   for (const v of ['hub', 'season', 'shop', 'locker', 'profile']) {
-    await go(page, v, 900)
+    await go(page, v, 900, '#screen > .secbar-v170 .sb-mid i')
     bars[v] = await page.evaluate(() => { const b = document.querySelector('#screen > .secbar-v170 .sb-mid'); return b ? { name: (b.querySelector('b') || {}).textContent, ...window.__probeV193V(b.querySelector('i')) } : { slot: false } })
     if (v === 'season' || v === 'shop') await page.screenshot({ path: SHOT(v) })
   }
@@ -86,7 +91,7 @@ const good = (p, lo = 20, hi = 28) => p.icon && p.loaded && !p.text && !p.fb && 
   await page.evaluate(() => window.__V170 && window.__V170.close())
 
   // the tree's branch tabs
-  await go(page, 'shop', 900)
+  await go(page, 'shop', 900, '#screen .branch-tab')
   const BR = await page.evaluate(() => {
     const T = window.__GRIDIRON_AUDIT__.TREE
     return [...document.querySelectorAll('#screen .branch-tab')].map((b) => {
@@ -116,10 +121,13 @@ const good = (p, lo = 20, hi = 28) => p.icon && p.loaded && !p.text && !p.fb && 
   // the kill switch
   const K = await page.evaluate(async () => {
     window.RIB_TUNE = Object.assign(window.RIB_TUNE || {}, { v193V: 0 })
+    const until = async (f) => { for (let i = 0; i < 60 && !f(); i++) await new Promise((r) => setTimeout(r, 200)) }
     window.go('hub'); await new Promise((r) => setTimeout(r, 900))
+    await until(() => document.querySelector('#screen > .secbar-v170 .sb-mid i') && document.querySelector('.hubv75-tab i'))
     const nav = [...document.querySelectorAll('#navV139 button i')].map((i) => ({ icon: !!i.querySelector('.ric-v193v'), text: i.textContent.trim() }))
     const bar = document.querySelector('#screen > .secbar-v170 .sb-mid i'), tab = document.querySelector('.hubv75-tab i')
     window.go('shop'); await new Promise((r) => setTimeout(r, 900))
+    await until(() => document.querySelector('#screen .branch-tab'))
     const br = [...document.querySelectorAll('#screen .branch-tab')].map((b) => ({ icon: !!b.querySelector('.ric-v193v'), text: b.textContent.trim() }))
     const T = window.__GRIDIRON_AUDIT__.TREE
     const r = { nav, bar: bar ? { icon: !!bar.querySelector('.ric-v193v'), text: bar.textContent } : null, tab: tab ? { icon: !!tab.querySelector('.ric-v193v'), text: tab.textContent } : null, br, want: Object.values(T).map((b) => b.icon + ' ' + b.name) }
@@ -152,7 +160,7 @@ const good = (p, lo = 20, hi = 28) => p.icon && p.loaded && !p.text && !p.fb && 
   await page.evaluate(PROBE)
   const strips = {}
   for (const v of ['hub', 'season', 'settings', 'shop', 'locker', 'profile']) {
-    await go(page, v, 900)
+    await go(page, v, 900, '#screen > .hubv75-tabs .hubv75-tab')
     strips[v] = await page.evaluate(() => [...document.querySelectorAll('#screen > .hubv75-tabs .hubv75-tab')].map((t) => ({ sec: t.dataset.sec, name: t.textContent.trim(), ...window.__probeV193V(t.querySelector('i')) })))
     if (v === 'settings') { await page.waitForTimeout(300); await page.screenshot({ path: SHOT('desk-settings') }) }
   }
