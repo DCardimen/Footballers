@@ -340,6 +340,15 @@
         else if (hue >= 33 && hue <= 62 && sat > 0.3 && L > 60) { base = Q; ref = 165; }
         if (base) { var sc = Math.min(1.75, Math.max(0.25, L / ref)); d[i] = Math.min(255, base[0] * sc); d[i + 1] = Math.min(255, base[1] * sc); d[i + 2] = Math.min(255, base[2] * sc); }
       }
+      /* ===== v193 I EVERY SHEET, EVERY PHONE =====
+       * the chase (and the growth screen's boy, in his team's palette) recoloured the skin with the kit: the arms and
+       * the face came out in the team's SECOND colour. The field's own skin mask (05 `skinMaskV151D`, grown by v193 I)
+       * gives the drawn skin back — once the renderer has loaded; the boot splash's first frames, before it, are as
+       * they were. Off: TU v193C 0. scripts/v193Icheck.mjs. */
+      try {
+        var V3 = window.__V193C, T3 = window.RIB_TUNE, rawC = V3 && V3.mask && !(T3 && T3.v193C === 0) ? cell(name, 'raw') : null, sm = rawC && V3.mask(rawC);
+        if (sm && sm.n) { var rd = rawC.getContext('2d').getImageData(0, 0, 48, 48).data; for (var q = 0; q < 2304; q++) if (sm.mask[q]) { d[q * 4] = rd[q * 4]; d[q * 4 + 1] = rd[q * 4 + 1]; d[q * 4 + 2] = rd[q * 4 + 2]; d[q * 4 + 3] = rd[q * 4 + 3]; } }
+      } catch (e) {}
       x.putImageData(img, 0, 0);
     }
     cache[key] = c; return c;

@@ -39,25 +39,34 @@ await page.evaluate(() => {
   const hsl = (r, g, b) => { const mx = Math.max(r, g, b), mn = Math.min(r, g, b), L = (mx + mn) / 2, sat = mx ? (mx - mn) / mx : 0; let h = 0; if (mx !== mn) { if (mx === r) h = (60 * ((g - b) / (mx - mn)) + 360) % 360; else if (mx === g) h = 60 * ((b - r) / (mx - mn)) + 120; else h = 60 * ((r - g) / (mx - mn)) + 240 } return { h, sat, L, flat: mx === mn } }
   const px = (c) => c.getContext('2d').getImageData(0, 0, c.width, c.height).data
   // this check's own read of the drawn skin — no neighbour vote, no code shared with skinMaskV151D:
-  //   core: the drawn skin's saturated orange-brown (hue 8-31), never the football's brown (g under .47 r)
-  //   loose: warm (hue 8-46), mid-saturation (.2-.75), mid-lightness (50-215), touching skin (core or mask) and with at
+  //   core: the drawn skin's saturated orange-brown (hue 8-31), never the football's brown (g under .47 r), and the
+  //         colour of most of the warm pixels around it (a pants or stripe shadow is a minority among the gold)
+  //   loose: warm (hue 8-46), mid-saturation (.2-.75), mid-lightness (50-215), touching skin (the core; plus the mask
+  //          when it is the generator's — the runtime mask is what is under test, so it is never evidence) and with at
   //          least as much skin around it as saturated kit gold (sat .75+ or hue 46+) — a highlight on an arm, not a
   //          pants highlight
-  function skinRead (raw, w, h, mask) {
-    const N = w * h, core = new Uint8Array(N), cand = new Uint8Array(N), kit = new Uint8Array(N), out = new Uint8Array(N)
+  function skinRead (raw, w, h, mask, trust) {
+    const N = w * h, coreC = new Uint8Array(N), warm = new Uint8Array(N), core = new Uint8Array(N), cand = new Uint8Array(N), kit = new Uint8Array(N), out = new Uint8Array(N)
     for (let i = 0; i < N; i++) {
       if (raw[i * 4 + 3] < 25) continue
       const r = raw[i * 4], g = raw[i * 4 + 1], b = raw[i * 4 + 2], c = hsl(r, g, b); if (c.flat || g < r * 0.47) continue
-      if (c.h >= 8 && c.h < 31 && c.sat > 0.45 && c.L >= 25 && c.L <= 215) core[i] = 1
+      if (c.h >= 8 && c.h < 62 && c.sat > 0.3) warm[i] = 1
+      if (c.h >= 8 && c.h < 31 && c.sat > 0.45 && c.L >= 25 && c.L <= 215) coreC[i] = 1
       else if (c.h >= 8 && c.h < 46 && c.sat >= 0.2 && c.sat < 0.75 && c.L >= 50 && c.L <= 215) cand[i] = 1
       else if (c.h >= 33 && c.h <= 62 && c.sat > 0.3 && c.L > 60) kit[i] = 1
+    }
+    for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+      const i = y * w + x; if (!coreC[i]) continue
+      let f = 0, n = 0
+      for (let yy = Math.max(0, y - 1); yy <= Math.min(h - 1, y + 1); yy++) for (let xx = Math.max(0, x - 1); xx <= Math.min(w - 1, x + 1); xx++) { const j = yy * w + xx; f += coreC[j]; n += warm[j] }
+      if (f * 2 > n) core[i] = 1
     }
     for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
       const i = y * w + x
       if (core[i] || (mask && mask[i])) { out[i] = 1; continue }
       if (!cand[i]) continue
       let s = 0, k = 0
-      for (let yy = Math.max(0, y - 1); yy <= Math.min(h - 1, y + 1); yy++) for (let xx = Math.max(0, x - 1); xx <= Math.min(w - 1, x + 1); xx++) { const j = yy * w + xx; if (j === i) continue; if (core[j] || (mask && mask[j])) s++; else if (kit[j]) k++ }
+      for (let yy = Math.max(0, y - 1); yy <= Math.min(h - 1, y + 1); yy++) for (let xx = Math.max(0, x - 1); xx <= Math.min(w - 1, x + 1); xx++) { const j = yy * w + xx; if (j === i) continue; if (core[j] || (trust && mask && mask[j])) s++; else if (kit[j]) k++ }
       if (s > 0 && s >= k) out[i] = 2
     }
     return out
@@ -67,12 +76,13 @@ await page.evaluate(() => {
     const d = Math.abs(o[i * 4] - raw[i * 4]) + Math.abs(o[i * 4 + 1] - raw[i * 4 + 1]) + Math.abs(o[i * 4 + 2] - raw[i * 4 + 2])
     if (d <= 3) return false
     const c = hsl(raw[i * 4], raw[i * 4 + 1], raw[i * 4 + 2]), sc = Math.min(1.75, Math.max(0.25, c.L / 165))
+    if (!(c.h >= 33 && c.h <= 62 && c.sat > 0.3 && c.L > 60)) return false   // only the gold band is ever painted p2 (a near-miss elsewhere is a coincidence)
     return [0, 1, 2].every((k) => Math.abs(o[i * 4 + k] - Math.min(255, S[k] * sc)) <= 3)
   }
   // one cell: { skin, mask, bad (mask skin in p2), loose (loose skin in p2), flagged indexes }
-  function audit (rawCv, outCv, mask, P2) {
+  function audit (rawCv, outCv, mask, P2, trust) {
     const S = [1, 3, 5].map((i) => parseInt(P2.slice(i, i + 2), 16)), w = rawCv.width, h = rawCv.height
-    const raw = px(rawCv), o = px(outCv), read = skinRead(raw, w, h, mask), R = { skin: 0, bad: 0, loose: 0, flag: [] }
+    const raw = px(rawCv), o = px(outCv), read = skinRead(raw, w, h, mask, trust), R = { skin: 0, bad: 0, loose: 0, flag: [] }
     for (let i = 0; i < w * h; i++) {
       if (!read[i] || raw[i * 4 + 3] < 25) continue
       R.skin++
@@ -142,7 +152,7 @@ const CEL = await page.evaluate(async ({ P1, KITS }) => {
           const raw = API.frameCanvas(name, k, s, null), kit = API.frameCanvas(name, k, s, { p1: P1, p2: K.p2, tone: '#4f3121' })
           const r = s === 2 ? frames[k].r2 : frames[k].r, MS = masks[s], w = raw.width, h = raw.height, mask = new Uint8Array(w * h)
           if (MS) for (let j = 0; j < w * h; j++) mask[j] = MS.m[(r[1] + ((j / w) | 0)) * MS.w + r[0] + (j % w)]
-          const a = C.audit(raw, kit, mask, K.p2), n = a.bad + a.loose
+          const a = C.audit(raw, kit, mask, K.p2, true), n = a.bad + a.loose
           G.cells++; G.skin += a.skin; G.bad += a.bad; G.loose += a.loose; if (n > 2) G.over++
           if (n > G.worstN) { G.worstN = n; G.worst = name + '#' + k + '@' + s + 'x' }
           if (n > 2 && s === 1) top.push({ tag: tag + '/' + K.name, src: name + '#' + k, n, flag: a.flag, raw: raw.toDataURL(), out: kit.toDataURL() })
