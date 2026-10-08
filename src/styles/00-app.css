@@ -75,3 +75,44 @@ html.shell-v146 .prestige-chip img.coin-v147{width:14px!important;height:14px!im
 
 /* v154 A: the career-end vows, two a row */
 .end-vows-v154{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin:8px 0}.end-vows-v154 .btn{margin:0;padding:10px 8px;font-size:13px;line-height:1.15}
+
+/* v193 D THE PAYOUT, SHOWN — the career-end receipt and the season screen's prestige card */
+.pay-ledger-v193d{font-family:'Barlow Condensed',sans-serif;font-size:14px;padding:12px 13px}
+.pay-ledger-v193d .pl-head{display:flex;justify-content:space-between;align-items:baseline;gap:8px;font:700 11px Oswald,sans-serif;letter-spacing:2px;color:var(--gold);margin-bottom:6px}
+.pay-ledger-v193d .pl-head span{font:500 11px 'Barlow Condensed',sans-serif;letter-spacing:.3px;color:var(--chalk-dim);text-transform:none;white-space:nowrap}
+.pay-ledger-v193d .pl-row{display:flex;justify-content:space-between;align-items:baseline;gap:10px;padding:3px 0;border-bottom:1px solid rgba(255,255,255,.05);min-width:0}
+.pay-ledger-v193d .pl-row .pl-l{flex:1;min-width:0;color:var(--chalk);line-height:1.2}
+.pay-ledger-v193d .pl-row small{display:block;font-size:11px;color:var(--chalk-dim);line-height:1.15}
+.pay-ledger-v193d .pl-row b{font-family:Oswald,sans-serif;font-weight:600;font-size:15px;font-variant-numeric:tabular-nums;white-space:nowrap;color:var(--chalk)}
+.pay-ledger-v193d .k-head{border-bottom:0;margin-top:6px;padding-bottom:0}
+.pay-ledger-v193d .k-head .pl-l{font:700 10.5px Oswald,sans-serif;letter-spacing:1.6px;color:var(--gold)}
+.pay-ledger-v193d .k-add b{color:#7fe0a0}
+.pay-ledger-v193d .k-cut b{color:#ff8a80}
+.pay-ledger-v193d .k-mult b{color:var(--gold)}
+.pay-ledger-v193d .k-sum{border-bottom:0;border-top:1px solid rgba(240,187,69,.35);margin-top:2px;padding-top:4px}
+.pay-ledger-v193d .k-sum .pl-l{font-weight:600}
+.pay-ledger-v193d .k-sum b{font-size:17px}
+.pay-ledger-v193d .k-total{border:0;border-top:2px solid var(--gold);margin-top:8px;padding-top:8px;align-items:center}
+.pay-ledger-v193d .k-total .pl-l{font:700 12px Oswald,sans-serif;letter-spacing:2px;color:var(--gold)}
+.pay-ledger-v193d .k-total b{font:700 32px/1 Oswald,sans-serif;color:#f2c94c;text-shadow:0 0 14px rgba(242,201,76,.35)}
+.pay-ledger-v193d .pl-x{cursor:pointer}
+.pay-ledger-v193d .pl-tap{font-style:normal;font-size:10px;letter-spacing:.5px;color:var(--chalk-dim);margin-left:5px}
+.pay-ledger-v193d .pl-x.open .pl-tap{color:var(--gold)}
+.pay-ledger-v193d .pl-sub{display:none;margin:0 0 4px 8px;padding-left:8px;border-left:2px solid rgba(240,187,69,.3)}
+.pay-ledger-v193d .pl-x.open+.pl-sub{display:block}
+.pay-ledger-v193d .pl-sub .pl-row{font-size:12.5px;padding:2px 0;color:var(--chalk-dim)}
+.pay-ledger-v193d .pl-sub .pl-row .pl-l{color:var(--chalk-dim)}
+.pay-ledger-v193d .pl-sub .pl-row b{font-size:12.5px;color:var(--chalk-dim)}
+.season-gain-v193d .sg-head{display:flex;justify-content:space-between;align-items:center;cursor:pointer;gap:8px}
+.season-gain-v193d .sg-head .eyebrow{margin:0}
+.season-gain-v193d .sg-caret{color:var(--gold);font-size:13px;transition:transform .15s}
+.season-gain-v193d:not(.open) .sg-caret{transform:rotate(-90deg)}
+.season-gain-v193d:not(.open) .sg-body{display:none}
+.season-gain-v193d .sg-num{display:flex;align-items:baseline;flex-wrap:wrap;gap:4px 8px;font:700 28px/1 Oswald,sans-serif;color:var(--gold);margin:6px 0 3px}
+.season-gain-v193d .sg-num em{font-style:normal;font-size:16px;color:#7fe0a0;font-variant-numeric:tabular-nums}
+.season-gain-v193d .sg-l{font-family:'Barlow Condensed',sans-serif;font-weight:500;font-size:12px;line-height:1.2;color:var(--chalk-dim);letter-spacing:.3px}
+.season-gain-v193d .sg-none{color:var(--chalk-dim);margin-top:5px}
+.season-gain-v193d .sg-rows{margin-top:5px}
+.season-gain-v193d .sg-row{display:flex;justify-content:space-between;gap:8px;font:500 13px 'Barlow Condensed',sans-serif;padding:2px 0;border-bottom:1px solid rgba(255,255,255,.05);color:var(--chalk)}
+.season-gain-v193d .sg-row b{font-family:Oswald,sans-serif;font-weight:600;font-variant-numeric:tabular-nums;color:#7fe0a0;white-space:nowrap}
+.season-gain-v193d .more-v139{margin:6px 0 0 auto;text-align:right}

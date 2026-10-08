@@ -7755,8 +7755,8 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
   function nodeLvl(e) {
     return (state.tree && state.tree[e]) || 0;
   }
-  function nodeCost(e) {
-    let t = e.cost * Math.pow(e.mult, nodeLvl(e.key));
+  function nodeCost(e, levelV193D) {
+    let t = e.cost * Math.pow(e.mult, levelV193D == null ? nodeLvl(e.key) : levelV193D); /* v193 D: the price at a given level (the respec refund) */
     const a = currentPath(),
       s = (TREE_NODES[e.key] && TREE_NODES[e.key].branch) || e.branch;
     t *= TU("v191price", 1) && e.cost >= 1e3 && s !== "apex" && s !== "impossible" && s !== "eternal" && s !== "locker"
@@ -25901,6 +25901,7 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
         ? tailPPV154(e, arr, s, a)
         : Math.max(1, Math.round(((i + e.totalSeasons * 0.35 + (e.titles || 0) * 4) * s + n) * chaosEarnedMult(a))),
       l = arr ? 0 : prestigeStarReward(e, a, !1);
+    payCaptureV193D(e, "gameover"); /* v193 D: the ledger, before the settle moves the multiplier (wings, rings) */
     e._settled ||
       ((e._settled = !0),
       (e._ppBankV136 = flushBankV136(r)) /* v192 A: the career's pay caps the flat bank */,
@@ -25927,7 +25928,8 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
         .filter(h => nodeShownV193E(h) && nodeLvl(h.key) < h.max && nodeUnlocked(h) && state.pp >= nodeCost(h))
         .sort((h, p) => nodeCost(p) - nodeCost(h))
         .slice(0, 3),
-      u = Math.round((s - 1) * 100);
+      u = Math.round((s - 1) * 100),
+      ledger = onV193D() ? payLedgerPartsV193D(e, "gameover") : null /* v193 D: the receipt */;
     ((byId("screen").innerHTML = `
     <div class="banner fail">
       <div class="big-emoji">🥀</div>
@@ -25938,11 +25940,12 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
       <div class="statline">
         <div class="statbox"><div class="n">${LEVELS[a].name.split(" ")[0]}</div><div class="l">Reached</div></div>
         ${medalsOnV156A() ? `<div class="statbox"><div class="n">${MEDAL_ICON_V156A}${medalsV156A()}</div><div class="l">Medals</div></div>` : `<div class="statbox"><div class="n">+${l}</div><div class="l">Honors ${HONOR_ICON_V130}</div></div>` /* v156 A */}
-        <div class="statbox"><div class="n">+${bigOrRawV179(r + (e._ppBankV136 || 0) + (e._ppDoubledV149E || 0))}</div><div class="l">PP Earned</div></div>
+        <div class="statbox"><div class="n">+${bigOrRawV179(ledger ? ledger.total : r + (e._ppBankV136 || 0) + (e._ppDoubledV149E || 0))}</div><div class="l">PP Earned</div></div>
       </div>
-      ${u > 0 ? `<div class="threshold-note" style="margin-top:8px;text-align:center">💰 Your legacy bonuses boosted PP earnings by <b style="color:var(--gold)">+${u}%</b></div>` : ""}
-      ${e._ppBankV136 ? `<div class="threshold-note bank-note-v136" style="margin-top:6px;text-align:center">🏦 <b style="color:var(--gold)">+${e._ppBankV136} PP</b> of that was banked during the career — goals, titles, seasons — and paid now, at the end.${e._flatCutV192A > 0 ? ` The side money (goals, milestones, titles) pays up to half of what the career itself pays — ${e._flatCutV192A} PP more went unpaid.` : ""}</div>` : ""}
+      ${ledger ? "" : u > 0 ? `<div class="threshold-note" style="margin-top:8px;text-align:center">💰 Your legacy bonuses boosted PP earnings by <b style="color:var(--gold)">+${u}%</b></div>` : ""}
+      ${ledger ? "" : e._ppBankV136 ? `<div class="threshold-note bank-note-v136" style="margin-top:6px;text-align:center">🏦 <b style="color:var(--gold)">+${e._ppBankV136} PP</b> of that was banked during the career — goals, titles, seasons — and paid now, at the end.${e._flatCutV192A > 0 ? ` The side money (goals, milestones, titles) pays up to half of what the career itself pays — ${e._flatCutV192A} PP more went unpaid.` : ""}</div>` : ""}
     </div>
+    ${ledger ? payLedgerHtmlV193D(ledger) : "" /* v193 D: the career's pay, every term a row */}
     ${legacyCardV152("career")}
     <div class="h2">Career Log</div>
     <div class="card"><div class="career-log">${d}</div></div>
@@ -25963,10 +25966,12 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
     ${vaultPayBtnV137(e)}
     ${state.pp > 0 ? `<button class="btn" onclick="go('shop')">🌳 Spend ${state.pp} PP First</button><div style="height:8px"></div>` : ""}
     <button class="btn ${state.pp > 0 ? "secondary" : ""}" onclick="prestigeReset()">Run It Back — His Son's Career</button>
-  `));
+  `),
+      payLedgerStartV193D(e, ledger) /* v193 D: the total counts up */);
   }
   function screenWin() {
     const e = state.player;
+    payCaptureV193D(e, "win"); /* v193 D: the ledger, before the settle */
     if (!e._settled) {
       e._settled = !0;
       const a =
@@ -26009,7 +26014,8 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
         completeChallenges(),
         saveGame());
     }
-    const t = playerOvr(e);
+    const t = playerOvr(e),
+      ledger = onV193D() ? payLedgerPartsV193D(e, "win") : null /* v193 D */;
     ((byId("screen").innerHTML = `
     <div class="banner nfl">
       <div class="big-emoji">🏆</div>
@@ -26020,9 +26026,10 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
       <div class="statline">
         <div class="statbox"><div class="n">${t}</div><div class="l">Final OVR</div></div>
         <div class="statbox"><div class="n">${e.totalSeasons}</div><div class="l">Seasons</div></div>
-        <div class="statbox"><div class="n">+${bigOrRawV179(e._ppGain + (e._ppBankV136 || 0) + (e._ppDoubledV149E || 0))}</div><div class="l">PP Earned</div></div>
+        <div class="statbox"><div class="n">+${bigOrRawV179(ledger ? ledger.total : e._ppGain + (e._ppBankV136 || 0) + (e._ppDoubledV149E || 0))}</div><div class="l">PP Earned</div></div>
       </div>
     </div>
+    ${ledger ? payLedgerHtmlV193D(ledger) : "" /* v193 D */}
     ${legacyCardV152("career")}
     <div class="h2">The Journey</div>
     <div class="card"><div class="career-log">${e.career.map(a => `<div><span class="lvl-done">✓</span> ${a.level} — OVR ${a.ovr} at ${a.age}</div>`).join("")}<div><span class="lvl-done" style="color:var(--gold)">★</span> The UFF — OVR ${t}, age ${e.age}</div></div></div>
@@ -26033,7 +26040,8 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
     <button class="btn" onclick="continueNFL()">Keep Playing UFF Seasons</button>
     <div style="height:8px"></div>
     <button class="btn secondary" onclick="prestigeReset()">Hand It to His Son</button>
-  `));
+  `),
+      payLedgerStartV193D(e, ledger) /* v193 D */);
   }
   function continueNFL() {
     reopenCareerV154(state.player) /* v154 A: keep playing = the career is not over */;
@@ -26278,13 +26286,13 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
     let t = 0;
     (Object.entries(state.tree || {}).forEach(([a, s]) => {
       const n = TREE_NODES[a];
-      if (n) for (let i = 0; i < s; i++) t += Math.round(n.cost * Math.pow(n.mult, i));
+      if (n) t += TU("v193Drefund", 1) ? nodePaidV193D(n, s) : respecRawV193D(n, s); /* v193 D: the price PAID (the branch factor), not cost·mult^i */
     }),
       (state.pp += t),
       (state.tree = {}),
       (state.respecUsed = (state.respecUsed || 0) + 1),
       saveGame(),
-      showToast("♻️ Respec complete — " + t + " PP refunded"),
+      showToast("♻️ Respec complete — " + fmtBigV179(t) + " PP refunded"),
       screenPrestige());
   }
   function setBranch(e) {
@@ -39610,9 +39618,9 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
         v = +v || 0;
         v && add.push({ label, v });
       },
-      times = (label, v) => {
+      times = (label, v, tag) => {
         v = +v || 1;
-        Math.abs(v - 1) > 1e-9 && mul.push({ label, v });
+        Math.abs(v - 1) > 1e-9 && mul.push(tag ? { label, v, tag } : { label, v }); /* v193 D: the ledger reads the chaos row by its tag */
       };
     [
       ["endorse", 0.2],
@@ -39637,7 +39645,7 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
     e && hasTrait(e, "showman") && times("Showman trait", 1.15);
     times("Era" + (state && (state.era || 0) > 0 ? " · " + eraName() : ""), eraMult());
     const lv = e ? e.level | 0 : 0;
-    times("Chaos · " + chaosTotal() + " (the share banked at " + ((LEVELS[Math.min(lv, LEVELS.length - 1)] || {}).name || "this level") + ")", chaosEarnedMult(lv));
+    times("Chaos · " + chaosTotal() + " (the share banked at " + ((LEVELS[Math.min(lv, LEVELS.length - 1)] || {}).name || "this level") + ")", chaosEarnedMult(lv), "chaos");
     const flipPct = (e && flipOnV186() && e.flipPPPctV186) || 0,
       career = (1 + addSum) * mul.reduce((a, b) => a * b.v, 1);
     return { add, addSum, mul, flipPct, career, total: career * (1 + flipPct / 100) };
@@ -39731,12 +39739,21 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
     X.mul.forEach(m => (h += row(escHtml(m.label), "×" + fmtMultV192B(m.v))));
     X.flipPct && (h += row("💎 Prestige cards (on the whole pot)", "+" + +X.flipPct.toFixed(1) + "%"));
     h += row(live ? "Your multiplier this career" : "Your multiplier (a new career starts here)", "×" + fmtMultV192B(X.total), "t");
+    /* v193 D: the Hall of Fame Path is not in the × above — it pays on the UFF arrival (and the UFF seasons after it) */
+    onV193D() && nodeLvl("hof") && (h += row(`🏆 Hall of Fame Path · Lv ${nodeLvl("hof")} — on a UFF arrival, and the UFF seasons after it`, "×" + fmtMultV192B(1 + nodeLvl("hof") * 0.3)));
     if (P) {
       h += `<h5>🏦 THIS CAREER'S POT — PAID WHEN IT ENDS</h5>`;
       h += P.arrived
         ? row("The UFF seasons since the arrival (× the multiplier)", "+" + fmtBigV179(P.r))
-        : row(`The career payout: ${fmtBigV179(Math.round(P.ii))} (${escHtml(LEVELS[live.level].name)}) + ${nf1V179(P.seasons)} (seasons) + ${fmtBigV179(P.titles)} (titles) = ${nf1V179(P.base)} × the multiplier`, "+" + fmtBigV179(Math.max(0, P.r - Math.round(P.nn * chaosEarnedMult(live.level | 0)))));
+        : row(`The career payout${onV193D() ? " if it ended now (a cut)" : ""}: ${fmtBigV179(Math.round(P.ii))} (${escHtml(LEVELS[live.level].name)}) + ${nf1V179(P.seasons)} (seasons) + ${fmtBigV179(P.titles)} (titles) = ${nf1V179(P.base)} × the multiplier`, "+" + fmtBigV179(Math.max(0, P.r - Math.round(P.nn * chaosEarnedMult(live.level | 0)))));
       P.nn && !P.arrived && (h += row(`🏈 Family Legacy · +${nodeLvl("legacy")} PP a season (flat, × chaos)`, "+" + fmtBigV179(Math.round(P.nn * chaosEarnedMult(live.level | 0)))));
+      /* v193 D: the same career arriving in the UFF — the win formula (85 + 0.75 a season + 6 a title, × the bonuses × the HoF Path × the chaos banked at the UFF) */
+      if (onV193D() && !P.arrived && (live.level | 0) < 7) {
+        const sm = P.X.career / chaosEarnedMult(live.level | 0),
+          hof = 1 + nodeLvl("hof") * 0.3,
+          win = Math.round((85 + (live.totalSeasons || 0) * 0.75 + (live.titles || 0) * 6) * sm * hof * chaosEarnedMult(7) + (TU("v190F", 1) ? P.nn : 0));
+        h += row(`🏆 If you reach the UFF instead: 85 + ${nf1V179((live.totalSeasons || 0) * 0.75)} (seasons × 0.75) + ${fmtBigV179((live.titles || 0) * 6)} (titles × 6), × the multiplier${hof > 1 ? " × the HoF Path" : ""} × the chaos banked at the UFF`, "~" + fmtBigV179(win));
+      }
       const T = live.ppFlatV192B || {};
       let tallied = 0;
       Object.keys(T)
@@ -39761,8 +39778,8 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
     }
     h += `<h5>➕ FLAT PRESTIGE BONUSES</h5>`;
     h += row("🏈 Family Legacy (per season played, at the career's end)", "+" + nodeLvl("legacy") + " PP");
-    h += row("🏆 Each title (before the multiplier)", "+4");
-    h += row("📅 Each season (before the multiplier)", "+0.35");
+    h += row("🏆 Each title (before the multiplier)", onV193D() ? "+4 at a cut · +6 at the UFF arrival" : "+4");
+    h += row("📅 Each season (before the multiplier)", onV193D() ? "+0.35 at a cut · +0.75 at the UFF arrival" : "+0.35");
     h += `<div class="d">🏁 First time at a level (banked, × chaos): ${left.length ? left.join(" · ") : "every level claimed"}.</div>`;
     return h + "</div>";
   }
@@ -40039,6 +40056,388 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
     vault: () => careerEndVaultV192B(),
     exit: () => careerVaultExitV192B(),
     medalAuto: () => medalAutoAskV192B()
+  };
+  /* ===== v193 D THE PAYOUT, SHOWN =====
+   * The owner: "Add the prestige math screen on all the calculations for a satisfying payout when career is over.
+   * Season menu should have a viewable option for prestige gain."
+   *   1 THE LEDGER   the career's end (`screenGameOver`, `screenWin`) draws the pay as a receipt, every term a row with
+   *                  its number — `payPartsV193D(e, kind)` → `payLedgerHtmlV193D`: the level's base, + the seasons, + the
+   *                  titles, = the base; × your bonuses (tap: every multiplier row, from `ppMultPartsV192B`), × the Hall
+   *                  of Fame Path (an arrival, and the UFF seasons after it), × chaos, + Family Legacy, = THE CAREER PAYS;
+   *                  + the bank by source (`e.ppFlatV192B`; the flat cap as a row when it bit), + the Prestige cards,
+   *                  = PAID INTO THE VAULT — the big number counts up (`ledgerFillMsV193D`). The rows are a receipt: read
+   *                  top to bottom, base and adds add, mults multiply, and each sum / the total is the running figure.
+   *                  Computed BEFORE the settle (`payCaptureV193D` — the settle opens museum wings and position rings,
+   *                  which move the multiplier) and kept on `e._ledgerV193D`; the PP Earned box shows the same total.
+   *   2 THE SEASON   `screenSeason`'s 📈 PRESTIGE THIS SEASON card under the team quality card (`seasonGainCardV193D`):
+   *                  the pot now (`careerPotV189`) against the last season's end (`state.bankShownV189`) → "+N so far",
+   *                  the flat sources that moved it since the season started (`e.ppFlatSeasonStartV193D`, a snapshot of
+   *                  `e.ppFlatV192B` taken in a `startSeason` wrapper), what a title this season pays (banked now, and
+   *                  at the career's end), and 📊 THE FULL MATH → `prestigeBreakdownV192B`. Collapsible on its header;
+   *                  the open state in `localStorage` `rib.seasonGainOpen.v193` (default open).
+   *   3 THE GAPS     v192 B's breakdown: the Hall of Fame Path row (it was never shown), the per-title / per-season rates
+   *                  at a cut vs an arrival (4 / 0.35 vs 6 / 0.75), the pot's payout line says "if it ended now (a cut)"
+   *                  for a pre-UFF player, and one row "if you reach the UFF instead: ~N" from the win formula.
+   *   4 THE REFUND   `respecTree` refunded `cost · mult^i` a level — but `nodeCost` multiplies by the branch's price
+   *                  (`branchPriceV179`: ×24 a core node since v191 A, ×8 Impossible, ×50 Apex, ×0.75 on a Path's cheap
+   *                  branch), so a core node came back at a 24th of its price. `nodePaidV193D(node, levels)` sums
+   *                  `nodeCost(node, i)` with the factor as it stands now. Kill switch `v193Drefund` 0 = the old refund.
+   * Kill switch v193D 0 (1–3: the old three-box card, no season card, the v192 B text as it was). `window.__V193D`;
+   * `v193Dcheck`. Everything a screen calls is a hoisted function (the boot draws a settled career from the top of 07). */
+  function onV193D() {
+    return !!TU("v193D", 1);
+  }
+  // a figure for a ledger row: thousands through fmtBigV179, one decimal only when it has one
+  function nf1V193D(v) {
+    v = +v || 0;
+    if (Math.abs(v) >= 1000) return fmtBigV179(Math.round(v));
+    return Math.abs(v - Math.round(v)) < 0.05 ? Math.round(v).toLocaleString("en-US") : v.toFixed(1);
+  }
+  // the flat sources' names — FLAT_WHY_V192B is a const below boot's draw of a saved career-end screen, so it is guarded
+  function flatWhyV193D(k) {
+    try {
+      return FLAT_WHY_V192B[k] || k;
+    } catch (_) {
+      return k;
+    }
+  }
+  // the career's PP multiplier before chaos — screenGameOver's `s`, the same expression so the receipt rounds like the settle
+  function payMultV193D(e) {
+    return (
+      (1 +
+        nodeLvl("endorse") * 0.2 +
+        nodeLvl("agent") * 0.15 +
+        nodeLvl("brand") * 0.35 +
+        nodeLvl("goat") * 0.5 +
+        treeFx("ppMult") +
+        gearFx("ppMult") +
+        gearV147("ppGain") +
+        hofWings() * 0.05 +
+        posMasteryCount("ring") * 0.03) *
+      tierPPMult(e) *
+      pathVal("ppMult", 1) *
+      (hasTrait(e, "showman") ? 1.15 : 1) *
+      eraMult()
+    );
+  }
+  function plural193D(n, word) {
+    return n + " " + word + (n === 1 ? "" : "s");
+  }
+  /* The receipt. `kind` "gameover" (a cut, a retirement, or the UFF career's end after an arrival — `e._arrivedV154`)
+   * or "win" (the arrival). Pure: reads the player and the state, writes nothing. Live (before the settle) it reads the
+   * bank and the Prestige cards as they stand; settled, what the settle recorded (`_ppBankV136`, `_flatCutV192A`,
+   * `flipPPPaidV186`, `_ppDoubledV149E`). Rows: {kind: head|base|add|cut|mult|sum|total, label, val, note, detail}. */
+  function payPartsV193D(e, kind) {
+    e = e || (state && state.player);
+    if (!e) return null;
+    kind = kind === "win" ? "win" : "gameover";
+    const rows = [],
+      row = (k, label, val, note, detail) => rows.push(detail ? { kind: k, label, val, note: note || "", detail } : { kind: k, label, val, note: note || "" }),
+      lv = e.level | 0,
+      levelName = i => (LEVELS[Math.min(i, LEVELS.length - 1)] || {}).name || "this level",
+      seasons = e.totalSeasons | 0,
+      titles = e.titles | 0,
+      settled = !!e._settled,
+      arr = kind === "gameover" && !settled && e._arrivedV154 ? e._arrivedV154 : null,
+      s = payMultV193D(e),
+      hofLv = nodeLvl("hof"),
+      hof = hofLv && (kind === "win" || (arr && TU("v190F", 1))) ? 1 + hofLv * 0.3 : 1,
+      chaosLv = kind === "win" ? Math.max(7, lv) : lv,
+      chaos = chaosEarnedMult(chaosLv),
+      legacyLv = nodeLvl("legacy"),
+      legacy = kind === "win" ? (TU("v190F", 1) ? legacyLv * seasons : 0) : arr ? 0 : legacyLv * seasons,
+      X = ppMultPartsV192B(e);
+    let base = 0,
+      running = 0;
+    if (arr) {
+      const n = Math.max(0, seasons - (arr.seasons | 0)),
+        t = Math.max(0, titles - (arr.titles | 0)),
+        per = TU("uffTailPPV154", 4);
+      row("base", `${plural193D(n, "UFF season")} since the arrival × ${per}`, n * per, "the arrival itself was paid when it came");
+      row("add", `+ ${plural193D(t, "title")} since × 4`, t * 4);
+      base = n * per + t * 4;
+    } else if (kind === "win") {
+      row("base", "Reached the UFF", 85, "the arrival's base");
+      row("add", `+ ${plural193D(seasons, "season")} × 0.75`, seasons * 0.75, "a cut pays 0.35 a season");
+      row("add", `+ ${plural193D(titles, "title")} × 6`, titles * 6, "a cut pays 4 a title");
+      base = 85 + seasons * 0.75 + titles * 6;
+    } else {
+      const ii = [1, 2, 4, 8, 15, 28, 45, 70, 120][Math.min(lv, 8)] || 1;
+      row("base", `Reached ${levelName(lv)}`, ii, "the level's base");
+      row("add", `+ ${plural193D(seasons, "season")} × 0.35`, seasons * 0.35, "a UFF arrival pays 0.75 a season");
+      row("add", `+ ${plural193D(titles, "title")} × 4`, titles * 4, "a UFF arrival pays 6 a title");
+      base = ii + seasons * 0.35 + titles * 4;
+    }
+    row("sum", "= the career's base", base);
+    running = base;
+    // × your bonuses — the multiplier rows, the chaos row left out (it is its own line below)
+    const detail = X.add.map(a => ({ label: a.label, val: (a.v >= 0 ? "+" : "−") + Math.round(Math.abs(a.v) * 100) + "%" }));
+    X.add.length && detail.push({ label: "Added together", val: "×" + fmtMultV192B(1 + X.addSum) });
+    X.mul.filter(m => m.tag !== "chaos").forEach(m => detail.push({ label: m.label, val: "×" + fmtMultV192B(m.v) }));
+    row("mult", "× your bonuses", s, detail.length ? "tap for every part" : "none yet — the tree's PP nodes, gear, a program tier, the era", detail.length ? detail : null);
+    running *= s;
+    if (hof > 1) {
+      row("mult", `× Hall of Fame Path · Lv ${hofLv}`, hof, arr ? "the UFF seasons after the arrival pay it too" : "the arrival's bonus");
+      running *= hof;
+    }
+    if (kind === "gameover" && legacy) {
+      row("add", `+ Family Legacy ${legacyLv} × ${plural193D(seasons, "season")}`, legacy, "flat — then × chaos with the rest");
+      running += legacy;
+    }
+    row("mult", "× chaos", chaos, chaos > 1 ? `${chaosTotal()} chaos · the share banked at ${levelName(chaosLv)}` : "no chaos — a calm world pays ×1");
+    running *= chaos;
+    if (kind === "win" && legacy) {
+      row("add", `+ Family Legacy ${legacyLv} × ${plural193D(seasons, "season")}`, legacy, "flat");
+      running += legacy;
+    }
+    const careerPays = Math.max(1, Math.round(running));
+    row("sum", "= THE CAREER PAYS", careerPays);
+    running = careerPays;
+    // + what the career banked on the side — by source, the flat cap when it bit
+    let gross, cut, bank;
+    if (settled) {
+      bank = e._ppBankV136 || 0;
+      cut = e._flatCutV192A || 0;
+      gross = bank + cut;
+    } else {
+      gross = bankedV136();
+      cut = flatCutV192A(careerPays);
+      bank = Math.max(0, gross - cut);
+    }
+    if (gross > 0) {
+      row("head", "🏦 BANKED DURING THE CAREER — paid now", 0, "", null);
+      rows[rows.length - 1].cls = "bank-note-v136";
+      const T = e.ppFlatV192B || {};
+      let tallied = 0;
+      Object.keys(T)
+        .filter(k => T[k] > 0)
+        .sort((a, b) => T[b] - T[a])
+        .forEach(k => {
+          tallied += T[k];
+          row("add", "+ " + flatWhyV193D(k), T[k]);
+        });
+      gross - tallied > 0 && row("add", "+ Banked earlier this career", gross - tallied);
+      cut > 0 && row("cut", "− over the flat cap", -cut, `the side money pays up to half of what the career itself pays (${nf1V193D(flatCapV192A(careerPays))} here) — the rest goes unpaid`);
+    }
+    running += bank;
+    // + the Prestige cards, on the career's pay and the bank together
+    let pct = 0,
+      cards = 0;
+    if (settled) {
+      const F = e.flipPPPaidV186;
+      F && F.bonus > 0 && ((pct = F.pct), (cards = F.bonus));
+    } else {
+      pct = (flipOnV186() && e.flipPPPctV186) || 0;
+      const on = careerPays + bank;
+      cards = pct > 0 && on > 0 ? Math.max(1, Math.round((on * pct) / 100)) : 0;
+    }
+    if (cards > 0) {
+      row("add", `+ Prestige cards · +${+pct.toFixed(1)}%`, cards, "on the career's pay and the bank together");
+      running += cards;
+    }
+    const doubled = settled ? e._ppDoubledV149E || 0 : 0;
+    if (doubled > 0) {
+      row("add", "+ Payout boost", doubled);
+      running += doubled;
+    }
+    const total = Math.round(running);
+    row("total", "PAID INTO THE VAULT", total);
+    return { kind, level: lv, rows, base, multiplier: s, hof, chaos, legacy, careerPays, gross, bank, cut, cardsPct: pct, cards, doubled, vault: total, total, extra: 0, settled };
+  }
+  // before the settle: the receipt, kept on the player (the settle moves hofWings / posMastery, so it is not recomputed)
+  function payCaptureV193D(e, kind) {
+    if (!onV193D() || !e || e._settled) return null;
+    try {
+      const L = (e._ledgerV193D = payPartsV193D(e, kind));
+      L && (L.ppBefore = (state && state.pp) || 0);
+      return L;
+    } catch (x) {
+      console.warn("[v193 D capture]", x);
+      return null;
+    }
+  }
+  /* after the settle: what the ending paid at once, outside the Vault's figure — a goal completed by the ending
+   * (`completeChallenges` pays straight to the PP once the career is settled), a Legacy bounty (`legacyPayV152`) — so
+   * the receipt's last line is the whole PP delta. `L.late` holds the bank calls by source (the wrapper below). */
+  function payLedgerCloseV193D(e, L) {
+    if (!L || L.closed || !e || !e._settled || L.ppBefore == null || !state) return L;
+    L.closed = !0;
+    const extra = Math.round((state.pp || 0) - L.ppBefore - L.vault);
+    if (!(extra > 0)) return L;
+    const last = L.rows[L.rows.length - 1];
+    last && last.kind === "total" && ((last.kind = "sum"), (last.label = "= paid into the Vault"));
+    const late = L.late || {};
+    let tallied = 0;
+    Object.keys(late)
+      .filter(k => late[k] > 0)
+      .sort((a, b) => late[b] - late[a])
+      .forEach(k => {
+        tallied += late[k];
+        L.rows.push({ kind: "add", label: "+ " + flatWhyV193D(k), val: late[k], note: "completed by the ending — paid at once" });
+      });
+    extra - tallied > 0 && L.rows.push({ kind: "add", label: "+ Legacy medals & bounties", val: extra - tallied, note: "paid at once as the career ended" });
+    L.extra = extra;
+    L.total = L.vault + extra;
+    L.rows.push({ kind: "total", label: "THE CAREER PAID, ALL IN", val: L.total, note: "" });
+    return L;
+  }
+  function payLedgerPartsV193D(e, kind) {
+    if (!e) return null;
+    const L = e._ledgerV193D;
+    if (L && L.kind === kind && L.rows) return payLedgerCloseV193D(e, L);
+    try {
+      return payPartsV193D(e, kind);
+    } catch (x) {
+      console.warn("[v193 D ledger]", x);
+      return null;
+    }
+  }
+  // the bank calls after the settle (a goal the ending completed) go on the open ledger, by source
+  const bankPPV193D = bankPPV136;
+  bankPPV136 = function (n, why) {
+    const r = bankPPV193D.apply(this, arguments);
+    try {
+      const e = state && state.player,
+        L = e && e._ledgerV193D;
+      if (r > 0 && e && e._settled && L && !L.closed && onV193D()) {
+        const k = why ? String(why).slice(0, 24) : "other";
+        (L.late || (L.late = {}))[k] = ((L.late && L.late[k]) || 0) + r;
+      }
+    } catch (_) {}
+    return r;
+  };
+  window.__V136_C && (window.__V136_C.bank = bankPPV136);
+  function payRowNumV193D(r) {
+    const v = +r.val || 0;
+    if (r.kind === "mult") return "×" + fmtMultV192B(v);
+    if (r.kind === "add" || r.kind === "cut") return (v < 0 ? "−" : "+") + nf1V193D(Math.abs(v));
+    if (r.kind === "total") return fmtBigV179(v);
+    return nf1V193D(v);
+  }
+  function payLedgerHtmlV193D(L) {
+    if (!L || !L.rows) return "";
+    let h = `<div class="card pay-ledger-v193d" id="payLedgerV193D" data-total="${L.total}" data-kind="${L.kind}"><div class="pl-head">🧾 THE CAREER'S PAY<span>every number, top to bottom</span></div>`;
+    L.rows.forEach(r => {
+      if (r.kind === "head") {
+        h += `<div class="pl-row k-head${r.cls ? " " + r.cls : ""}"><span class="pl-l">${escHtml(r.label)}</span></div>`;
+        return;
+      }
+      const sub = r.detail && r.detail.length;
+      h += `<div class="pl-row k-${r.kind}${sub ? " pl-x" : ""}"${sub ? ` onclick="this.classList.toggle('open')"` : ""}><span class="pl-l">${escHtml(r.label)}${sub ? '<i class="pl-tap">tap ▾</i>' : ""}${r.note ? `<small>${escHtml(r.note)}</small>` : ""}</span><b${r.kind === "total" ? ' class="pl-total"' : ""}>${payRowNumV193D(r)}</b></div>`;
+      sub && (h += `<div class="pl-sub">${r.detail.map(d => `<div class="pl-row"><span class="pl-l">${escHtml(d.label)}</span><b>${escHtml(d.val)}</b></div>`).join("")}</div>`);
+    });
+    return h + "</div>";
+  }
+  // the big number counts up, once a payout (a reload shows the figure)
+  function payLedgerStartV193D(e, L) {
+    if (!onV193D() || !e || !L || typeof document > "u") return;
+    const el = document.querySelector("#payLedgerV193D .pl-total");
+    if (!el) return;
+    const key = L.kind + ":" + L.total;
+    if (e._ledgerShownV193D === key) return;
+    e._ledgerShownV193D = key;
+    el.textContent = "0";
+    setTimeout(() => el.isConnected && countUpV189(el, 0, L.total, TU("ledgerFillMsV193D", 1600)), TU("ledgerDelayMsV193D", 350));
+  }
+
+  // ---- 2: the season screen's prestige view
+  function seasonGainV193D(e) {
+    e = e || (state && state.player);
+    if (!e || !e.pos || e._settled) return null;
+    const now = careerPotV189(e),
+      shown = (state && state.bankShownV189) || 0,
+      start = e.ppFlatSeasonStartV193D,
+      T = e.ppFlatV192B || {},
+      moved = [];
+    Object.keys(T).forEach(k => {
+      const d = T[k] - ((start && start[k]) || 0);
+      d > 0 && moved.push({ key: k, label: flatWhyV193D(k), v: d });
+    });
+    moved.sort((a, b) => b.v - a.v);
+    const lv = e.level | 0,
+      titleBank = flatFaceV192A(Math.round((2 + Math.round(lv * 0.8)) * (1 + treeFx("titleMult") + seasonModFx("ppMult")) * chaosPPMult() * eraMult())),
+      titleEnd = Math.round(4 * payMultV193D(e) * chaosEarnedMult(lv));
+    return { now, shown, gain: now - shown, moved, sinceSeason: !!start, titleBank, titleEnd, mult: ppMultPartsV192B(e).total };
+  }
+  function seasonGainOpenV193D() {
+    try {
+      return localStorage.getItem("rib.seasonGainOpen.v193") !== "0";
+    } catch (_) {
+      return !0;
+    }
+  }
+  function seasonGainToggleV193D() {
+    const el = typeof document < "u" && document.getElementById("seasonGainV193D");
+    if (!el) return;
+    const open = !el.classList.contains("open");
+    el.classList.toggle("open", open);
+    try {
+      localStorage.setItem("rib.seasonGainOpen.v193", open ? "1" : "0");
+    } catch (_) {}
+  }
+  window.seasonGainToggleV193D = seasonGainToggleV193D;
+  function seasonGainCardV193D(e) {
+    const G = seasonGainV193D(e);
+    if (!G) return "";
+    const sg = v => (v < 0 ? "−" : "+") + fmtBigV179(Math.abs(Math.round(v)));
+    let rows = G.moved.map(m => `<div class="sg-row"><span>${escHtml(m.label)}</span><b>+${fmtBigV179(m.v)}</b></div>`).join("");
+    rows += `<div class="sg-row"><span>🏆 A title this season pays</span><b>+${fmtBigV179(G.titleBank)} banked · +${fmtBigV179(G.titleEnd)} at the end</b></div>`;
+    return `<div class="card tight season-gain-v193d${seasonGainOpenV193D() ? " open" : ""}" id="seasonGainV193D"><div class="sg-head" onclick="seasonGainToggleV193D()"><div class="eyebrow">📈 PRESTIGE THIS SEASON</div><span class="sg-caret">▾</span></div><div class="sg-body"><div class="sg-num">${fmtBigV179(G.now)}<em>${sg(G.gain)} so far</em></div><div class="sg-l">THE POT NOW · ${fmtBigV179(G.shown)} AT THE LAST SEASON'S END · ×${fmtMultV192B(G.mult)} ON THE PAYOUT</div>${G.moved.length ? "" : `<div class="small sg-none">Nothing banked ${G.sinceSeason ? "yet this season" : "this career yet"} — goals, a title, a milestone bank PP; the multiplier moves the rest.</div>`}<div class="sg-rows">${rows}</div><button class="more-v139" id="seasonMathBtnV193D" type="button" onclick="prestigeBreakdownV192B()">📊 THE FULL MATH ▸</button></div></div>`;
+  }
+  function seasonGainDrawV193D() {
+    const e = state && state.player;
+    if (!onV193D() || !e || !e.pos || state.view !== "season") return;
+    const sc = byId("screen");
+    if (!sc || sc.querySelector("#seasonGainV193D")) return;
+    const h = seasonGainCardV193D(e);
+    if (!h) return;
+    const tq = sc.querySelector("#teamQualV192B"),
+      mt = sc.querySelector("#myTeamV186");
+    tq ? tq.insertAdjacentHTML("afterend", h) : mt ? mt.insertAdjacentHTML("beforebegin", h) : sc.insertAdjacentHTML("beforeend", h);
+  }
+  const renderV193D = render;
+  render = function () {
+    const r = renderV193D.apply(this, arguments);
+    try {
+      seasonGainDrawV193D();
+    } catch (x) {
+      console.warn("[v193 D render]", x);
+    }
+    return r;
+  };
+  // the season's flat sources are measured from here
+  const startSeasonV193D = startSeason;
+  startSeason = function () {
+    try {
+      const e = state && state.player;
+      e && onV193D() && (e.ppFlatSeasonStartV193D = Object.assign({}, e.ppFlatV192B || {}));
+    } catch (_) {}
+    return startSeasonV193D.apply(this, arguments);
+  };
+  window.startSeason = startSeason;
+
+  // ---- 4: the respec refund is what was paid
+  function nodePaidV193D(node, levels) {
+    let t = 0;
+    for (let i = 0; i < (levels | 0); i++) t += nodeCost(node, i);
+    return t;
+  }
+  function respecRawV193D(node, levels) {
+    let t = 0;
+    for (let i = 0; i < (levels | 0); i++) t += Math.round(node.cost * Math.pow(node.mult, i));
+    return t;
+  }
+  window.__V193D = {
+    on: onV193D,
+    parts: (e, kind) => payPartsV193D(e === undefined ? state && state.player : e, kind),
+    capture: (e, kind) => payCaptureV193D(e === undefined ? state && state.player : e, kind),
+    ledger: (e, kind) => payLedgerHtmlV193D(payLedgerPartsV193D(e === undefined ? state && state.player : e, kind)),
+    seasonGain: e => seasonGainV193D(e),
+    seasonCard: e => seasonGainCardV193D(e === undefined ? state && state.player : e),
+    draw: seasonGainDrawV193D,
+    toggle: seasonGainToggleV193D,
+    paid: (k, n) => nodePaidV193D(typeof k === "string" ? TREE_NODES[k] : k, n),
+    raw: (k, n) => respecRawV193D(typeof k === "string" ? TREE_NODES[k] : k, n)
   };
   /* ===== v189 B THE MEDAL REWARD COMES TO YOU =====
    * The owner: "ANY upgrade to the medal appears after you exit this screen, and prompts the upgrade to you before moving to
