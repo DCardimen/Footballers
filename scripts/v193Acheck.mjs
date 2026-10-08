@@ -308,7 +308,9 @@ const maxed = await page.evaluate(async () => {
   window.__V193A.filter('all'); await new Promise(r => setTimeout(r, 200))
   document.querySelector('.gear-row[data-gear="' + it.id + '"] .gr-info').click(); await new Promise(r => setTimeout(r, 300))
   const row = document.querySelector('.gear-row[data-gear="' + it.id + '"]')
-  return { row: (row.querySelector('.gr-eff') || {}).innerText || '', lv: (row.querySelector('.gc-lv-v193') || {}).innerText || '', btn: (row.querySelector('.gr-sell-v193') || {}).innerText || '', price: window.__V193A.price(it) }
+  const out = { row: (row.querySelector('.gr-eff') || {}).innerText || '', lv: (row.querySelector('.gc-lv-v193') || {}).innerText || '', btn: (row.querySelector('.gr-sell-v193') || {}).innerText || '', price: window.__V193A.price(it) }
+  row.querySelector('.gr-info').click(); await new Promise(r => setTimeout(r, 200))   // close it again: the next test opens a common
+  return out
 })
 ok(/Lv 25 \/ 25/.test(maxed.row) && /maxed — a rarer piece grows further/.test(maxed.row), 'a maxed row reads Lv 25 / 25 and "maxed — a rarer piece grows further"', maxed.row.replace(/\s+/g, ' '))
 ok(/Level 25 \/ 25/.test(maxed.lv) && /maxed — a rarer piece grows further/.test(maxed.lv) && !/every season/.test(maxed.lv), 'the compare panel says it is maxed instead of +5 every season', maxed.lv)
