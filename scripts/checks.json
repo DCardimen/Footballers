@@ -36,7 +36,8 @@
     "v193Ccheck",
     "v193Dcheck",
     "v193Bcheck",
-    "v193Jcheck"
+    "v193Jcheck",
+    "v193Icheck"
    ]
   },
   "docs": {
@@ -310,7 +311,8 @@
     "menu-integration-check",
     "vaultcheck",
     "walk",
-    "v193Ccheck"
+    "v193Ccheck",
+    "v193Mcheck"
    ],
    "look": [
     "`node scripts/v146Eshot.mjs`"
@@ -350,7 +352,8 @@
     "walk",
     "shot",
     "v148check",
-    "v193Ccheck"
+    "v193Ccheck",
+    "v193Icheck"
    ]
   },
   "statinfo": {
@@ -941,7 +944,8 @@
     "renderpathcheck",
     "bobcheck",
     "v159Acheck",
-    "numsewcheck"
+    "numsewcheck",
+    "v193Icheck"
    ]
   },
   "lights": {
@@ -1694,7 +1698,8 @@
     "v151Bcheck",
     "v152Acheck",
     "v150Acheck",
-    "layoutcheck"
+    "layoutcheck",
+    "v193Mcheck"
    ]
   },
   "v156b": {
@@ -5076,6 +5081,33 @@
    ],
    "runtimeSec": 30,
    "slow": false,
+   "needsServer": true,
+   "pureNode": false,
+   "flaky": []
+  },
+  "v193Icheck": {
+   "file": "scripts/v193Icheck.mjs",
+   "desc": "v193 I — every sheet: on EVERY player cell the game recolours (everything ribRegisterTeam builds: the v91 poses in every facing, the QB sheets, the catch sequences, the field celebrations, the v22 moments, the baked atlas; the v161 A / v177 I celebration bodies at 1x and 2x; the loading chase / growth screen's boy), in kits whose second colour is a skin-like orange and brown, no cell has more than 2 drawn-skin pixels (by the mask, and by a looser warm mid-saturation read) painted the kit's p2; the skin grow pass is what closes it (TU skinGrowV193I 0 leaks again); the sideline backups and the age scale are not separate cells",
+   "areas": [
+    "kits",
+    "field"
+   ],
+   "runtimeSec": 20,
+   "slow": false,
+   "needsServer": true,
+   "pureNode": false,
+   "flaky": []
+  },
+  "v193Mcheck": {
+   "loadSensitive": true,
+   "file": "scripts/v193Mcheck.mjs",
+   "desc": "v193 I — every phone (Chromium mobile emulation; WebKit not covered): at 390x844 @3x (iOS UA) and 360x740 @2x (Android UA) the Locker GEAR tab with 30 pieces, the tree's QUICK BUY / SPEND NOW, the season's PRESTIGE THIS SEASON card, the career-end receipt and the pregame YOUR TEAM page and plan board have no horizontal overflow, 36 px tap targets and 10.5 px text; a real touch swipe scrolls the gear list with the chip bar sticky, the chip rows scroll sideways without turning the section (TU v193I 0 turns it), a tap on a chip filters",
+   "areas": [
+    "shell",
+    "thumb"
+   ],
+   "runtimeSec": 180,
+   "slow": true,
    "needsServer": true,
    "pureNode": false,
    "flaky": []

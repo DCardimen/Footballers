@@ -10,6 +10,17 @@ Names in older entries are the career app's pre-v149 C minified names (`q`, `ms`
 `index.html` + `src/` (`docs/LAYOUT.md`).
 
 <!-- new entries go here, newest first -->
+- **v193 I · Every sheet, every phone.** v193 C kept skin out of the kit's second colour on a dozen main-sheet cells;
+  `v193Icheck` now walks every player cell the game recolours — the 442 textures `ribRegisterTeam` builds (v91 poses,
+  QB sheets, catch sequences, field celebrations, v22 moments, the baked atlas), every v161 A / v177 I celebration frame
+  at 1x and 2x, and the loading chase / growth screen's boy — in a skin-orange and a skin-brown p2. It found the skin's
+  lit edges (sat .6-.75, inside the recolour's gold band) painted p2 on 6 field cells (v22 moments, the baked catch),
+  4 of 36 v161 A frames, and the whole skin of the chase's boy (no restore at all). `skinGrowV193I` grows the mask into
+  those highlights from real skin patches (a pants-shadow speck never seeds), the bodies grow the generator's mask the
+  same way, the chase restores the field's mask. `v193Mcheck` walks the v193 screens on two emulated phones (Chromium
+  only — WebKit is not covered): the gear filter chips and SELL ALL COMMONS (24 px) and the season card's toggle (17 px)
+  are 36 px on touch, and a sideways swipe on the gear chips or the SPEND NOW row no longer turns the section (v170's
+  swipe skips a row that scrolls sideways). Kill switches `TU("v193C", 0)`, `skinGrowV193I 0`, `v193I 0`.
 - **v193 L · Quick buy.** The owner: "for prestige at the top show 4 of the cheapest options from different categories for quick select. Pressing pulls that upgrade automatically. Add arrows to cycle." The tree opens on QUICK BUY under the PP banner: four tiles, each the cheapest node of a different branch, one tap buys it (no vault hold), ◀ ▶ step through the next fours in price order, and a node you cannot afford yet stays dimmed with how far away it is. Kill switch `v193L`. `v193Echeck`; the tree's scroll budget is 2.0. (`src/07`, `src/22`, `src/styles/00-app.css`.)
 - **v193 J · The redrawn nodes are paid back.** v193 E gave the seven "+% to every attribute a game" nodes new effects; a save that bought them paid for the old one. Once a save, at boot, every level of Twin Engines, Zen Focus, Trash Talk, Aura, Eternal Form, The Wall and Glass Cannon comes back as the PP it costs at today's prices, and the levels go to 0 — buy them back for the new effect, or spend it anywhere. A toast says so. Kill switch `v193J`. `v193Jcheck`. (`src/07-career-app.js`.)
 - **v193 G · Gear that stays interesting.** Levels no longer flatten: each rarity has a level ceiling — common 25,
