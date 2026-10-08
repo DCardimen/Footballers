@@ -457,7 +457,7 @@
     kind = WEB_V193O[kind] != null ? kind : 'tap';
     var S = ribHaptic._s; S.asked++;
     if (!hapticsOnV193O()) { S.off++; return false; }
-    if (headlessV193O()) { S.headless++; return false; }
+    if (headlessV193O()) { S.webdriver++; return false; }
     var now = (window.performance && performance.now()) || Date.now(), rank = RANK_V193O[kind];
     if (now - lastV193O.t < MIN_GAP_V193O && rank <= lastV193O.rank) { S.limited++; return false; }
     lastV193O.t = now; lastV193O.rank = rank;
@@ -470,7 +470,7 @@
       return true;
     } catch (e) { return false; }
   }
-  ribHaptic._s = { asked: 0, fired: 0, off: 0, headless: 0, limited: 0 };
+  ribHaptic._s = { asked: 0, fired: 0, off: 0, webdriver: 0, limited: 0 };
   ribHaptic.log = [];
   ribHaptic.stats = function () { var o = {}, s = ribHaptic._s; for (var k in s) o[k] = s[k]; o.on = hapticsOnV193O(); o.headless = headlessV193O(); return o; };
   ribHaptic.on = hapticsOnV193O;
