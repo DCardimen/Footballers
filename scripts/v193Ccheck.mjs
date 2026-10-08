@@ -247,13 +247,13 @@ await setup({ level: 0 })
 const SC = await M(() => {
   const X = window.__GRIDIRON_AUDIT__, S = X.getState()
   window.go('choosePos')
-  const row = document.querySelector('.skin-row-v193c'), sw = row ? [...row.querySelectorAll('.skin-sw-v193c')] : []
+  const row = document.querySelector('.skin-row-v193c'), sw = row ? [...row.querySelectorAll('.skin-sw-v193c:not(.skin-own-v193q)')] : []
   const before = { swatches: sw.length, on: sw.findIndex(b => b.classList.contains('on')) }
   sw[5] && sw[5].click()
-  const sw2 = [...document.querySelectorAll('.skin-row-v193c .skin-sw-v193c')]
+  const sw2 = [...document.querySelectorAll('.skin-row-v193c .skin-sw-v193c:not(.skin-own-v193q)')]
   return { before, after: { tone: S.player.skinTone, on: sw2.findIndex(b => b.classList.contains('on')) }, live: window.__skinToneV151D({ skinTone: S.player.skinTone, name: S.player.name }) }
 })
-ok(SC.before.swatches === 8 && SC.before.on >= 0 && SC.after.tone === 5 && SC.after.on === 5 && SC.live === 5, 'the position screen carries eight skin swatches, the current one ringed; a tap sets player.skinTone and the live field reads it', SC)
+ok(SC.before.swatches === 8 && SC.before.on >= 0 && SC.after.tone === 5 && SC.after.on === 5 && SC.live === 5, 'the position screen carries eight preset skin swatches (v193 Q adds a ninth, his own — v193Qcheck), the current one ringed; a tap sets player.skinTone and the live field reads it', SC)
 
 await browser.close()
 const E = errs.filter(e => !/INJECTED/.test(e))
