@@ -11630,7 +11630,9 @@ function fieldPreviewV193Q(srcName, p1, p2, deco, tone, num, spec) {
   x.putImageData(img, 0, 0);
   return out;
 }
-window.__V193Q = Object.assign(window.__V193Q || {}, { skinHex: skinHexV193Q, tones: SKIN_TONES_V151D, fieldPreview: fieldPreviewV193Q });
+window.__V193Q = Object.assign(window.__V193Q || {}, { skinHex: skinHexV193Q, tones: SKIN_TONES_V151D, fieldPreview: fieldPreviewV193Q,
+  // the texture ribRegisterTeam registers for this cell and kit (the check's reference: the preview must equal it off the skin and the print)
+  fieldTex: (srcName, p1, p2, deco) => { const c = ribCellV91(srcName) || ribCellV22(srcName) || ribCell(srcName); return c ? kitCellV193C(c, srcName, p1, p2, deco || null, numBandV104(srcName, c)).cv : null; } });
 
 window.PhaserFieldBridge = Dt;
 window.__pickFeaturedIndex = pickFeaturedIndex;

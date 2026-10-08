@@ -446,6 +446,18 @@
         var UT = U ? rgb(U.t || U.j) : null, UJ = U ? rgb(U.j) : null, UPS = U && U.ps ? rgb(U.ps) : null;
         var hMid = top - head > 2 ? Math.round((head + top) / 2) : head + 1, rr = prng(seed);
         var HM = H ? helmMaskV158A(s, W, Hh, head, top, srcName, H) : null;   // v158 A: the helmet, its stripe where the art drew it
+        var domeV193Q = (function () {   // v193 Q: the helmet's span (its widest row in the first seven under the crown) — a pattern stays off it
+          var span = function (yh) { var p = 1e9, q = -1; for (var xh = 0; xh < W; xh++) if (s[(yh * W + xh) * 4 + 3] >= 40) { if (xh < p) p = xh; if (xh > q) q = xh; } return [p, q]; };
+          var a0 = 1e9, a1 = -1, hw = 0; for (var yh = head; yh <= Math.min(head + 6, Hh - 1); yh++) { var sp = span(yh); if (sp[1] < 0) continue; a0 = Math.min(a0, sp[0]); a1 = Math.max(a1, sp[1]); hw = Math.max(hw, sp[1] - sp[0] + 1); }
+          var end = head; while (end + 1 < Hh - 1) { var sq = span(end + 1); if (sq[1] < 0 || sq[1] - sq[0] + 1 > hw + 2) break; end++; }   // the dome's rows: no wider than its crown (the shoulders widen the next)
+          return a1 < 0 ? [W / 2, -1, -1] : [(a0 + a1 + 1) / 2, (a1 - a0 + 1) / 2 + 0.5, end];
+        })();
+        // v193 Q: where the shirt really starts under his chin — the first row from the collar with shirt across the chest's middle
+        // (v104's collar sits at the facemask on a front view, so a chevron / sash hung from it landed on the mask and showed 2-4 px)
+        var chestV193Q = (function () {
+          for (var yc = top; yc < waist; yc++) { var nc = 0; for (var xc = Math.floor(W / 2) - 3; xc <= Math.floor(W / 2) + 3; xc++) { var ic = (yc * W + xc) * 4; if (s[ic + 3] >= 20 && classify(s[ic], s[ic + 1], s[ic + 2])[0] === 1) nc++; } if (nc >= 4) return yc; }
+          return top;
+        })();
         for (var yy = 0; yy < Hh; yy++) {
           var pl = 1e9, pr = -1;
           if (UPS && yy > waist) for (var xq = 0; xq < W; xq++) { var iq = (yy * W + xq) * 4; if (s[iq + 3] >= 20 && classify(s[iq], s[iq + 1], s[iq + 2])[0] === 2) { if (xq < pl) pl = xq; if (xq > pr) pr = xq; } }
@@ -471,7 +483,7 @@
                 var onSt = H.sk === "twin" ? dxs >= wide + 0.4 && dxs <= wide + 1.6 : H.sk === "wide" ? dxs <= wide + 1 : dxs <= wide;   // v153 G: twin / wide stripes
                 if (onSt) out = HST.map(function (v) { return v * Math.min(1.2, Math.max(0.6, s2)); }); }
               if (HD && hr && Math.abs(yy - hMid) <= (H.dk === "star" ? 1 : 0) && xx >= hr[0] + 1 && xx <= hr[0] + (H.dk === "star" ? 3 : 2)) out = HD.slice();
-            } else if (U && yy <= waist && cls === 1 && (yy >= top || !onV193Q())) {   // v193 Q: a pattern starts at the collar (the bare helmet above it is not the shirt)
+            } else if (U && yy <= waist && cls === 1 && (!onV193Q() || (yy >= top && yy > domeV193Q[2]) || Math.abs(xx + 0.5 - domeV193Q[0]) > domeV193Q[1])) {   // v193 Q: above the collar only the shoulders are shirt — never the bare helmet
               var t = (yy - top) / Math.max(1, waist - top), pat = U.pat || "solid";
               if (pat === "hoops" && (yy - top) % 4 === 1) out = UT;
               else if (pat === "pinstripe" && xx % 3 === 0) out = mix(UJ, UT, 0.55);
@@ -481,7 +493,7 @@
               else if (pat === "chest" && Math.abs(t - 0.45) < 0.14) out = UT;
               else if (pat === "sleeves" && (yy - top === 3 || yy - top === 4)) out = UT;
               else if (pat === "camo") { var h = ((xx >> 1) * 73856093 ^ (yy >> 1) * 19349663) >>> 0, q = (h % 7); out = q < 2 ? UT : q < 3 ? mix(UJ, [20, 20, 20], 0.35) : null; }
-              else if (pat !== "solid") out = patV153G(pat, xx, yy, top, W / 2, UJ, UT);   // v153 G: chevron, stripes, shoulders, checker, sash, tiger
+              else if (pat !== "solid") out = patV153G(pat, xx, yy, (pat === "chevron" || pat === "sash") && onV193Q() ? chestV193Q : top, W / 2, UJ, UT);   // v153 G: chevron, stripes, shoulders, checker, sash, tiger · v193 Q: the chevron and the sash hang from the chest, not the facemask
               if (out) out = out.map(function (v) { return v * sc; });
             } else if (UPS && yy > waist && cls === 2 && pr >= 0 && (xx === pl + 1 || xx === pr - 1)) {
               out = UPS.map(function (v) { return v * sc; });

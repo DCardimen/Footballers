@@ -15872,7 +15872,7 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
     open: () => skinPickOpenV193Q(),
     close: () => skinPickCloseV193Q(),
     set: (d, w) => {
-      skinPickOpenV193Q.call(null);
+      document.getElementById("skinPickV193Q") || skinPickOpenV193Q();
       const p = document.getElementById("skinPickV193Q");
       if (!p) return null;
       p.querySelector(".skp-depth-v193q").value = d;
@@ -15882,7 +15882,9 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
       return state.player ? state.player.skinTone : null;
     },
     hex: v => skinHexOfV193Q(v),
-    fatherTone: e => fatherToneV193Q(e)
+    fatherTone: e => fatherToneV193Q(e),
+    growHi: kit => growHiCellV134(kit),
+    growLoad: cb => (GROW_HI_V134.img ? cb && cb() : growHiLoadV134(cb))
   };
   // the tone a father passes down: the one he wore (his choice, else the one the field gave his name)
   function fatherToneV193Q(e) {
@@ -27800,7 +27802,8 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
     const im = GROW_HI_V134.img;
     if (!im) return null;
     const K = Array.isArray(kit) ? kit : null,
-      key = K ? K.join("") : String(kit);
+      tone193 = growToneV193Q(),
+      key = (K ? K.join("") : String(kit)) + (tone193 ? "|" + tone193 : "");
     if (GROW_HI_V134.cache[key]) return GROW_HI_V134.cache[key];
     const cv = document.createElement("canvas");
     cv.width = im.naturalWidth;
@@ -27851,8 +27854,74 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
       }
       x.putImageData(img, 0, 0);
     }
+    tone193 && growSkinV193Q(x, im, tone193); /* v193 Q: the face is his skin, never the kit's second colour */
     GROW_HI_V134.cache[key] = cv;
     return cv;
+  }
+  /* v193 Q: the growth screen's own full-size recolour (the fallback until src/28's figure is in) sent the face's warm
+   * highlights to the kit's SECOND colour and kept the art's orange for the rest. The face opening — every warm pixel
+   * between the visor and the chin, the same region src/28 `skinMaskV193Q` tints on the card — is painted in his tone,
+   * shaded by the art's own light (v151 D's grey ramp). Null tone (TU v193Q 0) → as before. */
+  function growToneV193Q() {
+    if (!TU("v193Q", 1) || !state.player) return null;
+    try {
+      const p = state.player,
+        t = window.__skinToneV151D ? window.__skinToneV151D({ skinTone: p.skinTone, name: p.name || "you" }) : p.skinTone;
+      return skinHexOfV193Q(t);
+    } catch (_) {
+      return null;
+    }
+  }
+  function growSkinV193Q(x, im, hex) {
+    try {
+      const W = im.naturalWidth,
+        H = im.naturalHeight,
+        sc = document.createElement("canvas");
+      sc.width = W;
+      sc.height = H;
+      const sx = sc.getContext("2d");
+      sx.drawImage(im, 0, 0);
+      const s = sx.getImageData(0, 0, W, H).data,
+        img = x.getImageData(0, 0, W, H),
+        d = img.data,
+        neck = Math.round(3 + (H - 6) * 0.372),
+        y0 = Math.round(H * TU("skinFaceTopV193Q", 0.29)),
+        y1 = neck + 3,
+        x0 = Math.round(W * 0.44),
+        x1 = Math.round(W * 0.66),
+        idx = [],
+        Ls = [];
+      let sum = 0;
+      for (let y = y0; y <= y1 && y < H; y++)
+        for (let xx = x0; xx <= x1; xx++) {
+          const i = (y * W + xx) * 4;
+          if (s[i + 3] < 20) continue;
+          const r = s[i],
+            g = s[i + 1],
+            b = s[i + 2],
+            mx = Math.max(r, g, b),
+            mn = Math.min(r, g, b),
+            l = (mx + mn) / 2,
+            sat = mx ? (mx - mn) / mx : 0;
+          let hue = 0;
+          if (mx !== mn) hue = mx === r ? (60 * ((g - b) / (mx - mn)) + 360) % 360 : mx === g ? 60 * ((b - r) / (mx - mn)) + 120 : 60 * ((r - g) / (mx - mn)) + 240;
+          if (sat > 0.3 && l > 14 && (hue <= 62 || hue >= 345)) (idx.push(i), Ls.push(l), (sum += l));
+        }
+      if (!idx.length) return 0;
+      const ref = Math.max(30, sum / idx.length),
+        tv = [parseInt(hex.slice(1, 3), 16), parseInt(hex.slice(3, 5), 16), parseInt(hex.slice(5, 7), 16)];
+      idx.forEach((i, k) => {
+        const v = Math.max(40, Math.min(255, TU("skinGreyMidV151D", 214) * Math.pow(Ls[k] / ref, TU("skinGreyGammaV151D", 0.8))));
+        d[i] = Math.min(255, Math.round((tv[0] * v) / 255));
+        d[i + 1] = Math.min(255, Math.round((tv[1] * v) / 255));
+        d[i + 2] = Math.min(255, Math.round((tv[2] * v) / 255));
+      });
+      x.putImageData(img, 0, 0);
+      (window.__V193Q = window.__V193Q || {}).growSkin = { px: idx.length, hex };
+      return idx.length;
+    } catch (_) {
+      return 0;
+    }
   }
   function growDrawHiV134(cv, age, kit) {
     const c = growHiCellV134(kit);
