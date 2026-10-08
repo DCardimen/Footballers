@@ -16,9 +16,9 @@ const LIMIT = +(process.env.SCROLL_LIMIT || 1.35)   // screens of overflow we ac
 // at full scroll, which `--dockH-v139` fixed; the length itself is the list. Everything else holds
 // to LIMIT.
 // v170: on a phone a long list is the page's one scroll (no inner box), so the national leaders get the shop list's budget
-// v193 E: the tree opens its NODES tab on one SPEND NOW row (~90px, the owner's "always something to sink points into");
-// the tree read 1.69 without it, so its budget is 1.85 — the leaders keep 1.7
-const BUDGET = { 'prestige tree': +(process.env.SCROLL_LIMIT_SHOP || 1.85), leaders: +(process.env.SCROLL_LIMIT_SHOP || 1.7) }
+// v193 L: the tree opens on QUICK BUY under the PP banner (four tiles and their arrows, ~140px — the owner's "4 of the
+// cheapest options … at the top"); the tree read 1.69 without it, 1.95 with it, so its budget is 2.0 — the leaders keep 1.7
+const BUDGET = { 'prestige tree': +(process.env.SCROLL_LIMIT_SHOP || 2.0), leaders: +(process.env.SCROLL_LIMIT_SHOP || 1.7) }
 
 const browser = await chromium.launch({ executablePath: CHROME })
 const page = await browser.newPage({ viewport: { width: W, height: H } })

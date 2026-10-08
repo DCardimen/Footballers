@@ -130,3 +130,26 @@ html.shell-v146 .prestige-chip img.coin-v147{width:14px!important;height:14px!im
 .sn-k-v193e{flex:none;font:700 10.5px Oswald,sans-serif;letter-spacing:1.6px;color:var(--gold)}
 .sn-chips-v193e>.sn-k-v193e{flex:none;display:flex;flex-direction:column;justify-content:center;margin:0 2px 0 0;line-height:1.15}
 .sn-k-v193e small{font:500 10px 'Barlow Condensed',sans-serif;letter-spacing:.3px;color:var(--chalk-dim);text-transform:none}
+
+/* v193 L QUICK BUY — four branches, one tap, arrows */
+.qb-v193l{padding:8px 9px!important}
+.qb-h-v193l{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:6px}
+.qb-h-v193l .sn-k-v193e{flex-direction:row;align-items:baseline;gap:6px}
+.qb-nav-v193l{display:flex;align-items:center;gap:6px;font:600 12px Oswald,sans-serif;color:var(--chalk-dim)}
+.qb-arr-v193l{min-width:36px;min-height:36px;border-radius:10px;border:1px solid rgba(240,187,69,.45);background:rgba(240,187,69,.1);color:var(--gold);font-size:14px;cursor:pointer}
+.qb-arr-v193l:disabled{opacity:.3;cursor:default}
+.qb-grid-v193l{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px}
+.qb-tile-v193l{position:relative;display:flex;flex-direction:column;align-items:center;gap:2px;min-width:0;padding:7px 3px 6px;border:1px solid rgba(255,255,255,.12);border-top:3px solid var(--qb-c,var(--gold));border-radius:10px;background:rgba(255,255,255,.04);color:var(--chalk);cursor:pointer;font-family:'Barlow Condensed',sans-serif;text-align:center}
+.qb-tile-v193l:active{transform:scale(.96)}
+.qb-tile-v193l i{font-style:normal;font-size:19px;line-height:1}
+.qb-n-v193l{font:600 12px/1.1 'Barlow Condensed',sans-serif;max-width:100%;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;min-height:26px}
+.qb-tile-v193l small{font-size:10.5px;color:var(--qb-c,var(--chalk-dim));white-space:nowrap;max-width:100%;overflow:hidden;text-overflow:ellipsis}
+.qb-p-v193l{margin-top:2px;padding:2px 7px;border-radius:8px;background:linear-gradient(180deg,#f6cf63,#e2a92c);color:#141414;font:700 12px Oswald,sans-serif}
+.qb-tile-v193l.off{opacity:.55;cursor:default}
+.qb-tile-v193l.off .qb-p-v193l{background:rgba(255,255,255,.12);color:var(--chalk-dim)}
+.qb-tile-v193l em{font-style:normal;font-size:10.5px;color:var(--chalk-dim)}
+.qb-tile-v193l{padding:6px 3px 5px!important;gap:4px!important}
+.qb-tile-v193l .qb-n-v193l i{font-size:13px}
+.qb-b-v193l{position:absolute;top:2px;right:4px;font-size:10px!important}
+.qb-p-v193l em{font:500 10.5px 'Barlow Condensed',sans-serif;opacity:.85}
+.qb-h-v193l{margin-bottom:5px!important}

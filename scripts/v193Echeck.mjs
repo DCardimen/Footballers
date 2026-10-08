@@ -82,6 +82,7 @@ ok(!G.hasAll && G.attr === 0, 'the locker never says "to ALL stats" and gearAttr
 const T2 = await M(() => {
   const S = window.__GRIDIRON_AUDIT__.getState(), V = window.__V193E, A = window.__GRIDIRON_AUDIT__
   const N = A.TREE_NODES || null
+  window.RIB_TUNE = window.RIB_TUNE || {}; window.RIB_TUNE.v193L = 0   // the v193 E chip row: v193 L's kill switch path
   S.tree = {}; S.pp = 1000; window.go('shop')
   const strip = document.getElementById('spendNowV193E'), rows = strip ? [...strip.querySelectorAll('.sn-row-v193e')] : []
   const costs = rows.map((r) => parseInt((r.querySelector('button').textContent.match(/[\d,]+/) || ['0'])[0].replace(/,/g, ''), 10))
@@ -93,12 +94,34 @@ const T2 = await M(() => {
   const strip0 = document.getElementById('spendNowV193E'), away = strip0 ? strip0.querySelector('.sn-away-v193e') : null, awayTxt = away ? away.textContent : ''
   const rows0 = strip0 ? strip0.querySelectorAll('.sn-row-v193e').length : -1
   const cheapestAll = aff[0]
-  S.pp = 1000
+  S.pp = 1000; delete window.RIB_TUNE.v193L
   return { has: !!strip, n: rows.length, costs, keys, cheapest, head, after, sorted: costs.every((c, i) => !i || c >= costs[i - 1]), rows0, awayTxt, cheapestAll, count: V.affordableCount() }
 })
-ok(T2.has && T2.n === 5 && T2.sorted && T2.keys.join() === T2.cheapest.join() && T2.after === true, 'SPEND NOW sits under the branch buttons, over the node list, with the five cheapest affordable nodes, one-tap vaultBuy each', { n: T2.n, costs: T2.costs, keys: T2.keys, after: T2.after })
+ok(T2.has && T2.n === 5 && T2.sorted && T2.keys.join() === T2.cheapest.join() && T2.after === true, '(v193L 0) SPEND NOW sits under the branch buttons, over the node list, with the five cheapest affordable nodes, one-tap vaultBuy each', { n: T2.n, costs: T2.costs, keys: T2.keys, after: T2.after })
 ok(/SPEND NOW/.test(T2.head) && new RegExp('\\b' + T2.count + ' affordable').test(T2.head), 'its header counts every affordable node', T2.head)
 ok(T2.rows0 === 0 && /PP away/.test(T2.awayTxt) && /career pays ~/.test(T2.awayTxt) && new RegExp(T2.cheapestAll.cost + ' PP away').test(T2.awayTxt), 'with 0 PP: the cheapest node, how far away, and what a career at this level pays', T2.awayTxt)
+// v193 L QUICK BUY: under the PP banner (above the tabs), four tiles from four branches, one tap buys, arrows page
+const Q = await M(() => {
+  const S = window.__GRIDIRON_AUDIT__.getState(), L = window.__V193L
+  S.tree = {}; S.pp = 60; window.go('shop')
+  const sc = document.getElementById('screen'), strip = document.getElementById('spendNowV193E'), banner = sc.querySelector('.pts-banner')
+  const top = !!(strip && banner && (banner.compareDocumentPosition(strip) & Node.DOCUMENT_POSITION_FOLLOWING) && !(strip.compareDocumentPosition(sc.querySelector('.branch-tab')) & Node.DOCUMENT_POSITION_PRECEDING))
+  const pages = L.pages(), tiles = strip ? [...strip.querySelectorAll('.qb-tile-v193l')] : []
+  const distinct = pages.every((pg) => new Set(pg.map((x) => x.branch)).size === pg.length)
+  const sortedFirsts = pages.every((pg, i) => !i || pg[0].cost >= pages[i - 1][0].cost)
+  const first = pages[0][0], pp0 = S.pp
+  tiles[0].click()
+  const bought = { lv: S.tree[first.key] || 0, paid: pp0 - S.pp, cost: first.cost }
+  document.querySelector('#spendNowV193E .qb-nav-v193l button:last-child').click()
+  const pg1 = L.page(), keys1 = [...document.querySelectorAll('#spendNowV193E .qb-tile-v193l')].map((b) => b.dataset.key)
+  const off = document.querySelector('#spendNowV193E .qb-tile-v193l.off'), ppB = S.pp; off && off.click()
+  document.querySelector('#spendNowV193E .qb-nav-v193l button:first-child').click()
+  return { top, n: tiles.length, distinct, sortedFirsts, bought, pg1, keys1, want1: pages[1].map((x) => x.key), offSafe: !off || S.pp === ppB, back: L.page() }
+})
+ok(Q.top && Q.n === 4 && Q.distinct, 'QUICK BUY sits at the top (under the PP banner, above the branch tabs): four tiles, no branch twice on a page', Q)
+ok(Q.bought.lv === 1 && Q.bought.paid === Q.bought.cost, 'one tap buys the tile\'s node at once, at its price', Q.bought)
+ok(Q.pg1 === 1 && Q.keys1.join() === Q.want1.join() && Q.back === 0 && Q.sortedFirsts, '▶ steps to the next four (pricier), ◀ steps back', Q)
+ok(Q.offSafe, 'a tile you cannot afford yet buys nothing')
 
 const T3 = await M(() => {
   const S = window.__GRIDIRON_AUDIT__.getState(), V = window.__V193E

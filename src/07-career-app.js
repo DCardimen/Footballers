@@ -5343,6 +5343,77 @@
     }
   }
   window.__V193J = { nodes: () => PERF_NODES_V193J.slice(), refund: () => perfRefundV193J(), last: () => (state && state.perfRefundV193J) || null };
+  /* ===== v193 L QUICK BUY =====
+   * The owner: "for prestige at the top show 4 of the cheapest options from different categories for quick select.
+   * Pressing pulls that upgrade automatically. Add arrows to cycle through cheaper upgrades." The SPEND NOW strip (v193 E)
+   * becomes QUICK BUY, under the PP banner (the v75 sectioner keeps `.spend-v193e` above the NODES / PERKS tabs): four
+   * tiles, each the cheapest node of a DIFFERENT branch (`quickPagesV193L` deals every buyable node, cheapest first, into
+   * pages of four with no branch twice on a page), a tap buys it at once through `window.buy` (the tree's own purchase —
+   * no vault hold), and ◀ ▶ step through the pages (`quickPageV193L`; the page is kept across buys and clamped when the
+   * pages shrink). A node you cannot afford yet stays on its page, dimmed, with how far away it is. Kill switch TU "v193L"
+   * 0 = v193 E's chip row. `window.__V193L`; `v193Echeck`. */
+  let quickPageIxV193L = 0;
+  function quickPagesV193L() {
+    const per = Math.max(1, TU("quickPerPageV193L", 4) | 0),
+      max = Math.max(1, TU("quickPagesV193L", 8) | 0),
+      left = affordableV193E().slice(),
+      pages = [];
+    while (left.length && pages.length < max) {
+      const page = [],
+        used = {};
+      for (let i = 0; i < left.length && page.length < per; i++) {
+        const b = left[i].branch || "?";
+        if (used[b]) continue;
+        used[b] = 1;
+        page.push(left[i]);
+        left.splice(i--, 1);
+      }
+      pages.push(page);
+    }
+    return pages;
+  }
+  function quickBuyHtmlV193L() {
+    const pages = quickPagesV193L();
+    if (!pages.length) return "";
+    quickPageIxV193L = Math.max(0, Math.min(pages.length - 1, quickPageIxV193L | 0));
+    const pp = (state && state.pp) || 0,
+      page = pages[quickPageIxV193L],
+      n = affordableCountV193E(),
+      br = x => TREE[x.branch] || { icon: "", name: x.branch, color: "var(--gold)" },
+      tile = x => {
+        const can = pp >= x.cost,
+          b = br(x);
+        return `<button type="button" class="sn-row-v193e qb-tile-v193l${can ? "" : " off"}" data-key="${x.key}" style="--qb-c:${b.color}" onclick="quickBuyV193L('${x.key}')" title="${escHtml(b.name)}"${can ? "" : ' aria-disabled="true"'}><span class="qb-n-v193l"><i>${x.icon}</i> ${escHtml(x.name)}</span><b class="qb-p-v193l">${ppFmtV146(x.cost)} PP${can ? "" : `<em> · ${ppFmtV146(x.cost - pp)} away</em>`}</b></button>`;
+      };
+    return `<div class="card tight spend-v193e qb-v193l" id="spendNowV193E">
+  <div class="qb-h-v193l"><div class="l sn-k-v193e">⚡ QUICK BUY <small>${n} affordable · tap to buy</small></div><div class="qb-nav-v193l"><button type="button" class="qb-arr-v193l" onclick="quickPageV193L(-1)" ${quickPageIxV193L ? "" : "disabled"} aria-label="Cheaper upgrades">◀</button><span>${quickPageIxV193L + 1}/${pages.length}</span><button type="button" class="qb-arr-v193l" onclick="quickPageV193L(1)" ${quickPageIxV193L < pages.length - 1 ? "" : "disabled"} aria-label="Pricier upgrades">▶</button></div></div>
+  <div class="qb-grid-v193l">${page.map(tile).join("")}</div>
+</div>`;
+  }
+  function quickRedrawV193L() {
+    const el = byId("spendNowV193E");
+    if (!el) return;
+    const html = spendNowHtmlV193E();
+    html ? (el.outerHTML = html) : el.remove();
+  }
+  function quickPageV193L(d) {
+    quickPageIxV193L = Math.max(0, (quickPageIxV193L | 0) + (d | 0));
+    quickRedrawV193L();
+  }
+  function quickBuyV193L(key) {
+    const n = TREE_NODES[key];
+    if (!n || !state) return;
+    const cost = nodeCost(n);
+    if ((state.pp || 0) < cost) {
+      showToast("🔒 " + n.name + " — " + ppFmtV146(cost - (state.pp || 0)) + " PP away");
+      return;
+    }
+    (typeof window.buy === "function" ? window.buy : buyNode)(key); /* the tree's own purchase (v137: PP buys go through window.buy) */
+    quickRedrawV193L(); /* buyNode redraws the tree; this keeps the page if it did not */
+  }
+  window.quickBuyV193L = quickBuyV193L;
+  window.quickPageV193L = quickPageV193L;
+  window.__V193L = { pages: () => quickPagesV193L(), page: () => quickPageIxV193L, step: d => quickPageV193L(d), buy: k => quickBuyV193L(k), html: () => quickBuyHtmlV193L() };
   /* ===== v193 E THE ECONOMY, THE CHAOS CARD, AND HOW THE SCOUTS DECIDE =====
    * The owner: "Plus all stats per game feels overpowered and I'm not sure it should be in the game. However, it
    * doesn't appear to be working. Please remove it." · "I like the slow scaling how it is, but I do want to avoid
@@ -5448,6 +5519,7 @@
   }
   function spendNowHtmlV193E() {
     if (!TU("spendNowV193E", 1)) return ""; /* kill switch: no strip */
+    if (TU("v193L", 1)) return quickBuyHtmlV193L(); /* v193 L: four branches, one tap, arrows */
     const all = affordableV193E();
     if (!all.length) return "";
     const pp = (state && state.pp) || 0,
@@ -41260,7 +41332,8 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
     try {
       const sc = byId("screen"),
         tabs = sc && sc.querySelector(".branch-tab"),
-        at = (tabs && tabs.closest(".btn-row")) || (sc && sc.querySelector(".pts-banner"));
+        banner = sc && sc.querySelector(".pts-banner"),
+        at = TU("v193L", 1) ? banner || (tabs && tabs.closest(".btn-row")) : (tabs && tabs.closest(".btn-row")) || banner; /* v193 L: at the top, under the PP banner (kept above the tabs) */
       if (sc && !sc.querySelector("#spendNowV193E")) {
         const html = spendNowHtmlV193E();
         /* under the branch buttons, over the node list: the NODES tab opens on it, and the potential and medal
