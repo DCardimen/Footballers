@@ -15386,7 +15386,8 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
       peak: e.peakOvr || playerOvr(e),
       titles: e.titles || 0,
       gen: Math.max(1, lineageV136().gen || 1),
-      origin: e.originNameV11 || ""
+      origin: e.originNameV11 || "",
+      skinTone: TU("v193Q", 1) ? fatherToneV193Q(e) : undefined /* v193 Q: the tone he wore, for his son */
     };
   }
   function lineageEndV136(e, level, fate) {
@@ -15413,6 +15414,7 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
       son.name = randPick(FIRST_NAMES) + " " + L.surname;
       son.genV136 = L.gen;
       son.fatherV136 = f.name;
+      TU("v193Q", 1) && skinOkV193Q(f.skinTone) && son.skinTone == null && (son.skinTone = f.skinTone); /* v193 Q: his father's skin, his to change */
     } catch (_) {}
   }
   function lineageRowV136(e) {
@@ -15582,8 +15584,14 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
       T && typeof T == "object" && ["town", "mascot", "college", "dfl"].forEach(k => fix(T, k));
       p.nemesis && fix(p.nemesis, "name");
     }
+    const tone = o => {
+      /* v193 Q: a skin tone is a preset index (0-7) or "#rrggbb" — anything else is dropped */
+      o && typeof o == "object" && o.skinTone != null && !skinOkV193Q(o.skinTone) && (delete o.skinTone, n++);
+      o && typeof o == "object" && typeof o.skinTone == "string" && o.skinTone !== o.skinTone.toLowerCase() && (o.skinTone = o.skinTone.toLowerCase());
+    };
+    p && typeof p == "object" && tone(p);
     const L = s.lineageV136;
-    L && typeof L == "object" && (fix(L, "surname"), Array.isArray(L.fathers) && L.fathers.forEach(f => fix(f, "name")));
+    L && typeof L == "object" && (fix(L, "surname"), Array.isArray(L.fathers) && L.fathers.forEach(f => (fix(f, "name"), tone(f))));
     Array.isArray(s.hof) && s.hof.forEach(h => fix(h, "name"));
     return n;
   }
@@ -15594,6 +15602,7 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
     if (t.pp != null && (typeof t.pp != "number" || !isFinite(t.pp))) return "a broken PP balance";
     if (t.player != null && (typeof t.player != "object" || Array.isArray(t.player))) return "a broken player";
     if (t.player && t.player.attrs != null && typeof t.player.attrs != "object") return "a broken attribute sheet";
+    if (t.player && t.player.skinTone != null && typeof t.player.skinTone == "object") return "a broken skin tone"; /* v193 Q: 0-7 or #rrggbb (cleanSaveV150 drops any other value) */
     if (t.tree != null && (typeof t.tree != "object" || Array.isArray(t.tree))) return "a broken prestige tree";
     for (const k of ["hof", "inventory"]) if (t[k] != null && !Array.isArray(t[k])) return "a broken " + k;
     let seen = 0,
@@ -15704,7 +15713,8 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
           (c, i) =>
             `<button type="button" class="skin-sw-v193c${i === cur ? " on" : ""}" style="background:${c}" onclick="setSkinToneV193C(${i})" role="radio" aria-checked="${i === cur}" aria-label="Skin tone ${i + 1} of ${tones.length}"></button>`
         )
-        .join("")
+        .join("") +
+      skinCustomSwatchV193Q(e) /* v193 Q: the ninth swatch, his own tone */
     );
   }
   function setSkinToneV193C(i) {
@@ -15713,8 +15723,178 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
     saveGame();
     const row = document.querySelector(".skin-row-v193c");
     row && (row.innerHTML = skinSwatchesV193C(state.player));
+    skinPickCloseV193Q(); /* v193 Q: a preset closes the custom picker */
   }
   window.setSkinToneV193C = setSkinToneV193C;
+  /* ===== v193 Q HIS SKIN, HIS NUMBER, HIS KIT =====
+   * (career) The owner: "In the character creation can you add a custom skin tone?" The creation screen (the name,
+   * the skin row — `screenChoosePos`) gets a NINTH swatch, "＋": it opens a small picker under the row — DEPTH
+   * (light to deep) and UNDERTONE (rosy to golden), two sliders held to plausible human skin (hue 15–40°,
+   * saturation 25–60% riding the depth, lightness 85–18%) — with a live preview of him: the profile figure
+   * (src/28 `drawFigure`) and his field sprite (src/05 `fieldPreviewV193Q`), redrawn as the sliders move. A custom
+   * tone is stored as a hex string in `player.skinTone` (0-7 stay the presets) and saved on release; every reader
+   * resolves either (src/05 `skinHexV193Q`, src/28 `skinHexV193Q`). The line hands it down: the father's record
+   * keeps the tone he wore (`fatherRecordV136` — his choice, else his name's) and `lineageBirthV136` gives it to the
+   * son, who can change it. Saves: `cleanSaveV150` keeps a skinTone only when it is 0-7 or `#rrggbb` (the player's
+   * and every father's), and `checkSaveV150` refuses an import whose skinTone is an object. Kill switch TU("v193Q", 0):
+   * no ninth swatch (a stored hex then reads as no choice on the field). `window.__V193Q.app`; v193Qcheck. */
+  function skinOkV193Q(v) {
+    return (typeof v === "number" && Number.isInteger(v) && v >= 0 && v <= 7) || (typeof v === "string" && /^#[0-9a-f]{6}$/i.test(v));
+  }
+  function skinHexOfV193Q(v) {
+    const F = window.__V193Q && window.__V193Q.skinHex;
+    if (F) return F(v);
+    return typeof v === "string" && skinOkV193Q(v) ? v.toLowerCase() : skinTonesV193C()[Number.isFinite(v) ? Math.max(0, Math.min(7, v | 0)) : 3];
+  }
+  // the picker's two sliders (0-100 each) <-> a hex held to plausible skin
+  function skinFromSlidersV193Q(depth, warm) {
+    const dp = Math.max(0, Math.min(100, +depth || 0)) / 100,
+      wm = Math.max(0, Math.min(100, +warm || 0)) / 100,
+      L = TU("skinLmaxV193Q", 85) - dp * (TU("skinLmaxV193Q", 85) - TU("skinLminV193Q", 18)),
+      H = TU("skinHminV193Q", 15) + wm * (TU("skinHmaxV193Q", 40) - TU("skinHminV193Q", 15)),
+      S = Math.max(25, Math.min(60, 58 - Math.abs(L - 52) * 0.5)); /* richest in the mid tones, quieter at the ends */
+    const l = L / 100,
+      s = S / 100,
+      a = s * Math.min(l, 1 - l),
+      f = n => {
+        const k = (n + H / 30) % 12;
+        return Math.round(255 * (l - a * Math.max(-1, Math.min(k - 3, 9 - k, 1))));
+      };
+    return "#" + [f(0), f(8), f(4)].map(v => v.toString(16).padStart(2, "0")).join("");
+  }
+  function skinToSlidersV193Q(hex) {
+    const c = skinOkV193Q(hex) && typeof hex === "string" ? hex : "#bf8a62",
+      r = parseInt(c.slice(1, 3), 16) / 255,
+      g = parseInt(c.slice(3, 5), 16) / 255,
+      b = parseInt(c.slice(5, 7), 16) / 255,
+      mx = Math.max(r, g, b),
+      mn = Math.min(r, g, b),
+      L = ((mx + mn) / 2) * 100;
+    let H = 0;
+    if (mx !== mn) H = mx === r ? (60 * ((g - b) / (mx - mn)) + 360) % 360 : mx === g ? 60 * ((b - r) / (mx - mn)) + 120 : 60 * ((r - g) / (mx - mn)) + 240;
+    const lo = TU("skinLminV193Q", 18),
+      hi = TU("skinLmaxV193Q", 85),
+      h0 = TU("skinHminV193Q", 15),
+      h1 = TU("skinHmaxV193Q", 40);
+    return {
+      depth: Math.round(Math.max(0, Math.min(100, ((hi - L) / (hi - lo)) * 100))),
+      warm: Math.round(Math.max(0, Math.min(100, ((H - h0) / (h1 - h0)) * 100)))
+    };
+  }
+  function skinCustomSwatchV193Q(e) {
+    if (!TU("v193Q", 1)) return "";
+    const own = e && typeof e.skinTone === "string" && skinOkV193Q(e.skinTone);
+    return `<button type="button" class="skin-sw-v193c skin-own-v193q${own ? " on" : ""}" style="${own ? "background:" + e.skinTone : ""}" onclick="skinPickOpenV193Q()" role="radio" aria-checked="${own}" aria-label="Custom skin tone" title="Your own tone">＋</button>`;
+  }
+  function skinPickCloseV193Q() {
+    const p = document.getElementById("skinPickV193Q");
+    p && p.remove();
+  }
+  function skinPickPaintV193Q() {
+    const p = document.getElementById("skinPickV193Q");
+    if (!p || !state.player) return;
+    const hex = skinHexOfV193Q(state.player.skinTone);
+    const sw = p.querySelector(".skp-sw-v193q");
+    sw && (sw.style.background = hex);
+    const hx = p.querySelector(".skp-hex-v193q");
+    hx && (hx.textContent = String(hex).toUpperCase());
+    const own = document.querySelector(".skin-own-v193q");
+    own && (own.style.background = hex);
+    // the profile figure (src/28) and the man the field draws (src/05), in this tone
+    try {
+      const C = window.RIB_COSMETICS,
+        cv = p.querySelector(".skp-fig-v193q");
+      cv && C && C.drawFigure && C.drawFigure(cv, state.player.age || 12, Object.assign(C.face ? C.face() : {}, { skin: hex }));
+    } catch (_) {}
+    try {
+      const Q = window.__V193Q,
+        cv = p.querySelector(".skp-spr-v193q");
+      if (cv && Q && Q.cos && Q.cos.sprite) {
+        const kit = (window.RIB_COSMETICS && window.RIB_COSMETICS.face && window.RIB_COSMETICS.face().kit) || {};
+        const s = Q.cos.sprite({ U: { j: kit.j || "#1f4fd0", p: kit.p || "#e8c86a", t: kit.t || null, pat: kit.pat || "solid" }, H: null }, 46, 64);
+        if (s) {
+          const x = cv.getContext("2d");
+          cv.width = s.width;
+          cv.height = s.height;
+          cv.style.width = s.style.width;
+          cv.style.height = s.style.height;
+          x.imageSmoothingEnabled = !1;
+          x.drawImage(s, 0, 0);
+        }
+      }
+    } catch (_) {}
+  }
+  function skinPickOpenV193Q() {
+    if (!state.player || !TU("v193Q", 1)) return;
+    const row = document.querySelector(".skin-row-v193c");
+    if (!row) return;
+    if (document.getElementById("skinPickV193Q")) return void skinPickCloseV193Q();
+    // the custom tone starts where he is: his current tone, preset or not
+    const cur = skinHexOfV193Q(state.player.skinTone),
+      S = skinToSlidersV193Q(cur),
+      p = document.createElement("div");
+    p.id = "skinPickV193Q";
+    p.className = "card tight skin-pick-v193q";
+    p.innerHTML = `<div class="skp-row-v193q"><canvas class="skp-fig-v193q" width="128" height="160" aria-hidden="true"></canvas><canvas class="skp-spr-v193q" width="46" height="64" aria-hidden="true"></canvas>
+      <div class="skp-ctl-v193q"><label>DEPTH<small>light ↔ deep</small><input type="range" min="0" max="100" step="1" value="${S.depth}" class="skp-depth-v193q" aria-label="Skin depth, light to deep" oninput="skinPickInputV193Q()" onchange="skinPickCommitV193Q()"></label>
+      <label>UNDERTONE<small>rosy ↔ golden</small><input type="range" min="0" max="100" step="1" value="${S.warm}" class="skp-warm-v193q" aria-label="Skin undertone, rosy to golden" oninput="skinPickInputV193Q()" onchange="skinPickCommitV193Q()"></label>
+      <div class="skp-now-v193q"><i class="skp-sw-v193q"></i><b class="skp-hex-v193q"></b><button type="button" class="btn ghost skp-done-v193q" onclick="skinPickCommitV193Q(1)">Done</button></div></div></div>`;
+    row.insertAdjacentElement("afterend", p);
+    skinPickInputV193Q();
+    skinPickCommitV193Q();
+  }
+  function skinPickInputV193Q() {
+    const p = document.getElementById("skinPickV193Q");
+    if (!p || !state.player) return;
+    const d = p.querySelector(".skp-depth-v193q"),
+      w = p.querySelector(".skp-warm-v193q");
+    state.player.skinTone = skinFromSlidersV193Q(d ? d.value : 50, w ? w.value : 50);
+    const row = document.querySelector(".skin-row-v193c");
+    row && row.querySelectorAll(".skin-sw-v193c").forEach(b => {
+      const on = b.classList.contains("skin-own-v193q");
+      b.classList.toggle("on", on);
+      b.setAttribute("aria-checked", String(on));
+    });
+    skinPickPaintV193Q();
+  }
+  function skinPickCommitV193Q(close) {
+    state.player && skinOkV193Q(state.player.skinTone) && saveGame();
+    close && skinPickCloseV193Q();
+  }
+  window.skinPickOpenV193Q = skinPickOpenV193Q;
+  window.skinPickInputV193Q = skinPickInputV193Q;
+  window.skinPickCommitV193Q = skinPickCommitV193Q;
+  window.__V193Q = window.__V193Q || {};
+  window.__V193Q.app = {
+    ok: v => skinOkV193Q(v),
+    fromSliders: (d, w) => skinFromSlidersV193Q(d, w),
+    toSliders: h => skinToSlidersV193Q(h),
+    open: () => skinPickOpenV193Q(),
+    close: () => skinPickCloseV193Q(),
+    set: (d, w) => {
+      skinPickOpenV193Q.call(null);
+      const p = document.getElementById("skinPickV193Q");
+      if (!p) return null;
+      p.querySelector(".skp-depth-v193q").value = d;
+      p.querySelector(".skp-warm-v193q").value = w;
+      skinPickInputV193Q();
+      skinPickCommitV193Q();
+      return state.player ? state.player.skinTone : null;
+    },
+    hex: v => skinHexOfV193Q(v),
+    fatherTone: e => fatherToneV193Q(e)
+  };
+  // the tone a father passes down: the one he wore (his choice, else the one the field gave his name)
+  function fatherToneV193Q(e) {
+    if (!e) return undefined;
+    if (skinOkV193Q(e.skinTone)) return e.skinTone;
+    try {
+      const t = window.__skinToneV151D ? window.__skinToneV151D({ name: e.name || "you" }) : null;
+      return skinOkV193Q(t) ? t : undefined;
+    } catch (_) {
+      return undefined;
+    }
+  }
   function downDistLabelV193C(t) {
     if (!t) return "";
     if (t.event === "kickoff") return "KICKOFF";

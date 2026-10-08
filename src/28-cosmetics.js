@@ -471,7 +471,7 @@
                 var onSt = H.sk === "twin" ? dxs >= wide + 0.4 && dxs <= wide + 1.6 : H.sk === "wide" ? dxs <= wide + 1 : dxs <= wide;   // v153 G: twin / wide stripes
                 if (onSt) out = HST.map(function (v) { return v * Math.min(1.2, Math.max(0.6, s2)); }); }
               if (HD && hr && Math.abs(yy - hMid) <= (H.dk === "star" ? 1 : 0) && xx >= hr[0] + 1 && xx <= hr[0] + (H.dk === "star" ? 3 : 2)) out = HD.slice();
-            } else if (U && yy <= waist && cls === 1) {
+            } else if (U && yy <= waist && cls === 1 && (yy >= top || !onV193Q())) {   // v193 Q: a pattern starts at the collar (the bare helmet above it is not the shirt)
               var t = (yy - top) / Math.max(1, waist - top), pat = U.pat || "solid";
               if (pat === "hoops" && (yy - top) % 4 === 1) out = UT;
               else if (pat === "pinstripe" && xx % 3 === 0) out = mix(UJ, UT, 0.55);
@@ -7143,7 +7143,7 @@
     var F = window.__V161A_FIELD, cols = F && F.kit ? F.kit(kitKey || "you") : null;
     if (!cols) { var U = resolveU((item("uniform") || {}).k || null, null); cols = U ? [U.j, U.p] : [teamCol(0), teamCol(1)]; }
     var H = V.kit && V.kit.helmet ? ((item("helmet") || {}).h || null) : null;   // the helmet the field dressed him in (fieldKit)
-    var tones = (F && F.tones) || ["#bf8a62"], tn = tones[tone != null && tones[tone] ? tone : Math.min(3, tones.length - 1)];
+    var tones = (F && F.tones) || ["#bf8a62"], tn = (typeof tone === "string" && skinHexV193Q(tone)) || tones[tone != null && tones[tone] ? tone : Math.min(3, tones.length - 1)];   // v193 Q: a custom hex
     return { p1: cols[0], p2: cols[1], H: H, tone: tn, key: cols[0] + cols[1] + "|" + (H ? [H.s, H.st, H.f].join(",") : "-") + "|" + tn };
   }
   function frameCanvasV161A(name, k, scale, kit) {
@@ -7314,7 +7314,7 @@
   function pvKitV161A() {
     var U = resolveU((item("uniform") || {}).k || null, null), H = (item("helmet") || {}).h || null, tone = 3;
     try { var st = gstate(), pl = st && st.player; if (pl && window.__skinToneV151D) tone = window.__skinToneV151D({ skinTone: pl.skinTone, name: pl.name || "you" }); } catch (e) {}
-    var tones = (window.__V161A_FIELD && window.__V161A_FIELD.tones) || ["#bf8a62", "#bf8a62", "#bf8a62", "#bf8a62"], tn = tones[tone] || tones[3];
+    var tones = (window.__V161A_FIELD && window.__V161A_FIELD.tones) || ["#bf8a62", "#bf8a62", "#bf8a62", "#bf8a62"], tn = (typeof tone === "string" && skinHexV193Q(tone)) || tones[tone] || tones[3];   // v193 Q: a custom hex
     var p1 = U ? U.j : teamCol(0), p2 = U ? U.p : teamCol(1);
     return { p1: p1, p2: p2, H: H, tone: tn, key: p1 + p2 + "|" + (H ? [H.s, H.st, H.f].join(",") : "-") + "|" + tn };
   }
@@ -8721,4 +8721,203 @@
   };
   Object.keys(PAINT_V177K).forEach(function (k) { if (!BAN_V158A[k]) BAN_V158A[k] = PAINT_V177K[k]; });
   Object.assign(V177K, { items: function () { return ITEMS_V177K.map(function (it) { return it.id; }); }, painters: function () { return Object.keys(PAINT_V177K); } });
+
+  /* ===== v193 Q HIS SKIN, HIS NUMBER, HIS KIT =====
+   * (cosmetics) The owner: "In the character creation can you add a custom skin tone? Also numbers on the jersey aren't
+   * appearing in the profile screen. Also do a quality check on the simulated uniform previews."
+   *   HIS SKIN     `player.skinTone` is a preset index (0-7) or a custom hex (07's picker). `skinHexV193Q(v)` resolves
+   *                either (src/05's `window.__V193Q.skinHex` when it is there, the same table otherwise). The card figure
+   *                never wore it: figCell kept the art's orange face and sent its yellow highlights to the PANTS colour
+   *                (the kit on his face). `figCell` now lays his tone on the face opening (every warm pixel of the art
+   *                between the visor and the chin, `skinMaskV193Q`), shaded by the art's own light, so the profile, the
+   *                palette's live card, the growth screen and the live badge (all `drawCharacter`) wear it; another
+   *                player's card (a leaderboard row) wears that man's stored tone, else his name's. The celebration
+   *                bodies (`kitV161A`, `pvKitV161A`) take a hex as well as an index.
+   *   HIS NUMBER   The card is drawn as markup by three callers that never painted its figure: the Season & Pass
+   *                TROPHIES card (src/29 `profileCard`), every leaderboard row and the leaderboard's Career profile
+   *                sheet (src/20 `cardFor`). `renderCard` only draws the figure when handed an element; handed none it
+   *                returned a blank `<canvas>` — an empty frame, no man, no number. A card returned as markup now tags
+   *                its canvas (`data-fig193q`) and is painted (figure, number, flair) the moment it is in the page. And
+   *                before a position is picked (the creation screen) `jerseyNumV157C` had no number at all: it is the
+   *                menu's number for his name then (`__RIB_MENU_V89.jerseyFor`), as the menu shows it.
+   *   HIS KIT      The Locker's uniform and helmet previews were the loading chase's cell recolour (src/03), not the
+   *                field's: dark folds left navy, the skin's highlights in the second colour, the art's orange for skin,
+   *                no number, a 64x70 draw into a 64x64 canvas (the boots cut off) shown at 56x62 (squashed, uneven
+   *                pixels). `spriteCanvas` now draws src/05's `fieldPreviewV193Q` (the field's own build, his skin layer,
+   *                his v176 print), cropped to the man's ink and scaled by a whole number of device pixels, no smoothing.
+   *                And kitDeco's older patterns (pinstripe, split, camo, stripes, checker, tiger …) ignored the collar
+   *                and painted the bare helmet shell above it, on the field too: a pattern now starts at the collar.
+   * Kill switch TU("v193Q", 0): every path above as it was. Looks only. `window.__V193Q.cos`; scripts/v193Qcheck.mjs. */
+  var V193Q = (window.__V193Q = window.__V193Q || {});
+  var COS_V193Q = (V193Q.cos = { tinted: 0, painted: 0, sprites: 0, errs: [], last: null });
+  function onV193Q() { return !!TUv("v193Q", 1); }
+  function errV193Q(e) { try { if (COS_V193Q.errs.length < 12) COS_V193Q.errs.push(String((e && e.message) || e)); } catch (x) {} }
+  var TONES_V193Q = ["#f3d2b3", "#e8bc97", "#d6a37c", "#bf8a62", "#a4704b", "#86573a", "#6a432c", "#4f3121"];   /* mirrors SKIN_TONES_V151D (05) */
+  function skinHexV193Q(v) {
+    try { if (V193Q.skinHex) return V193Q.skinHex(v); } catch (e) {}
+    if (typeof v === "string") return hexOk(v.trim()) ? v.trim().toLowerCase() : null;
+    if (typeof v === "number" && isFinite(v)) return TONES_V193Q[Math.max(0, Math.min(7, Math.round(v)))];
+    return null;
+  }
+  /* his tone as the field resolves it: his choice, else his name's (src/05 skinToneV151D) */
+  function toneOfV193Q(skinTone, name) {
+    var t = skinTone;
+    try { if (window.__skinToneV151D) t = window.__skinToneV151D({ skinTone: skinTone, name: name || "you" }); } catch (e) {}
+    return skinHexV193Q(t) || TONES_V193Q[3];
+  }
+  function playerSkinV193Q() { var st = gstate(), pl = st && st.player; return pl ? toneOfV193Q(pl.skinTone, pl.name) : TONES_V193Q[3]; }
+
+  /* ---- the card figure's face: every warm pixel of the art between the visor and the chin ---- */
+  var SKINMASK_V193Q = { img: null, m: null, L: null, ref: 120, n: 0 };
+  function skinMaskV193Q() {
+    var im = FIG.img; if (!im) return null;
+    if (SKINMASK_V193Q.img === im) return SKINMASK_V193Q;
+    var W = im.naturalWidth, H = im.naturalHeight, c = document.createElement("canvas"); c.width = W; c.height = H;
+    var x = c.getContext("2d"); x.drawImage(im, 0, 0); var d = x.getImageData(0, 0, W, H).data;
+    var neck = Math.round(3 + (H - 6) * FIG.neck), y0 = Math.round(H * TUv("skinFaceTopV193Q", 0.29)), y1 = neck + 3, x0 = Math.round(W * 0.44), x1 = Math.round(W * 0.66);
+    var m = new Uint8Array(W * H), L = new Float32Array(W * H), sum = 0, n = 0;
+    for (var y = y0; y <= y1 && y < H; y++) for (var xx = x0; xx <= x1; xx++) {
+      var i = (y * W + xx) * 4; if (d[i + 3] < 20) continue;
+      var r = d[i], g = d[i + 1], b = d[i + 2], mx = Math.max(r, g, b), mn = Math.min(r, g, b), l = (mx + mn) / 2, sat = mx ? (mx - mn) / mx : 0, hue = 0;
+      if (mx !== mn) { if (mx === r) hue = (60 * ((g - b) / (mx - mn)) + 360) % 360; else if (mx === g) hue = 60 * ((b - r) / (mx - mn)) + 120; else hue = 60 * ((r - g) / (mx - mn)) + 240; }
+      if (sat > 0.3 && l > 14 && (hue <= 62 || hue >= 345)) { m[y * W + xx] = 1; L[y * W + xx] = l; sum += l; n++; }   // the face, its highlights and its shadow (the mask bars are grey, the ink black)
+    }
+    SKINMASK_V193Q.img = im; SKINMASK_V193Q.m = m; SKINMASK_V193Q.L = L; SKINMASK_V193Q.ref = Math.max(30, n ? sum / n : 120); SKINMASK_V193Q.n = n; SKINMASK_V193Q.W = W; SKINMASK_V193Q.H = H;
+    return SKINMASK_V193Q;
+  }
+  var SKINCUR_V193Q = { cur: null, forced: null }, SKINCACHE_V193Q = { map: new WeakMap(), n: 0 };
+  function tintFaceV193Q(base, hex) {
+    var M = skinMaskV193Q(); if (!M || !M.n || !base || base.width !== M.W || base.height !== M.H) return base;
+    var per = SKINCACHE_V193Q.map.get(base); if (per && per[hex]) return per[hex];
+    var cv = document.createElement("canvas"); cv.width = M.W; cv.height = M.H; var x = cv.getContext("2d"); x.drawImage(base, 0, 0);
+    var img = x.getImageData(0, 0, M.W, M.H), d = img.data, tv = rgb(hex), mid = TUv("skinGreyMidV151D", 214), gam = TUv("skinGreyGammaV151D", 0.8);
+    for (var j = 0; j < M.W * M.H; j++) { if (!M.m[j]) continue;
+      var v = Math.max(40, Math.min(255, mid * Math.pow(M.L[j] / M.ref, gam)));
+      d[j * 4] = Math.min(255, Math.round(tv[0] * v / 255)); d[j * 4 + 1] = Math.min(255, Math.round(tv[1] * v / 255)); d[j * 4 + 2] = Math.min(255, Math.round(tv[2] * v / 255)); }
+    x.putImageData(img, 0, 0);
+    if (!per) { per = {}; SKINCACHE_V193Q.map.set(base, per); }
+    if (Object.keys(per).length > 12) { per = {}; SKINCACHE_V193Q.map.set(base, per); }   // a picker dragged through fifty tones keeps a dozen
+    per[hex] = cv; COS_V193Q.tinted++;
+    return cv;
+  }
+  var figCell0V193Q = figCell;
+  figCell = function (K) {
+    var base = figCell0V193Q.apply(this, arguments);
+    if (!base || !onV193Q()) return base;
+    try { return tintFaceV193Q(base, SKINCUR_V193Q.cur || playerSkinV193Q()); } catch (e) { errV193Q(e); return base; }
+  };
+  /* drawCharacter decides whose skin: an explicit opts.skin, the card being drawn for someone else, the canvas's own tag,
+   * the kit data's, else his */
+  var drawCharacter0V193Q = drawCharacter;
+  drawCharacter = function (cv, kd, age, opts) {
+    var prev = SKINCUR_V193Q.cur;
+    try {
+      var s = skinHexV193Q((opts && opts.skin) || SKINCUR_V193Q.forced || (cv && cv.__skinV193Q) || (kd && kd.skin) || null);
+      SKINCUR_V193Q.cur = s || playerSkinV193Q();
+      if (cv && s) cv.__skinV193Q = s;   // someone else's card: the art's late redraw (FIG.waiting) keeps whose skin it was (his own reads him live)
+    } catch (e) { errV193Q(e); }
+    try { return drawCharacter0V193Q.apply(this, arguments); } finally { SKINCUR_V193Q.cur = prev; }
+  };
+
+  /* ---- his number before a position: the menu's number for his name ---- */
+  var jerseyNum0V193Q = jerseyNumV157C;
+  jerseyNumV157C = function (pos) {
+    var n = jerseyNum0V193Q(pos);
+    if (n != null || !onV193Q() || pos) return n;
+    try { var st = gstate(), pl = st && st.player, J = window.__RIB_MENU_V89; if (pl && pl.name && J && J.jerseyFor) return J.jerseyFor(pl.name, pl.pos || "") | 0; } catch (e) { errV193Q(e); }
+    return n;
+  };
+
+  /* ---- a card handed back as markup: tag its canvas, paint it once it is in the page ---- */
+  var CARDS_V193Q = { reg: {}, order: [], seq: 0, timers: 0 };
+  function skinOfDataV193Q(d) { return skinHexV193Q(d && d.skin) || toneOfV193Q(null, d && d.name ? String(d.name) : ""); }
+  function paintCardsV193Q() {
+    try {
+      document.querySelectorAll("canvas.pc-cv-v151b[data-fig193q]:not([data-fig193q-done])").forEach(function (cv) {
+        var e = CARDS_V193Q.reg[cv.getAttribute("data-fig193q")]; if (!e || !cv.isConnected) return;
+        cv.setAttribute("data-fig193q-done", "1"); cv.__skinV193Q = e.skin;
+        var draw = function () { var r = drawCharacter(cv, e.kit || {}, e.age || 22, { num: e.num, numfont: e.numfont, skin: e.skin }); if (r && r.mode !== "hi" && !draw._again) { draw._again = 1; setTimeout(draw, 700); } return r; };
+        var r = draw(); COS_V193Q.painted++; COS_V193Q.last = { num: r && r.num ? r.num.num : null, mode: r && r.mode, id: cv.getAttribute("data-fig193q") };
+        try { cardFlairV153G(cv, e.cz || {}); } catch (x) {}
+        try { var card = cv.closest(".pcard-v151b"); if (card && card.parentNode) dressCardV158A(card.parentNode); } catch (x) {}
+      });
+    } catch (e) { errV193Q(e); }
+  }
+  function schedulePaintV193Q() { [0, 60, 250, 900, 2000].forEach(function (ms) { setTimeout(paintCardsV193Q, ms); }); }
+  var renderCard0V193Q = renderCard;
+  renderCard = function (data, target) {
+    if (!onV193Q()) return renderCard0V193Q.apply(this, arguments);
+    var el = target && target.nodeType ? target : target && target.el ? target.el : null, self = !data || !!(target && !target.nodeType && target.self);
+    var prev = SKINCUR_V193Q.forced, skin = self ? null : skinOfDataV193Q(data);
+    SKINCUR_V193Q.forced = skin;
+    var html;
+    try { html = renderCard0V193Q.apply(this, arguments); } finally { SKINCUR_V193Q.forced = prev; }
+    try {
+      if (el) { var c0 = el.querySelector(".pc-cv-v151b"); if (c0 && skin) c0.__skinV193Q = skin; return html; }
+      if (typeof html !== "string" || html.indexOf('class="pc-cv-v151b"') < 0) return html;
+      var d = data || profile(), cz = d.cosmetics || {}, id = "c" + (++CARDS_V193Q.seq);
+      if (self) skin = playerSkinV193Q();   // markup outlives this call: the tone he wears now
+      CARDS_V193Q.reg[id] = { kit: cz.kit || {}, age: d.age || 22, num: d.num != null ? d.num : jerseyNumV157C(d.pos), numfont: cz.numfont, skin: skin, cz: cz };
+      CARDS_V193Q.order.push(id); if (CARDS_V193Q.order.length > 300) delete CARDS_V193Q.reg[CARDS_V193Q.order.shift()];
+      schedulePaintV193Q();
+      return html.replace('<canvas class="pc-cv-v151b"', '<canvas class="pc-cv-v151b" data-fig193q="' + id + '"');
+    } catch (e) { errV193Q(e); return html; }
+  };
+
+  /* ---- the Locker's uniform / helmet preview: the field's own man (src/05 fieldPreviewV193Q) ---- */
+  function numSpecV193Q() { try { var N = flairFromIdsV153G({ numfont: equipped("numfont") }).numfont; return N ? sewSpecV176(N) : null; } catch (e) { return null; } }
+  function hisNumV193Q() { var st = gstate(), pl = st && st.player; return pl ? jerseyNumV157C(pl.pos) : null; }
+  /* the 48px build: { cv, mask, skinPx, numPx, num, tone } or null (no field art yet) */
+  function fieldCellV193Q(U, H, num, tone, name) {
+    var Q = window.__V193Q; if (!Q || !Q.fieldPreview || !U) return null;
+    var deco = kitDeco(U, H || null);
+    return Q.fieldPreview(name || "idle_dn", U.j, U.p, deco, tone || playerSkinV193Q(), num, numSpecV193Q());
+  }
+  /* cropped to his ink and blown up by a whole number of device pixels (crisp pixel art at any dpr) */
+  function spriteV193Q(k, boxW, boxH) {
+    var r = fieldCellV193Q(k.U, k.H, hisNumV193Q()); if (!r) return null;
+    var src = r.cv, d = src.getContext("2d").getImageData(0, 0, 48, 48).data, x0 = 48, y0 = 48, x1 = -1, y1 = -1;
+    for (var y = 0; y < 48; y++) for (var xx = 0; xx < 48; xx++) if (d[(y * 48 + xx) * 4 + 3] > 24) { if (xx < x0) x0 = xx; if (xx > x1) x1 = xx; if (y < y0) y0 = y; if (y > y1) y1 = y; }
+    if (x1 < 0) return null;
+    x0 = Math.max(0, x0 - 1); y0 = Math.max(0, y0 - 1); x1 = Math.min(47, x1 + 1); y1 = Math.min(47, y1 + 1);
+    var bw = x1 - x0 + 1, bh = y1 - y0 + 1, dpr = Math.max(1, Math.min(3, window.devicePixelRatio || 1));
+    var s = Math.max(1, Math.floor(Math.min(boxW * dpr / bw, boxH * dpr / bh)));
+    var out = document.createElement("canvas"); out.width = bw * s; out.height = bh * s; out.className = "cos-spr-v193q";
+    var x = out.getContext("2d"); x.imageSmoothingEnabled = false; x.drawImage(src, x0, y0, bw, bh, 0, 0, bw * s, bh * s);
+    out.style.width = (bw * s / dpr) + "px"; out.style.height = (bh * s / dpr) + "px";
+    out.__v193q = { scale: s, dpr: dpr, crop: [x0, y0, bw, bh], skinPx: r.skinPx, numPx: r.numPx, tone: r.tone };
+    COS_V193Q.sprites++;
+    return out;
+  }
+  var spriteCanvas0V193Q = spriteCanvas;
+  spriteCanvas = function (k, px) {
+    if (onV193Q()) { try { var c = spriteV193Q(k, 56, 62); if (c) return c; } catch (e) { errV193Q(e); } }
+    return spriteCanvas0V193Q.apply(this, arguments);
+  };
+  /* the flair previews' little man (wings, crowns, auras behind and on him): the same field build, the old geometry */
+  var fig0V153G_V193Q = figV153G;
+  figV153G = function (px) {
+    if (onV193Q()) {
+      try {
+        var U = resolveU((item("uniform") || {}).k || null, null), tc = (window.__GRIDIRON_TEAM_CUSTOM__ || {}).col || ["#1f4fd0", "#e8c86a"];
+        var r = fieldCellV193Q(U || { j: tc[0], p: tc[1], pat: "solid" }, (item("helmet") || {}).h || null, hisNumV193Q());
+        if (r) { var out = document.createElement("canvas"); out.width = px; out.height = Math.round(px * 1.1); var x = out.getContext("2d"); x.imageSmoothingEnabled = false; x.drawImage(r.cv, 4, 0, 40, 44, 0, 0, px, px * 1.1); return out; }
+      } catch (e) { errV193Q(e); }
+    }
+    return fig0V153G_V193Q.apply(this, arguments);
+  };
+  try {
+    var st193q = document.createElement("style"); st193q.id = "cosV193Q";
+    st193q.textContent = ".cos-pvbox-v151b canvas.cos-spr-v193q{image-rendering:pixelated;image-rendering:crisp-edges}";
+    (document.head || document.documentElement).appendChild(st193q);
+  } catch (e) {}
+
+  /* the module's own handles follow the wrapped functions */
+  API.drawCharacter = drawCharacter; API.renderCard = renderCard; API.jerseyNum = jerseyNumV157C;
+  Object.assign(COS_V193Q, {
+    skinHex: skinHexV193Q, playerSkin: playerSkinV193Q, mask: function () { var M = skinMaskV193Q(); return M ? { n: M.n, W: M.W, H: M.H, m: M.m } : null; },
+    fieldCell: function (U, H, num, tone, name) { return fieldCellV193Q(U, H, num, tone, name); }, sprite: function (k, w, h) { return spriteV193Q(k, w || 56, h || 62); },
+    oldSprite: function (k, px) { return spriteCanvas0V193Q(k, px || 64); }, kitDeco: function (U, H) { return kitDeco(U, H); }, resolveU: function (U, tc) { return resolveU(U, tc); },
+    paintCards: paintCardsV193Q, cards: function () { return CARDS_V193Q.order.length; }
+  });
 })();
