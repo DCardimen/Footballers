@@ -46,7 +46,7 @@ const A = await M(() => {
   const want = (1 + 3 * 0.2 + 2 * 0.35) * Math.pow(1.2, 2) * X.tierPPMult(p) * X.pathVal('ppMult', 1) * X.chaosEarnedMult(p.level)
   return { html: b.innerHTML, hidden: b.hidden, mult: window.__V192B.mult().total, want, pot: window.__V189.pot(p), shown: window.__V189.shown(), tally: p.ppFlatV192B, sw: tb.scrollWidth, cw: tb.clientWidth, chipR: Math.round(b.getBoundingClientRect().right), barR: Math.round(tb.getBoundingClientRect().right) }
 })
-ok(!A.hidden && A.html.includes('×' + (A.mult >= 100 ? String(Math.round(A.mult)) : (Math.round(A.mult * 10) / 10).toFixed(1).replace(/\.0$/, ""))) /* v193 N: one decimal */ && /🏦[\d.,]+[KM]?/.test(A.html) && A.shown > 0, /* v192 A caps the flat bank at half the pay, so the pot is not the raw 25K */ 'the 🏦 chip shows × the career multiplier over the pot', A.html)
+ok(!A.hidden && A.html.includes(A.mult < 3 ? '+' + Math.round((A.mult - 1) * 100) + '%' : '×' + Math.round(A.mult)) /* v193 T: whole numbers on the chip */ && /🏦[\d.,]+[KM]?/.test(A.html) && A.shown > 0, /* v192 A caps the flat bank at half the pay, so the pot is not the raw 25K */ 'the 🏦 chip shows × the career multiplier over the pot', A.html)
 ok(Math.abs(A.mult - A.want) < 1e-6, 'the × is the payout formula\'s multiplier (tree nodes × era × tier × path × chaos)', { mult: A.mult, want: A.want })
 ok(A.sw <= A.cw && A.chipR <= A.barR, 'the top bar fits 360 px — nothing clipped', A)
 ok(A.tally && A.tally.goal === 25000 && A.tally.milestone === 120, 'flat PP banked this career is tallied by where it came from', A.tally)

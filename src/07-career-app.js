@@ -6305,7 +6305,7 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
           key: "recovery",
           name: "Rapid Recovery",
           icon: "🧊",
-          desc: "Injuries 1.8% rarer per level.",
+          desc: "Injuries rarer: about 2% a level, 11% at Lv 6.", /* v193: whole numbers on the tree (v92check) — 0.06 × the v153 B 0.3 a level */
           cost: 7,
           mult: 1.5,
           max: 6,
@@ -6315,7 +6315,7 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
           key: "engine",
           name: "Twin Engines",
           icon: "🔋",
-          desc: "+0.9% attribute growth every season, per level (Lv 6: +5%) — the same unit as Eternal Growth.",
+          desc: "Attribute growth every season: about 1% a level, +5% at Lv 6 — the same unit as Eternal Growth.", /* v193: whole numbers (v92check) */
           cost: 12,
           mult: 1.65,
           max: 6,
@@ -40358,9 +40358,16 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
     b.hidden = !1;
     b.classList.add("chip-bank-v192b");
     b.setAttribute("onclick", "event.stopPropagation();prestigeBreakdownV192B()");
-    b.innerHTML = `<b>×${fmtMultV192B(x)}</b><i>🏦${ppShortV139(Math.max(0, n | 0))}</i>`;
+    b.innerHTML = `<b>${chipMultV193T(x)}</b><i>🏦${ppShortV139(Math.max(0, n | 0))}</i>`;
     b.title = `This career: ×${fmtMultV192B(x)} on its payout · ${(n | 0).toLocaleString()} PP projected at the career's end (as of the last season's end). Tap for the breakdown.`;
     return !0;
+  }
+  /* v193 T: the chip's multiplier in whole numbers (no decimals on a career screen — v92check): under ×3 it is the
+   * percent it adds (×1.15 → +15%, ×2.84 → +184%), from ×3 a whole × (×12.4 → ×12). The breakdown keeps the exact ×. */
+  function chipMultV193T(x) {
+    x = Number(x) || 1;
+    if (!TU("v193T", 1)) return "×" + fmtMultV192B(x);
+    return x < 3 ? (x >= 1 ? "+" : "−") + Math.abs(Math.round((x - 1) * 100)) + "%" : "×" + Math.round(x);
   }
   function breakdownHtmlV192B() {
     const e = state && state.player,
@@ -40663,7 +40670,7 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
     const sc = byId("screen");
     if (!sc || sc.querySelector("#ppBreakBtnV192B")) return;
     const X = ppMultPartsV192B(state.player && state.player.pos && !state.player._settled ? state.player : null),
-      html = `<button class="more-v139" id="ppBreakBtnV192B" type="button" style="margin:4px 0 0 auto;text-align:right" title="Your prestige bonuses: every multiplier, every flat PP source" onclick="prestigeBreakdownV192B()">📊 ×${fmtMultV192B(X.total)} BONUSES ▸</button>`,
+      html = `<button class="more-v139" id="ppBreakBtnV192B" type="button" style="margin:4px 0 0 auto;text-align:right" title="Your prestige bonuses: every multiplier, every flat PP source" onclick="prestigeBreakdownV192B()">📊 ${chipMultV193T(X.total)} BONUSES ▸</button>`,
       at = sc.querySelector(".pts-banner .tree-rank-v156a") || sc.querySelector(".pts-banner > div"); /* under the medal count, not another card: the tree's scroll budget is tight */
     at ? at.insertAdjacentHTML("beforeend", html) : sc.insertAdjacentHTML("afterbegin", html);
   }

@@ -4507,6 +4507,7 @@
   function errV157C(e) { try { if (V157C.errs.length < 8) V157C.errs.push(String((e && e.message) || e)); } catch (x) {} }
   /* ---- his number: what the field puts on him (src/05 OFF_NUMS / DEF_NUMS by slot), learned live ---- */
   var NUM_BY_POS_V157C = { QB: 12, RB: 24, WR: 80, TE: 87, OL: 74, DL: 91, LB: 54, CB: 21, S: 31, K: 3, P: 4 };
+  V157C.jersey = function (pos) { return jerseyNumV157C(pos); };   /* v193: the menu card and the ticker read the chest's number (one number everywhere) */
   function jerseyNumV157C(pos) {
     pos = String(pos || "").toUpperCase(); if (!pos) return null;
     var n = V157C.nums[pos]; if (n != null) return n;
