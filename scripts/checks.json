@@ -35,7 +35,8 @@
     "v193Echeck",
     "v193Ccheck",
     "v193Dcheck",
-    "v193Bcheck"
+    "v193Bcheck",
+    "v193Jcheck"
    ]
   },
   "docs": {
@@ -1881,7 +1882,8 @@
     "v192Acheck",
     "v192Bcheck",
     "v192Ccheck",
-    "v193Echeck"
+    "v193Echeck",
+    "v193Jcheck"
    ]
   }
  },
@@ -5060,6 +5062,19 @@
     "smoke"
    ],
    "runtimeSec": 110,
+   "slow": false,
+   "needsServer": true,
+   "pureNode": false,
+   "flaky": []
+  },
+  "v193Jcheck": {
+   "file": "scripts/v193Jcheck.mjs",
+   "desc": "v193 J — the seven nodes v193 E redrew (perfFlat) are paid back once at boot at today's prices; levels to 0; other nodes kept; no second refund; kill switch v193J",
+   "areas": [
+    "smoke",
+    "prestige-pacing"
+   ],
+   "runtimeSec": 30,
    "slow": false,
    "needsServer": true,
    "pureNode": false,

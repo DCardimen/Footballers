@@ -5304,6 +5304,45 @@
   function perfPctV190() {
     return 0; /* v193 E: the game-day percent is gone (the banner below); `window.__V190.perfPct` keeps reading 0 */
   }
+  /* ===== v193 J THE REDRAWN NODES ARE PAID BACK =====
+   * v193 E took "+N% to every attribute a game" (`perfFlat`) out of the game and gave its seven nodes new effects. A save
+   * that bought them paid for the old effect, and the tree's free respecs are rationed by medals — so once a save, at
+   * boot (beside `evergreenRefundV146`), every level of those seven comes back as the PP it costs at today's prices
+   * (`nodePaidV193D`: the branch factor included) and the levels go to 0, so the player chooses again: buy them back
+   * for the new effect or spend it elsewhere. `state.perfRefundV193J` = {pp, parts, at} marks it done (a fresh save is
+   * marked with 0). The toast says what happened. Kill switch TU "v193J" 0. `window.__V193J`; `v193Jcheck`. */
+  const PERF_NODES_V193J = ["engine", "zen", "trashTalk", "legendAura", "etForm", "oline_wall", "glassCannon"];
+  function perfRefundV193J() {
+    try {
+      if (!TU("v193J", 1) || !state || !state.tree || state.perfRefundV193J) return 0;
+      let pp = 0;
+      const parts = [];
+      PERF_NODES_V193J.forEach(k => {
+        const lv = state.tree[k] | 0,
+          node = TREE_NODES[k];
+        if (lv > 0 && node) {
+          const paid = nodePaidV193D(node, lv);
+          pp += paid;
+          parts.push({ k, name: node.name, lv, pp: paid });
+          delete state.tree[k];
+        }
+      });
+      state.pp = (state.pp || 0) + pp;
+      state.perfRefundV193J = { pp, parts, at: Date.now() };
+      pp > 0 &&
+        setTimeout(() => {
+          try {
+            showToast(
+              "🔁 " + parts.length + " game-day node" + (parts.length === 1 ? " was" : "s were") + " redrawn — " + fmtBigV179(pp) + " PP refunded. Buy them back for the new effect, or spend it anywhere."
+            );
+          } catch (_) {}
+        }, TU("perfRefundToastMsV193J", 2200));
+      return pp;
+    } catch (_) {
+      return 0;
+    }
+  }
+  window.__V193J = { nodes: () => PERF_NODES_V193J.slice(), refund: () => perfRefundV193J(), last: () => (state && state.perfRefundV193J) || null };
   /* ===== v193 E THE ECONOMY, THE CHAOS CARD, AND HOW THE SCOUTS DECIDE =====
    * The owner: "Plus all stats per game feels overpowered and I'm not sure it should be in the game. However, it
    * doesn't appear to be working. Please remove it." · "I like the slow scaling how it is, but I do want to avoid
@@ -27953,7 +27992,7 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
           TU("recoverToastMsV150", 2600)
         );
     })();
-    if ((state.tree || (state.tree = {}), evergreenRefundV146(), state.shop)) {
+    if ((state.tree || (state.tree = {}), evergreenRefundV146(), perfRefundV193J(), state.shop)) {
       const t = {
         genetics: "genetics",
         talent: "talent",

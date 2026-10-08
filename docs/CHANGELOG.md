@@ -10,6 +10,7 @@ Names in older entries are the career app's pre-v149 C minified names (`q`, `ms`
 `index.html` + `src/` (`docs/LAYOUT.md`).
 
 <!-- new entries go here, newest first -->
+- **v193 J · The redrawn nodes are paid back.** v193 E gave the seven "+% to every attribute a game" nodes new effects; a save that bought them paid for the old one. Once a save, at boot, every level of Twin Engines, Zen Focus, Trash Talk, Aura, Eternal Form, The Wall and Glass Cannon comes back as the PP it costs at today's prices, and the levels go to 0 — buy them back for the new effect, or spend it anywhere. A toast says so. Kill switch `v193J`. `v193Jcheck`. (`src/07-career-app.js`.)
 - **v193 A · The gear grows, and sells.** Every piece has a level — received at 1 + 5 × the league level it dropped at,
   and +5 to everything in the bag and on the body at every season's end — and the level is a flat +1% a level (cap ×2.5)
   on every bonus the piece carries, in both reads (`gearFx`, `gearTotalsV147`). SCRAP is SELL: 1 / 3 / 8 / 20 / 50 by
