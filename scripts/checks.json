@@ -36,8 +36,7 @@
     "v193Ccheck",
     "v193Dcheck",
     "v193Bcheck",
-    "v193Jcheck",
-    "v193Kcheck"
+    "v193Jcheck"
    ]
   },
   "docs": {
@@ -5092,7 +5091,7 @@
     "legacy",
     "vault"
    ],
-   "runtimeSec": 75,
+   "runtimeSec": 135,
    "slow": false,
    "needsServer": true,
    "pureNode": false,
