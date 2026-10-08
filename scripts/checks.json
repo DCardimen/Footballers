@@ -956,7 +956,8 @@
     "bobcheck",
     "v159Acheck",
     "numsewcheck",
-    "v193Icheck"
+    "v193Icheck",
+    "v193Qcheck"
    ]
   },
   "lights": {
@@ -1582,7 +1583,8 @@
     "v177 K",
     "v177 F",
     "v177 G",
-    "v177 H"
+    "v177 H",
+    "v193 Q"
    ],
    "files": [
     "src/28-cosmetics.js",
@@ -1618,7 +1620,8 @@
     "v159Acheck",
     "palettecheck",
     "numsewcheck",
-    "v177FGHcheck"
+    "v177FGHcheck",
+    "v193Qcheck"
    ]
   },
   "audio": {
@@ -5175,6 +5178,19 @@
    "desc": "v193 N — personality gives a stat: each perf pole (Win-Now / Process → Grit, Coasts → Awareness, Me-First / Team-First → Vision) moves ONE attribute by a whole number in the game accessor (_raw) and the sheet (effAttrsV85), never every stat; the page says \"▲ +2 Grit\"; an old save's fx is recomputed; kill switch v193N 0 = the old all-stats perfFlat. Stats are whole: a fractional player (47.38, 12.5, 99.999 …, fractional gear) played into a real season, every stat screen visited (season, YOUR GAME, every pregame page, the report, the growth screen, hub, skill sheet, Recruiting Board, leaders, profile, locker + compare, training board) — no number with 2+ decimals, no decimal on an attribute / OVR line. REPORT=1 lists hits. No page errors.",
    "areas": [
     "season"
+   ],
+   "runtimeSec": 100,
+   "slow": false,
+   "needsServer": true,
+   "pureNode": false,
+   "flaky": []
+  },
+  "v193Qcheck": {
+   "file": "scripts/v193Qcheck.mjs",
+   "desc": "v193 Q — his skin, his number, his kit: the creation screen's ninth swatch opens a depth / undertone picker held to plausible skin (hue 15-40, sat 25-60%, L 18-85%); a preset and a custom hex survive a reload, cleanSaveV150 / checkSaveV150 whitelist them, the line hands the tone down; the custom hex on the live field's you-marker (skin layer tint), the field build, the profile card's face and the growth screen's own figure (no kit colour on his face); the profile, TROPHIES and leaderboard cards draw his number (markup cards are painted), the menu's number before a position; EVERY uniform x a light and a dark palette and every helmet through the Locker's painter: crisp, whole, the field texture off the skin and the print, skin only on the mask, patterns visible and off the dome, the number printed and readable; contact sheet scripts/_v193Q_uniforms.png (SKIP_LIVE=1 skips the live field)",
+   "areas": [
+    "kits",
+    "cosmetics"
    ],
    "runtimeSec": 100,
    "slow": false,
