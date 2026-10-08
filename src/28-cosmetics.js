@@ -8840,6 +8840,13 @@
     return n;
   };
 
+  /* ---- his card data carries his skin (the profile screen, the trophies card, a leaderboard entry he posts) ---- */
+  var profile0V193Q = profile;
+  profile = function (st) {
+    var d = profile0V193Q.apply(this, arguments);
+    try { if (d && onV193Q()) { var s0 = st || gstate() || {}, pl = s0.player; if (pl) d.skin = toneOfV193Q(pl.skinTone, pl.name); } } catch (e) { errV193Q(e); }
+    return d;
+  };
   /* ---- a card handed back as markup: tag its canvas, paint it once it is in the page ---- */
   var CARDS_V193Q = { reg: {}, order: [], seq: 0, timers: 0 };
   function skinOfDataV193Q(d) { return skinHexV193Q(d && d.skin) || toneOfV193Q(null, d && d.name ? String(d.name) : ""); }
@@ -8925,7 +8932,7 @@
   } catch (e) {}
 
   /* the module's own handles follow the wrapped functions */
-  API.drawCharacter = drawCharacter; API.renderCard = renderCard; API.jerseyNum = jerseyNumV157C;
+  API.drawCharacter = drawCharacter; API.renderCard = renderCard; API.jerseyNum = jerseyNumV157C; API.profile = profile;
   Object.assign(COS_V193Q, {
     skinHex: skinHexV193Q, playerSkin: playerSkinV193Q, mask: function () { var M = skinMaskV193Q(); return M ? { n: M.n, W: M.W, H: M.H, m: M.m } : null; },
     fieldCell: function (U, H, num, tone, name) { return fieldCellV193Q(U, H, num, tone, name); }, sprite: function (k, w, h) { return spriteV193Q(k, w || 56, h || 62); },

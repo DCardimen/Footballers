@@ -123,7 +123,9 @@ const PT = await M(async (h) => {
   // the profile card: his face in this tone, and not in another
   window.go('profile'); await new Promise(z => setTimeout(z, 1200))
   const cv = document.querySelector('.pc-cv-v151b'), oc = document.createElement('canvas'); C.drawCharacter(oc, C.profile().cosmetics.kit || {}, C.profile().age || 22, { num: C.profile().num, skin: '#f3d2b3' })
-  const card = { mine: cv ? Q.toneCount(cv, h) : -1, inLightTone: Q.toneCount(oc, h) }   // the same card in the lightest preset: how many pixels still read as his tone
+  const pd = C.profile(), rend = (skin) => { const c = document.createElement('canvas'); C.drawCharacter(c, pd.cosmetics.kit || {}, pd.age || 22, { num: pd.num, numfont: pd.cosmetics.numfont, skin }); return c }
+  const nameHex = V.skinHex(window.__skinToneV151D({ name: window.__GRIDIRON_AUDIT__.getState().player.name }))
+  const card = { skin: pd.skin, mine: cv ? Q.toneCount(cv, h) : -1, sameAsHis: cv ? Q.diff(cv, rend(h)) : -1, vsNameTone: cv ? Q.diff(cv, rend(nameHex)) : -1, nameHex }   // the screen's card IS the figure in his tone, not his name's
   // the same figure in another tone differs only on his face (upper half of the canvas)
   const a = document.createElement('canvas'), b = document.createElement('canvas')
   C.drawCharacter(a, {}, 22, { num: null, skin: h }); C.drawCharacter(b, {}, 22, { num: null, skin: '#f3d2b3' })
@@ -137,7 +139,7 @@ const PT = await M(async (h) => {
 }, HEX)
 ok(PT.field.resolve === HEX && PT.field.hex === HEX && PT.field.preset === 2 && /^#/.test(PT.field.idx), 'the field resolves his custom hex (src/05 skinToneV151D -> skinHexV193Q), a preset stays an index', PT.field)
 ok(PT.inMask > 10 && PT.toneIn === PT.inMask, 'the field build\'s skin layer: every skin pixel is his tone times the light', { mask: PT.inMask, tone: PT.toneIn })
-ok(PT.card.mine >= 12 && PT.card.mine > PT.card.inLightTone * 2, 'the profile card\'s face wears his custom tone', PT.card)
+ok(PT.card.skin === HEX && PT.card.mine >= 12 && PT.card.sameAsHis === 0 && PT.card.vsNameTone > 20, 'the profile card\'s face wears his custom tone (pixel-equal to his figure in that tone, not his name\'s)', PT.card)
 ok(PT.dn > 20 && PT.low === 0, 'the card figure in two tones differs only on his face', { diff: PT.dn, belowHalf: PT.low })
 ok(PT.grow.drawn && PT.grow.face > 20 && PT.grow.tone >= PT.grow.face * 0.95 && PT.grow.kit === 0, 'the growth screen\'s own figure (07 growHiCellV134): the face in his tone, no pixel of it in the kit\'s second colour', PT.grow)
 // v193Q off: the old paths (a hex is no choice; the card keeps the art's face)
