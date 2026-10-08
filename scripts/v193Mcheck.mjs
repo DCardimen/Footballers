@@ -62,7 +62,7 @@ const AUDIT = ({ root, TAP_MIN, TEXT_MIN }) => {
     const fs = parseFloat(getComputedStyle(p).fontSize); if (fs < TEXT_MIN - 0.01) tiny.push(name(p) + ' ' + fs + 'px')
   }
   try { (document.getElementById('screen') || document.scrollingElement).scrollTop = 0; document.scrollingElement.scrollTop = 0 } catch (e) {}
-  return { over, taps: taps.length, small, tiny }
+  return { over, taps: taps.length, all: R.querySelectorAll('button').length, small, tiny }
 }
 
 // ---- a touch swipe through CDP: real touch events, the browser's own scrolling ----
@@ -93,9 +93,23 @@ for (const [dev, D] of Object.entries(DEVICES)) {
     if (A.missing) { ok(false, `${dev} ${tag}: the screen is there`, A.missing); return A }
     const wide = Math.max(A.over.page, A.over.app, A.over.screen)
     ok(wide <= 1 && !A.over.els.length, `${dev} ${tag}: no horizontal overflow`, wide > 1 || A.over.els.length ? { ...A.over, els: A.over.els.slice(0, 5) } : `${A.over.page}/${A.over.app}/${A.over.screen}`)
-    ok(A.taps > 0 && !A.small.length, `${dev} ${tag}: every tap target ≥ ${TAP_MIN} px tall`, A.small.length ? A.small.slice(0, 6).join(' | ') + (A.small.length > 6 ? ` (+${A.small.length - 6})` : '') : `${A.taps} targets`)
+    ok(A.taps > 0 && !A.small.length, `${dev} ${tag}: every tap target ≥ ${TAP_MIN} px tall`, A.small.length ? A.small.slice(0, 6).join(' | ') + (A.small.length > 6 ? ` (+${A.small.length - 6})` : '') : `${A.taps} targets (${A.all} buttons)`)
     ok(!A.tiny.length, `${dev} ${tag}: no text under ${TEXT_MIN} px`, A.tiny.length ? A.tiny.slice(0, 6).join(' | ') + (A.tiny.length > 6 ? ` (+${A.tiny.length - 6})` : '') : 'ok')
     return A
+  }
+  // a sideways swipe across a chip row from its right end: it must scroll (the furthest scrollLeft the row reached
+  // while the finger moved and the fling ran), or fit the screen outright
+  const sideSwipe = async (sel, tag) => {
+    const row = await M((sel) => {
+      const c = document.querySelector(sel); c.scrollIntoView({ block: 'center' }); c.scrollLeft = 0
+      c.__maxV193I = 0; c.addEventListener('scroll', () => { c.__maxV193I = Math.max(c.__maxV193I, c.scrollLeft) }, { passive: true })
+      const r = c.getBoundingClientRect(); return { x0: r.right - 12, x1: r.left + 12, y: r.top + r.height / 2, sw: c.scrollWidth, cw: c.clientWidth, sec: (document.querySelector('#screen > .hubv75-tabs .hubv75-tab.on') || {}).dataset?.sec || null }
+    }, sel)
+    if (row.sw <= row.cw + 2) { ok(true, `${dev} ${tag} fits the screen (no sideways scroll needed)`, row); return }
+    await page.waitForTimeout(150)
+    await swipe(page, cdp, row.x0, row.y, row.x1, row.y)
+    const got = await M((sel) => { const c = document.querySelector(sel); return { max: Math.round(c.__maxV193I || 0), now: Math.round(c.scrollLeft), same: c.__maxV193I !== undefined, sec: (document.querySelector('#screen > .hubv75-tabs .hubv75-tab.on') || {}).dataset?.sec || null } }, sel)
+    ok(got.max > 20 && got.now > 20 && got.sec === row.sec, `${dev} ${tag} scroll sideways under a horizontal swipe — and the swipe stays the row's (the section does not turn)`, { ...got, sec0: row.sec, sw: row.sw, cw: row.cw })
   }
   await page.goto(gameUrl('?stayStale&noFilmV114&noGrowV132'), { waitUntil: 'networkidle', timeout: 60000 })
   await page.waitForFunction(() => !!window.__GRIDIRON_AUDIT__ && !!window.__V147C && !!window.__V193A && !!window.__V193D && !!window.go, null, { timeout: 60000 })
@@ -153,19 +167,20 @@ for (const [dev, D] of Object.entries(DEVICES)) {
   }
   // the chip row: sideways under a horizontal swipe (when it is wider than the screen), and page.tap filters
   {
-    const row = await M(() => { const c = document.querySelector('.gear-chips-v193'), r = c.getBoundingClientRect(); return { x0: r.right - 12, x1: r.left + 12, y: r.top + r.height / 2, sw: c.scrollWidth, cw: c.clientWidth, sl: c.scrollLeft } })
-    if (row.sw > row.cw + 2) {
-      await swipe(page, cdp, row.x0, row.y, row.x1, row.y)
-      const sl = await M(() => document.querySelector('.gear-chips-v193').scrollLeft)
-      ok(sl > 20, `${dev} gear: a sideways swipe scrolls the chip row`, { before: row.sl, after: sl, sw: row.sw, cw: row.cw })
-    } else ok(true, `${dev} gear: the chip row fits the screen (no sideways scroll needed)`, { sw: row.sw, cw: row.cw })
+    await sideSwipe('.gear-chips-v193', 'gear: the filter chip row')
     const target = await M(() => { const on = document.querySelector('.gear-chip-v193.on'); const b = [...document.querySelectorAll('.gear-chips-v193 .gear-chip-v193')].find((x) => x !== on && x.dataset.chip === 'all') || [...document.querySelectorAll('.gear-chips-v193 .gear-chip-v193')].find((x) => x !== on); b.scrollIntoView({ inline: 'center', block: 'nearest' }); return b.dataset.chip })
-    await page.waitForTimeout(200)
+    await page.waitForTimeout(700)   // the fling has settled: a tap during momentum only stops the scroll
     const bb = await page.locator(`.gear-chips-v193 .gear-chip-v193[data-chip="${target}"]`).boundingBox()
+    const at = bb ? await M(({ x, y }) => { const h = document.elementFromPoint(x, y); return h ? (h.dataset && h.dataset.chip) || h.className || h.tagName : null }, { x: bb.x + bb.width / 2, y: bb.y + bb.height / 2 }) : null
     if (bb) await page.touchscreen.tap(bb.x + bb.width / 2, bb.y + bb.height / 2)
     await page.waitForTimeout(500)
     const T = await M(() => ({ on: (document.querySelector('.gear-chip-v193.on') || {}).dataset?.chip, current: window.__V193A.current() }))
-    ok(T.on === target && T.current === target, `${dev} gear: tapping a chip (a real tap) filters the list`, { target, ...T })
+    ok(T.on === target && T.current === target, `${dev} gear: tapping a chip (a real tap) filters the list`, { target, under: at, bb, ...T })
+    // the kill switch: TU v193I 0 — the same sideways swipe on the chips turns the section (the bug v193 I fixed)
+    const K = await M(() => { window.RIB_TUNE = window.RIB_TUNE || {}; window.RIB_TUNE.v193I = 0; const c = document.querySelector('.gear-chips-v193'); c.scrollLeft = 0; const r = c.getBoundingClientRect(); return { x0: r.right - 12, x1: r.left + 12, y: r.top + r.height / 2, sec: (document.querySelector('#screen > .hubv75-tabs .hubv75-tab.on') || {}).dataset?.sec } })
+    await swipe(page, cdp, K.x0, K.y, K.x1, K.y)
+    const K2 = await M(() => { delete window.RIB_TUNE.v193I; return (document.querySelector('#screen > .hubv75-tabs .hubv75-tab.on') || {}).dataset?.sec })
+    ok(K.sec === 'gear' && K2 && K2 !== 'gear', `${dev} gear (TU v193I 0): the same swipe on the chips turns the section — what v193 I stopped`, { before: K.sec, after: K2 })
   }
 
   // ================= 2. the prestige tree: QUICK BUY, and the v193 E SPEND NOW row =================
@@ -189,13 +204,10 @@ for (const [dev, D] of Object.entries(DEVICES)) {
   await page.waitForTimeout(600)
   await shot('tree-spendnow')
   {
-    const row = await M(() => { const c = document.querySelector('.sn-chips-v193e'); if (!c) return null; c.scrollIntoView({ block: 'center' }); const r = c.getBoundingClientRect(); return { x0: r.right - 12, x1: r.left + 12, y: r.top + r.height / 2, sw: c.scrollWidth, cw: c.clientWidth, chips: c.querySelectorAll('.sn-row-v193e').length } })
-    ok(!!row && row.chips > 0, `${dev} tree (v193L 0): SPEND NOW shows its chip row`, row)
-    if (row && row.sw > row.cw + 2) {
-      await swipe(page, cdp, row.x0, row.y, row.x1, row.y)
-      const sl = await M(() => document.querySelector('.sn-chips-v193e').scrollLeft)
-      ok(sl > 20, `${dev} tree (v193L 0): a sideways swipe scrolls the SPEND NOW chips`, { after: sl, sw: row.sw, cw: row.cw })
-    } else if (row) ok(true, `${dev} tree (v193L 0): the SPEND NOW row fits the screen`, row)
+    const chips = await M(() => document.querySelectorAll('.sn-chips-v193e .sn-row-v193e').length)
+    ok(chips > 0, `${dev} tree (v193L 0): SPEND NOW shows its chip row`, chips)
+    if (chips) await sideSwipe('.sn-chips-v193e', 'tree (v193L 0): the SPEND NOW chips')
+    await page.waitForTimeout(600)
     await audit('tree (v193L 0)', '#spendNowV193E')
   }
   await M(() => { delete window.RIB_TUNE.v193L })

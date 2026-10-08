@@ -274,6 +274,14 @@
   document.addEventListener("touchstart", function (e) {
     if (!root.classList.contains("one-v170") || e.touches.length !== 1) return;
     var t = e.target; if (!t.closest || !t.closest("#screen") || t.closest(".chips,.lb151,.qa-row-v146,input,select,textarea,.cos-grid-v151b,[data-noswipe]")) return;
+    /* ===== v193 I EVERY SHEET, EVERY PHONE =====
+     * a sideways swipe on a row that scrolls sideways (the locker's gear filter chips, the tree's SPEND NOW chips, any
+     * overflow-x row) is that row's own scroll — it used to turn the section too (GEAR → the next tab, the chips lost).
+     * scripts/v193Mcheck.mjs swipes them with real touch events. Off: TU v193I 0. */
+    if (TU("v193I", 1)) for (var el = t; el && el.id !== "screen"; el = el.parentElement) {
+      var ox = getComputedStyle(el).overflowX;
+      if ((ox === "auto" || ox === "scroll") && el.scrollWidth > el.clientWidth + 1) return;
+    }
     SW = { x: e.touches[0].clientX, y: e.touches[0].clientY, t: Date.now() };
   }, { passive: true });
   document.addEventListener("touchend", function (e) {
