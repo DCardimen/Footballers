@@ -15811,7 +15811,7 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
         cv = p.querySelector(".skp-spr-v193q");
       if (cv && Q && Q.cos && Q.cos.sprite) {
         const kit = (window.RIB_COSMETICS && window.RIB_COSMETICS.face && window.RIB_COSMETICS.face().kit) || {};
-        const s = Q.cos.sprite({ U: { j: kit.j || "#1f4fd0", p: kit.p || "#e8c86a", t: kit.t || null, pat: kit.pat || "solid" }, H: null }, 46, 64);
+        const s = Q.cos.sprite({ U: { j: kit.j || "#1f4fd0", p: kit.p || "#e8c86a", t: kit.t || null, pat: kit.pat || "solid" }, H: null }, 52, 76);
         if (s) {
           const x = cv.getContext("2d");
           cv.width = s.width;
