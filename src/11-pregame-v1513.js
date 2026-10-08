@@ -895,7 +895,34 @@ function v193ScoreHtmlD(S,pre){if(!S)return"";const d=pre&&pre.us!=null?S.us-pre
   return`<span class="l">PROJECTED</span><b><span data-n="${S.usR}">${S.usR}</span>–<span data-n="${S.themR}">${S.themR}</span></b>${v193SigD(d,true)}<small>${S.ready?`${S.n} games in the engine`:"off the matchup"}${S.lift?` · plan ${S.lift>0?"+":"−"}${(Math.round(Math.abs(S.lift)*10)/10).toFixed(1)}`:""}${S.fixed?` · rolled ${S.roll>0?"+":S.roll<0?"−":"±"}${Math.abs(S.roll)}`:""}</small>`}
 function v193ScoreNumsD(){const el=document.getElementById("v193Score5")||document.getElementById("v193Score3"),n=el?[...el.querySelectorAll("[data-n]")].map(x=>+x.dataset.n):[];return n.length===2?n:null}
 function v193ScoreRenderD(from){if(!v193OnD())return;const id=v146PlanIdD(),S=v193ScoreD(id),R=v193RevealedD(),pre=R&&v193PreD&&v193PreD.id===R.id?v193PreD.score:null;
+  if(v193HOnD())return v193HRenderD(from,id,S,R,pre);   // v193 H: the ± on it, the plan's shift named, and a number that ticks instead of jumping
   ["v193Score3","v193Score5"].forEach(i=>{const el=document.getElementById(i);if(!el)return;el.innerHTML=v193ScoreHtmlD(S,pre);el.classList.toggle("rolled",!!(S&&S.fixed));if(from)v193TweenD(el,from)})}
+/* ===== v193 H THE ODDS DECIDE THE DEFAULT, THE SCORE SAYS HOW SURE (the pages) =====
+ * The projected score is a read off ~10 sample games, so it now says how sure it is: PROJECTED 15–12 ±4, the ± the
+ * standard error of the margin over the samples (`__V146.score(...).pm`, 07's `projScoreSureV193H`), "early read"
+ * under `projScoreEarlyNV193H` (6) games. After ROLL THE PLAN the shift is named for what it is — the plan's own,
+ * deterministic click / backfire (`S.roll − pre.roll`): `▲ plan +3` / `▼ plan −3`, the arrow only when it is a point
+ * or more (`plan ±0` otherwise); the team lift in the small print reads "team lift" so the two never blur. While the
+ * background sampler fills, the number on screen changes at most every `projScoreTickMsV193H` (800) ms and tweens
+ * there (`v193HRenderD`; a plan tap or the roll redraws at once). The default pick's half lives in 17 (`defaultPickV146`).
+ * Kill switch `TU("v193H", 1)`. `window.__V193H`; `v193Bcheck`. */
+let v193HShowD=null,v193HTimerD=0,v193HStampD=0;   // the score on screen {key, S, pre, at, stamp} · the pending tick
+function v193HOnD(){return v193OnD()&&!!v193TU("v193H",1)}
+function v193HDeltaD(S,pre){if(!S||!S.fixed||!pre||pre.roll==null)return"";const d=Math.round(S.roll-pre.roll);
+  return Math.abs(d)>=1?`<u class="v193-d ${d>0?"up":"dn"}" id="v193Plan">${d>0?"▲":"▼"} plan ${d>0?"+":"−"}${Math.abs(d)}</u>`:`<u class="v193-d" id="v193Plan">plan ±0</u>`}
+function v193HHtmlD(S,pre){if(!S)return"";const lift=S.lift?` · team lift ${S.lift>0?"+":"−"}${(Math.round(Math.abs(S.lift)*10)/10).toFixed(1)}`:"";
+  const src=S.ready?(S.early?`early read · ${S.n} games`:`${S.n} games in the engine`):"early read · off the matchup";
+  return`<span class="l">PROJECTED</span><b><span data-n="${S.usR}">${S.usR}</span>–<span data-n="${S.themR}">${S.themR}</span></b>${S.pm!=null?`<em class="v193-pm">±${S.pm}</em>`:""}${v193HDeltaD(S,pre)}<small>${src}${lift}${S.fixed?` · rolled ${S.roll>0?"+":S.roll<0?"−":"±"}${Math.abs(S.roll)}`:""}</small>`}
+function v193HRenderD(from,id,S,R,pre){const h=v146HeldD(),key=[id||"",R?R.id+":"+R.band:"",(h&&h.key)||""].join("|"),now=Date.now(),tick=v193TU("projScoreTickMsV193H",800),L=v193HShowD;
+  let show=null,tw=from||null;
+  if(L&&L.key===key&&!from){
+    if(now-L.at<tick){show=L;if(!v193HTimerD)v193HTimerD=setTimeout(()=>{v193HTimerD=0;try{v193ScoreRenderD()}catch(e){}},tick-(now-L.at)+10)}   // too soon: the numbers on screen stand until the tick
+    else{const moved=!!(L.S&&S&&(L.S.usR!==S.usR||L.S.themR!==S.themR));show={key,S,pre,at:moved?now:L.at,stamp:++v193HStampD};if(moved)tw=[L.S.usR,L.S.themR]}}
+  else show={key,S,pre,at:now,stamp:++v193HStampD};
+  v193HShowD=show;
+  ["v193Score3","v193Score5"].forEach(i=>{const el=document.getElementById(i);if(!el)return;if(el.dataset.v193h===String(show.stamp)&&el.innerHTML)return;   // already showing it (a tween may be running)
+    el.innerHTML=v193HHtmlD(show.S,show.pre);el.dataset.v193h=String(show.stamp);el.classList.toggle("rolled",!!(show.S&&show.S.fixed));if(tw&&show!==L)v193TweenD(el,tw)})}
+window.__V193H={on:v193HOnD,render:v193ScoreRenderD,shown:()=>v193HShowD,html:v193HHtmlD,why:id=>v193WhyD(id)};
 function v193TweenD(el,from){const to=[...el.querySelectorAll("[data-n]")];if(to.length!==2)return;const t0=performance.now(),ms=v193TU("scoreTweenMsV193",500);
   const step=()=>{const k=Math.min(1,(performance.now()-t0)/ms);to.forEach((x,i)=>{x.textContent=Math.round(from[i]+(+x.dataset.n-from[i])*k)});if(k<1)requestAnimationFrame(step)};requestAnimationFrame(step)}
 function v193WhyD(id){if(!v193OnD())return"";const V=window.__PREGAME_V51,o=V&&V.oddsPick?V.oddsPick():null;if(!o||!o.modified)return"";if(id!==o.pick&&id!==o.scout)return"";
@@ -955,6 +982,8 @@ function v193StyleD(){if(document.getElementById("v193StyleEl"))return;document.
   .odds-head-v20 .v193-score{flex:1 1 100%;margin:6px 0 0}
   .v193-d{font:700 10px Oswald,sans-serif;text-decoration:none;margin-left:3px;vertical-align:middle}
   .v193-d.up{color:#8fe0a0}.v193-d.dn{color:#e8938b}
+  .v193-score .v193-pm{font:600 11px Oswald,sans-serif;font-style:normal;color:var(--chalk-dim);letter-spacing:.3px}   /* v193 H: how sure */
+  .v193-score .v193-d{white-space:nowrap}
   .v146-pr b .v193-d{font-size:9px;vertical-align:top}
   .v193-rolled{font:700 10px Oswald,sans-serif;font-style:normal;letter-spacing:.8px;white-space:nowrap}
   .v193-rolled.green{color:#8fe0a0}.v193-rolled.red{color:#e8938b}.v193-rolled.neutral{color:#cfd6a8}
