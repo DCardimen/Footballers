@@ -162,8 +162,16 @@
     // and the thin shoulder was the other half of why this looked like spilled change.
     prof: function (q) { q = Math.min(1, Math.max(0, q));
       return Math.max(0, Math.pow(Math.cos(q * Math.PI * 0.5), 0.92) * (0.90 + 0.10 * Math.cos(q * 3.1))); },
-    lobe: function (th) { return 1 + 0.17 * Math.sin(th * 2 + 0.7) + 0.11 * Math.sin(th * 3 - 1.9) + 0.06 * Math.sin(th * 5 + 0.3); }
+    lobe: function (th) {
+      /* v193 K: the lobe was lopsided — its odd harmonics pushed the heap's left flank 17% further out than its
+       * right (1.20 vs 1.02 of R at the two ends of the x axis), so the pile's outline sat up to 30 px left of
+       * the door it is poured under. Averaged with its own mirror (x -> -x is th -> PI - th) it keeps every
+       * front/back wobble and is the same width either side. `RIB_TUNE.v193K = 0` restores the old outline. */
+      return v193KOn() ? (lobeRawV137(th) + lobeRawV137(Math.PI - th)) / 2 : lobeRawV137(th);
+    }
   };
+  function lobeRawV137(th) { return 1 + 0.17 * Math.sin(th * 2 + 0.7) + 0.11 * Math.sin(th * 3 - 1.9) + 0.06 * Math.sin(th * 5 + 0.3); }
+  function v193KOn() { try { return !(window.RIB_TUNE && window.RIB_TUNE.v193K === 0); } catch (e) { return true; } }
 
   /* ---------- the slots ---------- */
   /* THE HOARD IS MOSTLY STACKS.
