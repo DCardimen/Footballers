@@ -36,7 +36,8 @@
     "v193Ccheck",
     "v193Dcheck",
     "v193Bcheck",
-    "v193Jcheck"
+    "v193Jcheck",
+    "v193Kcheck"
    ]
   },
   "docs": {
@@ -451,7 +452,8 @@
    "desc": "v137 — the Prestige Vault: hoard, spend, door, payout, sprites; v153 C — the payday (the reward sequence)",
    "anchors": [
     "v137",
-    "v153 C"
+    "v153 C",
+    "v193 K"
    ],
    "files": [
     "public/rib-vault*",
@@ -469,7 +471,8 @@
     "v136check",
     "freshcheck",
     "v156Acheck",
-    "v173check"
+    "v173check",
+    "v193Kcheck"
    ],
    "steps": [
     "`python3 scripts/build-vault-art.py --proof` (if a cell moved — then LOOK at `art/vault-proof/`)",
@@ -1636,7 +1639,8 @@
     "v152 A",
     "RIB_LEGACY",
     "v153 F",
-    "v157 C"
+    "v157 C",
+    "v193 K"
    ],
    "files": [
     "src/31-legacy.js",
@@ -1655,7 +1659,8 @@
     "v153Fcheck",
     "v153Echeck",
     "v156Acheck",
-    "v159Bcheck"
+    "v159Bcheck",
+    "v193Kcheck"
    ]
   },
   "v153b": {
@@ -5075,6 +5080,19 @@
     "prestige-pacing"
    ],
    "runtimeSec": 30,
+   "slow": false,
+   "needsServer": true,
+   "pureNode": false,
+   "flaky": []
+  },
+  "v193Kcheck": {
+   "file": "scripts/v193Kcheck.mjs",
+   "desc": "v193 K — the Legacy book shows each medal's reward (ribbon, title, tap-detail; waiting / to-come kinds) and YOUR MEDAL REWARDS (every claim with its effect line, the running totals); the page curls in 3D (rotateY on the leaf, strips, 450 ms) and lands, a drag completes past half; reduced motion cross-fades with no rotateY; the vault's hoard and door are centred at 360/430, no banner words, the cleaned room.webp loads with no lettering.",
+   "areas": [
+    "legacy",
+    "vault"
+   ],
+   "runtimeSec": 75,
    "slow": false,
    "needsServer": true,
    "pureNode": false,
