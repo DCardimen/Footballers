@@ -28298,6 +28298,11 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
     x = Number(x);
     return isFinite(x) ? (Math.round(x * 10) / 10).toFixed(1) : "";
   }
+  // a multiplier as a whole percent change (×1.16 → +16%, ×0.85 → −15%, ×1 → ±0%)
+  function pctTxtV193N(x) {
+    const d = Math.round(((Number(x) || 1) - 1) * 100);
+    return (d > 0 ? "+" : d < 0 ? "−" : "±") + Math.abs(d) + "%";
+  }
   window.__V193N = {
     flat: e => personaGameFlatV193N((e || state.player) && (e || state.player).personaFxV20, e || state.player),
     mul: mulTxtV193N
@@ -28372,7 +28377,7 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
       last = e._poiseLastV192C;
     return `<div class="card poise-card-v192c"><div class="eyebrow">Poise · Cool Under Pressure</div>
     <div style="display:flex;justify-content:space-between;gap:12px;align-items:center"><div><div class="h2" style="margin:0;color:#8fd3ff">${poiseBandV192C(p)}</div>
-    <div class="small">Game-to-game swing <b>×${mulTxtV193N(F.w)}</b> · a bad game's drop <b>×${mulTxtV193N(F.w * F.lo)}</b> · a good game's rise <b>×${mulTxtV193N(F.w * F.hi)}</b>. Grows slowly with every game — <b>×${TU("poisePlayoffKV192C", 2.5)}</b> in the playoffs, <b>×${TU("poiseRivalKV192C", 1.6)}</b> in a rivalry — and <b>×${mulTxtV193N(rate)}</b> for your personality${last ? ` (last game +${last.toFixed(1)})` : ""}.</div></div>
+    <div class="small">Game-to-game swing <b>${pctTxtV193N(F.w)}</b> · a bad game's drop <b>${pctTxtV193N(F.w * F.lo)}</b> · a good game's rise <b>${pctTxtV193N(F.w * F.hi)}</b>. Grows slowly with every game — <b>${pctTxtV193N(TU("poisePlayoffKV192C", 2.5))}</b> in the playoffs, <b>${pctTxtV193N(TU("poiseRivalKV192C", 1.6))}</b> in a rivalry — and <b>${pctTxtV193N(rate)}</b> for your personality${last ? ` (last game ${last >= 0.5 ? "+" + Math.round(last) : "under a point"})` : ""}.</div></div>
     <div class="ovr-big" style="color:#8fd3ff">${Math.round(p)}</div></div>
     <div class="small" style="margin-top:6px"><a href="#" onclick="window.__personaViewV192C&&window.__personaViewV192C();return false" style="color:var(--gold)">Personality — every effect ›</a></div></div>`;
   }
@@ -39933,7 +39938,7 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
   }
   function fmtMultV192B(x) {
     x = +x || 1;
-    return x >= 1000 ? fmtBigV179(Math.round(x)) : x >= 100 ? String(Math.round(x)) : mulTxtV193N(x); /* v193 N: one decimal (was two under ×10) */
+    return x >= 1000 ? fmtBigV179(Math.round(x)) : x >= 100 ? String(Math.round(x)) : mulTxtV193N(x).replace(/\.0$/, ""); /* v193 N: one decimal (was two under ×10); a whole multiplier reads ×1 */
   }
 
   // ---- 1/2: the multiplier, part by part (the same terms as screenGameOver's `s` × chaosEarnedMult × the Prestige cards)
