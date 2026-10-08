@@ -660,7 +660,7 @@ function v112ShellD(a){
     <button class="v112-skip" id="v112Skip" onclick="__v112SkipD()">CONTINUE TO MATCH<small>skip the rest — your picks stand</small></button>
   </div></div>`;
 }
-window.__V112_D={PAGES:V112_PAGES_D,page:()=>v112PageD,go:i=>v112ShowPageD(i),
+window.__V112_D={PAGES:V112_PAGES_D,page:()=>v112PageD,go:i=>v112ShowPageD(typeof i==="string"?v112ActiveD().findIndex(x=>x.id===i):i),   /* v193 B: a page id as well as an index — the YOUR TEAM page moved every index after page 3 */
   next:()=>window.__v112NextD(),back:()=>window.__v112BackD(),skip:()=>window.__v112SkipD(),
   impact:v112ImpactHTMLD,render:v112RenderFinalD,
   state:()=>{const S=gsStateV23;if(!S)return null;const pl=S.pl,wk=S.wk,key=v111KeyV111(wk);

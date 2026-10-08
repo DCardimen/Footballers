@@ -215,7 +215,7 @@
       start: "nodes",
       keep: /(^|\s)(eyebrow|h1|sub)(\s|$)|pts-banner/,
       secs: [
-        { k: "nodes", name: "NODES", re: /btn-row/ },
+        { k: "nodes", name: "NODES", re: /btn-row|spend-v193e/ },   // v193 E: SPEND NOW opens the nodes tab
         { k: "perks", name: "PERKS", re: /specialization-card-v11|legacy-rewards-v11/ },
       ],
       txt: [],

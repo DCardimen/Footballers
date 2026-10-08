@@ -120,8 +120,9 @@ const R = await M(() => {
   const X = window.__GRIDIRON_AUDIT__, S = X.getState(), N = X.TREE_NODES.endorse
   const paid = X.nodeCost(N, 0) + X.nodeCost(N, 1), raw = Math.round(N.cost) + Math.round(N.cost * N.mult)
   S.prestige = 1; S.respecUsed = 0; S.view = 'shop'
+  const pp0 = S.pp   // setup's pp default is 1000 (0 is falsy there) — measure the refund, not the balance
   window.respecTree()
-  return { paid, raw, got: S.pp, helper: window.__V193D.paid('endorse', 2), tree: Object.keys(S.tree).length, price: window.__V179.price(N.branch) }
+  return { paid, raw, got: S.pp - pp0, helper: window.__V193D.paid('endorse', 2), tree: Object.keys(S.tree).length, price: window.__V179.price(N.branch) }
 })
 ok(R.got === R.paid && R.helper === R.paid && R.paid > R.raw && R.tree === 0 && R.price === 24, 'the respec refunds what the two levels cost (×24 the core price), not a 24th of it', R)
 const R0 = await M(() => { const X = window.__GRIDIRON_AUDIT__, S = X.getState(); S.tree = { endorse: 2 }; S.pp = 0; S.respecUsed = 0; window.RIB_TUNE.v193Drefund = 0; window.respecTree(); delete window.RIB_TUNE.v193Drefund; return S.pp })

@@ -41218,16 +41218,18 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
   window.__chaosMaxV179 = () => chaosMaxAllNowV150();
   window.__chaosTotalV179 = () => chaosTotal();
   /* ===== v193 E · THE TREE OPENS WITH SPEND NOW, THE HUB COUNTS THE AFFORDABLE =====
-   * Last in the file so these run first: the strip lands directly under the PP banner (v179's potential card follows
-   * it), and the hub line is added after v179's gate line exists. */
+   * Last in the file so these run first: the strip lands under the branch buttons, over the node list, and the hub line is added after v179's gate line exists. */
   const spSpendV193E = screenPrestige;
   screenPrestige = function () {
     const r = spSpendV193E.apply(this, arguments);
     try {
       const sc = byId("screen"),
-        at = sc && sc.querySelector(".pts-banner");
+        tabs = sc && sc.querySelector(".branch-tab"),
+        at = (tabs && tabs.closest(".btn-row")) || (sc && sc.querySelector(".pts-banner"));
       if (sc && !sc.querySelector("#spendNowV193E")) {
         const html = spendNowHtmlV193E();
+        /* under the branch buttons, over the node list: the NODES tab opens on it, and the potential and medal
+         * cards keep their place below the nodes (the v75 sectioner files a block by the one before it) */
         html && (at ? at.insertAdjacentHTML("afterend", html) : sc.insertAdjacentHTML("afterbegin", html));
       }
     } catch (_) {}
