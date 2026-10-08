@@ -10,6 +10,17 @@ Names in older entries are the career app's pre-v149 C minified names (`q`, `ms`
 `index.html` + `src/` (`docs/LAYOUT.md`).
 
 <!-- new entries go here, newest first -->
+- **v193 D · The payout, shown.** The career's end (a cut, the UFF arrival) draws its pay as a receipt, every term a row
+  with its number: the level's base + the seasons + the titles, × your bonuses (tap: every multiplier), × the Hall of Fame
+  Path, × chaos, + Family Legacy, = THE CAREER PAYS; + what the career banked by source (the flat cap as a row when it
+  bit), + the Prestige cards, = PAID INTO THE VAULT — counting up — and what the ending paid at once (a goal it completed,
+  a Legacy bounty) after that, so the last line is every PP the career just paid; the PP Earned box shows the same total.
+  Computed before the settle (which opens museum wings and rings) and kept on the player. The season screen's
+  📈 PRESTIGE THIS SEASON card (under TEAM QUALITY): the pot now over the last season's end, "+N so far", the sources
+  banked this season, what a title pays, and THE FULL MATH (the v192 B breakdown — which now names the HoF Path, the
+  cut-vs-arrival rates, and what an arrival would pay); collapsible, remembered. Fixed: the free respec refunded
+  `cost·mult^i` a level while the price paid carries the branch factor (×24 a core node since v191 A) — it refunds what
+  was paid. Kill switches `v193D`, `v193Drefund`. `v193Dcheck`. (`src/07`, `src/styles/00-app.css`.)
 - **v192 — a playtest pass in six parts.** (`src/04`, `05`, `07`, `14`, `public/rib-menu*`, `public/rib-vault*`.)
   - **A · The economy, to scale.** Flat prestige (milestones, challenges, orders, titles, nemesis, Daily Drive, Legacy
     bounties) pays a tenth of its face (milestones 1,1,1,1,2,4,7,22), and what a career banks on the side is paid only up

@@ -30,7 +30,8 @@
     "v156Acheck",
     "v164Echeck",
     "formcheck",
-    "accelcheck"
+    "accelcheck",
+    "v193Dcheck"
    ]
   },
   "docs": {
@@ -522,7 +523,8 @@
     "v136check",
     "v134check",
     "v85check",
-    "origincheck"
+    "origincheck",
+    "v193Dcheck"
    ]
   },
   "summary": {
@@ -1341,7 +1343,8 @@
    "files": [],
    "checks": [
     "declarecheck",
-    "v150Acheck"
+    "v150Acheck",
+    "v193Dcheck"
    ]
   },
   "modes": {
@@ -4974,6 +4977,20 @@
     "season"
    ],
    "runtimeSec": 90,
+   "slow": false,
+   "needsServer": true,
+   "pureNode": false,
+   "flaky": []
+  },
+  "v193Dcheck": {
+   "file": "scripts/v193Dcheck.mjs",
+   "desc": "v193 D — the career-end ledger (a cut, an arrival): every row adds / multiplies to the total, the total is what the settle paid and the PP Earned box, the bank by source with the flat cap, the HoF Path row, the count-up; the season screen's PRESTIGE THIS SEASON card (+N so far, the sources, the breakdown button, collapsible); the breakdown's HoF / rates / arrival rows; the respec refunds the price paid.",
+   "areas": [
+    "pp-bank",
+    "declare",
+    "smoke"
+   ],
+   "runtimeSec": 40,
    "slow": false,
    "needsServer": true,
    "pureNode": false,
