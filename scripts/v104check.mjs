@@ -51,7 +51,7 @@ ok(scene, 'the broadcast is live with markers on the field')
 // ================= 1. the bands the ART gave, and the ink placed inside them =================
 // The states that never show a number (a man on the ground, a dive, a detailed catch/juke pose)
 // are exempt — placement is only ever asked of the poses the renderer actually numbers.
-const NEVER = /_(down|divex|dive|tackle\d|pancake\d|getup\d?|catch\d|divecatch\d|juke\d|stiff\d|hurdle\d)$/
+const NEVER = /_(down|divex|dive|tackle\d|pancake\d|getup\d?|catch\d|catchseq\d_\d|divecatch\d|juke\d|stiff\d|hurdle\d)$/   // v193 C: the catch sequence hides its number through the reach, as catch\d does
 const B = await page.evaluate(() => {
   const RIBnum = window.__V104 && window.__V104.bands || {}
   const out = {}; for (const k in RIBnum) out[k] = RIBnum[k]; return out

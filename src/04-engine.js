@@ -170,15 +170,21 @@ window.TU = function (k, d) { var t = window.RIB_TUNE; return t[k] !== undefined
       if (featured.isMe && root.__getGridironState) {
         const _st = root.__getGridironState(), _pl = _st && _st.player, _at = (_pl && _pl.attrs) || {};
         const _me = A[featured.actorId], _cap = 40;
-        _me.spd *= 0.82 + 0.44 * Math.min(1, ((_at.speed||18)*0.65 + (_at.acceleration||_at.quickness||18)*0.35) / _cap);
-        _me._accRating = 99*Math.min(1,(_at.acceleration||_at.quickness||18)/_cap);            // start/recovery rate
-        _me._agiRating = 99*Math.min(1,(_at.agility||18)/_cap);                                // cut speed retention + braking
-        _me._burstRating = 99*Math.min(1,(_at.burst||_at.acceleration||18)/_cap);               // first 250ms drive
-        _me._agi = Math.min(1, (_at.agility||18) / _cap);
-        _me._pwr = Math.min(1, ((_at.strength||18)*0.6 + (_at.tackling||_at.blocking||18)*0.4) / _cap); // fight through contact
-        _me._blkSkill = Math.max(_me._blkSkill||0, Math.min(1, (_at.blocking||14) / _cap));            // escort blocking IQ
+        const _n = (v, d) => Number(v) || d;   // v193 C: a missing or non-numeric attribute reads as its default, never NaN
+        if (!_me) throw new Error("featured actor " + featured.actorId + " is not on the field");
+        _me.spd *= 0.82 + 0.44 * Math.min(1, (_n(_at.speed, 18)*0.65 + _n(_at.acceleration, _n(_at.quickness, 18))*0.35) / _cap);
+        _me._accRating = 99*Math.min(1, _n(_at.acceleration, _n(_at.quickness, 18))/_cap);            // start/recovery rate
+        _me._agiRating = 99*Math.min(1, _n(_at.agility, 18)/_cap);                                // cut speed retention + braking
+        _me._burstRating = 99*Math.min(1, _n(_at.burst, _n(_at.acceleration, 18))/_cap);               // first 250ms drive
+        _me._agi = Math.min(1, _n(_at.agility, 18) / _cap);
+        _me._pwr = Math.min(1, (_n(_at.strength, 18)*0.6 + _n(_at.tackling, _n(_at.blocking, 18))*0.4) / _cap); // fight through contact
+        _me._blkSkill = Math.max(_me._blkSkill||0, Math.min(1, _n(_at.blocking, 14) / _cap));            // escort blocking IQ
       }
-    } catch (e) {}
+    } catch (e) {
+      /* v193 C: the you-player's speed/agility were dropped silently — count it, and say so once per message */
+      try { const F = root.__FieldSim; if (F) F.featuredErrsV193C = (F.featuredErrsV193C || 0) + 1;
+        if (root.__V193C && root.__V193C.warn) root.__V193C.warn("featured attrs", e); else console.warn("[v193 C] featured attrs", e); } catch (_) {}
+    }
     // the user's marker id when they play DEFENSE on this snap (contact assignment)
     const userDefId = (!usOff && payload.playerPos && !OFFPOS.includes(payload.playerPos) && featured.isMe && payload.involved) ? featured.actorId : null;   // v87: only when the book credited you
 

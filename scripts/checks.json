@@ -32,7 +32,8 @@
     "v164Echeck",
     "formcheck",
     "accelcheck",
-    "v193Echeck"
+    "v193Echeck",
+    "v193Ccheck"
    ]
   },
   "docs": {
@@ -303,7 +304,8 @@
     "gatecheck",
     "menu-integration-check",
     "vaultcheck",
-    "walk"
+    "walk",
+    "v193Ccheck"
    ],
    "look": [
     "`node scripts/v146Eshot.mjs`"
@@ -342,7 +344,8 @@
     "bootviewcheck",
     "walk",
     "shot",
-    "v148check"
+    "v148check",
+    "v193Ccheck"
    ]
   },
   "statinfo": {
@@ -5003,6 +5006,22 @@
    "areas": [
     "smoke",
     "gear"
+   ],
+   "runtimeSec": 60,
+   "slow": false,
+   "needsServer": true,
+   "pureNode": false,
+   "flaky": []
+  },
+  "v193Ccheck": {
+   "file": "scripts/v193Ccheck.mjs",
+   "desc": "v193 C — the bugs the pass found: no skin pixel of a kit cell reads as the kit's second colour (the floor of 1, the widened highlight window, the deco before the restore), the down bar says KICKOFF / PAT / 2-PT TRY / & GOAL, endLive with no player, warnOnce, the engine's featured-player block, the bottom nav hidden on tier/club and lit per view, tier saved on entry, rank's Back, the fresh save's Prestige Tree button, a won career sealed to win, the skin chooser",
+   "areas": [
+    "field",
+    "kits",
+    "live",
+    "shell",
+    "career"
    ],
    "runtimeSec": 60,
    "slow": false,
