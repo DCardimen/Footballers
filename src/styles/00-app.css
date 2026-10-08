@@ -116,3 +116,17 @@ html.shell-v146 .prestige-chip img.coin-v147{width:14px!important;height:14px!im
 .season-gain-v193d .sg-row{display:flex;justify-content:space-between;gap:8px;font:500 13px 'Barlow Condensed',sans-serif;padding:2px 0;border-bottom:1px solid rgba(255,255,255,.05);color:var(--chalk)}
 .season-gain-v193d .sg-row b{font-family:Oswald,sans-serif;font-weight:600;font-variant-numeric:tabular-nums;color:#7fe0a0;white-space:nowrap}
 .season-gain-v193d .more-v139{margin:6px 0 0 auto;text-align:right}
+
+/* v193 E SPEND NOW — one row of chips that scrolls sideways */
+.sn-chips-v193e{display:flex;gap:6px;overflow-x:auto;overscroll-behavior-x:contain;-webkit-overflow-scrolling:touch;scrollbar-width:none;padding-bottom:2px}
+.sn-chips-v193e::-webkit-scrollbar{display:none}
+.sn-row-v193e{flex:none;display:flex;align-items:center;gap:6px;padding:4px 4px 4px 9px;border:1px solid rgba(240,187,69,.35);border-radius:10px;background:rgba(255,255,255,.04);font:600 13px/1.1 'Barlow Condensed',sans-serif}
+.sn-name-v193e{display:flex;flex-direction:column;white-space:nowrap}
+.sn-name-v193e small{font-size:10.5px;opacity:.9}
+.sn-row-v193e .buy{flex:none;min-height:36px;padding:0 10px}
+.spend-v193e{border-color:var(--gold)!important;margin:6px 0!important;padding:7px 9px!important}
+.spend-v193e>.l{font-size:10.5px;color:var(--gold);letter-spacing:1.6px;margin-bottom:5px}
+.sn-one-v193e{display:flex;align-items:baseline;gap:8px;font:500 13px/1.25 'Barlow Condensed',sans-serif}
+.sn-k-v193e{flex:none;font:700 10.5px Oswald,sans-serif;letter-spacing:1.6px;color:var(--gold)}
+.sn-chips-v193e>.sn-k-v193e{flex:none;display:flex;flex-direction:column;justify-content:center;margin:0 2px 0 0;line-height:1.15}
+.sn-k-v193e small{font:500 10px 'Barlow Condensed',sans-serif;letter-spacing:.3px;color:var(--chalk-dim);text-transform:none}

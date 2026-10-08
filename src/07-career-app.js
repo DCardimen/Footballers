@@ -5408,6 +5408,7 @@
     return affordableV193E().filter(x => pp >= x.cost).length;
   }
   function spendNowHtmlV193E() {
+    if (!TU("spendNowV193E", 1)) return ""; /* kill switch: no strip */
     const all = affordableV193E();
     if (!all.length) return "";
     const pp = (state && state.pp) || 0,
@@ -5415,22 +5416,17 @@
       can = yes.slice(0, TU("spendNowRowsV193E", 5)),
       br = x => TREE[x.branch] || { icon: "", name: x.branch, color: "var(--gold)" },
       row = x =>
-        `<div class="sn-row-v193e" style="display:flex;justify-content:space-between;align-items:center;gap:8px;padding:4px 0;font-family:'Barlow Condensed';font-size:14px"><span style="min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${x.icon} ${escHtml(x.name)} <span style="color:${br(x).color};font-size:12px">${br(x).icon} ${escHtml(br(x).name)}</span></span><button class="buy" style="flex:none" onclick="vaultBuy('${x.key}')">${ppFmtV146(x.cost)} PP</button></div>`,
+        /* one chip a node, in a row that scrolls sideways: the tree stays inside its scroll budget (scrollcheck) */
+        `<div class="sn-row-v193e"><span class="sn-name-v193e">${x.icon} ${escHtml(x.name)}<small style="color:${br(x).color}">${br(x).icon} ${escHtml(br(x).name)}</small></span><button class="buy" onclick="vaultBuy('${x.key}')">${ppFmtV146(x.cost)} PP</button></div>`,
       p = state && state.player,
       lv = p ? p.level | 0 : 0,
       pays = careerPayAtV193E(lv);
     if (!can.length) {
       const c = all[0];
-      return `<div class="card tight spend-v193e" id="spendNowV193E" style="border-color:var(--gold);margin:10px 0">
-  <div class="l" style="font-size:11px;color:var(--gold);letter-spacing:2px;margin-bottom:6px">🌳 NEXT UP · nothing affordable yet</div>
-  <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;font-family:'Barlow Condensed';font-size:14px"><span>${c.icon} ${escHtml(c.name)} <span style="color:${br(c).color};font-size:12px">${br(c).icon} ${escHtml(br(c).name)}</span></span><span style="color:var(--gold);font-family:'Oswald';white-space:nowrap">${ppFmtV146(c.cost)} PP</span></div>
-  <div class="small sn-away-v193e" style="margin-top:4px;opacity:.85"><b>${ppFmtV146(c.cost - pp)} PP away</b> — a ${LEVELS[lv].name} career pays ~${ppFmtV146(pays)}${lv < 8 ? `, one that reaches ${LEVELS[lv + 1].name} ~${ppFmtV146(careerPayAtV193E(lv + 1))}` : ""}.</div>
-</div>`;
+      /* one line: the cheapest node, how far, what a career pays — the tree is a long list already (scrollcheck) */
+      return `<div class="card tight spend-v193e sn-one-v193e" id="spendNowV193E"><span class="sn-k-v193e">🌳 NEXT UP</span><span class="sn-away-v193e">${c.icon} <b>${escHtml(c.name)}</b> <span style="color:${br(c).color}">${br(c).icon}</span> ${ppFmtV146(c.cost)} PP · <b>${ppFmtV146(c.cost - pp)} PP away</b> — a ${LEVELS[lv].name} career pays ~${ppFmtV146(pays)}${lv < 8 ? `, one that reaches ${LEVELS[lv + 1].name} ~${ppFmtV146(careerPayAtV193E(lv + 1))}` : ""}.</span></div>`;
     }
-    return `<div class="card tight spend-v193e" id="spendNowV193E" style="border-color:var(--gold);margin:10px 0">
-  <div class="l" style="font-size:11px;color:var(--gold);letter-spacing:2px;margin-bottom:6px">🌳 SPEND NOW · ${yes.length} affordable${yes.length > can.length ? ` · the ${can.length} cheapest` : ""}</div>
-  ${can.map(row).join("")}
-</div>`;
+    return `<div class="card tight spend-v193e" id="spendNowV193E"><div class="sn-chips-v193e"><div class="l sn-k-v193e">🌳 SPEND NOW <small>${yes.length} affordable${yes.length > can.length ? ` <br>the ${can.length} cheapest` : ""}</small></div>${can.map(row).join("")}</div></div>`;
   }
   // the chaos card's truth, two columns, every number from the code that pays or charges it
   function chaosCardV193E() {
