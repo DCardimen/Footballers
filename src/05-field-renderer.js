@@ -1109,6 +1109,31 @@ function skinMaskV151D(src) {
     for (let yy = Math.max(0, y - 1); yy <= Math.min(47, y + 1); yy++) for (let xx = Math.max(0, x - 1); xx <= Math.min(47, x + 1); xx++) { const j = yy * 48 + xx; f += sk[j]; w += warm[j]; }
     if ((f > 0 && f >= w * .5) || (hi[i] && f > 0)) { mask[i] = 1; n++; lsum += L[i]; }
   }
+  // v193 I: the skin's EDGES on every sheet. The v22 moments, the baked atlas and the v91 cells' boxed-down edges carry
+  // skin highlights at sat .6-.75 that sit in the recolour's gold band beside the arm or the face; the vote above drops
+  // them, so they came out in p2. A gold-band pixel (hue under 46, sat under .75) that touches the skin and has at least
+  // as much skin around it as kit gold is skin — grown a ring at a time, so a pants highlight (kit on every side) never is.
+  if (hi193 && TU("skinGrowV193I", 1)) {
+    const band = new Uint8Array(N), hueA = new Float32Array(N), satA = new Float32Array(N), lA = new Float32Array(N);
+    for (let i = 0; i < N; i++) {
+      const r = d[i * 4], g = d[i * 4 + 1], b = d[i * 4 + 2]; if (d[i * 4 + 3] < 20) continue;
+      const mx = Math.max(r, g, b), mn = Math.min(r, g, b), l = (mx + mn) / 2, sat = mx ? (mx - mn) / mx : 0; if (mx === mn) continue;
+      const hue = mx === r ? (60 * ((g - b) / (mx - mn)) + 360) % 360 : mx === g ? 60 * ((b - r) / (mx - mn)) + 120 : 60 * ((r - g) / (mx - mn)) + 240;
+      if (l >= 38 && hue >= 33 && hue <= 62 && sat > .3 && l > 60) { band[i] = 1; hueA[i] = hue; satA[i] = sat; lA[i] = l; }   // what ribRecolor paints p2
+    }
+    const gHue = TU("skinGrowHueV193I", 46), gSat = TU("skinGrowSatV193I", .75), passes = TU("skinGrowPassV193I", 4);
+    for (let p = 0; p < passes; p++) {
+      const add = [];
+      for (let y = 0; y < 48; y++) for (let x = 0; x < 48; x++) {
+        const i = y * 48 + x; if (mask[i] || !band[i] || hueA[i] >= gHue || satA[i] >= gSat || d[i * 4 + 1] < d[i * 4] * .47) continue;
+        let m = 0, k = 0;
+        for (let yy = Math.max(0, y - 1); yy <= Math.min(47, y + 1); yy++) for (let xx = Math.max(0, x - 1); xx <= Math.min(47, x + 1); xx++) { const j = yy * 48 + xx; if (j === i) continue; if (mask[j]) m++; else if (band[j]) k++; }
+        if (m > 0 && m >= k) add.push(i);
+      }
+      if (!add.length) break;
+      for (const i of add) { mask[i] = 1; n++; L[i] = lA[i]; lsum += lA[i]; }
+    }
+  }
   const out = { mask, n, lmean: n ? lsum / n : 0, L };
   SKIN_MASKS_V151D.set(src, out); return out;
 }
@@ -1178,6 +1203,31 @@ V193C.kitCell = (src, p1, p2, deco) => {
 };
 V193C.mask = c => skinMaskV151D(c);
 V193C.recolor = (c, p1, p2) => ribRecolor(c, p1, p2);
+/* ===== v193 I EVERY SHEET, EVERY PHONE =====
+ * (renderer) v193 C was tuned and checked on a dozen main-sheet cells. `window.__V193I.register(p1, p2, deco)` runs the
+ * real `ribRegisterTeam` against a throwaway texture store and hands back every texture it built — the field sheets in
+ * every facing, the QB's throws / drops / exchanges, the catch sequences, the get-ups and celebrations, the baked v22
+ * moments — each with the drawn cell it came from, so scripts/v193Icheck.mjs can count skin painted in the kit's second
+ * colour on ALL of them. The sideline backups draw these same textures; the age scale (v144 A) is a sprite scale, not a
+ * cell. Nothing here runs unless a check calls it. */
+window.__V193I = window.__V193I || {};
+window.__V193I.register = (p1, p2, deco) => {
+  const store = {}, team = "v193iprobe";
+  const scene = { markers: [], textures: { exists: (k) => !!store[k], remove: (k) => { delete store[k]; }, addCanvas: (k, cv) => { store[k] = cv; } } };
+  const teams0 = RIB.teams[team], cols0 = RIB.teamCols[team];
+  try { ribRegisterTeam(scene, team, p1, p2, deco || null); }
+  finally {
+    const at = RIB.regScenes.indexOf(scene); if (at >= 0) RIB.regScenes.splice(at, 1);
+    if (teams0 === undefined) delete RIB.teams[team]; if (cols0 === undefined) delete RIB.teamCols[team];
+    if (RIB.teamDeco) delete RIB.teamDeco[team];
+  }
+  const pre = "spr_" + team + "_";
+  return Object.keys(store).filter((k) => k.indexOf(pre) === 0).map((k) => {
+    const pose = k.slice(pre.length), src = (RIB.numSrcV176 || {})[pose];
+    const sheet = ribCellV91(src) ? "v91" : ribCellV22(src) ? "v22" : ribCell(src) ? "base" : "?";
+    return { key: pose, src, sheet, cv: store[k], raw: ribCellV91(src) || ribCellV22(src) || ribCell(src) };
+  });
+};
 // v45 REFEREE ZEBRA: paint vertical black bars across the torso band of a
 // recolored (white) official so the crew reads as the classic striped shirt
 // from broadcast distance. Only light, opaque pixels in the chest rows are
