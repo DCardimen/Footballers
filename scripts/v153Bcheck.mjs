@@ -243,6 +243,7 @@ const inj = await M(() => {
   const V = window.__V153B, S = window.S, pl = S.player
   const at = (tree, fn) => { S.tree = tree; const v = fn(); S.tree = {}; return v }
   const base = window.__injChanceV54(pl, {})
+  // v193 E: The Wall pays injDown 0.08 a level (was 0.05): the maxed sum 0.36 + 0.4 + 0.4 + 0.8 = 1.96 × 0.3 = 0.59, capped at 0.25
   const maxed = at({ recovery: 6, ligaments: 5, oline_wall: 5, etAegis: 40 }, () => window.__injChanceV54(pl, {}))
   window.RIB_TUNE.v153Binj = 0
   const maxedOff = at({ recovery: 6, ligaments: 5, oline_wall: 5, etAegis: 40 }, () => window.__injChanceV54(pl, {}))

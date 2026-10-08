@@ -250,7 +250,7 @@ export const BATCHES = [
     ['Kr', 'rollGear', 'roll a gear item', 'rarity weights off ba'],
     ['ba', 'RARITIES', 'gear rarities', '[{key:"common",…},{key:"rare",…}]'],
     ['on', 'GEAR_SLOTS', 'gear slots', '[{key:"cleats"},{key:"gloves"},{key:"chain"}]'],
-    ['rn', 'GEAR_EFFECTS', 'gear effect kinds', '[{key:"power"},{key:"perfFlat"},{key:"ppMult"},…]'],
+    ['rn', 'GEAR_EFFECTS', 'gear effect kinds', '[{key:"power"},{key:"ppMult"},{key:"growth"},…]'],
     ['ka', 'rarityIndex', 'index of an item\'s rarity', 'ba.findIndex(t=>t.key===e.rarity)'],
     ['es', 'completeChallenges', 'pay the account challenges', 'audit:completeChallengesV134'],
     ['zt', 'CHALLENGES', 'account challenges (v134 goals)', '[{id:"ring",pp,check},…]'],

@@ -347,7 +347,7 @@ Everything is client-side: the save is plain JSON in localStorage, importable vi
 ### 3.4 Pay-to-win flags
 
 * Selling 4× speed or "only my plays": convenience, fine.
-* **2× PP** accelerates the prestige tree, whose nodes change on-field results (`G("perfFlat")`, `startAll`, `ppMult`, the v146 C Impossible branch up to 10M PP). With any competitive board, that is pay-to-win. Keep boosters away from anything ranked, or exclude boosted careers from boards.
+* **2× PP** accelerates the prestige tree, whose nodes change on-field results (`treeFx("eGrowth")`, `startAll`, `ppMult`, the v146 C Impossible branch up to 10M PP). With any competitive board, that is pay-to-win. Keep boosters away from anything ranked, or exclude boosted careers from boards.
 * Gear modifiers (`gearV147`) change the sim; never sell gear or gear rolls.
 * The owner's own `docs/COMMERCIAL.md` still says "Premium, one-time $2.99 (no ads, no IAP)" — update it before anyone implements a different plan from it.
 

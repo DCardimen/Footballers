@@ -30,7 +30,8 @@
     "v156Acheck",
     "v164Echeck",
     "formcheck",
-    "accelcheck"
+    "accelcheck",
+    "v193Echeck"
    ]
   },
   "docs": {
@@ -871,7 +872,8 @@
     "rankcheck",
     "v88check",
     "declarecheck",
-    "v85check"
+    "v85check",
+    "v193Echeck"
    ]
   },
   "badges": {
@@ -1257,7 +1259,8 @@
     "walk",
     "shot",
     "v153Fcheck",
-    "v156Acheck"
+    "v156Acheck",
+    "v193Echeck"
    ]
   },
   "emblems": {
@@ -1864,7 +1867,8 @@
     "v178check",
     "v192Acheck",
     "v192Bcheck",
-    "v192Ccheck"
+    "v192Ccheck",
+    "v193Echeck"
    ]
   }
  },
@@ -4963,6 +4967,18 @@
    ],
    "runtimeSec": 180,
    "slow": true,
+   "needsServer": true,
+   "pureNode": false,
+   "flaky": []
+  },
+  "v193Echeck": {
+   "file": "scripts/v193Echeck.mjs",
+   "desc": "v193 E — the game-day percent (perfFlat) is gone: perfPct 0 with the old nodes maxed, the accessor / rollGamePerf / mr carry no term, each repurposed node's new fx reaches treeFx, the paycheck reads payMultV179 through treeFx, an old Conditioning piece migrates to Growth; SPEND NOW on the tree (the cheapest affordable nodes, or the cheapest and how far away), the hub counts the affordable upgrades, Water Boys (coachStart, v193Esink); the chaos card's live WHAT IT COSTS / WHAT IT PAYS, the projection and the chaos growth bump (v193Echaos); HOW THE SCOUTS DECIDE from the hub, the Recruiting Board and the potential card; top 1% rolls ≥ 99 (v193Erank). Fits 360×780. No page errors.",
+   "areas": [
+    "season"
+   ],
+   "runtimeSec": 45,
+   "slow": false,
    "needsServer": true,
    "pureNode": false,
    "flaky": []

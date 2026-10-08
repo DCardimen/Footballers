@@ -107,7 +107,7 @@ The membership product (`rib.member.monthly`, `features.membership` false) is un
 - **No prestige for money (v151 A).** The v149 E "double this payout" ad paid the career settle twice — prestige for
   an ad. It is retired: no placement, `ppDouble` is not an allowed key, `claimPayoutBoost()` answers 0, and the game's
   `payoutBoostV150C` is the identity unless a future NON-prestige use sets `features.payoutBoost`.
-- **No pay-to-win.** PP buys prestige-tree nodes that change on-field results (`perfFlat`, `ppMult`, the
+- **No pay-to-win.** PP buys prestige-tree nodes that change on-field results (`eGrowth`, `ppMult`, the
   Impossible branch up to 10M PP). Selling PP or node levels is pay-to-win the moment any board is ranked.
   Today's ranked boards — Score Attack and the Daily Challenge (`docs/LEADERBOARDS.md`) — do **not** read the
   career's prestige or PP, so the rewarded PP double does not reach them. **If a career / PP board is ever

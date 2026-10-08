@@ -140,8 +140,8 @@ ok(d.a_speed.on > d.a_speed.off && d.p_rushYds.on > d.p_rushYds.off && d.injChan
 // ---- 6. the locker screen ----
 await page.evaluate(() => {
   const S = window.S, V = window.__V147C; S.inventory = []; S.equipped = {}
-  const R = ['common', 'rare', 'epic', 'legendary', 'mythic'], slots = ['cleats', 'gloves', 'chain'], eff = ['power', 'perfFlat', 'ppMult', 'growth', 'injDown', 'startAll', 'pointsFlat']
-  for (let i = 0; i < 24; i++) S.inventory.push(V.roll({ id: 'lk_' + i, slot: slots[i % 3], rarity: R[i % 5], name: ['Worn', 'Custom', 'Phantom', 'Golden', 'GOAT'][i % 5] + ' ' + ['Cleats', 'Gloves', 'Chain'][i % 3], eff: eff[i % 7], val: { power: 3, perfFlat: 2, ppMult: .08, growth: .05, injDown: .08, startAll: 3, pointsFlat: 2 }[eff[i % 7]], icon: ['👟', '🧤', '📿'][i % 3] }, i % 8))
+  const R = ['common', 'rare', 'epic', 'legendary', 'mythic'], slots = ['cleats', 'gloves', 'chain'], eff = ['power', 'injDown', 'ppMult', 'growth', 'injDown', 'startAll', 'pointsFlat']   // v193 E: Conditioning (perfFlat) is retired
+  for (let i = 0; i < 24; i++) S.inventory.push(V.roll({ id: 'lk_' + i, slot: slots[i % 3], rarity: R[i % 5], name: ['Worn', 'Custom', 'Phantom', 'Golden', 'GOAT'][i % 5] + ' ' + ['Cleats', 'Gloves', 'Chain'][i % 3], eff: eff[i % 7], val: { power: 3, ppMult: .08, growth: .05, injDown: .08, startAll: 3, pointsFlat: 2 }[eff[i % 7]], icon: ['👟', '🧤', '📿'][i % 3] }, i % 8))
   S.equipped = { gloves: S.inventory[4], cleats: S.inventory[3], chain: S.inventory[2] }
   window.go('locker')
 })

@@ -2727,7 +2727,6 @@
   function prestigeCap(e, t) {
     const s = {
       startAll: 4,
-      perfFlat: 3,
       growth: 0.22,
       advFlat: 5,
       injDown: 0.45,
@@ -2751,7 +2750,6 @@
     const big = TU("v190cap", 1)
       ? {
           startAll: 8,
-          perfFlat: 70,
           advFlat: 32,
           injDown: 0.84,
           coachStart: 40,
@@ -5269,7 +5267,8 @@
    * simmed week (`rollGamePerf`) never read it. And a flat +12 is a second player at Pee Wee (the league's bar is 16) and
    * nothing in the Interstellar League (135). Now every point of `perfFlat` is ONE PERCENT of each attribute on game day,
    * in every path (the watched game, the Quick Play, the season sim, the declare odds' `mr`), the whole tree capped at
-   * `perfPctCapV190` (30%). The skills screen shows the live total. Kill switch `v190perf` 0 = the old flat points. */
+   * `perfPctCapV190` (30%). The skills screen shows the live total. Kill switch `v190perf` 0 = the old flat points.
+   * v193 E RETIRED IT: `perfPctV190()` is 0, the nodes pay other effects, `v190perf` / `perfPctCapV190` read nothing. */
   /* ===== v190 E THE WINDFALL, TO SCALE =====
    * The owner: "the flat prestige gained from the cards … are so much higher than the actual prestige mechanic". The
    * medal's "Prestige windfall" paid 20 + 6 a rank (medal 2: +32 PP) while a Pee Wee career pays ~4 and a High School
@@ -5302,13 +5301,278 @@
     lockerTotal: () => lockerTotalV191(),
     roll: (p, a) => rollGamePerf(p || state.player, 0, a || {}) /* moves coach trust — restore the player after sampling (v146 D) */
   };
-  function perfPctOnV190() {
-    return !!TU("v190perf", 1);
-  }
   function perfPctV190() {
-    if (!perfPctOnV190()) return 0;
-    return clamp99(treeFx("perfFlat") || 0, 0, TU("perfPctCapV190", 30)) / 100;
+    return 0; /* v193 E: the game-day percent is gone (the banner below); `window.__V190.perfPct` keeps reading 0 */
   }
+  /* ===== v193 E THE ECONOMY, THE CHAOS CARD, AND HOW THE SCOUTS DECIDE =====
+   * The owner: "Plus all stats per game feels overpowered and I'm not sure it should be in the game. However, it
+   * doesn't appear to be working. Please remove it." · "I like the slow scaling how it is, but I do want to avoid
+   * grinding to a halt. There should always be something to sink points into. And I want chaos to feel powerful with
+   * the rewards." · "Explanation of the bloodline mechanic is also warranted, as it's confusing with the rank star
+   * system … it doesn't make much sense to me to be the top 1 percent of performers but not make it to college."
+   * 1. `perfFlat` is gone. `perfPctV190()` returns 0; the accessor (`_raw`), `rollGamePerf` and `mr` no longer carry
+   *    the term; the Conditioning gear effect is retired (an old piece migrates to Growth in `gearEnsureV147`, its
+   *    value rescaled to Growth's base); the seven nodes that paid it keep their KEYS (saves hold levels) and get a
+   *    real effect each: Twin Engines → growth (`eGrowth`), Zen Focus → smaller swings, Trash Talk → PP, Aura →
+   *    swings + declare odds, Eternal Form and Glass Cannon → the paycheck (`payMultV179` is a tree effect now — the
+   *    paycheck reads it through `treeFx`, which already carries the medal's Golden Paycheck), The Wall → injuries.
+   *    No kill switch — the owner wants it gone. (The personality page's own two-sided `perfFlat` in src/14 stays:
+   *    it is that page's documented trade, a point or two around 50, not the tree's.)
+   * 2. Always something to buy. The tree screen opens with SPEND NOW (`spendNowHtmlV193E`: the five cheapest nodes
+   *    you can afford across every branch, one tap each — or, when nothing is, the cheapest node, how far away it
+   *    is and what a career at your level pays, `careerPayAtV193E`); the hub says how many upgrades are affordable.
+   *    The Locker Room gets WATER BOYS (`lkWater`: 6 PP ×1.025, FOREVER, +0.25 starting coach trust a level through
+   *    the `coachStart` hook every career start reads, full value to its 40 ceiling — ~160 levels — then the
+   *    `prestigeCap` taper) and Team
+   *    Dinners becomes the cheapest OVR node (10 PP ×1.03). `v193Esink` 0 hides Water Boys.
+   * 3. The chaos card says what chaos COSTS and what it PAYS, every number live from the code (`chaosCardV193E`),
+   *    with a projection of the next career's pot at chaos 0 against now (`chaosProjectV193E`); and chaos feels it:
+   *    every point is +1% attribute growth for every future player (`chaosGrowthV193E`, added to both growth sums
+   *    beside `eGrowth`). `v193Echaos` 0 = no growth bump.
+   * 4. HOW THE SCOUTS DECIDE (`scoutsExplainV193E`): one ⓘ on the hub's gate line, the Recruiting Board and the
+   *    BLOODLINE POTENTIAL card opens a dialog that separates the four numbers the owner found confusing — recruit
+   *    stars (a grade, never rolled), national rank (the floor under the ONE declare roll), bloodline potential (the
+   *    ceiling the tree hands every son, judged only at College → Combine → UFF → Interstellar) and Legacy medals (the
+   *    account's rank) — with this player's own. And the top-1% fix: a top-1% national rank rolls at
+   *    ≥ `rankTop1FloorV193E` (99; the ceiling `declareCeilTopV193E` 99.5) and a top-5% at ≥ `rankTop5FloorV193E`
+   *    (95), at every level the rank floor carries (`rankTopMaxLevelV193E` 4 — youth through Varsity → College; the
+   *    scouts' potential verdict at College / Combine / UFF stays). `v193Erank` 0 = the v139 numbers.
+   * `window.__V193E`; `v193Echeck`. */
+  function sinkOnV193E() {
+    return !!TU("v193Esink", 1);
+  }
+  function nodeShownV193E(n) {
+    return !(n && n.v193E && !sinkOnV193E());
+  }
+  // the chaos growth bump: every point is `chaosGrowthV193E` on the growth sum, the unit eGrowth uses (× 0.22 → +1.1% a point)
+  function chaosGrowthV193E() {
+    if (!TU("v193Echaos", 1)) return 0;
+    return chaosTotal() * TU("chaosGrowthV193E", 0.05);
+  }
+  function chaosGrowthPctV193E(pts) {
+    return (pts == null ? chaosGrowthV193E() : pts * (TU("v193Echaos", 1) ? TU("chaosGrowthV193E", 0.05) : 0)) * 0.22 * 100;
+  }
+  // chaosPPMult / chaosEarnedMult at a chaos total that is not the current one (the card's projection)
+  function chaosPPMultAtV193E(c) {
+    return c > 0 ? TU("chaosPPBaseV185", 6) * Math.pow(TU("chaosPPPerV185", 1.16), c) * (1 + treeFx("chaosPP")) : 1;
+  }
+  function chaosEarnedAtV193E(lv, c) {
+    return 1 + (chaosPPMultAtV193E(c) - 1) * chaosBankShareV193E(lv);
+  }
+  function chaosBankShareV193E(lv) {
+    return clamp99(Math.pow((lv + 1) / 8, TU("chaosBankExpV185", 1.6)), TU("chaosBankFloorV185", 0.06), 1);
+  }
+  // the highest level the family has reached (the Hall of Fame, and the man playing now)
+  function bestLevelV193E() {
+    let b = state && state.player ? state.player.level | 0 : 0;
+    try {
+      (state.hof || []).forEach(h => (b = Math.max(b, h.reached | 0)));
+    } catch (_) {}
+    return Math.max(0, Math.min(LEVELS.length - 1, b));
+  }
+  // what a career that reaches `lv` pays at chaos `c` — careerPotV189's formula with the tree, the path and the era as
+  // they stand, the seasons the levels ask for, no titles (the "~")
+  function careerPayAtV193E(lv, c) {
+    lv = Math.max(0, Math.min(8, lv | 0));
+    if (c == null) c = chaosTotal();
+    let sm = 1;
+    try {
+      const p = state && state.player,
+        X = ppMultPartsV192B(p);
+      sm = X.career / chaosEarnedMult(p ? p.level | 0 : 0);
+    } catch (_) {}
+    let seasons = 0;
+    for (let i = 0; i <= lv; i++) seasons += (LEVELS[i] && LEVELS[i].seasons) || 2;
+    const ii = [1, 2, 4, 8, 15, 28, 45, 70, 120][lv] || 1;
+    return Math.max(1, Math.round((ii + seasons * 0.35) * sm * chaosEarnedAtV193E(lv, c)));
+  }
+  function chaosProjectV193E(lv) {
+    lv = lv == null ? bestLevelV193E() : lv;
+    const c = chaosTotal();
+    return { lv, name: LEVELS[lv].name, c, at0: careerPayAtV193E(lv, 0), atC: careerPayAtV193E(lv, c), at1: careerPayAtV193E(lv, Math.max(1, c)), atCap: careerPayAtV193E(lv, Math.max(1, chaosCap())) };
+  }
+  // every node you could buy, cheapest first (unlocked, not maxed, shown)
+  function affordableV193E() {
+    const out = [];
+    if (!state) return out;
+    for (const k in TREE_NODES) {
+      const n = TREE_NODES[k];
+      if (!n || !nodeShownV193E(n) || nodeLvl(n.key) >= n.max || !nodeUnlocked(n)) continue;
+      out.push({ n, key: n.key, name: n.name, icon: n.icon, branch: n.branch, cost: nodeCost(n) });
+    }
+    out.sort((a, b) => a.cost - b.cost);
+    return out;
+  }
+  function affordableCountV193E() {
+    const pp = (state && state.pp) || 0;
+    return affordableV193E().filter(x => pp >= x.cost).length;
+  }
+  function spendNowHtmlV193E() {
+    const all = affordableV193E();
+    if (!all.length) return "";
+    const pp = (state && state.pp) || 0,
+      yes = all.filter(x => pp >= x.cost),
+      can = yes.slice(0, TU("spendNowRowsV193E", 5)),
+      br = x => TREE[x.branch] || { icon: "", name: x.branch, color: "var(--gold)" },
+      row = x =>
+        `<div class="sn-row-v193e" style="display:flex;justify-content:space-between;align-items:center;gap:8px;padding:4px 0;font-family:'Barlow Condensed';font-size:14px"><span style="min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${x.icon} ${escHtml(x.name)} <span style="color:${br(x).color};font-size:12px">${br(x).icon} ${escHtml(br(x).name)}</span></span><button class="buy" style="flex:none" onclick="vaultBuy('${x.key}')">${ppFmtV146(x.cost)} PP</button></div>`,
+      p = state && state.player,
+      lv = p ? p.level | 0 : 0,
+      pays = careerPayAtV193E(lv);
+    if (!can.length) {
+      const c = all[0];
+      return `<div class="card tight spend-v193e" id="spendNowV193E" style="border-color:var(--gold);margin:10px 0">
+  <div class="l" style="font-size:11px;color:var(--gold);letter-spacing:2px;margin-bottom:6px">🌳 NEXT UP · nothing affordable yet</div>
+  <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;font-family:'Barlow Condensed';font-size:14px"><span>${c.icon} ${escHtml(c.name)} <span style="color:${br(c).color};font-size:12px">${br(c).icon} ${escHtml(br(c).name)}</span></span><span style="color:var(--gold);font-family:'Oswald';white-space:nowrap">${ppFmtV146(c.cost)} PP</span></div>
+  <div class="small sn-away-v193e" style="margin-top:4px;opacity:.85"><b>${ppFmtV146(c.cost - pp)} PP away</b> — a ${LEVELS[lv].name} career pays ~${ppFmtV146(pays)}${lv < 8 ? `, one that reaches ${LEVELS[lv + 1].name} ~${ppFmtV146(careerPayAtV193E(lv + 1))}` : ""}.</div>
+</div>`;
+    }
+    return `<div class="card tight spend-v193e" id="spendNowV193E" style="border-color:var(--gold);margin:10px 0">
+  <div class="l" style="font-size:11px;color:var(--gold);letter-spacing:2px;margin-bottom:6px">🌳 SPEND NOW · ${yes.length} affordable${yes.length > can.length ? ` · the ${can.length} cheapest` : ""}</div>
+  ${can.map(row).join("")}
+</div>`;
+  }
+  // the chaos card's truth, two columns, every number from the code that pays or charges it
+  function chaosCardV193E() {
+    const c = chaosTotal(),
+      p = state && state.player,
+      lv = p ? p.level | 0 : 0,
+      best = bestLevelV193E(),
+      lift = chaosOppBoost(lv),
+      share = chaosNeedShareV185(c),
+      per = TU("chaosBoostPerV185", 1.05),
+      base = TU("chaosBoostBaseV185", 22),
+      ppm = chaosPPMult(),
+      shares = [0, 2, 4, 5, 7].map(l => `${LEVELS[l].name.replace("The ", "")} <b>${Math.round(chaosBankShareV193E(l) * 100)}%</b>`).join(" · "),
+      lxPer = TU("v153F", 1) ? TU("legacyDiffPerChaosV153F", 0.08) : TU("legacyDiffPerChaosV152", 0.03),
+      lxCap = TU("v153F", 1) ? TU("legacyDiffCapV153F", 5) : TU("legacyDiffCapV152", 3),
+      rar = Math.min(30, c * 0.25),
+      era = (state && state.era) | 0,
+      gPer = chaosGrowthPctV193E(1),
+      pr = chaosProjectV193E(best),
+      col = (t, body, color) => `<div style="min-width:0;padding:8px;border-radius:8px;background:rgba(0,0,0,.25);border:1px solid ${color}44"><div class="l" style="font-size:11px;letter-spacing:2px;color:${color};margin-bottom:4px">${t}</div><ul style="margin:0;padding-left:14px;font-size:11.5px;line-height:1.35">${body}</ul></div>`;
+    return `<div class="chaos-truth-v193e" id="chaosTruthV193E" style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:8px 0">
+${col(
+  "⚔️ WHAT IT COSTS",
+  `<li>Every opponent <b>+${Math.round(lift)}</b> rating at ${LEVELS[lv].name} (+${base} flat, +${per} a point, +12 every 30 points${share ? `, plus ${Math.round(share * 100)}% of the level's own bar` : ""}) — the scouts' bar and the national rank see the same men</li>
+<li>Attribute cap <b>+3 a point</b> (now ${attrCap()})</li>
+<li>Potential <b>+1.6 a point</b> (now +${(c * 1.6).toFixed(1)})</li>`,
+  "#ff9b93"
+)}
+${col(
+  "💰 WHAT IT PAYS",
+  `<li>PP <b>×${ppm.toFixed(1)}</b> (×${TU("chaosPPBaseV185", 6)} at one point, ×${TU("chaosPPPerV185", 1.16)} a point after) — the share banked by the level the career reaches: ${shares}</li>
+<li>Legacy XP <b>+${Math.round(lxPer * 100)}% a point</b>, up to ×${lxCap} (now ×${legacyDiffV152().toFixed(2)})</li>
+<li><b>+${gPer.toFixed(1)}% attribute growth a point</b> for every future player (now +${chaosGrowthPctV193E().toFixed(1)}%)${TU("v193Echaos", 1) ? "" : " — OFF"}</li>
+<li>Gear drops: epic <b>+${rar.toFixed(1)}</b>, legendary +${(2 * rar).toFixed(1)}, mythic +${(3 * rar).toFixed(1)} rarity weight (0.25 a point, to 30)</li>
+<li>Eras: a title with chaos ≥ <b>${nextEraChaos()}</b> opens the next era — <b>×1.2 PP forever</b> each (you are in era ${era + 1})</li>`,
+  "#f3d98a"
+)}
+</div>
+<div class="threshold-note chaos-proj-v193e" style="margin-top:4px;color:#f3d98a">📈 Your next career at <b>${pr.name}</b> pays ~<b>${ppFmtV146(pr.at0)} PP</b> at chaos 0 → ~<b>${ppFmtV146(pr.atC)} PP</b> at chaos ${c}${c < Math.max(1, chaosCap()) ? ` · ~${ppFmtV146(pr.atCap)} at chaos ${Math.max(1, chaosCap())}` : ""}.</div>`;
+  }
+  // the top-1% fix: the rank's floor under the declare roll, at the levels the rank floor carries
+  function rankFloorTopV193E(rank, of, lv, curve) {
+    if (!TU("v193Erank", 1) || !(of > 0) || lv > TU("rankTopMaxLevelV193E", 4)) return curve;
+    const top = (rank / of) * 100,
+      ceil = TU("declareCeilTopV193E", 99.5);
+    if (top <= TU("rankTop1V193E", 1)) return Math.min(ceil, Math.max(curve, TU("rankTop1FloorV193E", 99)));
+    if (top <= TU("rankTop5V193E", 5)) return Math.min(ceil, Math.max(curve, TU("rankTop5FloorV193E", 95)));
+    return curve;
+  }
+  function rankChanceAtV193E(rank, of, lv) {
+    return rankFloorTopV193E(rank, of, lv, rankCurveV88(rank, of, lv));
+  }
+  function scoutsExplainBtnV193E() {
+    /* a span, not an anchor: the v146 E shell moves every `a[onclick]` in the dock into its chips row */
+    return `<span role="button" tabindex="0" class="scouts-i-v193e" onclick="event.stopPropagation();scoutsExplainV193E()" title="How the scouts decide" style="display:inline-block;min-width:18px;height:18px;line-height:17px;border-radius:9px;border:1px solid var(--gold);color:var(--gold);text-align:center;font-size:11px;font-weight:700;cursor:pointer;margin-left:4px;vertical-align:middle">ⓘ</span>`;
+  }
+  // the four numbers, this player's own
+  function scoutsExplainDataV193E() {
+    const e = state && state.player,
+      lv = e ? e.level | 0 : 0,
+      L = LEVELS[lv] || LEVELS[0];
+    let ovr = 0,
+      rk = null,
+      declare = null,
+      rankCh = null,
+      pot = 0,
+      medals = 0,
+      B = null;
+    try {
+      ovr = e ? playerOvr(e) : 0;
+    } catch (_) {}
+    try {
+      rk = e ? nationalRank(e, ovr) : null;
+    } catch (_) {}
+    try {
+      declare = e ? declareChanceV88(e) : null;
+      rankCh = e ? rankChanceV88(e) : null;
+    } catch (_) {}
+    try {
+      pot = potentialV179();
+    } catch (_) {}
+    try {
+      medals = medalsV156A() | 0;
+    } catch (_) {}
+    const of = rk && rk.of ? rk.of : NAT_POOL(lv),
+      top1 = rankChanceAtV193E(Math.max(1, Math.round(of * 0.01)), of, lv),
+      top5 = rankChanceAtV193E(Math.max(1, Math.round(of * 0.05)), of, lv),
+      num1 = rankChanceAtV193E(1, of, lv),
+      half = Math.round(ADV_V88[Math.min(lv, ADV_V88.length - 1)] * TU("advShareK", 1) * 100),
+      bars = [5, 6, 7]
+        .map(l => {
+          let b = null;
+          try {
+            b = scoutBarV179(Object.assign({}, e || {}, { level: l }));
+          } catch (_) {}
+          return b && b.potBar ? { lv: l, name: ["🎓 College → Combine", "🏈 Combine → UFF", "🛸 UFF → Interstellar"][l - 5], bar: b.potBar } : null;
+        })
+        .filter(Boolean),
+      next = bars.find(b => b.lv >= lv) || bars[bars.length - 1] || null;
+    try {
+      B = e ? scoutBarV179(e) : null;
+    } catch (_) {}
+    return { lv, level: L.name, stars: e ? e.stars | 0 : 0, ovr: Math.round(ovr), rank: rk ? rk.rank : null, of, topPct: rk ? Math.max(0.1, Math.round((rk.rank / of) * 1000) / 10) : null, pct: rk ? rk.pct : null, declare, rankCh, top1, top5, num1, half, pot: Math.round(pot), bars, next, verdict: B && B.potBar ? Math.round(B.v * 100) : null, medals, floorOn: !!TU("v193Erank", 1), rankLevel: lv <= TU("rankTopMaxLevelV193E", 4) };
+  }
+  function scoutsExplainHtmlV193E() {
+    const D = scoutsExplainDataV193E(),
+      pc = v => (v == null ? "—" : Math.round(v * 10) / 10 + "%"),
+      block = (icon, t, body) => `<div class="sx-block-v193e" style="margin:0 0 10px;padding:8px 10px;border-radius:8px;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.12)"><div style="font-family:'Oswald';font-weight:700;letter-spacing:1.5px;font-size:12px;color:var(--gold);margin-bottom:3px">${icon} ${t}</div><div style="font-size:12.5px;line-height:1.4">${body}</div></div>`;
+    return `<div class="scouts-x-v193e" style="text-align:left">
+${block("★", "RECRUIT STARS", `<b>${"★".repeat(Math.max(0, Math.min(5, D.stars))) || "—"}</b> (${D.stars} of 5) — the talent grade he was born with; the program tiers re-grade it. Coaches and the Recruiting Board rate him on sight by it. <b>It never rolls</b> — the declare does not read it.`)}
+${block("🏅", "NATIONAL RANK", `${D.rank != null ? `<b>#${fmtInt(D.rank)}</b> of ${fmtInt(D.of)} at ${D.level} · <b>top ${D.topPct}%</b>` : `your place among the ${fmtInt(D.of)} at ${D.level}`} — THIS season's production and OVR against every peer at the level. It is the <b>floor under the declare roll</b>${D.rankCh != null ? ` (the rank alone: ${pc(D.rankCh)}; your declare odds now: <b>${pc(D.declare)}</b>)` : ""}. At ${D.level}: #1 rolls ≥ ${pc(D.num1)}, <b>top 1% ≥ ${pc(D.top1)}</b>, top 5% ≥ ${pc(D.top5)}, the last man inside the advancing ${D.half}% a coin flip, well outside it single digits. <b>One roll; a miss ends the career.</b>${D.floorOn ? ` A top-1% season rolls at ≥ ${TU("rankTop1FloorV193E", 99)}% now (v193 E) — before, 97%.` : ""}${D.lv >= 5 ? " From College on the season roll is followed by the scouts' verdict below." : ""}`)}
+${block("🧬", "BLOODLINE POTENTIAL", `<b>${fmtBigV179(D.pot)}</b> — the growth ceiling the tree hands every son, judged ONLY at the three big declares${D.bars.length ? ` (${D.bars.map(b => `${b.name} <b>${fmtBigV179(b.bar)}</b>`).join(" · ")})` : ""}: a coin flip at the bar, better over it${D.verdict != null ? ` — your verdict now <b>${D.verdict}%</b>` : ""}.${D.next ? ` Next bar: ${D.next.name} wants <b>${fmtBigV179(D.next.bar)}</b>, you show <b>${fmtBigV179(D.pot)}</b> (${D.pot >= D.next.bar ? "✓ cleared" : "need +" + fmtBigV179(Math.ceil(D.next.bar - D.pot))}).` : ""} Raise it with <b>Freak, Prime Genes, Superhuman, the +ceiling nodes, chaos and a Path</b> — a tree of everything else barely moves it. A top-1% season in high school does not need it: the national rank carries you to College.`)}
+${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, earned by every season and career (better grades and higher levels earn more). They open the tree's locked nodes and the Path, and the scouts can wait on them. They are not the player's stars, rank or potential.`)}
+</div>`;
+  }
+  function scoutsExplainV193E() {
+    const html = scoutsExplainHtmlV193E();
+    try {
+      if (window.ribDialog && window.ribDialog.show) return window.ribDialog.show({ title: "HOW THE SCOUTS DECIDE", html, cancelValue: undefined, dismissable: !0, buttons: [{ label: "Got it", value: undefined, kind: "primary" }] });
+    } catch (_) {}
+    showToast("Stars grade him · the national rank is the floor under the one declare roll · potential is judged at College, the Combine and the UFF · medals rank the account");
+  }
+  window.scoutsExplainV193E = scoutsExplainV193E;
+  window.__V193E = {
+    perfPct: () => perfPctV190(),
+    fx: k => treeFx(k),
+    sinkOn: () => sinkOnV193E(),
+    shown: k => nodeShownV193E(TREE_NODES[k]),
+    affordable: () => affordableV193E().map(x => ({ key: x.key, name: x.name, branch: x.branch, cost: x.cost })),
+    affordableCount: () => affordableCountV193E(),
+    spendNow: () => spendNowHtmlV193E(),
+    payAt: (lv, c) => careerPayAtV193E(lv, c),
+    project: lv => chaosProjectV193E(lv),
+    chaosCard: () => chaosCardV193E(),
+    chaosGrowth: () => chaosGrowthV193E(),
+    chaosGrowthPct: pts => chaosGrowthPctV193E(pts),
+    rankFloor: (rank, of, lv) => rankChanceAtV193E(rank, of, lv),
+    explain: () => scoutsExplainV193E(),
+    explainHtml: () => scoutsExplainHtmlV193E(),
+    explainData: () => scoutsExplainDataV193E(),
+    bestLevel: () => bestLevelV193E()
+  };
   /* ===== v190 C THE TEAM NODES LIFT YOUR TEAMMATES =====
    * The owner: "make sure the team based prestige upgrades are more specific in wording. And scale higher and start
    * higher, given they are so cheap." The seven team nodes (Winning Culture, Dynasty Program, Booster Club, Crowd
@@ -5944,12 +6208,12 @@
           key: "engine",
           name: "Twin Engines",
           icon: "🔋",
-          desc: "+2% to every attribute a game, per level (cap +30%).",
+          desc: "+0.9% attribute growth every season, per level (Lv 6: +5%) — the same unit as Eternal Growth.",
           cost: 12,
           mult: 1.65,
           max: 6,
           req: { honors: 9 },
-          fx: { perfFlat: 2 }
+          fx: { eGrowth: 0.04 } /* v193 E: was +2% to every attribute a game */
         },
         {
           key: "juggernaut",
@@ -6143,12 +6407,12 @@
           key: "zen",
           name: "Zen Focus",
           icon: "🧘",
-          desc: "+1% to every attribute a game and swings 4% smaller, per level.",
+          desc: "Game-to-game swings 6% smaller, per level (Lv 5: 30% smaller).",
           cost: 15,
           mult: 1.7,
           max: 5,
           req: { honors: 12 },
-          fx: { perfFlat: 1, varDown: 0.04 }
+          fx: { varDown: 0.06 } /* v193 E: was +1% to every attribute a game and 4% */
         }
       ]
     },
@@ -6693,12 +6957,12 @@
           key: "trashTalk",
           name: "Trash Talk",
           icon: "🗯️",
-          desc: "+1% to every attribute a game, per level.",
+          desc: "+3% Prestige Points a level — they remember the mouth.",
           cost: 10,
           mult: 1.6,
           max: 5,
           req: { honors: 6 },
-          fx: { perfFlat: 1 }
+          fx: { ppMult: 0.03 } /* v193 E: was +1% to every attribute a game */
         },
         {
           key: "crowdFavorite",
@@ -6725,12 +6989,12 @@
           key: "legendAura",
           name: "Aura",
           icon: "🔮",
-          desc: "+2% to every attribute a game, swings 5% smaller, +2% advance — per level.",
+          desc: "Swings 5% smaller and +3% declare odds — per level.",
           cost: 26,
           mult: 1.95,
           max: 4,
           req: { honors: 15 },
-          fx: { perfFlat: 2, varDown: 0.05, advFlat: 2 }
+          fx: { varDown: 0.05, advFlat: 3 } /* v193 E: was +2% to every attribute a game, +2% advance */
         },
         {
           key: "iconStatus",
@@ -6784,11 +7048,11 @@
           key: "etForm",
           name: "Eternal Form",
           icon: "🌠",
-          desc: "+0.5% to every attribute a game. FOREVER (cap +30%).",
+          desc: "+1% to every game's paycheck (the per-game upgrade points). FOREVER repeatable.",
           cost: 16,
           mult: 1.24,
           max: 999,
-          fx: { perfFlat: 0.5 }
+          fx: { payMultV179: 0.01 } /* v193 E: was +0.5% to every attribute a game */
         },
         {
           key: "etWisdom",
@@ -6873,10 +7137,21 @@
           key: "lkAll",
           name: "Team Dinners",
           icon: "🍖",
-          desc: "+1 OVR a level to one teammate anywhere on the roster, round the whole team. FOREVER repeatable.",
-          cost: 12,
-          mult: 1.04,
+          desc: "+1 OVR a level to one teammate anywhere on the roster, round the whole team. FOREVER repeatable — the cheapest OVR on the tree.",
+          cost: 10 /* v193 E: was 12 × 1.04 */,
+          mult: 1.03,
           max: 999
+        },
+        {
+          key: "lkWater",
+          name: "Water Boys",
+          icon: "🧃",
+          desc: "+0.25 starting coach trust a level for every future player — full value to +40 (160 levels), a soft taper past it. FOREVER repeatable, and always cheap.",
+          cost: 6,
+          mult: 1.025,
+          max: 999,
+          fx: { coachStart: 0.25 },
+          v193E: !0 /* hidden by `v193Esink` 0 */
         }
       ]
     },
@@ -7104,12 +7379,12 @@
           key: "oline_wall",
           name: "The Wall",
           icon: "🧱",
-          desc: "Injuries 1.5% rarer and +1% to every attribute a game, per level.",
+          desc: "Injuries 2.4% rarer a level (Lv 5: 12%; the injury tree caps at 25% together).",
           cost: 10,
           mult: 1.6,
           max: 5,
           req: { honors: 6 },
-          fx: { injDown: 0.05, perfFlat: 1 }
+          fx: { injDown: 0.08 } /* v193 E: was 1.5% and +1% to every attribute a game; the v153 B 0.3 factor pays 2.4% of 0.08 */
         },
         {
           key: "playbook",
@@ -7303,11 +7578,11 @@
         key: "glassCannon",
         name: "Glass Cannon",
         icon: "🔫",
-        desc: "+4% to every attribute a game; injuries 18% likelier — per level.",
+        desc: "+6% to every game's paycheck; injuries 18% likelier — per level.",
         cost: 9,
         mult: 1.6,
         max: 5,
-        fx: { perfFlat: 4, injUp: 0.18 },
+        fx: { payMultV179: 0.06, injUp: 0.18 } /* v193 E: was +4% to every attribute a game */,
         trade: "More injuries and shorter careers."
       },
       {
@@ -10336,7 +10611,7 @@
         <span class="chaos-flame">🔥</span>
         <div style="flex:1">
           <div style="font-family:'Oswald';font-weight:700;font-size:19px;letter-spacing:1px;color:#ff5a5a">CHAOS MODE ${e ? "" : "🔒"}</div>
-          <div class="small">${e ? "Boost enemy performance <b>+10% per level, per stat</b>. Harder worlds pay exponentially." : "Locked — win the UFF Championship to open the gates."}</div>
+          <div class="small">${e ? "Every point lifts <b>every opponent</b> — and multiplies what the next careers bank. What it costs and what it pays, below, live." : "Locked — win the UFF Championship to open the gates."}</div>
         </div>
       </div>
       ${
@@ -10348,9 +10623,10 @@
         <div class="cs-box chaos-lxp-v153"><div class="n" style="color:#e8c86a">+${Math.round((legacyDiffV152() - 1) * 100)}%</div><div class="l">Legacy XP</div></div>
         <div class="cs-box"><div class="n" style="color:#57e07a">${attrCap()}</div><div class="l">Stat Cap</div></div>
       </div>
+      ${chaosCardV193E()}
       ${chaosRewardNoteV153F()}
       <div class="threshold-note" style="margin-top:4px;color:#ff9b93">⛓️ <b>Chaos Clearance:</b> win a championship at <b>FULL capacity</b> to raise it (+6 UFF · +10 Interstellar). Depth must be earned — flaming out early under chaos pays only a fraction.</div>
-      <div class="small" style="margin:6px 0 10px;color:var(--chalk-dim)">Every chaos level also raises your <b>potential ceiling</b> — the harder the world, the higher you can climb.</div>
+      <div class="small" style="margin:6px 0 10px;color:var(--chalk-dim)">Each row below is one attribute's chaos, 0–10; only the <b>total</b> counts. − and + move one point; MAX fills every point you have capacity for.</div>
       ${ATTR_KEYS.map(n => {
         const i = (state.chaos && state.chaos[n]) || 0;
         return `<div class="chaos-row">
@@ -10359,10 +10635,10 @@
           <button class="step cstep" onclick="setChaos('${n}',-1)" ${i <= 0 ? "disabled" : ""}>−</button>
           <span class="cr-lvl ${i > 0 ? "hot" : ""}">${i}</span>
           <button class="step cstep hotbtn" onclick="setChaos('${n}',1)" ${i >= 10 ? "disabled" : ""}>+</button>
-          <span class="cr-pct">+${i * 10}%</span>
+          <span class="cr-pct">${i ? i + " pt" : "—"}</span>
         </div>`;
       }).join("")}
-      <button class="btn danger" style="margin-top:10px" onclick="chaosMaxAll()">🔥 MAXIMUM CHAOS</button>
+      <button class="btn danger" style="margin-top:10px" onclick="chaosMaxAll()">🔥 MAX CHAOS — fill all ${chaosCap()} points</button>
       `
           : ""
       }
@@ -10699,6 +10975,14 @@
   }
   function gearEnsureV147(it) {
     if (it && !it.modsV147) gearRollV147(it, it.tierV147 != null ? it.tierV147 : 0);
+    /* v193 E: Conditioning ("+N to ALL stats every game") is retired — an old piece becomes Growth, its value rescaled
+     * from Conditioning's base (0.8) to Growth's (0.03) so the rarity roll it carried is kept */
+    if (it && it.eff === "perfFlat") {
+      const g = GEAR_EFFECTS.find(n => n.key === "growth");
+      it.eff = "growth";
+      it.val = +(((+it.val || 0) / 0.8) * ((g && g.base) || 0.03)).toFixed(3);
+      it.migratedV193E = "perfFlat";
+    }
     return it;
   }
   /* the equipped totals, capped per modifier; memoised on the three equipped objects */
@@ -10724,10 +11008,10 @@
   function gearV147(k) {
     return TU("v147C", 1) ? gearTotalsV147()[k] || 0 : 0;
   }
-  /* one attribute's flat gear bonus: its own modifier plus the old Conditioning piece (perfFlat,
-   * "+N to ALL stats every game"), which nothing read until now */
+  /* one attribute's flat gear bonus: its own modifier (v193 E: the old Conditioning piece — "+N to ALL stats every
+   * game" — is retired; an old piece is Growth now, see gearEnsureV147) */
   function gearAttrV147(k) {
-    return gearV147("a_" + k) + (TU("gearPerfFlatV147", 1) ? Math.round(gearFx("perfFlat")) : 0);
+    return gearV147("a_" + k);
   }
   /* a production modifier for one stat definition of Ne[pos].stats (lower-is-better lines are cut) */
   function gearProdV147(c) {
@@ -10851,12 +11135,12 @@
     if (!state) return 0;
     let n = 0;
     (state.inventory || []).forEach(it => {
-      it && !it.modsV147 && (gearEnsureV147(it), n++);
+      it && (!it.modsV147 || it.eff === "perfFlat") && (gearEnsureV147(it), n++); /* v193 E: Conditioning migrates too */
     });
     const eq = state.equipped || {};
     GEAR_SLOTS.forEach(s => {
       const it = eq[s.key];
-      it && !it.modsV147 && (gearEnsureV147(it), n++);
+      it && (!it.modsV147 || it.eff === "perfFlat") && (gearEnsureV147(it), n++);
     });
     return n;
   }
@@ -13071,7 +13355,7 @@
   };
   function rollGamePerf(e, t = 0, a) {
     a = a || {};
-    const s = playerPower(e) * (1 + perfPctV190()) /* v190 A: the game-day nodes reach the simmed game too */,
+    const s = playerPower(e) /* v193 E: the game-day percent is gone */,
       n = LEVELS[e.level],
       i = n.need - 6 + chaosOppBoost(e.level) + seasonModFx("peerShift"),
       r = 1 + nodeLvl("clutch") * 0.02,
@@ -13182,7 +13466,7 @@
   );
   function mr(e, t) {
     const a = LEVELS[t].need - 6 + chaosOppBoost(t);
-    return perfPctOnV190() ? clamp99(xi((e * (1 + perfPctV190()) - a) * 2.4 + 50), 1, 100) : clamp99(xi((e - a) * 2.4 + 50 + treeFx("perfFlat")), 1, 100);
+    return clamp99(xi((e - a) * 2.4 + 50), 1, 100); /* v193 E: no game-day percent, no flat */
   }
   function prodStats(e, t, a, ng) {
     const s = LEVELS[a].games,
@@ -13442,6 +13726,7 @@
     xt *= 1 + (_wv164.mult - 1) * TU("watchGrowthKV164C", 0.5);
     const ua =
         treeFx("eGrowth") +
+        chaosGrowthV193E() /* v193 E: every chaos point grows every future player */ +
         gearFx("growth") +
         Math.max(0, tierGrowth(e) - 1) +
         Math.max(0, pathVal("growthMult", 1) - 1) +
@@ -15174,7 +15459,7 @@
     try {
       const rk = nationalRank(e, playerOvr(e));
       if (!rk || !rk.of) return 0;
-      return rankCurveV88(rk.rank, rk.of, e.level);
+      return rankFloorTopV193E(rk.rank, rk.of, e.level, rankCurveV88(rk.rank, rk.of, e.level)); /* v193 E: top 1% ≥ 99, top 5% ≥ 95 */
     } catch (_) {
       return 0;
     }
@@ -15493,6 +15778,7 @@
       xt *= growthMulV192C(e); /* v192C: the preview reads the same personality growth */
       const ua =
           treeFx("eGrowth") +
+          chaosGrowthV193E() /* v193 E: the preview reads the same chaos growth */ +
           gearFx("growth") +
           Math.max(0, tierGrowth(e) - 1) +
           Math.max(0, pathVal("growthMult", 1) - 1) +
@@ -17382,8 +17668,8 @@
               }
             }
           if (_mu !== 1) _v *= clamp99(_mu, TU("focusMulFloor", 0.6), TU("focusMulCeil", TU("v171Cfocus", 1) ? 1.5 : 1.35)); /* v171 C: a hot focus reaches ×1.5 */
-          /* v111: the focus is a multiplier, and it lands AFTER the body's swing */ _v +=
-            (perfPctOnV190() ? _v * perfPctV190() : treeFx("perfFlat") || 0) /* v190 A: a share of the man */ +
+          /* v111: the focus is a multiplier, and it lands AFTER the body's swing. v193 E: the tree's game-day percent is
+           * gone; what remains is the personality page's own two-sided nudge (src/14) and the gear on him */ _v +=
             ((window.__youPersonaFxV20 && window.__youPersonaFxV20.perfFlat) || 0) +
             gearAttrV147(k); /* v147 C: the gear on him */
         }
@@ -20754,7 +21040,6 @@
     ],
     GEAR_EFFECTS = [
       { key: "power", name: "Power", fmt: e => "+" + Math.round(e) + " Power", base: 1.2 },
-      { key: "perfFlat", name: "Conditioning", fmt: e => "+" + Math.round(e) + " to ALL stats every game", base: 0.8 },
       { key: "ppMult", name: "Prestige", fmt: e => "+" + Math.round(e * 100) + "% PP", base: 0.05 },
       { key: "growth", name: "Growth", fmt: e => "+" + Math.round(e * 100) + "% growth", base: 0.03 },
       { key: "injDown", name: "Protection", fmt: e => "−" + Math.round(e * 100) + "% injuries", base: 0.05 },
@@ -25252,6 +25537,7 @@
         <div class="statbox"><div class="n">${Math.round(s.pct)}%</div><div class="l">Percentile</div></div>
       </div>
       <div class="threshold-note center mt" style="margin-top:10px">Status: <b style="color:var(--gold)">${"★".repeat(e.stars)}</b> recruit · ${d}</div>
+      <div class="small center scouts-line-v193e" style="margin-top:6px">#${fmtInt(s.rank)} National · top ${Math.max(0.1, Math.round((s.rank / Math.max(1, s.of)) * 1000) / 10)}% — the floor under the declare roll. Stars, rank, potential, medals: ${scoutsExplainBtnV193E()} how the scouts decide</div>
     </div>
 
     <div class="h2">Your Position Group</div>
@@ -25316,7 +25602,7 @@
           .join("") +
         `<div><span style="color:var(--blood)">✗</span> ${t.name} — cut at OVR ${playerOvr(e)}, age ${e.age}</div>`,
       c = Object.values(TREE_NODES)
-        .filter(h => nodeLvl(h.key) < h.max && nodeUnlocked(h) && state.pp >= nodeCost(h))
+        .filter(h => nodeShownV193E(h) && nodeLvl(h.key) < h.max && nodeUnlocked(h) && state.pp >= nodeCost(h))
         .sort((h, p) => nodeCost(p) - nodeCost(h))
         .slice(0, 3),
       u = Math.round((s - 1) * 100);
@@ -25633,6 +25919,7 @@
   function branchNodesHtml(e) {
     const t = TREE[e];
     return t.nodes
+      .filter(a => nodeShownV193E(a)) /* v193 E */
       .map(a => {
         const s = nodeLvl(a.key),
           n = s >= a.max,
@@ -36991,7 +37278,7 @@
       ordPts = orders ? hits * TU("orderPtsV178", 0.2) * worth + (orders.length && hits === orders.length ? TU("sweepPtsV178", 0.4) * worth : 0) : 0,
       pace = paceV178(e, w, stat),
       milePts = pace && pace.hit.length ? pace.hit.length * TU("milePtsV178", 0.75) * worth : 0,
-      raw = (pot.raw + ordPts + milePts) * wmul * heat.mult * (1 + medalFxV179("payMultV179")) * TU("betaPayV182", 1) /* v179 G: Golden Paycheck; v182: the beta paycheck dial */,
+      raw = (pot.raw + ordPts + milePts) * wmul * heat.mult * (1 + treeFx("payMultV179")) * TU("betaPayV182", 1) /* v179 G: Golden Paycheck (the medal is inside treeFx); v193 E: Eternal Form and Glass Cannon too; v182: the beta paycheck dial */,
       bank0 = e.payBankV178 || 0,
       bank = bank0 + raw,
       whole = Math.floor(bank + 1e-9);
@@ -38455,7 +38742,7 @@
         : I && !I.ok
           ? "🛸 " + I.say
           : "";
-      msg && d.insertAdjacentHTML("afterbegin", `<div class="small center gate-v179" style="margin-bottom:8px;color:var(--gold)">${msg}</div>`);
+      msg && d.insertAdjacentHTML("afterbegin", `<div class="small center gate-v179" style="margin-bottom:8px;color:var(--gold)">${msg} ${scoutsExplainBtnV193E()}</div>`); /* v193 E: the ⓘ */
     } catch (_) {}
   };
 
@@ -39686,7 +39973,7 @@
       sc = v => Math.max(0, Math.min(100, (Math.log10(1 + v) / Math.log10(1 + top)) * 100)),
       part = (l, v) => (Math.abs(v) >= 0.5 ? `<span>${l} <b>+${fmtBigV179(Math.round(v))}</b></span>` : "");
     return `<div class="card pot-v179" id="potCardV179">
-  <div class="pv-h"><span>🧬 BLOODLINE POTENTIAL</span><b>${fmtBigV179(Math.round(pot))}</b></div>
+  <div class="pv-h"><span>🧬 BLOODLINE POTENTIAL ${scoutsExplainBtnV193E()}</span><b>${fmtBigV179(Math.round(pot))}</b></div>
   <div class="pv-track"><i style="width:${sc(pot)}%"></i>${bars.map(b => `<em class="${pot >= b.bar ? "ok" : ""}" style="left:${sc(b.bar)}%" title="${b.name}"></em>`).join("")}</div>
   <div class="pv-bars">${bars
     .map(b => `<div class="${pot >= b.bar ? "ok" : ""}"><span>${b.name}</span><b>${fmtBigV179(b.bar)}</b><small>${pot >= b.bar ? "✓ cleared — the verdict climbs toward its ceiling" : "need +" + fmtBigV179(Math.ceil(b.bar - pot))}</small></div>`)
@@ -40110,6 +40397,37 @@
   window.__V181 = { dials: BETA_DIALS_V181, set: betaSetV181, reset: betaResetV181, read: betaReadV181, skip: betaSkipTitleV181, state: V181 };
   window.__chaosMaxV179 = () => chaosMaxAllNowV150();
   window.__chaosTotalV179 = () => chaosTotal();
+  /* ===== v193 E · THE TREE OPENS WITH SPEND NOW, THE HUB COUNTS THE AFFORDABLE =====
+   * Last in the file so these run first: the strip lands directly under the PP banner (v179's potential card follows
+   * it), and the hub line is added after v179's gate line exists. */
+  const spSpendV193E = screenPrestige;
+  screenPrestige = function () {
+    const r = spSpendV193E.apply(this, arguments);
+    try {
+      const sc = byId("screen"),
+        at = sc && sc.querySelector(".pts-banner");
+      if (sc && !sc.querySelector("#spendNowV193E")) {
+        const html = spendNowHtmlV193E();
+        html && (at ? at.insertAdjacentHTML("afterend", html) : sc.insertAdjacentHTML("afterbegin", html));
+      }
+    } catch (_) {}
+    return r;
+  };
+  const decSpendV193E = decorateScreen;
+  decorateScreen = function () {
+    const r = decSpendV193E.apply(this, arguments);
+    try {
+      const d = byId("dock");
+      if (!d || !state || state.view !== "hub" || !state.player || d.querySelector(".afford-v193e")) return r;
+      const n = affordableCountV193E(),
+        gate = d.querySelector(".gate-v179"),
+        parts = [];
+      n > 0 && parts.push(`🌳 <b>${n}</b> upgrade${n === 1 ? "" : "s"} affordable — <span role="button" onclick="go('shop')" style="color:var(--gold);text-decoration:underline;cursor:pointer">spend</span>`);
+      !gate && parts.push(`🔭 <span role="button" onclick="scoutsExplainV193E()" style="cursor:pointer">How the scouts decide ${scoutsExplainBtnV193E()}</span>`); /* spans: the shell would move anchors (src/25) */
+      parts.length && d.insertAdjacentHTML("afterbegin", `<div class="small center afford-v193e" style="margin-bottom:6px;opacity:.8">${parts.join(" · ")}</div>`);
+    } catch (_) {}
+    return r;
+  };
   window.__istGateV179 = e => istGateV179(e || (state && state.player));
   window.__V179 = { flipDeal: (w, n) => flipDealV179(state.player, w || {}, n || 1), applyFlip: (id, w) => (applyFlipV178(state.player, id, w), applyFlipV178.pts), fairGrade: (U, snap, opp) => (fairGradeV179(state.player, U, snap == null ? 0.9 : snap, opp == null ? 72 : opp), fairGradeV179.last), rankFloor: (g, why) => rankFloorV179(state.player, g, why), gradeWhy: gradeWhyHtmlV179, parts: ceilingPartsV179, potGain: nodePotGainV179, fxText: fxTextV179, bar: e => scoutBarV179(e || (state && state.player)), potential: potentialV179, verdict: () => V179K.last, gate: istGateV179, medalGate: e => medalGateV179(e || (state && state.player)), fmt: fmtBigV179, price: branchPriceV179, medals: { sync: medalSyncV179, open: openMedalPickV179, tap: tapMedalV179, claim: claimMedalV179, auto: m => (autoMedalV179(typeof m === 'string' ? m : 'good'), document.getElementById('medalPickV179')?.remove(), render()), autoQuiet: autoMedalV179, close: () => document.getElementById('medalPickV179')?.remove(), newPlayer: () => newPlayer(), eraUp: () => tryNextEra(), store: medalStoreV179, fx: medalFxV179, deal: dealMedalV179 } };
 })();

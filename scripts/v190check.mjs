@@ -1,5 +1,5 @@
 // Dev check: v190 (src/07-career-app.js, src/31-legacy.js).
-//   A: GAME-DAY NODES — `perfFlat` is a percent of every attribute on game day, in the simmed game too (`rollGamePerf`)
+//   A: GAME-DAY NODES — retired in v193 E: perfPct is 0 whatever the tree holds (the old nodes pay other effects now)
 //   B: THE STATED NUMBERS ARE PAID — `prestigeCap` ceilings are what the tree can buy (Position Guru ×8 = +8 starts)
 //   C: THE TEAM NODES LIFT YOUR TEAMMATES — Superteam ×4 = +10% on your side's team OVR, capped at +15% together
 //   D: THE MEDALS AT THE TOP — the Legacy card sits under the report card, the pot under it
@@ -47,20 +47,20 @@ const A1 = await M(() => {
   S.tree = {}; S.player = JSON.parse(snap)
   return { p0, p1, p2, has, a0, a1 }
 })
-ok(A1.p0 === 0 && Math.abs(A1.p1 - 0.12) < 1e-9 && Math.abs(A1.p2 - 0.3) < 1e-9, 'Twin Engines ×6 = +12% to every attribute a game; the game-day nodes cap at +30%', A1)
-ok(A1.a1 > A1.a0 + 2, 'the simmed game feels it (rollGamePerf, not just the watched game)', A1)
+ok(A1.p0 === 0 && A1.p1 === 0 && A1.p2 === 0, 'v193 E: the game-day percent is 0 whatever the tree holds (Twin Engines ×6, the old set maxed)', A1)
+ok(Math.abs(A1.a1 - A1.a0) < 3.5, 'the simmed game (rollGamePerf) no longer moves with them', { a0: +A1.a0.toFixed(2), a1: +A1.a1.toFixed(2) })
 
 // B: the stated numbers are paid
 const B = await M(() => {
   const S = window.__GRIDIRON_AUDIT__.getState(), V = window.__V190
   S.tree = { privateCoach: 8 }; const start = V.fx('startAll')
-  S.tree = { engine: 6 }; const perf = V.fx('perfFlat')
+  S.tree = { engine: 6 }; const perf = V.fx('eGrowth')
   S.tree = { rawAthlete: 5 }; const phys = V.fx('physicalStart')
   window.RIB_TUNE.v190cap = 0; S.tree = { privateCoach: 8 }; const old = V.fx('startAll'); delete window.RIB_TUNE.v190cap
   S.tree = {}
   return { start, perf, phys, old }
 })
-ok(B.start === 8 && B.perf === 12 && B.phys === 30, 'a maxed node pays its stated total (Position Guru ×8 = +8, Twin Engines ×6 = 12, Raw Athlete ×5 = +30)', B)
+ok(B.start === 8 && Math.abs(B.perf - 0.24) < 1e-9 && B.phys === 30, 'a maxed node pays its stated total (Position Guru ×8 = +8, Twin Engines ×6 = eGrowth 0.24 (v193 E), Raw Athlete ×5 = +30)', B)
 ok(B.old < 6, 'v190cap 0 restores the v146 ceilings', B)
 
 // C: the team nodes
