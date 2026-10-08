@@ -10,6 +10,34 @@ Names in older entries are the career app's pre-v149 C minified names (`q`, `ms`
 `index.html` + `src/` (`docs/LAYOUT.md`).
 
 <!-- new entries go here, newest first -->
+- **v192 — a playtest pass in six parts.** (`src/04`, `05`, `07`, `14`, `public/rib-menu*`, `public/rib-vault*`.)
+  - **A · The economy, to scale.** Flat prestige (milestones, challenges, orders, titles, nemesis, Daily Drive, Legacy
+    bounties) pays a tenth of its face (milestones 1,1,1,1,2,4,7,22), and what a career banks on the side is paid only up
+    to half of the career's own payout (min 3); the two title-as-MVP challenges keep their face (`BIG_GOALS_V192A`). The
+    medal windfall is 10%. Practice reps and the Extra reps card are halved (~1.8 → 1.0 attribute points a JV season). The
+    weekly fate roll is a percent of the attribute and may pass the cap for that game. The Extra Card leaves the medal
+    rewards for a 1.2M PP Impossible node (`extraCard`). Flip reps / +1 cards draw across the position's stats; Focused
+    Reps (Mental) leans them to the key ones. Kill switch `v192A`. `v192Acheck`.
+  - **B · The career's end, in the Vault.** The 🏦 chip shows ×the career PP multiplier over the pot and opens a breakdown
+    of every multiplier and flat source (also from the prestige screen). The career's end opens the Vault's own rain with
+    one exit, the main menu. Fixed: after a failed declare, the bottom nav or the menu's CONTINUE reached the hub and the
+    roll could be taken again — sealed, even across a reload. Confirms before a major medal, a Path, a chaos lock. The
+    season screen shows the team OVR without → with prestige. Kill switch `v192B`. `v192Bcheck`.
+  - **C · Personality, both sides, and Poise.** Every pole of the eight sliders has a real upside and downside (season
+    fatigue — Coasts −8%/pt —, growth ±3%/pt, playoff rating, monster-game chance, Poise growth join the old levers); the
+    page shows every effect and reopens from the hub. Poise (cool under pressure) starts at 10 and grows slowly (×2.5 in
+    the playoffs, shaped by Composure): low Poise widens the swing, high Poise narrows it and lifts a bad game's floor
+    (p10 24 → 29 at 0 → 100, mean ±0.2) — the quick sim and the watched game alike. Kill switch `v192C`. `v192Ccheck`.
+  - **D · An even menu, a hold you can steer.** Every main-menu tile is the same size (3 across on a phone, 6 on
+    desktop). A Vault hold no longer turns into a coin drag when the finger moves: the light, kicks and pops follow the
+    finger; the purchase is still one `window.buy`. `RIB_TUNE.v192D`. `v192Dcheck`.
+  - **E · The broadcast.** The jumbotron pan lands from anywhere (the camera may rise above the world's top while it holds);
+    the near field keeps converging behind the line instead of running parallel (only the widths grow); big collisions
+    dig turf divots that last the game; on the road the home crowd cheers the home team. Kill switch `v192E`. `v192Echeck`.
+  - **F · The back is a receiver; the coverage on the broadcast.** The RB runs checkdown / flat / swing / angle / wheel
+    routes (80% of passes called to him, 35% otherwise): ~17% of targets (was ~2.5%), scoring and the run game in band.
+    Zone fields and man lines are drawn under the players until the throw, and an open receiver sparkles. Kill switch
+    `v192F`. `v192Fcheck`.
 - **v191 — prices that keep you buying, the Locker Room, and the gang goes down.** (`src/07-career-app.js`,
   `src/04-engine.js`, `src/05-field-renderer.js`.) The owner: "I don't want it to take multiple seasons for a meaningful
   full reward. There should be something to dump points into almost always … team based upgrades that are cheaper and scale

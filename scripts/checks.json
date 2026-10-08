@@ -255,7 +255,8 @@
     "v136check",
     "bootviewcheck",
     "walk",
-    "v156Acheck"
+    "v156Acheck",
+    "v192Dcheck"
    ]
   },
   "plan": {
@@ -854,7 +855,8 @@
     "creditcheck",
     "simcheck",
     "livecheck",
-    "zonecheck"
+    "zonecheck",
+    "v192Fcheck"
    ]
   },
   "rank": {
@@ -893,7 +895,8 @@
     "badgecheck",
     "v86check",
     "screenpancheck",
-    "jumboPartycheck"
+    "jumboPartycheck",
+    "v192Echeck"
    ],
    "steps": [
     "`node scripts/build-badge-art.mjs` (if a badge changed)"
@@ -1844,7 +1847,8 @@
     "v187",
     "v189",
     "v190",
-    "v191"
+    "v191",
+    "v192"
    ],
    "files": [],
    "checks": [
@@ -1857,7 +1861,10 @@
     "v191check",
     "medalrewardscheck",
     "v136check",
-    "v178check"
+    "v178check",
+    "v192Acheck",
+    "v192Bcheck",
+    "v192Ccheck"
    ]
   }
  },
@@ -4895,6 +4902,78 @@
     "broadcast"
    ],
    "runtimeSec": 60,
+   "slow": false,
+   "needsServer": true,
+   "pureNode": false,
+   "flaky": []
+  },
+  "v192Acheck": {
+   "file": "scripts/v192Acheck.mjs",
+   "desc": "v192 — flat prestige (milestones, challenges, orders, titles, Daily Drive, bounties) pays a tenth and the flat bank is capped at half the career's pay; the medal windfall 10%; practice reps and the reps card halved; the fate roll is a percent that can pass the cap; the Extra Card is a 1.2M Impossible node; flip stats spread, Focused Reps leans them.",
+   "areas": [
+    "season"
+   ],
+   "runtimeSec": 60,
+   "slow": false,
+   "needsServer": true,
+   "pureNode": false,
+   "flaky": []
+  },
+  "v192Bcheck": {
+   "file": "scripts/v192Bcheck.mjs",
+   "desc": "v192 — the 🏦 chip shows ×the career multiplier over the pot and opens the breakdown; the career end opens the Vault with one exit; a failed declare is sealed (no re-roll, even after reload); confirms for majors/paths/chaos; the team quality card shows without → with prestige.",
+   "areas": [
+    "season"
+   ],
+   "runtimeSec": 90,
+   "slow": false,
+   "needsServer": true,
+   "pureNode": false,
+   "flaky": []
+  },
+  "v192Dcheck": {
+   "file": "scripts/v192Dcheck.mjs",
+   "desc": "v192 — every main-menu tile is the same size (3 across on a phone, 6 on desktop); the Vault hold survives finger movement and follows it, buying once through window.buy.",
+   "areas": [
+    "menu"
+   ],
+   "runtimeSec": 60,
+   "slow": false,
+   "needsServer": true,
+   "pureNode": false,
+   "flaky": []
+  },
+  "v192Echeck": {
+   "file": "scripts/v192Echeck.mjs",
+   "desc": "v192 — the jumbotron pan reaches the screen from anywhere; the near field keeps converging; big hits dig turf divots that last the game; on the road the home crowd cheers the home team.",
+   "areas": [
+    "broadcast"
+   ],
+   "runtimeSec": 120,
+   "slow": false,
+   "needsServer": true,
+   "pureNode": false,
+   "flaky": []
+  },
+  "v192Fcheck": {
+   "file": "scripts/v192Fcheck.mjs",
+   "desc": "v192 — the back runs routes (checkdown/flat/swing/angle/wheel) and draws ~17% of targets with scoring and the run game in band; the broadcast shows zone fields, man lines and a sparkle on open receivers; stat credit holds.",
+   "areas": [
+    "broadcast"
+   ],
+   "runtimeSec": 180,
+   "slow": true,
+   "needsServer": true,
+   "pureNode": false,
+   "flaky": []
+  },
+  "v192Ccheck": {
+   "file": "scripts/v192Ccheck.mjs",
+   "desc": "v192 — every personality pole has a real upside and downside and the page shows every effect; Poise (cool under pressure) grows slowly, narrows the game-to-game swing and lifts a bad game's floor in the quick sim and the watched game alike, the mean barely moving.",
+   "areas": [
+    "season"
+   ],
+   "runtimeSec": 90,
    "slow": false,
    "needsServer": true,
    "pureNode": false,

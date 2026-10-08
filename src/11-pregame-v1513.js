@@ -829,7 +829,9 @@ function v146CardD(id){const X=window.__V146,f=X&&X.facts(null,id),V=window.__PR
   {const tl=v171TeamLiftD(f);if(tl!=null)h+=row("Team",`${tl>0?"+":tl<0?"−":"±"}${Math.abs(tl).toFixed(1)}% <small>to every teammate's ratings in this game</small>`,tl>0?"#8fe0a0":tl<0?"#e8938b":"")}   // v171 A: the rating reaches the team
   if(b){h+=row("The roll",`<span style="color:#8fe0a0">${Math.round(b.g*100)}% clicks</span> · <span style="color:#e8938b">${Math.round(b.r*100)}% backfires</span>`);
     h+=row("Clicks / backfires",`+3–5 ${b.statsG.map(k=>esc(lab(k))).join(", ")} · −3–4 ${b.statsR.map(k=>esc(lab(k))).join(", ")}`)}
-  h+=row("Fate roll",f.fate?`${Math.round(f.fate.odds*100)}% for +${f.fate.amount} ${esc(f.fate.name)}${f.fate.hedge?` (miss: +${f.fate.hedge})`:""}`:"none on this plan",f.fate?"":"var(--chalk-dim)");
+  /* v192 A: the fate buff is a percent of the attribute (it may pass the cap) — the points it is today in brackets */
+  const fPct=f.fate&&f.fate.pct!=null,fP=v=>(Math.abs(v-Math.round(v))<0.05?Math.round(v):(+v).toFixed(1))+"%";
+  h+=row("Fate roll",f.fate?(fPct?`${Math.round(f.fate.odds*100)}% for +${fP(f.fate.pct)} ${esc(f.fate.name)} (+${f.fate.amount})${f.fate.hedge?` (miss: +${fP(f.fate.hedgePct||0)}, +${f.fate.hedge})`:""}`:`${Math.round(f.fate.odds*100)}% for +${f.fate.amount} ${esc(f.fate.name)}${f.fate.hedge?` (miss: +${f.fate.hedge})`:""}`):"none on this plan",f.fate?"":"var(--chalk-dim)");
   h+=row("Form swing",`±${(Math.round(f.formPts*10)/10).toFixed(1)} to every attribute · grade ±${Math.round(f.gradeSwing)}`);
   h+=row("Body",`injury ${f.pInj!=null?Math.round(f.pInj*100)+"%":"—"}${f.injBase!=null?` <small>(${Math.round(f.injBase*100)}% × plan ${(Math.round(f.injMul*100)/100).toFixed(2)})</small>`:""} · fatigue +${f.fatigue}`,f.inj>.04?"#e8938b":f.inj<0?"#8fe0a0":"");
   h+=row("After the game",[f.trust&&`trust ${sg(f.trust)}`,f.comp&&`composure ${sg(f.comp)}`,f.mom&&`momentum ${sg(f.mom)}`,f.snap&&`snaps ${sg(f.snap*100)}%`].filter(Boolean).join(" · ")||"nothing carries");

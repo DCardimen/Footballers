@@ -605,7 +605,8 @@
       i = { disciplined: 5, feature: 11, explosive: 16, team: 9, recovery: -10 },
       r = Math.max(0, (e.age || 18) - 28) * 0.7,
       l = t.snaps || Math.round((e.snapShare || 0.2) * 65),
-      d = (i[a] ?? 7) + l * 0.12 + r;
+      d0 = (i[a] ?? 7) + l * 0.12 + r,
+      d = d0 > 0 ? d0 * fatigueMulV192C(e) : d0; /* v192C: Coasts wears less, Relentless more */
     ((n.fatigue = clamp(n.fatigue + d - n.recovery * 0.08, 0, 100)),
       (n.mentalLoad = clamp(n.mentalLoad + Math.abs((t.perf || 60) - 60) * 0.08 + (t.playoff ? 8 : 3) - 4, 0, 100)),
       n.consecutiveGames++);
@@ -5281,6 +5282,7 @@
       const h = (state && state.payHistV190) || [];
       ref = Math.max(0, ...h.slice(-3), careerPotV189(state && state.player));
     } catch (_) {}
+    if (flatPPOnV192A()) return Math.max(TU("windfallMinV192A", 1), Math.round(ref * TU("windfallShareV192A", 0.1))); /* v192 A */
     return Math.max(TU("windfallMinV190", 3), Math.round(ref * TU("windfallShareV190", 0.4)));
   }
   function payHistPushV190(pay) {
@@ -9229,13 +9231,143 @@
       saveGame(),
       state.view === "settings" && screenSettings());
   }
+  /* ===== v192 A THE ECONOMY, TO SCALE =====
+   * The owner: "Nerf the flat prestige from milestones by 90% … Remove any flat prestige gained early. It doesn't make
+   * sense to have 20 or 50 prestige on your first career then 509 from milestones. … Nerf the flat attributes gained per
+   * game, too strong. … The weekly rolls should be a flat percent bonus … which can go above any cap. … Remove the
+   * milestone perk of 2 cards in one game. That should be a high cost impossible prestige upgrade worth 1 million plus.
+   * … Too many stats go to just one or two for the card flip. They should be random stats … improved in the prestige
+   * menu to more or less focus on key stats … a longer term goal."
+   * Measured (scripts/careersim.mjs + a state.pp tap, smart player, fresh accounts): a first career paid ~8 PP for the
+   * career and ~60 more on the side — challenges 55, the title 3, milestones 2 — then +23% of all of it on the flip cards.
+   *   FLAT PP. Every flat side payment — level milestones, challenges (`chalMult`), the season orders/contracts, a title,
+   *     the nemesis, the Daily Drive, the old deck's PP card, the Legacy medal bounties — pays `flatPPShareV192A` (10%) of
+   *     its face (never under 1). What is banked that way (`state.ppBankFlatV192A`) is paid at the career's settle up to
+   *     `flatPPCapV192A` (half) of what the career itself pays (at least `flatPPMinV192A`, 3) — the side money grows with the
+   *     payout instead of in front of it. The medal windfall is `windfallShareV192A` (10%) of a career's pay, min 1.
+   *     Not flat (untouched): the UFF / Interstellar title-as-MVP challenges (`BIG_GOALS_V192A`), the career settle, the UFF season pay, Compound Interest, scrapping gear, refunds.
+   *   PER-GAME ATTRIBUTES. Practice reps bank `repsNerfV192A` (50%) of what they did; the Extra reps card is
+   *     `flipRepsV192A` (0.25 of a point, was 0.5).
+   *   THE FATE ROLL. The plan's number is now a percent of the rolled attribute for the game (`fatePctMultV192A` ×), and
+   *     the buff may pass the attribute cap (reverted after the game, as before).
+   *   THE EXTRA CARD. No longer a medal reward (the medal's stored fx is ignored); an Impossible node (`extraCard`,
+   *     150,000 × the branch's ×8 = 1.2M PP).
+   *   THE FLIP'S STAT. The Extra reps and +1 Permanent cards draw a stat from the position's weighted stats
+   *     (weight^`flipFocusExpV192A`, 0.5 — spread); FOCUSED REPS (Mental, 5 levels) adds `focusRepsStepV192A` (0.6) to
+   *     the exponent a level, so the key stats take more of the draws.
+   * Kill switch TU "v192A" 0 = all of it off (each piece: fatePctV192A / flatPPV192A / repsV192A / extraCardV192A /
+   * flipStatV192A). `window.__V192A`; `v192Acheck`. */
+  function onV192A(k) {
+    return !!TU("v192A", 1) && (!k || !!TU(k, 1));
+  }
+  // ---- the fate roll: a percent of the attribute
+  function fatePctOnV192A() {
+    return onV192A("fatePctV192A");
+  }
+  function fatePtsV192A(p, attr, pct) {
+    const cur = Number(p && p.attrs && p.attrs[attr]) || 10;
+    return Math.max(1, Math.round((cur * pct) / 100));
+  }
+  function fatePctTxtV192A(v) {
+    return (Math.abs(v - Math.round(v)) < 0.05 ? Math.round(v) : (+v).toFixed(1)) + "%";
+  }
+  // ---- flat PP: a tenth of the face, and the banked part capped by the career's own payout
+  const BIG_GOALS_V192A = { dflMvpTitle: 1, galaxyMvpTitle: 1 }; /* the two feats the whole game points at: never scaled */
+  const FLAT_WHY_V192A = { milestone: 1, goal: 1, objective: 1, title: 1, nemesis: 1, daily: 1, flipV178: 1, bounty: 1 };
+  function flatPPOnV192A() {
+    return onV192A("flatPPV192A");
+  }
+  function flatFaceV192A(n) {
+    n = Number(n) || 0;
+    if (!flatPPOnV192A() || !(n > 0)) return Math.round(n);
+    return Math.max(1, Math.round(n * TU("flatPPShareV192A", 0.1)));
+  }
+  function flatCapV192A(pay) {
+    return Math.max(TU("flatPPMinV192A", 3), Math.round((Number(pay) || 0) * TU("flatPPCapV192A", 0.5)));
+  }
+  // the flat part of the bank that the settle `pay` does not cover (0 while off)
+  function flatCutV192A(pay) {
+    if (!flatPPOnV192A() || !state) return 0;
+    const flat = Math.min(state.ppBankFlatV192A || 0, bankedV136());
+    return Math.max(0, flat - flatCapV192A(pay));
+  }
+  // ---- per-game attributes
+  function repsMultV192A() {
+    return onV192A("repsV192A") ? TU("repsNerfV192A", 0.5) : 1;
+  }
+  function flipRepsV192A() {
+    return onV192A("repsV192A") ? TU("flipRepsV192A", 0.25) : TU("flipRepsV182", 0.5);
+  }
+  // ---- the extra card: an Impossible node, not a medal
+  function extraPicksV192A() {
+    return onV192A("extraCardV192A") ? nodeLvl("extraCard") : Math.round(medalFxV179("flipPicksV179"));
+  }
+  // ---- the flip's stat: a weighted draw over the position's stats; Focused Reps sharpens it
+  function flipFocusExpV192A() {
+    return TU("flipFocusExpV192A", 0.5) + nodeLvl("focusReps") * TU("focusRepsStepV192A", 0.6);
+  }
+  function flipStatWeightsV192A(e) {
+    const W = (e && POSITIONS[e.pos] && POSITIONS[e.pos].w) || {},
+      x = flipFocusExpV192A(),
+      keys = Object.keys(W).filter(k => e.attrs && e.attrs[k] != null && W[k] > 0);
+    return keys.map(k => [k, Math.pow(W[k], x)]);
+  }
+  function flipStatV192A(e, w, salt) {
+    const ws = flipStatWeightsV192A(e);
+    if (!ws.length) return null;
+    const F = w && w.payV178 && w.payV178.flip,
+      rng = seededRng(e.seasonSeed || 0, e.level || 0, e.totalSeasons || 0, (w && w.week) || 0, (w && w.opp) || "", F ? F.picked.length : 0, salt || "", "flipStatV192A"),
+      tot = ws.reduce((a, c) => a + c[1], 0);
+    let r = rng() * tot;
+    for (const [k, v] of ws) if ((r -= v) <= 0) return k;
+    return ws[ws.length - 1][0];
+  }
+  TREE.impossible.nodes.push({
+    key: "extraCard",
+    name: "The Extra Card",
+    icon: "🃏",
+    desc: "One more card pick after EVERY game — two simmed, three watched.",
+    cost: 15e4,
+    mult: 1,
+    max: 1,
+    req: { honors: 34 }
+  });
+  TREE.mental.nodes.push({
+    key: "focusReps",
+    name: "Focused Reps",
+    icon: "🎯",
+    desc: "The Extra reps and +1 Permanent cards lean harder on your position's KEY stats, per level (at Lv 0 they spread across every stat the position uses).",
+    cost: 6,
+    mult: 1.7,
+    max: 5,
+    req: { honors: 5 }
+  });
+  ["extraCard", "focusReps"].forEach(k => {
+    const b = k === "extraCard" ? "impossible" : "mental",
+      n = TREE[b].nodes.find(x => x.key === k);
+    TREE_NODES[k] || (TREE_NODES[k] = { ...n, branch: b });
+  });
+  window.__V192A = {
+    fate: id => (window.__fateAttrFor ? window.__fateAttrFor(id) : null),
+    flatFace: n => flatFaceV192A(n),
+    flatCap: pay => flatCapV192A(pay),
+    flatCut: pay => flatCutV192A(pay),
+    repsMult: () => repsMultV192A(),
+    flipReps: () => flipRepsV192A(),
+    extraPicks: () => extraPicksV192A(),
+    focusExp: () => flipFocusExpV192A(),
+    weights: e => flipStatWeightsV192A(e || (state && state.player)),
+    stat: (w, salt) => flipStatV192A(state.player, w || {}, salt),
+    milestone: lv => flatFaceV192A(Math.round((MILESTONE_PP[lv] || 0) * (1 + treeFx("mileMult")) * chaosEarnedMult(lv)))
+  };
   const MILESTONE_PP = [0, 2, 4, 8, 14, 24, 40, 70, 220];
   function grantMilestone(e) {
     state.milestones || (state.milestones = {});
     const t = LEVELS[e].key;
     if (state.milestones[t]) return 0;
     state.milestones[t] = !0;
-    const a = Math.round((MILESTONE_PP[e] || 0) * (1 + treeFx("mileMult")) * chaosEarnedMult(e));
+    let a = Math.round((MILESTONE_PP[e] || 0) * (1 + treeFx("mileMult")) * chaosEarnedMult(e));
+    a = flatFaceV192A(a); /* v192 A: a tenth of it (1 or 2 early) */
     return (a > 0 && bankPPV136(a, "milestone"), a);
   } /* ===== v134 THE GOALS ARE WORTH CHASING =====
    * The challenge board paid 6 to 150 PP for feats that take whole careers: a UFF title was 10 PP, the
@@ -9431,17 +9563,23 @@
     }
     state.ppBankV136 = (state.ppBankV136 || 0) + n;
     state.ppBankLogV136 = (state.ppBankLogV136 || []).concat({ n, why: why || "", at: Date.now() }).slice(-40);
+    if (flatPPOnV192A() && FLAT_WHY_V192A[why]) state.ppBankFlatV192A = (state.ppBankFlatV192A || 0) + n; /* v192 A */
     return n;
   }
   function bankedV136() {
     return typeof state < "u" && state ? state.ppBankV136 || 0 : 0;
   }
-  function flushBankV136() {
-    const b = bankedV136();
+  // v192 A: `pay` (the career's own settle) caps the flat part of the bank — what it does not cover is not paid
+  function flushBankV136(pay) {
+    const cut = pay != null ? flatCutV192A(pay) : 0,
+      b = bankedV136() - cut;
     state.ppBankV136 = 0;
     state.ppBankLogV136 = [];
+    state.ppBankFlatV192A = 0;
+    if (cut > 0) state.flatCutV192A = { cut, pay: Math.round(pay), at: Date.now() };
+    if (pay != null && state.player) state.player._flatCutV192A = cut;
     if (b > 0) state.pp += b;
-    return b;
+    return Math.max(0, b);
   }
   window.__V136_C = { bank: bankPPV136, banked: bankedV136, flush: flushBankV136, banking: bankingV136 };
   /* ===== v151 B HE LOOKS THE PART (the career app's side) =====
@@ -10033,8 +10171,10 @@
           n = s.check(state, e || (state.player && state.player.seasonStats));
         } catch {}
         if (n) {
-          const i = Math.round(s.pp * (1 + treeFx("chalMult")) * chaosPPMult());
-          ((state.challenges[s.id] = !0), bankPPV136(i, "goal"), (t += i), a.push(s.icon + " " + s.name));
+          const big = !!BIG_GOALS_V192A[s.id] /* v192 A: the two titles the whole game points at keep their face */,
+            raw = Math.round(s.pp * (1 + treeFx("chalMult")) * chaosPPMult()),
+            i = big ? raw : flatFaceV192A(raw);
+          ((state.challenges[s.id] = !0), bankPPV136(i, big ? "goalBig" : "goal"), (t += i), a.push(s.icon + " " + s.name));
         }
       }),
       !state.challenges.natlNo1 && state.player && state.player.lastSeasonLine)
@@ -10050,7 +10190,7 @@
           if (r.lowerBetter ? l.every(u => d <= u.line[i.primary]) : l.every(u => d >= u.line[i.primary])) {
             state.challenges.natlNo1 = !0;
             const u = CHALLENGES.find(p => p.id === "natlNo1"),
-              h = Math.round(u.pp * (1 + treeFx("chalMult")) * chaosPPMult());
+              h = flatFaceV192A(Math.round(u.pp * (1 + treeFx("chalMult")) * chaosPPMult())); /* v192 A */
             (bankPPV136(h, "goal"), (t += h), a.push(u.icon + " " + u.name));
           }
         }
@@ -10822,7 +10962,7 @@
     ((byId("screen").innerHTML = `
     <div class="eyebrow">Career Challenges · ${e}/${CHALLENGES.length} complete</div>
     <div class="h1">Prove It</div>
-    <div class="sub">One-time feats that pay permanent Prestige Points — banked, and paid the day the career ends. They stay done forever — chase them across careers. The two at the bottom are the whole game: the UFF title <b>as its MVP</b> pays <b style="color:var(--gold)">10,000</b>, the Interstellar title as its MVP pays <b style="color:var(--gold)">1,000,000</b>.</div>
+    <div class="sub">One-time feats that pay permanent Prestige Points — banked, and paid the day the career ends${flatPPOnV192A() ? " (the side money a career banks is paid up to half of what the career itself pays)" : ""}. They stay done forever — chase them across careers. The two at the bottom are the whole game: the UFF title <b>as its MVP</b> pays <b style="color:var(--gold)">10,000</b>, the Interstellar title as its MVP pays <b style="color:var(--gold)">1,000,000</b>.</div>
     <div class="mt" style="margin-top:14px">
     ${CHALLENGES.map(t => {
       const a = !!state.challenges[t.id];
@@ -10830,7 +10970,7 @@
         <div class="ic">${t.icon}</div>
         <div class="si"><div class="st">${t.name} ${a ? '<span style="color:var(--good)">✓ DONE</span>' : ""}</div>
           <div class="sd">${t.desc}</div></div>
-        <div style="font-family:'Oswald';font-weight:700;color:${a ? "var(--good)" : "var(--gold)"};white-space:nowrap">${a ? "+" : ""}${t.pp.toLocaleString("en-US")} PP</div>
+        <div style="font-family:'Oswald';font-weight:700;color:${a ? "var(--good)" : "var(--gold)"};white-space:nowrap">${a ? "+" : ""}${(BIG_GOALS_V192A[t.id] ? t.pp : flatFaceV192A(t.pp)).toLocaleString("en-US")} PP</div>
       </div>`;
     }).join("")}
     </div>
@@ -11385,7 +11525,7 @@
       (byId("ppCount").textContent = TU("v179", 1) ? fmtBigV179(state.pp) : state.pp)); /* v179 C */
     const b = byId("ppBankChipV139"),
       n = bankShownV189(); /* v189 C: the bank as of the last season's end — it is not counted up mid-season */
-    if (b) {
+    if (b && !bankChipV192B(b, n) /* v192 B: × the multiplier over the pot */) {
       b.hidden = !(n > 0);
       b.textContent = n > 0 ? " \u00b7 \u{1F3E6} " + ppShortV139(n) : "";
       b.title =
@@ -12158,7 +12298,7 @@
       W = pl._wearV111 || (pl._wearV111 = { load: 0, lingering: [] });
     W.load = clamp99((W.load || 0) + C.load, TU("wearLoadMin", -40), TU("wearLoadMax", 180));
     const c = cv18(pl);
-    c.fatigue = clamp99((c.fatigue || 0) + C.load * wearFatKV147(), 0, 100);
+    c.fatigue = clamp99((c.fatigue || 0) + C.load * wearFatKV147() * (C.load > 0 ? fatigueMulV192C(pl) : 1) /* v192C */, 0, 100);
     const pct = cutPctV111(W.load),
       ks = pct < 0 ? cutStatsV111(pl) : [],
       cut = cutPtsV111(pl, pct, ks);
@@ -12939,10 +13079,10 @@
       d = 1 + (e.attrs.stamina - 10) * 0.0015;
     let c = hasTrait(e, "streaky") ? 23 : 15;
     c *= Math.max(0.5, 1 - treeFx("varDown") - gearV147("varDown")) * (seasonModFx("varMult") || 1);
-    let u = (s - i) * 2.4 + randRange(-c, c) * l + 50 + (t / n.games) * 2 + ((state && state._fateBoost) || 0);
+    let u = (s - i) * 2.4 + poiseShapeV192C(e, randRange(-c, c)) /* v192C: Poise narrows the swing, lifts the floor */ * l + 50 + (t / n.games) * 2 + ((state && state._fateBoost) || 0);
     (a.playoff && ((u += (treeFx("playoffPerf") + seasonModFx("playoffPerf")) * (TU("v190F", 1) ? 1 + nodeLvl("clutch") * 0.2 : 1)) /* v190 F: Clutch Gene — big-game bonuses +20% a level */, hasTrait(e, "xfactor") && (u += 12)),
       hasTrait(e, "butterFingers") && Math.random() < 0.12 && (u -= 18),
-      Math.random() < (hasTrait(e, "streaky") ? 0.06 : 0.04) && u > 40 && (u *= 1.5),
+      Math.random() < (hasTrait(e, "streaky") ? 0.06 : 0.04) * boomMulV192C(e) /* v192C: Volatile booms, Even-Keeled does not */ && u > 40 && (u *= 1.5),
       (u *= d));
     const p = clamp99(xi(u), 1, 100);
     const y = Math.random() < injChanceV54(e, a);
@@ -13297,6 +13437,7 @@
     let xt = 1;
     (hasTrait(e, "lateBloomer") && (xt *= e.age >= 16 ? 1.07 : 0.95),
       hasTrait(e, "slowStarter") && (xt *= e.seasonsSinceStart < 3 ? 0.94 : 1.05));
+    xt *= growthMulV192C(e); /* v192C: Relentless / Process / Coachable grow faster, Coasts / Win-Now / Stubborn slower */
     const _wv164 = watchV164C(e); /* v164 C: watched games grow him more, simmed games less (half the XP swing) */
     xt *= 1 + (_wv164.mult - 1) * TU("watchGrowthKV164C", 0.5);
     const ua =
@@ -13371,6 +13512,7 @@
       ((be = Math.round(
         (2 + Math.round(e.level * 0.8)) * (1 + treeFx("titleMult") + seasonModFx("ppMult")) * chaosPPMult() * eraMult()
       )),
+      (be = flatFaceV192A(be)) /* v192 A */,
       bankPPV136(be, "title"),
       (e.titles = (e.titles || 0) + 1),
       (state.titlesWon = (state.titlesWon || 0) + 1),
@@ -13520,7 +13662,7 @@
       ((Ke = O.lowerBetter ? De <= Ae : De >= Ae),
         Ke &&
           ((e.nemesis.beaten = (e.nemesis.beaten || 0) + 1),
-          bankPPV136(Math.round(2 * chaosPPMult() * eraMult()), "nemesis")));
+          bankPPV136(flatFaceV192A(Math.round(2 * chaosPPMult() * eraMult())), "nemesis") /* v192 A */));
     }
     ((e.lastSeasonLine = { level: e.level, pos: e.pos, statLine: { ...de }, avg: Math.round(U) }),
       (e.lastTeamRecord = {
@@ -14943,7 +15085,7 @@
       e.contracts && e.contracts.length
         ? `<div class="card tight" style="border-color:rgba(90,208,201,.45)">
       <div class="l" style="font-size:10px;color:#5ad0c9;letter-spacing:2px;margin-bottom:6px">📜 SEASON CONTRACTS — cash in at season's end</div>
-      ${e.contracts.map(C => `<div class="contract-row"><span>◇ ${C.desc}</span><b>+${C.pp} PP</b></div>`).join("")}
+      ${e.contracts.map(C => `<div class="contract-row"><span>◇ ${C.desc}</span><b>+${flatFaceV192A(C.pp)} PP</b></div>`).join("")}
     </div>`
         : ""
     }
@@ -15348,6 +15490,7 @@
       let xt = 1;
       (hasTrait(e, "lateBloomer") && (xt *= e.age >= 16 ? 1.07 : 0.95),
         hasTrait(e, "slowStarter") && (xt *= e.seasonsSinceStart < 3 ? 0.94 : 1.05));
+      xt *= growthMulV192C(e); /* v192C: the preview reads the same personality growth */
       const ua =
           treeFx("eGrowth") +
           gearFx("growth") +
@@ -20324,7 +20467,7 @@
     seed = clamp99(seed, 5, 100);
     const _gsB = e._gameScriptV23 && e._gameScriptV23.gsPass != null ? e._gameScriptV23.gsPass : null;
     e._gameScriptV23 = null;
-    const _fm146 = formRollV146(opts.varMult); /* v146 D: the plan's swing, rolled with the game it swings */
+    const _fm146 = formRollV146(opts.varMult, e); /* v146 D: the plan's swing, rolled with the game it swings */
     /* v111: the list the sim plays with is the wheel's swing PLUS v111's own — a lingering wear cut
      * still counting down, and this game's focus multiplier. Spending the game is a decay now, not a
      * wipe: an entry with no `games` countdown is dropped exactly as it always was. */
@@ -20354,6 +20497,9 @@
     }
     const etRoll = rollGamePerf(e, opts.perfSeed || 0, opts),
       injRoll = etRoll.injured;
+    try {
+      poiseGameV192C(e, opts); /* v192C: every game he plays steadies him a little */
+    } catch (_) {}
     const grader = typeof gradeGame === "function" ? gradeGame : window.__gradeGame;
     if (!g || !g.stat || typeof grader !== "function") {
       const sc = ia(e, etRoll.perf, opts);
@@ -20472,19 +20618,19 @@
     const C0 = clamp99(
         0.42 +
           t * 0.35 +
-          teamPrestigeQV153B(prF) +
+          (opts.noShareV192B ? 0 : teamPrestigeQV153B(prF)) /* v192 B: the before/after card asks without it */ +
           teamDecisionQV153B(e) +
           (opts.clubQ != null ? opts.clubQ : clubQV146B(e)) /* v146 B · v153 B */,
         0.3,
         1.65
       ),
-      C = C0 + teamLiftDV190(C0) /* v190 C: the team nodes' lift, on top of everything else */,
+      C = C0 + (opts.noLiftV192B ? 0 : teamLiftDV190(C0)) /* v190 C: the team nodes' lift, on top of everything else */,
       V = clamp99((oppMul - 0.72) * 2, 0.36, 1.16),
       ovr = Q => clamp99(Math.round(u * (0.72 + Q * 0.5)), 3, 999);
     // a playoff/seeding shift arrives as oppBoost — (theirRating - levelAvg)/180 —
     // so it is folded in as an OVR move on their side rather than a separate axis
     return {
-      us: clamp99(ovr(C) + Math.round(lockerTotalV191() / 22) /* v191 B: the Locker Room's +1s, over the 22 */, 3, 999),
+      us: clamp99(ovr(C) + (opts.noLockerV192B ? 0 : Math.round(lockerTotalV191() / 22)) /* v191 B: the Locker Room's +1s, over the 22 */, 3, 999),
       opp: clamp99(Math.round(ovr(V) + (Number(opts.oppBoost) || 0) * 40), 3, 999)
     };
   }
@@ -20908,7 +21054,7 @@
               break;
           }
         } catch {}
-        const c = d ? Math.round(l.pp * chaosPPMult() * eraMult()) : 0;
+        const c = d ? flatFaceV192A(Math.round(l.pp * chaosPPMult() * eraMult())) : 0; /* v192 A */
         return (
           d && (bankPPV136(c, "objective"), (state.objectivesCompleted = (state.objectivesCompleted || 0) + 1)),
           { ...l, ok: d, paid: c }
@@ -21141,7 +21287,7 @@
   }
   function legacyBountyV152(m) {
     const k = m >= 500 && m % 500 === 0 ? 10 : m % 50 === 0 ? 3 : 1;
-    return Math.round(TU("legacyBountyV152", 25) * Math.pow(m / 10, 1.5) * k);
+    return flatFaceV192A(Math.round(TU("legacyBountyV152", 25) * Math.pow(m / 10, 1.5) * k)); /* v192 A: a tenth */
   }
   function legacyRingXpV152(level) {
     return level >= 8 ? TU("legacyRingIslV152", 4000) : level >= 7 ? TU("legacyRingXpV152", 2500) : 0;
@@ -25149,7 +25295,7 @@
       l = arr ? 0 : prestigeStarReward(e, a, !1);
     e._settled ||
       ((e._settled = !0),
-      (e._ppBankV136 = flushBankV136()),
+      (e._ppBankV136 = flushBankV136(r)) /* v192 A: the career's pay caps the flat bank */,
       (state.pp += r),
       (e._vaultPayV137 = r + (e._ppBankV136 || 0)),
       flipPPSettleV186(e, r + (e._ppBankV136 || 0)) /* v186 F: the Prestige cards pay now */,
@@ -25187,7 +25333,7 @@
         <div class="statbox"><div class="n">+${bigOrRawV179(r + (e._ppBankV136 || 0) + (e._ppDoubledV149E || 0))}</div><div class="l">PP Earned</div></div>
       </div>
       ${u > 0 ? `<div class="threshold-note" style="margin-top:8px;text-align:center">💰 Your legacy bonuses boosted PP earnings by <b style="color:var(--gold)">+${u}%</b></div>` : ""}
-      ${e._ppBankV136 ? `<div class="threshold-note bank-note-v136" style="margin-top:6px;text-align:center">🏦 <b style="color:var(--gold)">+${e._ppBankV136} PP</b> of that was banked during the career — goals, titles, seasons — and paid now, at the end.</div>` : ""}
+      ${e._ppBankV136 ? `<div class="threshold-note bank-note-v136" style="margin-top:6px;text-align:center">🏦 <b style="color:var(--gold)">+${e._ppBankV136} PP</b> of that was banked during the career — goals, titles, seasons — and paid now, at the end.${e._flatCutV192A > 0 ? ` The side money (goals, milestones, titles) pays up to half of what the career itself pays — ${e._flatCutV192A} PP more went unpaid.` : ""}</div>` : ""}
     </div>
     ${legacyCardV152("career")}
     <div class="h2">Career Log</div>
@@ -25236,7 +25382,7 @@
             (TU("v190F", 1) ? nodeLvl("legacy") * e.totalSeasons : 0) /* v190 F: Family Legacy pays on the UFF arrival too */
         ),
         i = prestigeStarReward(e, Math.max(7, e.level), !0);
-      ((e._ppBankV136 = flushBankV136()),
+      ((e._ppBankV136 = flushBankV136(n)) /* v192 A */,
         (state.pp += n),
         (e._vaultPayV137 = (e._vaultPayV137 || 0) + n + (e._ppBankV136 || 0)),
         flipPPSettleV186(e, n + (e._ppBankV136 || 0)) /* v186 F */,
@@ -25644,17 +25790,19 @@
       l &&
         !d &&
         ((t.dailyClaimed = a),
-        bankPPV136(3, "daily"),
+        bankPPV136(flatFaceV192A(3), "daily") /* v192 A */,
         pushStory(
           "🎁",
           "Daily Drive complete",
-          bankingV136()
-            ? "Three Prestige Points banked — paid when this career ends."
-            : "Three Prestige Points added to your legacy."
+          flatPPOnV192A()
+            ? "+" + flatFaceV192A(3) + " Prestige Point" + (flatFaceV192A(3) === 1 ? "" : "s") + (bankingV136() ? " banked — paid when this career ends." : " added to your legacy.")
+            : bankingV136()
+              ? "Three Prestige Points banked — paid when this career ends."
+              : "Three Prestige Points added to your legacy."
         ),
         setTimeout(() => bigMoment("DAILY DRIVE COMPLETE", "+3 Prestige Points", "good"), 250),
         saveGame()),
-      `<div class="card mission-card"><div class="objective-head"><div class="objective-icon">⚡</div><div><div class="objective-kicker" style="color:var(--violet)">DAILY DRIVE</div><div class="objective-title">${d ? "All rewards claimed" : r.filter(c => c.done).length + "/3 missions complete"}</div></div></div><div>${r.map(c => `<div class="mission-row ${c.done ? "done" : ""}"><div class="mi">${c.done ? "✅" : c.ic}</div><div class="mtx"><b>${c.name}</b><small>${c.desc}</small></div><div class="mission-prize">+${c.pp} PP</div></div>`).join("")}</div></div>`
+      `<div class="card mission-card"><div class="objective-head"><div class="objective-icon">⚡</div><div><div class="objective-kicker" style="color:var(--violet)">DAILY DRIVE</div><div class="objective-title">${d ? "All rewards claimed" : r.filter(c => c.done).length + "/3 missions complete" + (flatPPOnV192A() ? " · all three: +" + flatFaceV192A(3) + " PP" : "")}</div></div></div><div>${r.map(c => `<div class="mission-row ${c.done ? "done" : ""}"><div class="mi">${c.done ? "✅" : c.ic}</div><div class="mtx"><b>${c.name}</b><small>${c.desc}</small></div><div class="mission-prize">${flatPPOnV192A() ? "" : "+" + c.pp + " PP"}</div></div>`).join("")}</div></div>`
     );
   }
   function storyFeedHtml() {
@@ -27254,7 +27402,144 @@
     if (fx.varMult && fx.varMult !== 1) r.perf = clamp99(Math.round(50 + (r.perf - 50) * fx.varMult), 1, 100);
     if ((fx.injMult || 1) > 1 && !r.injured) r.injured = Math.random() < (fx.injMult - 1) * 0.06;
     else if ((fx.injMult || 1) < 1 && r.injured && Math.random() < 1 - fx.injMult) r.injured = !1;
+    /* v192C: the playoff lever — Brash / Instinctive rise in the games that decide a season, Humble / Cerebral shrink */
+    const fx192 = personaFxV192C(e);
+    if (fx192 && fx192.bigGame && a && a.playoff) {
+      r.perf = clamp99(Math.round(r.perf + fx192.bigGame), 1, 100);
+      r.bigGameV192C = fx192.bigGame;
+    }
     return r;
+  };
+  /* ===== v192C POISE — COOL UNDER PRESSURE =====
+   * The owner: "Please add a nerves stat which SLOWLY increases the variance of a good or a bad game. If there's
+   * a 70 percent variance for example, maybe 100 brings up the lower end. Call it clutch gene or something,
+   * cool under pressure, impacted by personality too."
+   *
+   * `player.poiseV192C`, 0-100. A new career starts at `poiseStartV192C` (10); a save from before v192C is seeded
+   * from the seasons he has already played (`poiseSeedPerSeasonV192C` 3 a season, to `poiseSeedMaxV192C` 55).
+   * GROWTH (`poiseGameV192C`, once a game, from `__aiSeasonGame` — every simmed and watched game passes there):
+   *   `poiseGainV192C` (0.3) × playoff `poisePlayoffKV192C` (2.5) / rivalry `poiseRivalKV192C` (1.6) × the
+   *   personality's `poiseRate` (Even-Keeled +12%/pt, Volatile −12%/pt, Composed +5%/pt — src/14) × (1 − poise /
+   *   `poiseSoftCapV192C` (115)): about a point every two regular games early, slowing as it climbs.
+   * THE SWING (`poiseShapeV192C(e, x)` reshapes a symmetric random swing x): width × lerp(`poiseWideV192C` 1.2,
+   *   `poiseNarrowV192C` 0.85, poise/100); the BAD half × (1 − `poiseLiftV192C` 0.4 × poise/100) — the floor
+   *   lifts; the GOOD half × (1 − `poiseTrimV192C` 0.15 × poise/100), so the average barely moves. It is applied
+   *   to the three per-game random swings both paths share: the game rating in `rollGamePerf` (quick sim and
+   *   the watched game's grade), the v146 D form roll (`formRollV146`: the attribute swing the watched game is
+   *   PLAYED with, stashed for the broadcast in `_simInV146`), and ca()'s ±6 week-rating swing (and the v146
+   *   projection's sd of it). Kill switch `TU("v192C", 0)`: no poise, no reshape, no new persona levers. */
+  function onV192C() {
+    return !!TU("v192C", 1);
+  }
+  // the persona fx with the v192C levers; an old save's fx is recomputed once (never its clash — src/14)
+  function personaFxV192C(e) {
+    if (!e || !onV192C()) return null;
+    let fx = e.personaFxV20;
+    if (e.personaV13 && (!fx || fx.v192C !== 1) && typeof window.__personaFxRefreshV192C === "function")
+      try {
+        fx = window.__personaFxRefreshV192C(e);
+      } catch (_) {}
+    return fx && fx.v192C ? fx : null;
+  }
+  function fatigueMulV192C(e) {
+    const fx = personaFxV192C(e);
+    return (fx && fx.fatigueMult) || 1;
+  }
+  function growthMulV192C(e) {
+    const fx = personaFxV192C(e);
+    return (fx && fx.growthMult) || 1;
+  }
+  function boomMulV192C(e) {
+    const fx = personaFxV192C(e);
+    return (fx && fx.boomMult) || 1;
+  }
+  function poiseStartV192C() {
+    return TU("poiseStartV192C", 10);
+  }
+  function poiseOfV192C(e) {
+    if (!e) return poiseStartV192C();
+    if (e.poiseV192C == null || !isFinite(e.poiseV192C)) {
+      const seasons = Math.max(0, e.seasonsSinceStart | 0);
+      e.poiseV192C = Math.round(
+        clamp99(poiseStartV192C() + seasons * TU("poiseSeedPerSeasonV192C", 3), 0, Math.max(poiseStartV192C(), TU("poiseSeedMaxV192C", 55)))
+      );
+    }
+    return clamp99(e.poiseV192C, 0, 100);
+  }
+  function poiseGameV192C(e, opts) {
+    if (!e || !onV192C()) return 0;
+    opts = opts || {};
+    const now = poiseOfV192C(e),
+      wk = curWeekV111(e),
+      rival = (opts.oppBoost && opts.oppBoost === TU("rivalOppBoost", 0.38)) || (wk && (wk.rivalV128 || wk.importance === "rivalry")),
+      stakes = opts.playoff ? TU("poisePlayoffKV192C", 2.5) : rival ? TU("poiseRivalKV192C", 1.6) : 1,
+      fx = personaFxV192C(e),
+      rate = (fx && fx.poiseRate) || 1,
+      gain = TU("poiseGainV192C", 0.3) * stakes * rate * Math.max(0, 1 - now / TU("poiseSoftCapV192C", 115));
+    e.poiseV192C = Math.round(clamp99(now + gain, 0, 100) * 100) / 100;
+    e._poiseLastV192C = Math.round(gain * 100) / 100;
+    return gain;
+  }
+  // the three factors at a poise: [width, bad-half, good-half]
+  function poiseFactorsV192C(p) {
+    const q = clamp99(p, 0, 100) / 100,
+      w = TU("poiseWideV192C", 1.2) + (TU("poiseNarrowV192C", 0.85) - TU("poiseWideV192C", 1.2)) * q;
+    return { w, lo: 1 - TU("poiseLiftV192C", 0.4) * q, hi: 1 - TU("poiseTrimV192C", 0.15) * q };
+  }
+  function poiseShapeV192C(e, x) {
+    if (!e || !onV192C() || !x) return x;
+    const F = poiseFactorsV192C(poiseOfV192C(e));
+    return x * F.w * (x < 0 ? F.lo : F.hi);
+  }
+  // the sd of a shaped U(−1,1) swing over the unshaped one (the v146 projection's spread)
+  function poiseSdMulV192C(e) {
+    if (!e || !onV192C()) return 1;
+    const F = poiseFactorsV192C(poiseOfV192C(e)),
+      a = F.w * F.hi,
+      b = F.w * F.lo;
+    return Math.sqrt(3 * ((a * a + b * b) / 6 - Math.pow((a - b) / 4, 2)));
+  }
+  function poiseBandV192C(p) {
+    return p >= 80 ? "ICE COLD" : p >= 60 ? "UNFAZED" : p >= 40 ? "SETTLED" : p >= 20 ? "JITTERY" : "RATTLED";
+  }
+  function poiseCardV192C(e) {
+    if (!e || !onV192C()) return "";
+    const p = poiseOfV192C(e),
+      F = poiseFactorsV192C(p),
+      fx = personaFxV192C(e),
+      rate = (fx && fx.poiseRate) || 1,
+      last = e._poiseLastV192C;
+    return `<div class="card poise-card-v192c"><div class="eyebrow">Poise · Cool Under Pressure</div>
+    <div style="display:flex;justify-content:space-between;gap:12px;align-items:center"><div><div class="h2" style="margin:0;color:#8fd3ff">${poiseBandV192C(p)}</div>
+    <div class="small">Game-to-game swing <b>×${F.w.toFixed(2)}</b> · a bad game's drop <b>×${(F.w * F.lo).toFixed(2)}</b> · a good game's rise <b>×${(F.w * F.hi).toFixed(2)}</b>. Grows slowly with every game — <b>×${TU("poisePlayoffKV192C", 2.5)}</b> in the playoffs, <b>×${TU("poiseRivalKV192C", 1.6)}</b> in a rivalry — and <b>×${rate.toFixed(2)}</b> for your personality${last ? ` (last game +${last.toFixed(2)})` : ""}.</div></div>
+    <div class="ovr-big" style="color:#8fd3ff">${Math.round(p)}</div></div>
+    <div class="small" style="margin-top:6px"><a href="#" onclick="window.__personaViewV192C&&window.__personaViewV192C();return false" style="color:var(--gold)">Personality — every effect ›</a></div></div>`;
+  }
+  const decorateV192C = decorateScreen;
+  decorateScreen = function () {
+    decorateV192C();
+    try {
+      const e = state.player,
+        t = byId("screen");
+      if (onV192C() && e && t && state.view === "hub" && !t.querySelector(".poise-card-v192c")) {
+        const a = t.querySelector(".age-card") || t.querySelector(".depth-card") || t.querySelector(".card");
+        a && a.insertAdjacentHTML("afterend", poiseCardV192C(e));
+      }
+    } catch (_) {}
+  };
+  window.__V192C = {
+    poise: e => poiseOfV192C(e || state.player),
+    start: () => poiseStartV192C(),
+    grow: (e, opts) => poiseGameV192C(e || state.player, opts),
+    shape: (e, x) => poiseShapeV192C(e || state.player, x),
+    factors: p => poiseFactorsV192C(p),
+    sdMul: e => poiseSdMulV192C(e || state.player),
+    fx: e => personaFxV192C(e || state.player),
+    fatigueMul: e => fatigueMulV192C(e || state.player),
+    growthMul: e => growthMulV192C(e || state.player),
+    boomMul: e => boomMulV192C(e || state.player),
+    card: e => poiseCardV192C(e || state.player),
+    band: poiseBandV192C
   };
   window.__V112_C = {
     htFrac: HT_FRAC_V112,
@@ -29156,7 +29441,7 @@
         load: loadOfV111(e) /* v111: what he is already carrying is a term in this game's injury roll */
       }),
       __omClr = (window.__oppMulV22 = null),
-      h = randRange(-6, 6) * (s.varMult || 1) * cv171,
+      h = poiseShapeV192C(e, randRange(-6, 6)) /* v192C */ * (s.varMult || 1) * cv171,
       p = ((e.composure103 || 50) - 50) * 0.06,
       m = ((e.momentum103 || 50) - 50) * 0.045;
     ((t.perf = Math.round(clamp99(_g17.perf + h + p + m, 1, 100))),
@@ -30119,9 +30404,9 @@
    *     thins with volume, `projThinV146`, the rest is per-game) combined with the plan's swing. The
    *     low–high on every row is the 80% band, stated in whole numbers.
    *  `scripts/v146Dcheck.mjs` holds the projection against the real booking path, game for game. */
-  function formRollV146(vm) {
+  function formRollV146(vm, e) {
     if (vm == null || !TU("planFormV146", 1)) return { pts: 0, buffs: [] };
-    const pts = Math.round(TU("planFormPtsV146", 3) * vm * (Math.random() * 2 - 1) * 10) / 10;
+    const pts = Math.round(TU("planFormPtsV146", 3) * vm * poiseShapeV192C(e, Math.random() * 2 - 1) /* v192C */ * 10) / 10;
     return { pts, buffs: pts ? SIM_KEYS_V111.map(k => ({ stat: k, amt: pts, v146: "form" })) : [] };
   }
   function liveInV146(t, a) {
@@ -30499,7 +30784,9 @@
             attr: a.attr,
             name: a.name,
             amount: a.amount,
-            hedge: nodeLvl("fateHedge") >= 1 ? Math.max(1, Math.round(a.amount * 0.3)) : 0,
+            pct: a.pct != null ? a.pct : null /* v192 A: the buff is a percent of the attribute */,
+            hedgePct: a.pct != null && nodeLvl("fateHedge") >= 1 ? a.hedgePct : null,
+            hedge: nodeLvl("fateHedge") >= 1 ? (a.pct != null ? a.hedge : Math.max(1, Math.round(a.amount * 0.3))) : 0,
             label: F.label
           };
       } catch (_) {}
@@ -30610,7 +30897,7 @@
         : [[1, 0, 0]];
     bands.forEach(b => fz.forEach(z => sc.push([b[0] * z[0], b[1] + z[1], z[2]])));
     const lin = s => kap * s[1] + kS * 1.35 * s[2],
-      c = kap * 1.15 * (P ? P.formPts : 0),
+      c = kap * 1.15 * (P ? P.formPts : 0) * poiseSdMulV192C(e) /* v192C: Poise shapes the form roll this models */,
       sh = x => (x < 1e-6 ? 1 : Math.sinh(x) / x),
       EM = sc.reduce((a, s) => a + s[0] * Math.exp(lin(s)), 0) * sh(c),
       EM2 = sc.reduce((a, s) => a + s[0] * Math.exp(2 * lin(s)), 0) * sh(2 * c),
@@ -30648,7 +30935,7 @@
         vmR = (e.eventChoice && e.eventChoice.varMult) || 1,
         pm = ((e.composure103 || 50) - 50) * 0.06 + ((e.momentum103 || 50) - 50) * 0.045,
         mu = 50 + (fit.perf.mu + (P ? P.ratingShift : 0) + 2.4 * dOvr + pm - 50) * vmR,
-        sd = vmR * Math.sqrt(fit.perf.sd * fit.perf.sd + 12 * vm * vm);
+        sd = vmR * Math.sqrt(fit.perf.sd * fit.perf.sd + 12 * vm * vm * Math.pow(poiseSdMulV192C(e), 2)) /* v192C */;
       grade = { mean: clamp99(mu, 1, 100), sd, lo: clamp99(mu - z * sd, 1, 100), hi: clamp99(mu + z * sd, 1, 100) };
     }
     return {
@@ -33093,12 +33380,20 @@
         var pool = (p && POSITIONS[p.pos] && Object.keys(POSITIONS[p.pos].w)) || ATTR_KEYS;
         var attr = pool[Math.floor(seed() * pool.length)] || "speed";
         var amount = Math.max(2, Math.round((def ? def.win : 6) * 0.9));
-        return {
+        var out = {
           attr: attr,
           amount: amount,
           name: (ATTR_INFO[attr] && ATTR_INFO[attr].name) || attr,
           icon: (ATTR_INFO[attr] && ATTR_INFO[attr].icon) || "🎲"
         };
+        /* v192 A: the plan's number is a PERCENT of the attribute (+12% Speed), not flat points — see fatePctOnV192A */
+        if (fatePctOnV192A()) {
+          out.pct = amount * TU("fatePctMultV192A", 1);
+          out.amount = fatePtsV192A(p, attr, out.pct);
+          out.hedgePct = out.pct * 0.3;
+          out.hedge = fatePtsV192A(p, attr, out.hedgePct);
+        }
+        return out;
       }
       window.__fateAttrFor = fateAttrFor; // for tests
       function runFateRoll(planId) {
@@ -33119,10 +33414,18 @@
         }
         var out = fateAttrFor(planId);
         // HIT: full temporary buff. DECLINED (miss): nothing, unless House Money grants a partial buff.
-        var amount = success ? out.amount : nodeLvl("fateHedge") >= 1 ? Math.max(1, Math.round(out.amount * 0.3)) : 0;
+        var amount = success
+          ? out.amount
+          : nodeLvl("fateHedge") >= 1
+            ? out.pct != null
+              ? out.hedge
+              : Math.max(1, Math.round(out.amount * 0.3))
+            : 0;
+        var pct = out.pct != null ? (success ? out.pct : amount > 0 ? out.hedgePct : 0) : null;
         if (state) {
           state._fateMiss = success ? 0 : (state._fateMiss || 0) + 1;
-          state._fateLast = amount > 0 ? "+" + amount + " " + out.name : "DECLINED";
+          state._fateLast =
+            amount > 0 ? "+" + (pct != null ? fatePctTxtV192A(pct) : amount) + " " + out.name : "DECLINED";
         }
         return {
           success: success,
@@ -33130,6 +33433,7 @@
           odds: odds,
           attr: out.attr,
           amount: amount,
+          pct: pct,
           name: out.name,
           icon: out.icon,
           applied: amount > 0,
@@ -33161,7 +33465,11 @@
             // apply the temporary attribute buff BEFORE the game is generated
             if (res && res.applied && p && p.attrs && p.attrs[res.attr] != null) {
               applied = { attr: res.attr, before: p.attrs[res.attr] };
-              p.attrs[res.attr] = clamp99(p.attrs[res.attr] + res.amount, 1, attrCap());
+              /* v192 A: a percent buff may pass the attribute cap (this one game only — reverted below) */
+              p.attrs[res.attr] =
+                res.pct != null
+                  ? Math.max(1, p.attrs[res.attr] + res.amount)
+                  : clamp99(p.attrs[res.attr] + res.amount, 1, attrCap());
             }
           } catch (e) {
             console.warn("[fate] roll error", e);
@@ -33211,10 +33519,15 @@
             if (plan.trust) fx.push((plan.trust > 0 ? "+" : "") + plan.trust + " trust");
           }
           var oc2 = fateAttrFor(m[1]);
-          var winTxt = "HIT → " + oc2.icon + " +" + oc2.amount + " " + oc2.name + " this game";
+          var winTxt =
+            oc2.pct != null
+              ? "HIT → " + oc2.icon + " +" + fatePctTxtV192A(oc2.pct) + " " + oc2.name + " this game (+" + oc2.amount + ", may pass the cap)"
+              : "HIT → " + oc2.icon + " +" + oc2.amount + " " + oc2.name + " this game";
           var failTxt =
             nodeLvl("fateHedge") >= 1
-              ? "MISS → partial +" + Math.max(1, Math.round(oc2.amount * 0.3)) + " " + oc2.name + " (House Money)"
+              ? oc2.pct != null
+                ? "MISS → partial +" + fatePctTxtV192A(oc2.hedgePct) + " " + oc2.name + " (+" + oc2.hedge + ", House Money)"
+                : "MISS → partial +" + Math.max(1, Math.round(oc2.amount * 0.3)) + " " + oc2.name + " (House Money)"
               : "MISS → Fate declines · no change";
           var perks = [];
           if (nodeLvl("fateOdds")) perks.push("🎲+" + nodeLvl("fateOdds") * 4 + "%");
@@ -36295,7 +36608,7 @@
     if (!on178("reps")) return [];
     const cap = attrCap(),
       ceil = e.potentialCeil || cap,
-      k = TU("repsV178", 0.08) * clamp99((Number(perf) || 50) / 70, 0.4, 1.4) * mult * (1 + 0.25 * (hits || 0));
+      k = TU("repsV178", 0.08) * repsMultV192A() /* v192 A: half */ * clamp99((Number(perf) || 50) / 70, 0.4, 1.4) * mult * (1 + 0.25 * (hits || 0));
     return keyAttrsV178(e).map(a => {
       const cur = e.attrs[a] || 1,
         damp = cur >= ceil ? 0.25 : clamp99(1 - (cur / cap) * 0.55, 0.35, 1);
@@ -36487,18 +36800,23 @@
       e.paidV178 = (e.paidV178 || 0) + n;
       applyFlipV178.pts = n;
     } else if (id === "reps") {
-      const g = TU("flipRepsV182", 0.5),
-        r = repAttrV178(e, keys[0] || "speed", g);
+      /* v192 A: a quarter point, on a stat drawn from the position's (Focused Reps leans it to the key ones) */
+      const g = flipRepsV192A(),
+        k192 = onV192A("flipStatV192A") ? flipStatV192A(e, w, "reps") : null,
+        r = repAttrV178(e, k192 || keys[0] || "speed", g);
       say = "Extra reps · " + r.name + (r.up ? " +1!" : " +" + g);
     } else if (id === "trust") e.coachTrust = clamp99((e.coachTrust != null ? e.coachTrust : 50) + TU("flipTrustV182", 3), 0, 100);
-    else if (id === "pp") bankPPV136(TU("flipPPV182", 3), "flipV178");
+    else if (id === "pp") bankPPV136(flatFaceV192A(TU("flipPPV182", 3)), "flipV178"); /* v192 A */
     else if (id === "gear") {
       try {
         const g = dropGear(1, "Card flip");
         say = "Gear drop · " + ((g && g.name) || "new gear");
       } catch (_) {}
     } else if (id === "attr") {
-      const k = keys.slice().sort((a, b) => (e.attrs[a] || 0) - (e.attrs[b] || 0))[0] || "speed";
+      const k =
+        (onV192A("flipStatV192A") && flipStatV192A(e, w, "attr")) /* v192 A: a drawn stat, not the weakest key one */ ||
+        keys.slice().sort((a, b) => (e.attrs[a] || 0) - (e.attrs[b] || 0))[0] ||
+        "speed";
       const a182 = TU("flipAttrV182", 1);
       e.attrs[k] = clamp99((e.attrs[k] || 1) + a182, 1, attrCap());
       say = "+" + a182 + " " + ((ATTR_INFO[k] && ATTR_INFO[k].name) || k) + " · permanent";
@@ -36702,7 +37020,7 @@
       coach: coachReceiptV178(e, w, perf, won, ctx.live),
       reps: practiceV178(e, perf, wmul, hits),
       stock: stockV178(e, perf, won),
-      flip: on178("flip") ? flipDealV179(e, w, Math.min(3, (watched ? 2 : 1) + Math.round(medalFxV179("flipPicksV179")))) : null,
+      flip: on178("flip") ? flipDealV179(e, w, Math.min(3, (watched ? 2 : 1) + extraPicksV192A() /* v192 A: the Impossible node, not the medal */)) : null,
       title: pot.title,
       shown: !!ctx.card
     });
@@ -38263,7 +38581,7 @@
       };
     let opts;
     if (major) {
-      const left = MEDAL_MAJOR_V179.filter(c => !M.owned[c.id] && !(c.id === "skinMajor" && TU("v187", 1))).map(c => Object.assign({ w: 1, rar: "legendary" }, c));
+      const left = MEDAL_MAJOR_V179.filter(c => !M.owned[c.id] && !(c.id === "skinMajor" && TU("v187", 1)) && !(c.id === "fourthCard" && onV192A("extraCardV192A")) /* v192 A: an Impossible node now */).map(c => Object.assign({ w: 1, rar: "legendary" }, c));
       opts = pickW(left.length >= 2 ? left : left.concat(MEDAL_GREATER_V179.map(c => Object.assign({ w: 1, rar: "epic" }, c))), 2);
     } else opts = pickW(MEDAL_SMALL_V179, 3);
     opts = opts.map(dress).filter(Boolean).slice(0, 2);
@@ -38477,7 +38795,7 @@
     } catch (_) {
       r = 0;
     }
-    const base = (r || 0) + bankedV136(),
+    const base = (r || 0) + bankedV136() - flatCutV192A(r || 0) /* v192 A: the flat bank the payout does not cover */,
       pct = (flipOnV186() && e.flipPPPctV186) || 0;
     return Math.round(base * (1 + pct / 100));
   }
@@ -38529,7 +38847,7 @@
       B = state.bankSeasonV189;
     if (!sc) return;
     if (state.view === "gameover" || state.view === "win") {
-      bankRainV189(state.player);
+      careerVaultOnV192B() ? careerEndVaultV192B() : bankRainV189(state.player); /* v192 B: the Vault's own rain, not coins over the screen */
       return;
     }
     // v190 D: the Legacy medal card sits under the report card, at the top — it was the last thing on the page
@@ -38600,6 +38918,512 @@
     return !0;
   }
   window.__V189 = Object.assign(window.__V189 || {}, { pot: e => careerPotV189(e), shown: () => bankShownV189(), cards: () => bankCardsV189(), rain: e => bankRainV189(e || (state && state.player)) });
+  /* ===== v192 B THE CAREER'S END, IN THE VAULT =====
+   * The owner, six asks about the career's end and seeing prestige:
+   *   1 THE CHIP   the top bar's 🏦 shows the career's PP MULTIPLIER (×, what the career-end payout multiplies by:
+   *                the tree's PP nodes, gear, the program tier, the path, the era, the chaos earned, the Prestige
+   *                cards) over the pot it would pay at the end (`careerPotV189`, as the last season left it). Two
+   *                stacked lines, so it fits a 360 px top bar. Tap it for the breakdown.
+   *   2 THE BREAKDOWN `prestigeBreakdownV192B` (the chip, and a button on the prestige screen): every multiplier with
+   *                its value, every FLAT PP source this career (`bankPPV136` tallied by why on `e.ppFlatV192B`;
+   *                medal windfalls paid at once on `e.ppPaidV192B`), the career payout's own parts and the total.
+   *   3 THE VAULT  no coin rain over the career-end screen (v189 C `bankRainV189`): the career's end opens the
+   *                Vault itself (`careerEndVaultV192B` — its payday rain, `B.payout`) and its one exit is MAIN MENU
+   *                (the UFF arrival, which can go on: CONTINUE back to the arrival's choice). `v192Bvault` (off
+   *                under an automated browser, like v189 B's prompt — a check sets it to 1).
+   *   4 ONE ROLL   a failed declare is final: the bottom nav, the menu's CONTINUE or a reload could reach the hub (or
+   *                the training pick → the season) and declare again. A sealed career (`sealedViewV192B`: a failed
+   *                declare at this level, or a settled career end) redirects every play view to its epitaph, and both
+   *                declare buttons refuse. The prestige screen's MENU after a vow ends the career like its back
+   *                button did. `v192Bseal`.
+   *   5 CONFIRMS   ribDialog (askV150) before: locking in a major / era medal reward, "pick the rest for me" over a
+   *                major, choosing or switching a Prestige Path, starting a career that raises the chaos lock (the
+   *                ring respec already asks). `v192Bconfirm` (off under an automated browser).
+   *   6 THE TEAM   the season screen's 👥 TEAM QUALITY card: the team OVR before → after your prestige, split into the
+   *                team nodes (v190 C), the Locker Room (v191 B) and the legacy share (v153 B) — `teamPairV76` asked
+   *                with each part off (`noShareV192B` / `noLiftV192B` / `noLockerV192B`).
+   * Kill switch v192B 0 (all six). `window.__V192B`; `v192Bcheck`. */
+  function onV192B() {
+    return !!TU("v192B", 1);
+  }
+  function autoV192B() {
+    try {
+      return !!(typeof navigator < "u" && navigator.webdriver);
+    } catch (_) {
+      return !1;
+    }
+  }
+  function confirmOnV192B() {
+    return onV192B() && !!TU("v192Bconfirm", autoV192B() ? 0 : 1);
+  }
+  function careerVaultOnV192B() {
+    return onV192B() && !!TU("v192Bvault", autoV192B() ? 0 : 1);
+  }
+  function cssV192B() {
+    if (typeof document > "u" || document.getElementById("cssV192B")) return;
+    const st = document.createElement("style");
+    st.id = "cssV192B";
+    st.textContent = `.chip-bank-v192b{display:inline-flex!important;flex-direction:column;justify-content:center;line-height:1.02;gap:1px;margin-left:2px;padding:0 1px 0 5px;border-left:1px solid rgba(240,187,69,.45);font-size:10px!important;font-weight:700;letter-spacing:.2px;cursor:pointer;flex:none}
+.chip-bank-v192b[hidden]{display:none!important}
+.chip-bank-v192b b{color:#f2c94c;font-weight:700}.chip-bank-v192b i{font-style:normal;color:#7fe0a0}
+@media (max-width:400px){html.shell-v146 body .topbar{gap:4px!important;padding-left:8px!important;padding-right:8px!important}html.shell-v146 body .topbar .prestige-chip .chip-plus{width:28px!important}html.shell-v146 body .topbar .mute-v151e,html.shell-v146 body .topbar .team-creator-btn-v153{width:32px!important;min-width:32px!important}}
+.pb-v192b{font:500 13px 'Barlow Condensed',sans-serif;color:var(--chalk);text-align:left;max-height:62vh;overflow:auto}
+.pb-v192b h5{font:700 11px Oswald,sans-serif;letter-spacing:1.6px;color:var(--gold);margin:12px 0 4px}
+.pb-v192b h5:first-child{margin-top:0}
+.pb-v192b .r{display:flex;justify-content:space-between;gap:10px;padding:2px 0;border-bottom:1px solid rgba(255,255,255,.05)}
+.pb-v192b .r b{font-family:Oswald;color:var(--gold);white-space:nowrap}.pb-v192b .r.t{border-bottom:0;border-top:1px solid rgba(240,187,69,.45);margin-top:3px;padding-top:4px}
+.pb-v192b .r.t b{font-size:16px}.pb-v192b .d{color:var(--chalk-dim);font-size:12px;margin-top:3px}
+.tq-v192b .tq{display:flex;align-items:baseline;flex-wrap:wrap;gap:4px 8px;font-family:Oswald,sans-serif;font-weight:700;font-size:28px;line-height:1;margin:4px 0 4px}
+.tq-v192b .tq s{color:var(--chalk-dim);text-decoration:none}.tq-v192b .tq em{font-style:normal;color:var(--gold)}.tq-v192b .tq-l{font-family:'Barlow Condensed',sans-serif;font-weight:500;font-size:12px;line-height:1.2;color:var(--chalk-dim);letter-spacing:.3px}
+#ribVault.career-end-v192b .rv-act>:not(.rv-skipbtn),#ribVault.career-end-v192b .rv-hint,#ribVault.career-end-v192b .rv-tgt,#ribVault.career-end-v192b .rv-sound{display:none!important}
+#ribVault.career-end-v192b .rv-back{background:linear-gradient(180deg,#f2c451,#c9962a);color:#141a24;border-color:#f2c451}
+#ribVault .rv-end-v192b{position:absolute;left:0;right:0;bottom:calc(env(safe-area-inset-bottom) + 18px);display:flex;flex-direction:column;align-items:center;gap:6px;padding:0 16px;pointer-events:none;z-index:3}
+#ribVault .rv-end-v192b small{font:600 11px Oswald,sans-serif;letter-spacing:1.5px;color:#f2c94c;text-shadow:0 2px 6px #000}
+#ribVault .rv-end-v192b button{pointer-events:auto;max-width:340px;width:100%}`;
+    document.head.appendChild(st);
+  }
+  function fmtMultV192B(x) {
+    x = +x || 1;
+    return x >= 1000 ? fmtBigV179(Math.round(x)) : x >= 100 ? String(Math.round(x)) : x >= 10 ? x.toFixed(1) : x.toFixed(2);
+  }
+
+  // ---- 1/2: the multiplier, part by part (the same terms as screenGameOver's `s` × chaosEarnedMult × the Prestige cards)
+  function ppMultPartsV192B(e) {
+    e = e === undefined ? state && state.player : e;
+    const add = [],
+      mul = [],
+      nm = k => (TREE_NODES[k] && TREE_NODES[k].name) || k,
+      plus = (label, v) => {
+        v = +v || 0;
+        v && add.push({ label, v });
+      },
+      times = (label, v) => {
+        v = +v || 1;
+        Math.abs(v - 1) > 1e-9 && mul.push({ label, v });
+      };
+    [
+      ["endorse", 0.2],
+      ["agent", 0.15],
+      ["brand", 0.35],
+      ["goat", 0.5]
+    ].forEach(([k, per]) => nodeLvl(k) && plus(nm(k) + " · Lv " + nodeLvl(k), nodeLvl(k) * per));
+    for (const k in (state && state.tree) || {}) {
+      const N = TREE_NODES[k];
+      N && N.fx && N.fx.ppMult && state.tree[k] && plus(N.name + " · Lv " + state.tree[k], N.fx.ppMult * state.tree[k] * branchFxV186(N.branch));
+    }
+    plus("Medal rewards", medalFxV179("ppMult"));
+    plus("Gear", gearFx("ppMult") + gearV147("ppGain"));
+    plus("Hall of Fame wings", hofWings() * 0.05);
+    plus("Position rings", posMasteryCount("ring") * 0.03);
+    const addSum = add.reduce((a, b) => a + b.v, 0);
+    if (e) {
+      const T = currentTier(e);
+      times("Program tier" + (T ? " · " + T.name : ""), tierPPMult(e));
+    }
+    times("Prestige Path" + (state && state.path && PATHS[state.path] ? " · " + PATHS[state.path].name : ""), pathVal("ppMult", 1));
+    e && hasTrait(e, "showman") && times("Showman trait", 1.15);
+    times("Era" + (state && (state.era || 0) > 0 ? " · " + eraName() : ""), eraMult());
+    const lv = e ? e.level | 0 : 0;
+    times("Chaos · " + chaosTotal() + " (the share banked at " + ((LEVELS[Math.min(lv, LEVELS.length - 1)] || {}).name || "this level") + ")", chaosEarnedMult(lv));
+    const flipPct = (e && flipOnV186() && e.flipPPPctV186) || 0,
+      career = (1 + addSum) * mul.reduce((a, b) => a * b.v, 1);
+    return { add, addSum, mul, flipPct, career, total: career * (1 + flipPct / 100) };
+  }
+  // the career pot's own parts — careerPotV189's formula, opened up
+  function potPartsV192B(e) {
+    e = e || (state && state.player);
+    if (!e || e._settled) return null;
+    const X = ppMultPartsV192B(e),
+      a = e.level | 0,
+      sm = X.career / chaosEarnedMult(a),
+      ii = [1, 2, 4, 8, 15, 28, 45, 70, 120][Math.min(a, 8)] || 1,
+      seasons = (e.totalSeasons || 0) * 0.35,
+      titles = (e.titles || 0) * 4,
+      nn = nodeLvl("legacy") * (e.totalSeasons || 0),
+      arrived = !!(e._arrivedV154 && a >= 7);
+    let r = 0;
+    try {
+      r = arrived ? tailPPV154(e, e._arrivedV154, sm, a) : Math.max(1, Math.round(((ii + seasons + titles) * sm + nn) * chaosEarnedMult(a)));
+    } catch (_) {}
+    const bank = bankedV136(),
+      flip = Math.round((r + bank) * (X.flipPct / 100));
+    return { X, ii, seasons, titles, base: ii + seasons + titles, nn, arrived, r, bank, flip, total: careerPotV189(e), shown: bankShownV189() };
+  }
+  const FLAT_WHY_V192B = {
+    milestone: "🏁 Level milestones (first time at a level)",
+    goal: "🎯 Goals & challenges",
+    title: "🏆 Titles",
+    season: "📅 UFF seasons",
+    nemesis: "😈 Nemesis wins",
+    scrap: "♻️ Scrapped gear",
+    objective: "📋 Season objectives",
+    daily: "📆 Daily bonus",
+    flipV178: "🃏 Card flips",
+    other: "➕ Other"
+  };
+  // the flat PP a career banks, tallied by where it came from (the v136 log keeps only the last 40)
+  const bankPPV192B = bankPPV136;
+  bankPPV136 = function (n, why) {
+    const live = bankingV136(),
+      e = state && state.player,
+      r = bankPPV192B.apply(this, arguments);
+    try {
+      if (r > 0 && live && e && onV192B()) {
+        const T = e.ppFlatV192B || (e.ppFlatV192B = {}),
+          k = why && FLAT_WHY_V192B[why] ? why : why ? String(why).slice(0, 24) : "other";
+        T[k] = (T[k] || 0) + r;
+      }
+    } catch (_) {}
+    return r;
+  };
+  // a medal windfall is paid at once (not banked): counted beside the pot
+  const claimMedalV192B = claimMedalV179;
+  window.__V136_C && (window.__V136_C.bank = bankPPV136);
+  claimMedalV179 = function () {
+    const c = claimMedalV192B.apply(this, arguments);
+    try {
+      const e = state && state.player;
+      if (c && c.amt > 0 && e && !e._settled && onV192B()) e.ppPaidV192B = Object.assign(e.ppPaidV192B || {}, { medal: ((e.ppPaidV192B && e.ppPaidV192B.medal) || 0) + c.amt });
+    } catch (_) {}
+    return c;
+  };
+  // the top bar: × the multiplier, over 🏦 the pot (as the last season left it); false = draw the v139 chip
+  function bankChipV192B(b, n) {
+    if (!onV192B() || !b) return !1;
+    const e = state && state.player;
+    cssV192B();
+    if (!e || !e.pos || e._settled) {
+      b.hidden = !0;
+      b.innerHTML = "";
+      return !0;
+    }
+    const x = ppMultPartsV192B(e).total;
+    b.hidden = !1;
+    b.classList.add("chip-bank-v192b");
+    b.setAttribute("onclick", "event.stopPropagation();prestigeBreakdownV192B()");
+    b.innerHTML = `<b>×${fmtMultV192B(x)}</b><i>🏦${ppShortV139(Math.max(0, n | 0))}</i>`;
+    b.title = `This career: ×${fmtMultV192B(x)} on its payout · ${(n | 0).toLocaleString()} PP projected at the career's end (as of the last season's end). Tap for the breakdown.`;
+    return !0;
+  }
+  function breakdownHtmlV192B() {
+    const e = state && state.player,
+      live = e && e.pos && !e._settled ? e : null,
+      X = ppMultPartsV192B(live),
+      P = live ? potPartsV192B(live) : null,
+      row = (l, v, cls) => `<div class="r${cls ? " " + cls : ""}"><span>${l}</span><b>${v}</b></div>`,
+      pct = v => (v >= 0 ? "+" : "−") + Math.round(Math.abs(v) * 100) + "%";
+    let h = `<div class="pb-v192b"><h5>✖ THE CAREER'S PP MULTIPLIER</h5>${row("Base", "×1")}`;
+    X.add.forEach(a => (h += row(escHtml(a.label), pct(a.v))));
+    X.add.length && (h += row("Added together", "×" + fmtMultV192B(1 + X.addSum)));
+    X.mul.forEach(m => (h += row(escHtml(m.label), "×" + fmtMultV192B(m.v))));
+    X.flipPct && (h += row("💎 Prestige cards (on the whole pot)", "+" + +X.flipPct.toFixed(1) + "%"));
+    h += row(live ? "Your multiplier this career" : "Your multiplier (a new career starts here)", "×" + fmtMultV192B(X.total), "t");
+    if (P) {
+      h += `<h5>🏦 THIS CAREER'S POT — PAID WHEN IT ENDS</h5>`;
+      h += P.arrived
+        ? row("The UFF seasons since the arrival (× the multiplier)", "+" + fmtBigV179(P.r))
+        : row(`The career payout: ${fmtBigV179(Math.round(P.ii))} (${escHtml(LEVELS[live.level].name)}) + ${nf1V179(P.seasons)} (seasons) + ${fmtBigV179(P.titles)} (titles) = ${nf1V179(P.base)} × the multiplier`, "+" + fmtBigV179(Math.max(0, P.r - Math.round(P.nn * chaosEarnedMult(live.level | 0)))));
+      P.nn && !P.arrived && (h += row(`🏈 Family Legacy · +${nodeLvl("legacy")} PP a season (flat, × chaos)`, "+" + fmtBigV179(Math.round(P.nn * chaosEarnedMult(live.level | 0)))));
+      const T = live.ppFlatV192B || {};
+      let tallied = 0;
+      Object.keys(T)
+        .sort((a, b) => T[b] - T[a])
+        .forEach(k => {
+          tallied += T[k];
+          h += row(escHtml(FLAT_WHY_V192B[k] || k) + " · flat", "+" + fmtBigV179(T[k]));
+        });
+      P.bank - tallied > 0 && (h += row("Banked earlier this career · flat", "+" + fmtBigV179(P.bank - tallied)));
+      P.flip && (h += row("💎 Prestige cards · +" + +X.flipPct.toFixed(1) + "%", "+" + fmtBigV179(P.flip)));
+      h += row("Projected at the career's end", fmtBigV179(P.total) + " PP", "t");
+      h += `<div class="d">The 🏦 chip shows ${fmtBigV179(P.shown)} — the pot as the last season left it; it moves at each season's end.</div>`;
+      const paid = live.ppPaidV192B || {};
+      paid.medal && (h += `<h5>⚡ PAID AT ONCE THIS CAREER</h5>${row("🎖️ Medal windfalls", "+" + fmtBigV179(paid.medal))}`);
+    } else h += `<div class="d">No career in progress — the multiplier above is what the next one starts with.</div>`;
+    // the flat bonuses on offer
+    const mm = 1 + treeFx("mileMult"),
+      left = [];
+    for (let i = 1; i < LEVELS.length; i++) {
+      const k = LEVELS[i].key;
+      !(state.milestones && state.milestones[k]) && MILESTONE_PP[i] && left.push(`${escHtml(LEVELS[i].name)} +${fmtBigV179(Math.round(MILESTONE_PP[i] * mm))}`);
+    }
+    h += `<h5>➕ FLAT PRESTIGE BONUSES</h5>`;
+    h += row("🏈 Family Legacy (per season played, at the career's end)", "+" + nodeLvl("legacy") + " PP");
+    h += row("🏆 Each title (before the multiplier)", "+4");
+    h += row("📅 Each season (before the multiplier)", "+0.35");
+    h += `<div class="d">🏁 First time at a level (banked, × chaos): ${left.length ? left.join(" · ") : "every level claimed"}.</div>`;
+    return h + "</div>";
+  }
+  function prestigeBreakdownV192B() {
+    if (!state) return;
+    const D = window.ribDialog,
+      html = breakdownHtmlV192B();
+    cssV192B();
+    if (!D || !D.show) return void showToast("Your PP multiplier: ×" + fmtMultV192B(ppMultPartsV192B().total));
+    return D.show({ title: "🏦 Your prestige bonuses", html, buttons: [{ label: "Close", value: !0, kind: "primary" }] });
+  }
+  window.prestigeBreakdownV192B = prestigeBreakdownV192B;
+
+  // ---- 3: the career's end opens the Vault (its payday rain); the one way out is the main menu
+  function careerEndVaultV192B() {
+    const e = state && state.player,
+      view = state && state.view;
+    if (!e || !(e._vaultPayV137 > 0) || (view !== "gameover" && view !== "win")) return !1;
+    const V = window.__RIB_VAULT,
+      B = window.__RIB_VAULT_BRIDGE;
+    if (!V || !B || V.isOpen() || careerEndVaultV192B._t) return !1;
+    const first = e._careerVaultV192B !== e._vaultPayV137;
+    if (view === "win" && !first) return !1; /* the arrival: once a payout — the career can go on from its screen */
+    if (e._vaultRainV189 !== e._vaultPayV137) {
+      e._vaultRainV189 = e._vaultPayV137; /* the pot is paid: the 🏦 empties (what v189 C's rain did) */
+      state.bankShownV189 = 0;
+      state.bankSeasonV189 = null;
+    }
+    e._careerVaultV192B = e._vaultPayV137;
+    try {
+      saveGame();
+    } catch (_) {}
+    careerEndVaultV192B._t = setTimeout(() => {
+      careerEndVaultV192B._t = 0;
+      if (!state || state.view !== view || V.isOpen()) return;
+      cssV192B();
+      try {
+        first ? B.payout(e._vaultPayV137) : B.open({ skipDoor: !0, stay: !0, noPayday: !0 });
+      } catch (x) {
+        console.warn("[v192 B vault]", x);
+        return;
+      }
+      dressVaultV192B(view, e._vaultPayV137);
+    }, TU("careerVaultDelayMsV192B", 500));
+    return !0;
+  }
+  function dressVaultV192B(view, paid) {
+    const root = document.getElementById("ribVault");
+    if (!root) return;
+    root.classList.add("career-end-v192b");
+    root.dataset.endV192B = view;
+    root.querySelector(".rv-end-v192b")?.remove();
+    root.insertAdjacentHTML(
+      "beforeend",
+      `<div class="rv-end-v192b"><small>${view === "gameover" ? "THE CAREER IS OVER" : "WELCOME TO THE UFF"} · +${fmtBigV179(paid || 0)} PP INTO THE VAULT</small><button class="btn" type="button" data-end-v192b="1">${view === "gameover" ? "🏠 Main Menu" : "Continue ▸"}</button></div>`
+    );
+    const back = root.querySelector(".rv-back");
+    if (back) {
+      back.dataset.labelV192B == null && (back.dataset.labelV192B = back.innerHTML);
+      back.innerHTML = view === "gameover" ? "MAIN MENU &rsaquo;" : "CONTINUE &rsaquo;";
+    }
+    if (!root._v192B) {
+      root._v192B = 1;
+      // capture: the vault's own BACK never runs in this mode — the exit is ours
+      root.addEventListener(
+        "click",
+        ev => {
+          if (!root.classList.contains("career-end-v192b")) return;
+          const b = ev.target.closest && ev.target.closest(".rv-back,[data-end-v192b]");
+          if (!b) return;
+          ev.stopPropagation();
+          ev.preventDefault();
+          careerVaultExitV192B();
+        },
+        !0
+      );
+      // closed any other way (the platform's back): the vault is itself again next time
+      new MutationObserver(() => {
+        !root.classList.contains("up") && root.classList.contains("career-end-v192b") && undressVaultV192B();
+      }).observe(root, { attributes: !0, attributeFilter: ["class"] });
+    }
+  }
+  function undressVaultV192B() {
+    const root = document.getElementById("ribVault");
+    if (!root) return;
+    root.classList.remove("career-end-v192b");
+    root.querySelector(".rv-end-v192b")?.remove();
+    const back = root.querySelector(".rv-back");
+    back && back.dataset.labelV192B != null && (back.innerHTML = back.dataset.labelV192B);
+  }
+  function careerVaultExitV192B() {
+    const root = document.getElementById("ribVault"),
+      view = root && root.dataset.endV192B;
+    undressVaultV192B();
+    try {
+      window.__RIB_VAULT && window.__RIB_VAULT.close("back");
+    } catch (_) {}
+    if (view === "gameover" && state && state.view === "gameover") prestigeReset(); /* the career is over: the main menu */
+  }
+
+  // ---- 4: one roll — a failed declare (or a settled career) cannot get back to the hub and roll again
+  const SEALED_VIEWS_V192B = ["hub", "season", "training", "event", "sim", "live", "result", "tier", "upgrade", "club", "rank"];
+  function sealedViewV192B(e) {
+    e = e || (state && state.player);
+    if (!e || !onV192B() || !TU("v192Bseal", 1)) return null;
+    if (e._settled && e._careerOverV192B) return "gameover";
+    const F = e.declareFailV77;
+    return F && F.level === e.level ? (e._settled ? "gameover" : "declineResult") : null;
+  }
+  const gameOverV192B = screenGameOver;
+  screenGameOver = function () {
+    const r = gameOverV192B.apply(this, arguments);
+    try {
+      const e = state && state.player;
+      if (e && e._settled && !e._careerOverV192B && onV192B()) ((e._careerOverV192B = !0), saveGame());
+    } catch (_) {}
+    return r;
+  };
+  function refuseRollV192B() {
+    const v = sealedViewV192B();
+    if (!v) return !1;
+    showToast("🔒 The call already came — a declare is one shot.");
+    goView(v);
+    return !0;
+  }
+  const declareHubV192B = declareFromHub;
+  declareFromHub = function () {
+    if (refuseRollV192B()) return;
+    return declareHubV192B.apply(this, arguments);
+  };
+  window.declareFromHub = declareFromHub;
+  const declareAdvV192B = declareAdvance;
+  declareAdvance = function () {
+    if (refuseRollV192B()) return;
+    return declareAdvV192B.apply(this, arguments);
+  };
+  window.declareAdvance = declareAdvance;
+  // the MENU tab after a vow (state.afterCareerV12) ends the career the way the tree's back button does
+  const goViewV192B = goView;
+  goView = function (v) {
+    try {
+      if (onV192B() && v === "menu" && state && state.afterCareerV12 && state.player && state.player._settled) ((state.afterCareerV12 = !1), (state.player = null));
+    } catch (_) {}
+    return goViewV192B.apply(this, arguments);
+  };
+  window.go = goView;
+
+  // ---- 5: the big choices ask first
+  function medalAutoAskV192B() {
+    const M = medalStoreV179(),
+      majors = ((M && M.pending) || []).filter(P => P.major || P.era != null).length,
+      run = () => window.__V179 && window.__V179.medals.auto();
+    if (!majors || !confirmOnV192B()) return run();
+    return askV150(`Let the game choose all ${M.pending.length} waiting rewards — ${majors} of them major, permanent upgrade${majors > 1 ? "s" : ""}? A pick cannot be undone (only a ring respec re-deals them).`, { title: "Pick the rest for me", ok: "Pick for me" }).then(ok => ok && run());
+  }
+  window.medalAutoAskV192B = medalAutoAskV192B;
+  const tapMedalV192B = tapMedalV179;
+  tapMedalV179 = function (i) {
+    try {
+      const M = medalStoreV179(),
+        P = M && M.pending[0],
+        c = P && P.opts[i],
+        sealed = document.querySelector("#medalPickV179 .mp-card.down");
+      if (c && !sealed && (P.major || P.era != null) && confirmOnV192B()) {
+        if (tapMedalV179._asking) return;
+        tapMedalV179._asking = !0;
+        return askV150(`Lock in ${c.icon || ""} ${c.name}? ${P.era != null ? "An era's reward" : "A " + P.rank + "th-medal reward"} is permanent — it lasts every career from now on, and the other card goes back in the deck.`, { title: "🔒 Lock in a major reward", ok: "Lock it in" }).then(ok => {
+          tapMedalV179._asking = !1;
+          ok && tapMedalV192B(i);
+        });
+      }
+    } catch (_) {}
+    return tapMedalV192B.apply(this, arguments);
+  };
+  const choosePathV192B = choosePath;
+  choosePath = function (k) {
+    if (!confirmOnV192B() || !PATHS[k] || state.path === k || !pathOpenV156A()) return choosePathV192B.apply(this, arguments);
+    const from = state.path && PATHS[state.path],
+      cost = from && medalsOnV156A() ? pathSwitchCostV156A() : 0;
+    if (from && medalsOnV156A() && (state.pp || 0) < cost) return choosePathV192B.apply(this, arguments); /* its own "need N PP" */
+    return askV150(
+      from
+        ? `Switch your Prestige Path from ${from.name} to ${PATHS[k].name}? ${medalsOnV156A() ? "It costs " + fmtInt(cost) + " PP" : "It costs 2 Honors"}, and every career from now on plays the new path.`
+        : `Commit to ${PATHS[k].name}? It reshapes every career from now on — switching later costs ${medalsOnV156A() ? "a quarter of your PP" : "Honors"}.`,
+      { title: (PATHS[k].icon || "") + " " + (from ? "Switch paths" : "Choose your path"), ok: from ? "Switch" : "Commit" }
+    ).then(ok => ok && choosePathV192B(k));
+  };
+  window.choosePath = choosePath;
+  const startCareerV192B = startCareer;
+  startCareer = function (passed) {
+    if (passed !== !0 && !startCareer._okV192B && confirmOnV192B() && TU("v186", 1) && TU("chaosLockV186", 1) && chaosTotal() > chaosLockedV186()) {
+      const c = chaosTotal(),
+        was = chaosLockedV186();
+      return void askV150(`Starting a career under ${c} chaos LOCKS it in — from then on chaos can only go up (it is locked at ${was} now). Start under ${c}?`, { title: "🔒 Lock in chaos " + c, ok: "Lock it in & start" }).then(ok => {
+        if (!ok) return;
+        startCareer._okV192B = !0;
+        try {
+          startCareer(passed);
+        } finally {
+          startCareer._okV192B = !1;
+        }
+      });
+    }
+    return startCareerV192B.apply(this, arguments);
+  };
+  window.startCareer = startCareer;
+
+  // ---- 6: the team's quality, before and after the prestige
+  function teamQualityV192B(e) {
+    e = e || (state && state.player);
+    if (!e || !e.pos) return null;
+    const P = o => teamPairV76(e, o).us,
+      full = P({}),
+      noLocker = P({ noLockerV192B: 1 }),
+      noLift = P({ noLockerV192B: 1, noLiftV192B: 1 }),
+      base = P({ noLockerV192B: 1, noLiftV192B: 1, noShareV192B: 1 });
+    return { base, full, locker: full - noLocker, lift: noLocker - noLift, share: noLift - base, liftPct: teamLiftPctV190(), lockerLv: lockerTotalV191() };
+  }
+  function teamQualityHtmlV192B(e) {
+    const Q = teamQualityV192B(e);
+    if (!Q) return "";
+    const sg = n => (n >= 0 ? "+" : "−") + Math.abs(n),
+      parts = [];
+    parts.push(`<b>${sg(Q.lift)}</b> team nodes${Q.liftPct ? ` (+${nf1V179(Q.liftPct)}% on every teammate)` : ""}`);
+    parts.push(`<b>${sg(Q.locker)}</b> Locker Room${Q.lockerLv ? ` (${fmtBigV179(Q.lockerLv)} levels of +1s over the 22)` : ""}`);
+    parts.push(`<b>${sg(Q.share)}</b> legacy share (medals, roster prestige, the tree)`);
+    return `<div class="card tight tq-v192b" id="teamQualV192B"><div class="eyebrow">👥 YOUR TEAM'S QUALITY · ${escHtml(LEVELS[e.level].name)}</div><div class="tq"><s>${Q.base}</s><span>→</span><em>${Q.full}</em></div><div class="tq-l">TEAM OVR WITHOUT → WITH YOUR PRESTIGE${Q.full !== Q.base ? ` · <b style="color:var(--good)">+${Q.full - Q.base}</b>` : ""}</div><div class="small">${parts.join(" · ")}</div></div>`;
+  }
+  function teamCardV192B() {
+    const e = state && state.player;
+    if (!onV192B() || !TU("v192Bteam", 1) || !e || !e.pos || state.view !== "season") return;
+    const sc = byId("screen");
+    if (!sc || sc.querySelector("#teamQualV192B")) return;
+    const h = teamQualityHtmlV192B(e);
+    if (!h) return;
+    cssV192B();
+    const mt = sc.querySelector("#myTeamV186");
+    mt ? mt.insertAdjacentHTML("beforebegin", h) : sc.insertAdjacentHTML("beforeend", h);
+  }
+  function shopButtonV192B() {
+    if (!onV192B() || !state || state.view !== "shop") return;
+    const sc = byId("screen");
+    if (!sc || sc.querySelector("#ppBreakBtnV192B")) return;
+    const X = ppMultPartsV192B(state.player && state.player.pos && !state.player._settled ? state.player : null),
+      html = `<button class="more-v139" id="ppBreakBtnV192B" type="button" style="margin:4px 0 0 auto;text-align:right" title="Your prestige bonuses: every multiplier, every flat PP source" onclick="prestigeBreakdownV192B()">📊 ×${fmtMultV192B(X.total)} BONUSES ▸</button>`,
+      at = sc.querySelector(".pts-banner .tree-rank-v156a") || sc.querySelector(".pts-banner > div"); /* under the medal count, not another card: the tree's scroll budget is tight */
+    at ? at.insertAdjacentHTML("beforeend", html) : sc.insertAdjacentHTML("afterbegin", html);
+  }
+  const renderV192B = render;
+  render = function () {
+    try {
+      const v = sealedViewV192B();
+      v && state && SEALED_VIEWS_V192B.indexOf(state.view) >= 0 && (state.view = v);
+    } catch (_) {}
+    const r = renderV192B.apply(this, arguments);
+    try {
+      teamCardV192B();
+      shopButtonV192B();
+    } catch (x) {
+      console.warn("[v192 B render]", x);
+    }
+    return r;
+  };
+  window.__V192B = {
+    mult: e => ppMultPartsV192B(e === undefined ? state && state.player : e),
+    pot: e => potPartsV192B(e),
+    breakdown: () => prestigeBreakdownV192B(),
+    breakdownHtml: () => breakdownHtmlV192B(),
+    team: e => teamQualityV192B(e),
+    sealed: e => sealedViewV192B(e),
+    vault: () => careerEndVaultV192B(),
+    exit: () => careerVaultExitV192B(),
+    medalAuto: () => medalAutoAskV192B()
+  };
   /* ===== v189 B THE MEDAL REWARD COMES TO YOU =====
    * The owner: "ANY upgrade to the medal appears after you exit this screen, and prompts the upgrade to you before moving to
    * the next game or season … right now I think the medal improvements are off screen." Medals are paid at the season's
@@ -38701,7 +39525,7 @@
       `<div class="mp-card${P.major ? " down" : ""}" data-i="${i}" style="--mc:${RAR_COL_V179[c.rar] || "#c8d0da"}" onclick="window.__V179.medals.tap(${i})"><div class="mp-in"><div class="mp-face"><i>${c.icon}</i><b>${escHtml(c.name)}</b><small>${String(c.rar || "").toUpperCase()}${P.major ? " · PERMANENT" : ""}</small><em>${escHtml(c.ctx)}</em>${TU("v179L", 1) && fxLinesV179(c.fx).length ? `<span class="mp-fx">${fxLinesV179(c.fx).map(escHtml).join("<br>")}</span>` : ""}</div><div class="mp-back">?</div></div></div>`;
     document.body.insertAdjacentHTML(
       "beforeend",
-      `<div class="decision-overlay" id="medalPickV179"><div class="decision-panel" style="border-color:var(--gold)"><div class="decision-kicker">${P.era != null ? "NEW ERA · " + escHtml(P.eraName || "") : (P.major ? "MAJOR MEDAL · MYSTERY " : "LEGACY MEDAL ") + P.rank}</div><div class="decision-title">${P.major ? "🎁 Two sealed upgrades — tap to reveal, then choose one" : "Choose one"}</div><div class="small" style="color:var(--chalk-dim);margin-top:2px">${P.era != null ? "A new era pays a unique permanent upgrade — the same pool as the 10th-medal majors." : P.major ? "Every 10th medal: a unique permanent upgrade. The one you pass on can come back on a later major." : "Every medal pays one of two rewards. Permanent ones last every career from now on."}</div><div class="mp-cards">${P.opts.map(card).join("")}</div><div class="small center" style="margin-top:10px;color:var(--chalk-dim)">${M.pending.length > 1 ? M.pending.length - 1 + " more after this" : "the last one waiting"}</div><div class="btn-row" style="margin-top:10px"><button class="btn ghost" onclick="window.__V179.medals.close()">Later</button>${M.pending.length > 1 ? '<button class="btn ghost" onclick="window.__V179.medals.auto()">Pick the rest for me</button>' : ""}</div></div></div>`
+      `<div class="decision-overlay" id="medalPickV179"><div class="decision-panel" style="border-color:var(--gold)"><div class="decision-kicker">${P.era != null ? "NEW ERA · " + escHtml(P.eraName || "") : (P.major ? "MAJOR MEDAL · MYSTERY " : "LEGACY MEDAL ") + P.rank}</div><div class="decision-title">${P.major ? "🎁 Two sealed upgrades — tap to reveal, then choose one" : "Choose one"}</div><div class="small" style="color:var(--chalk-dim);margin-top:2px">${P.era != null ? "A new era pays a unique permanent upgrade — the same pool as the 10th-medal majors." : P.major ? "Every 10th medal: a unique permanent upgrade. The one you pass on can come back on a later major." : "Every medal pays one of two rewards. Permanent ones last every career from now on."}</div><div class="mp-cards">${P.opts.map(card).join("")}</div><div class="small center" style="margin-top:10px;color:var(--chalk-dim)">${M.pending.length > 1 ? M.pending.length - 1 + " more after this" : "the last one waiting"}</div><div class="btn-row" style="margin-top:10px"><button class="btn ghost" onclick="window.__V179.medals.close()">Later</button>${M.pending.length > 1 ? '<button class="btn ghost" onclick="medalAutoAskV192B()">Pick the rest for me</button>' : ""}</div></div></div>`
     );
     return true;
   }
@@ -38823,7 +39647,7 @@
       eGrowth: () => `+${pct(v * 0.22)} attribute growth every season`,
       advFlat: () => `+${nf1V179(v)}% declare odds · +${nf1V179(v * TU("verdictPerOddsV179", 1))} on the scouts' verdict ceiling · +${nf1V179(v * TU("secondLookPerOddsV179", 1.5))}% GM's second look`,
       flipLuckV179: () => `rare / epic / legendary post-game cards ${pct(v)} likelier`,
-      flipPicksV179: () => `+${nf1V179(v)} card pick after every game`,
+      flipPicksV179: () => (onV192A("extraCardV192A") ? "The Extra Card — retired as a medal (v192: an Impossible node now)" : `+${nf1V179(v)} card pick after every game`),
       pointsFlat: () => `+${nf1V179(v)} upgrade point${v === 1 ? "" : "s"} every season`,
       injDown: () => `${pct(v)} fewer injuries`,
       teamQual: () => `+${pct(v)} team quality around you`,

@@ -480,7 +480,10 @@
     const stars = has ? Math.max(0, Math.min(5, pl.stars || 0)) : 0;
     const tile = (action, icon, label, sub, cls = '') => `<button class="rib9-tile ${cls}" type="button" data-rib-action="${action}"><img src="${/\//.test(icon) ? icon : ART + icon + '.webp'}${ARTV}" alt="" loading="lazy"><b>${label}</b><small>${sub}</small><i class="rib9-gloss-v132" aria-hidden="true"></i>${/rib9-tile-hot/.test(cls) ? '<i class="rib9-ring-v132" aria-hidden="true"></i>' : ''}</button>`;
     const coachOn = !!(window.__RIB_COACH && window.__RIB_COACH.enabled);   // v119: read at every render, so a re-render keeps the switch honest
-    const tilesNav = `<nav class="rib9-tiles" aria-label="Sections">
+    // v192 D: every tile the same size in one even grid (3 across on a phone, 6 on a desktop) — the guide strip and the
+    // double-wide profile used to break the rows. RIB_TUNE.v192D = 0 restores the old mixed layout (rib-menu-v89.css).
+    const evenV192D = !(window.RIB_TUNE && window.RIB_TUNE.v192D === 0);
+    const tilesNav = `<nav class="rib9-tiles${evenV192D ? ' rib9-even-v192d' : ''}" aria-label="Sections">
           ${tile(has ? 'view:' + careerView : 'new', 'icon_career', 'CAREER', has ? 'PLAY NEXT GAME' : 'START A CAREER', 'rib9-tile-hot')}
           ${tile(has ? 'view:upgrade' : 'new', 'icon_training', 'TRAINING', 'UPGRADE SKILLS')}
           ${tile('goals', 'icon_goals', 'GOALS', 'SET & TRACK')}

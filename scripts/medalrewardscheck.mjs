@@ -112,9 +112,11 @@ const F = await M(async () => {
   // the post-game reel: one more pick, a bigger paycheck, luckier cards
   pl.level = 3; A.startSeasonGames()
   const wk = () => { const w = pl.weekResults.find((x) => !x.played) || pl.weekResults[0]; Object.assign(w, { played: true, won: true, us: 21, them: 7, perf: 75 }); delete w.payV178; return w }
+  window.RIB_TUNE.extraCardV192A = 0 // v192 A: the Extra Card is an Impossible node now; the medal's old path is what this measures (v192Acheck has the new)
   const w0 = wk(); V.flipDeal; window.__V178.pay(w0, { live: false }); const n0 = w0.payV178.flip ? w0.payV178.flip.n : null, raw0 = w0.payV178.raw
   claim({ id: 'fourthCard', major: true, fx: { flipPicksV179: 1 } }); claim({ id: 'paycheck', major: true, fx: { payMultV179: 0.1 } })
   const w1 = wk(); window.__V178.pay(w1, { live: false }); const n1 = w1.payV178.flip ? w1.payV178.flip.n : null, raw1 = w1.payV178.raw
+  delete window.RIB_TUNE.extraCardV192A
   out.picks = [n0, n1]; out.payRatio = raw0 ? +(raw1 / raw0).toFixed(3) : null
   const rare = () => { let r = 0, t = 0; for (let k = 0; k < 3000; k++) { const d = window.__V178.deck({ week: k, opp: 'L' + k }); for (const id of d) { t++; if (/^(pt3|pp3|gear|attr)$/.test(id)) r++ } } return r / t } // v186 F: the rare, epic and legendary cards
   const r0 = rare(); claim({ id: 'luckyDeck', major: true, fx: { flipLuckV179: 1 } }); const r1 = rare()
@@ -135,7 +137,7 @@ ok(F.headStart === 10, 'Head Start: a new player starts with 10 upgrade points',
 ok(F.coachStart === 2 && F.ppMult === 0.01 && F.eGrowth === 0.05 && F.injDown === 0.08 && F.teamQual === 0.05 && F.titleMult === 0.15 && F.playoffPerf === 2 && F.cutLives === 1, 'trust, PP %, growth, injuries, team, titles, playoffs and cut lives land in the game\'s own treeFx', { coachStart: F.coachStart, ppMult: F.ppMult, eGrowth: F.eGrowth, injDown: F.injDown, teamQual: F.teamQual, titleMult: F.titleMult, playoffPerf: F.playoffPerf, cutLives: F.cutLives })
 ok(Math.round(F.potential) === 9, 'Higher Ceiling: +3 ceiling = +9 potential (ceiling nodes ×3)', F.potential)
 ok(F.adv >= 3 && F.vMax > 0 && F.sl > 0, 'The Scout\'s Eye: declare odds up, and with them the scouts\' verdict ceiling and the GM\'s second look', { advFlat: F.adv, vMax: F.vMax, secondLook: F.sl })
-ok(F.picks[1] === F.picks[0] + 1, 'The Extra Card: one more pick after the game', F.picks)
+ok(F.picks[1] === F.picks[0] + 1, 'The Extra Card (the pre-v192 medal, extraCardV192A 0): one more pick after the game', F.picks)
 ok(Math.abs(F.payRatio - 1.1) < 0.02, 'Golden Paycheck: the same week pays ×1.1', F.payRatio)
 ok(F.rare[1] > F.rare[0] * 1.3, 'Loaded Deck: rare, epic and legendary cards turn up more often', F.rare)
 ok(F.pp === 500, 'a Prestige windfall pays into the balance now', F.pp)

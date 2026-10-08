@@ -2173,7 +2173,7 @@ window.__visionRadiusV96 = visionRadiusV96;
       if (playAction && a._bite && !seesBall(a)) return false;
       if (a.lb === "LB") { const plan = lbDrops.find(x => x.a === a); if (!plan || t < plan.readAt) return false;
         if (!plan.ann) { plan.ann = true; emit("linebackerDrop", { who: a.id, delay: Math.round(plan.readAt), zone: zoneV166C }); } }   // the broadcast still hears the drop
-      if (!a._zoneV166C) a._zoneV166C = zoneSpotV166C(a, zoneV166C);
+      if (!a._zoneV166C) { a._zoneV166C = zoneSpotV166C(a, zoneV166C); if (a._zoneV166C) zoneShowV192F(a, a._zoneV166C); }
       const Z = a._zoneV166C; if (!Z) return false;
       V166C.zoneTicks++;
       // the ball is in the air: break on the catch point if it is his to play
@@ -2191,6 +2191,40 @@ window.__visionRadiusV96 = visionRadiusV96;
       if (thr) { ax = Z.lx + (thr.lx - Z.lx) * k + (Z.deep ? 10 : -6); ay = Z.y + (thr.y - Z.y) * k; if (Z.deep) ax = Math.max(ax, thr.lx + 8); }
       mv(a, ax, clampY(ay), .7 + a.cov * .002 + a.quick * .001);
       return true; };
+    /* ===== v192F THE COVERAGE ON THE BROADCAST =====
+     * The sim knew who was on whom, where each zone sat and who had won, and none of it reached the picture. Three
+     * events now carry it, all read off what the sim already did (no draws, nothing steered — the result is untouched):
+     *   `zoneV192F` — a zone defender takes his landmark (v166 C): its centre and its size (`zoneDrawKV192F` x the
+     *     coverage's shape: deep halves and thirds, flats, curl-flats, hooks), so 05 draws the AREA he owns;
+     *   `manV192F`  — a defender's man changes (the target's cover man, the bracket, a corner on his receiver, a dropped
+     *     backer on a released back or tight end); `on: null` when he is nobody's man;
+     *   `openV192F` — a receiver on a route wins (his live v166 B window off the nearest free defender reaches
+     *     `openSepV192F`) or loses it (`openHystV192F` under), checked every `openEveryTicksV192F` ticks until the throw.
+     * Kill switch `v192F` 0 emits none of it. `root.__V192F` (zones, manEv, openEv). */
+    const V192F = root.__V192F = root.__V192F || {};
+    const ZONE_SHAPE_V192F = {   // half-length downfield (yards), half-width across (px)
+      flat: [6, 58], deepHalf: [11, 82], hook: [5, 34], deepThird: [10, 52], deepMiddle: [11, 52], curlFlat: [6, 48] };
+    const zoneShowV192F = (a, Z) => {
+      if (!TU("v192F", 1)) return;
+      const kind = zoneV166C === "cover2" ? (a.lb === "CB" ? "flat" : a.lb === "S" ? "deepHalf" : "hook")
+        : (a.lb === "CB" ? "deepThird" : a.lb === "S" ? (Z.deep ? "deepMiddle" : "curlFlat") : "hook");
+      const sh = ZONE_SHAPE_V192F[kind], k = TU("zoneDrawKV192F", 1);
+      V192F.zones = (V192F.zones || 0) + 1;
+      emit("zoneV192F", { who: a.id, x: Z.lx, y: Z.y, rx: +(sh[0] * YD * k).toFixed(1), ry: +(sh[1] * k).toFixed(1), deep: !!Z.deep, kind, shell: zoneV166C });
+    };
+    const coverTickV192F = () => {
+      if (!TU("v192F", 1)) return;
+      for (const d of S.def) { const on = d._manOnV192F ? d._manOnV192F.id : null;
+        if (on !== (d._manShownV192F || null)) { d._manShownV192F = on; V192F.manEv = (V192F.manEv || 0) + 1;
+          emit("manV192F", { who: d.id, on, help: !!(on && d === coverHelp && bracketed) }); } }
+      if ((t / TICK) % TU("openEveryTicksV192F", 3) >= 1) return;
+      const openAt = TU("openSepV192F", .6), closeAt = openAt - TU("openHystV192F", .35);
+      for (const w of S.off) { if (!w.route || !["WR", "TE", "RB"].includes(w.lb)) continue;
+        const sepNow = w.lx > 0 ? liveSepV166B(w).sep : -9;   // behind the line he is not "open" yet
+        const was = !!w._openV192F, now = was ? sepNow >= closeAt : sepNow >= openAt;
+        if (now !== was) { w._openV192F = now; V192F.openEv = (V192F.openEv || 0) + 1;
+          emit("openV192F", { who: w.id, open: now, sep: +sepNow.toFixed(2) }); } }
+    };
     // v82: one blocker on one man — used by return-team wedges and the kick teams'
     // jammers. Reaches, holds him for a stretch, sheds off strength/agility against
     // blocking; a shed man is free of everyone for a beat rather than forever.
@@ -3654,6 +3688,42 @@ window.__visionRadiusV96 = visionRadiusV96;
         name:a._routeName,rel:a._routeRel,tier:a._routeTier,tail:(a.route||[]).tail,
         wps:(a.route||[]).map(w=>[Math.round(w.lx),Math.round(w.y)])}))}}catch(_e){}
       if (_cc==="screen" || (_cc==="quick" && Math.random()<0.4)) { const rb=S.off[9]; if(rb){ const _rn=_cc==="screen"?_pick(["screen","bubble","tunnel"]):_pick(["flat","swing","checkdown"]); rb.route=mkRoute(rb,_rn,2,_pick(R_REL),"short"); rb._rwp=1; rb._routeName=_rn; } }
+      /* ===== v192F THE BACK IS A RECEIVER =====
+       * The back only ran a route on a screen or 40% of quick calls; every other pass he stood in protection, so a
+       * call the engine aimed AT him (07's target pick names an RB about a quarter of the time) had no route to throw
+       * to and the read silently went elsewhere — backs drew ~2% of targets. Now he releases on most passes: mostly
+       * when he is the called target (`rbCalledRouteV192F`; otherwise he stays in and the read goes elsewhere, as before), `rbRouteRateV192F` of the time otherwise (`rbRouteBlitzV192F` when a blitz is
+       * called — he stays home to pick it up), on a back's route (`RB_ROUTES_V192F`: checkdown, flat, swing, angle, wheel,
+       * by the call's depth). He is then on the scan like anyone else: graded, read, checked down to. Kill switch
+       * `v192F` 0 (no extra draws OFF). `root.__V192F.rbRoutes`; `v192Fcheck.mjs`. */
+      // A back's route is drawn from the LINE, not from where he stands: the tree's shapes are a receiver's (they start
+      // at the line of scrimmage), and a flat run from seven yards deep ends behind the quarterback — a ball he never throws.
+      const rbRouteV192F = (a, name) => {
+        const sx = a.lx, sy = a.y, s = (a.y < MIDY ? 1 : -1), P = (x, y) => ({ lx: x, y: clampY(y) }), Y = YD;
+        const wheelD = cl(routeDepth, 6, TU("rbWheelMaxYdV192F", 14)) * Y;
+        const shapes = {
+          checkdown: { w: [P(sx + 3 * Y, sy + s * 10), P(TU("rbCheckYdV192F", 3) * Y, sy + s * 22)], tail: "settle" },
+          flat:      { w: [P(sx + 2 * Y, sy - s * 40), P(TU("rbFlatYdV192F", 1.5) * Y, sy - s * 110)], tail: "out" },
+          swing:     { w: [P(sx + Y, sy - s * 52), P(-Y, sy - s * 118), P(2 * Y, sy - s * 138)], tail: "out" },
+          angle:     { w: [P(sx + 2 * Y, sy - s * 42), P(1.5 * Y, sy - s * 56), P(TU("rbAngleYdV192F", 5) * Y, sy + s * 12)], tail: "across" },
+          wheel:     { w: [P(sx + Y, sy - s * 60), P(Y, sy - s * 122), P(wheelD, sy - s * 128)], tail: "go" },
+        };
+        const b = shapes[name] || shapes.checkdown, wps = [P(sx, sy)].concat(b.w);
+        wps.tail = b.tail; wps.rname = name; wps.rel = "str"; wps.tier = "std";
+        return wps;
+      };
+      if (TU("v192F", 1) && S.off[9] && !S.off[9].route && _cc !== "screen") {
+        const rb = S.off[9], called = rb === target;
+        const rateV192F = called ? TU("rbCalledRouteV192F", .8) : blitzer ? TU("rbRouteBlitzV192F", .2) : TU("rbRouteRateV192F", .35);
+        if (Math.random() < rateV192F) {
+          const RB_ROUTES_V192F = _cc === "shot" ? ["wheel", "angle", "checkdown"] : _cc === "quick" ? ["flat", "swing", "checkdown", "angle"]
+            : ["checkdown", "flat", "swing", "angle", "wheel", "checkdown"];
+          const rn = _pick(RB_ROUTES_V192F);
+          rb.route = rbRouteV192F(rb, rn); rb._rwp = 1; rb._routeName = rn;
+          const V = root.__V192F = root.__V192F || {}; V.rbRoutes = (V.rbRoutes || 0) + 1;
+          emit("rbRouteV192F", { who: rb.id, route: rn, called });
+        }
+      }
       // v33 QB FIELD SCAN: grade every eligible route against its nearest coverage
       // defender. Awareness controls how many reads the QB reaches and how much
       // noise contaminates the grade; young/raw QBs can still lock onto a bad read.
@@ -5570,9 +5640,9 @@ window.__visionRadiusV96 = visionRadiusV96;
       }
       // pre-carry defense shell drift
       if (phase==="drop"||phase==="fly") {
-        S.def.forEach(a=>{
-          if(a===coverA){ const aim=coverageAim(a,target); mv(a,aim.lx-sep*2.4,aim.y,.90+a.cov*.0016); }
-          else if(a===coverHelp&&bracketed){ const aim=coverageAim(a,target); mv(a,aim.lx+7,aim.y+(a.y<MIDY?-10:10),.78+a.aware*.0018); }
+        S.def.forEach(a=>{ a._manOnV192F = null;   // v192 F: who he is in man on this tick (set by the branch that plays him)
+          if(a===coverA){ a._manOnV192F = target; const aim=coverageAim(a,target); mv(a,aim.lx-sep*2.4,aim.y,.90+a.cov*.0016); }
+          else if(a===coverHelp&&bracketed){ a._manOnV192F = target; const aim=coverageAim(a,target); mv(a,aim.lx+7,aim.y+(a.y<MIDY?-10:10),.78+a.aware*.0018); }
           else if (zoneV166C && zoneMoveV166C(a)) return;   // v166 C: a zone defender plays his landmark
           else if(a.lb==="CB"){
             // v82: a press corner stays in the receiver's face until the jam resolves
@@ -5582,6 +5652,7 @@ window.__visionRadiusV96 = visionRadiusV96;
             const error=Math.max(0,55-awE(a))/55;   // v165 B
             const wrong=error>.2&&Math.random()<error*.035;
             const aim=coverageAim(a,w), wy=wrong?clampY(aim.y+(Math.random()<.5?-55:55)):aim.y;
+            a._manOnV192F = w || null;
             mv(a,aim.lx+6+(55-a.cov)*.12,wy,.76+a.cov*.0028+a.quick*.0012);
           }
           else if(a.lb==="S"){
@@ -5602,10 +5673,12 @@ window.__visionRadiusV96 = visionRadiusV96;
             if(plan&&t>=plan.readAt){
               if(!plan.ann){plan.ann=true;emit("linebackerDrop",{who:a.id,delay:Math.round(plan.readAt)});}
               const inside=S.off.filter(w=>["TE","RB","WR"].includes(w.lb)).sort((p,q)=>Math.abs(p.y-a.y)-Math.abs(q.y-a.y))[0];
+              if (inside && inside.route) a._manOnV192F = inside;   // a back still in protection is nobody's man
               const aim=coverageAim(a,inside); mv(a,Math.max(24,aim.lx+5),aim.y+(aim.y<MIDY?7:-7),.58+a.cov*.0022+a.aware*.0014);
             } else mv(a,22,a.y,.32+a.quick*.0015);
           }
         });
+        if (phase === "drop" && !ballFlight) coverTickV192F();   // v192 F: the coverage and the open men, for the broadcast
         S.off.forEach(a=>{ if(a.route&&a.route.length){
             if (chipper && a === chipper.te && t < chipper.until) return;     // v82: still chipping
             const jammed = t < (a._jamUntil||0) ? TU("jamPace", .35) : 1;   // v82: hands on him at the line
