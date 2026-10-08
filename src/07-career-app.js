@@ -15170,6 +15170,7 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
       ${TU("v156D", 1) ? myPlaysSettingV159B() : "" /* v156 D; v159 B: a member perk / the ad while the store is ON */}
       ${toggleRow("fastSim", "Faster live sim", "Speed up the default play animation")}
       ${jumboRowV164F() /* v164 F: the messages on the big screen */}
+      ${bigSlowRowV193W() /* v193 W: the 🐢 dial's amount, automatic on big plays */}
       ${TU("v193O", 1) ? "" : toggleRow("haptics", "Haptic feedback", "Vibration for touchdowns, setbacks, and major choices") /* v193 O: Settings › SOUND › Vibration */}
     </div>
     ${experienceRowV158B() /* v158 B: EXPERIENCE — Off (current build) · Free-to-play · Member (a preview); the GAME tab */}
@@ -23765,10 +23766,44 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
   }
   window.toggleJumboV164F = toggleJumboV164F;
   function slowDialV164F() {
-    if (!TU("v164Fslow", 1)) return "";
+    if (!TU("v164Fslow", 1) || TU("v193Wslow", 1)) return ""; /* v193 W: the dial is gone — slow motion is automatic, its amount is a Settings row */
     const cur = Math.min(1, Math.max(0.25, (liveCtl && liveCtl.speed) || 1)), pct = Math.round(cur * 100);
     return `<div class="slow-dial-v164f"><span title="Slow motion">🐢</span><input type="range" min="${Math.round(TU("slowMinV164F", 0.25) * 100)}" max="100" step="5" value="${pct}" aria-label="Slow motion speed" oninput="setSlowV164F(this.value)"><b id="slowValV164F">${cur < 1 ? cur.toFixed(2) + "×" : "off"}</b></div>`;
   }
+  /* ===== v193 W BIG-PLAY SLOW MOTION (the Settings row) =====
+   * The owner: "Remove the turtle slide bar. I wanted that to be automatic during fast play to emphasize big plays.
+   * Move that to the menu." The live HUD's 🐢 dial is gone (`slowDialV164F` draws nothing); the renderer slows a big
+   * play on its own at 2×/4× (src/05 v193 W) and this row sets how much: Off · Subtle (1× for a beat, at 2× and up —
+   * the default) · Dramatic (½× for a longer beat, at 1× and up). Stored in `state.settings.bigSlowV193W` and drawn
+   * from it alone (v140: hoisted, no renderer read). Kill switch `TU("v193Wslow", 0)`: no row, the dial is back. */
+  function bigSlowModeV193W() {
+    const v = state && state.settings && state.settings.bigSlowV193W;
+    return v === "off" || v === "dramatic" ? v : "subtle";
+  }
+  function bigSlowRowV193W() {
+    if (!TU("v193Wslow", 1)) return "";
+    const cur = bigSlowModeV193W(),
+      M = [
+        ["off", "Off", "Big plays run at the speed you picked."],
+        ["subtle", "Subtle", "At 2× and 4× a big play drops to 1× for a beat, then speeds back up."],
+        ["dramatic", "Dramatic", "A big play drops to ½× for a longer beat — at 1× too."]
+      ],
+      row = M.find(m => m[0] === cur) || M[1];
+    return `<div class="fx-row" id="bigSlowRowV193W" style="margin:8px 0 2px">
+        <div class="fx-head"><span class="fx-label">🎬 Big-play slow motion</span><span class="fx-val" id="bigSlowValV193W">${row[1]}</span></div>
+        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin:2px 0 4px">${M.map(m => `<button class="btn bigslow-v193w ${m[0] === cur ? "secondary" : "ghost"}" data-mode="${m[0]}" style="padding:8px 2px;font-size:12px" onclick="setBigSlowV193W('${m[0]}')">${m[1]}</button>`).join("")}</div>
+        <div class="fx-desc" id="bigSlowDescV193W">${row[2]} Touchdowns, turnovers, sacks, big hits and 20+ yard gains.</div>
+      </div>`;
+  }
+  function setBigSlowV193W(m) {
+    if (m !== "off" && m !== "subtle" && m !== "dramatic") return;
+    state.settings || (state.settings = {});
+    state.settings.bigSlowV193W = m;
+    saveGame();
+    buzzV193O("select");
+    state.view === "settings" && screenSettings();
+  }
+  window.setBigSlowV193W = setBigSlowV193W;
   function setSlowV164F(v) {
     const s = Math.round(Math.max(TU("slowMinV164F", 0.25), Math.min(1, (+v || 100) / 100)) * 100) / 100;
     setSpeed(s);
@@ -34998,6 +35033,7 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
           "</div></div>"
         );
       }
+      window.__pgGridV193W = (pos, statObj, gameObj) => pgGrid(pos, statObj, gameObj); /* v193 W: the Quick Play card's folded box */
       function pgGrid(pos, statObj, gameObj) {
         var rows = typeof liveBoxLine === "function" ? liveBoxLine(pos, statObj) : [];
         var gmap = null;
@@ -35614,17 +35650,22 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
           // the year now stands — the single-game box is the detail underneath it.
           // The green deltas still show what this game contributed, so leading with
           // the season total loses nothing.
-          '<div class="stat-sec-label">SEASON TOTALS' +
-          seasonThru +
-          ' <small style="color:var(--good);letter-spacing:0">+ from this game</small></div>' +
-          '<div class="fullbox">' +
-          pgGrid(p.pos, TU("v189A", 1) ? seasonBoxV189(p, g.stat, wr).box : seasonBox, g.stat) /* v189 A: every played week, watched or simmed */ +
-          "</div>" +
-          gradeCardHtml(p.pos, grade) +
-          '<div class="stat-sec-label" style="margin-top:12px">THIS GAME</div>' +
-          '<div class="fullbox">' +
-          pgGrid(p.pos, g.stat, null) +
-          "</div>" +
+          recapFoldV193W(
+            "pg",
+            "grade " + grade.grade + " " + Math.round(grade.score) + (snaps > 0 ? " · " + snaps + " snaps" : ""),
+            playByPlayV193W(g, p) /* v193 W: the snaps he was in and the scores, in order */ +
+              '<div class="stat-sec-label">SEASON TOTALS' +
+              seasonThru +
+              ' <small style="color:var(--good);letter-spacing:0">+ from this game</small></div>' +
+              '<div class="fullbox">' +
+              pgGrid(p.pos, TU("v189A", 1) ? seasonBoxV189(p, g.stat, wr).box : seasonBox, g.stat) /* v189 A: every played week, watched or simmed */ +
+              "</div>" +
+              gradeCardHtml(p.pos, grade) +
+              '<div class="stat-sec-label" style="margin-top:12px">THIS GAME</div>' +
+              '<div class="fullbox">' +
+              pgGrid(p.pos, g.stat, null) +
+              "</div>"
+          ) /* v193 W: the recap is folded by default (the YOUR GAME tiles and the reel stay up) */ +
           '<button class="btn" style="margin-top:14px" onclick="window.__pgContinueV13&&window.__pgContinueV13()">Continue \u203A</button>' +
           "</div></div>";
         var old = document.getElementById("pgOverlayV13");
@@ -39235,7 +39276,7 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
         : `<div class="decision-kicker">${w.playoff ? escHtml(w.round || "PLAYOFFS") : "WEEK " + (wk + 1)} FINAL · ${escHtml(String(w.opp || "OPPONENT"))} · SIMMED</div><div class="decision-title">${TU("v168season", 1) ? myCrestV168(e, 34) : ""}${w.won ? "✅ WIN" : "❌ LOSS"} · ${w.us} – ${w.them}${TU("v168season", 1) ? crestV168(String(w.opp || "").replace(/^.*'s /, ""), 34) : ""}</div><div class="small center" style="color:var(--chalk-dim);margin:2px 0 4px">Game grade ${Math.round(w.perf || 0)}${w.gameGrade ? " · " + escHtml(w.gameGrade) : ""}</div>`;
     document.body.insertAdjacentHTML(
       "beforeend",
-      `<div class="decision-overlay" id="simCardV178"><div class="decision-panel" style="border-color:var(--gold)">${head}${simStatsV189(e, w)}${reelHtmlV178(e, w)}<div class="small center watch-hint-v178" style="margin-top:8px;color:var(--cyan)">📺 Watch next week live: ×${TU("watchPayV178", 2)} points, ×2 reps, two card picks</div><button class="btn" style="margin-top:12px" onclick="window.__V178.closeCard()">Continue ›</button></div></div>`
+      `<div class="decision-overlay" id="simCardV178"><div class="decision-panel" style="border-color:var(--gold)">${head}${simStatsV189(e, w)}${reelHtmlV178(e, w)}${simRecapV193W(e, w) /* v193 W: the folded box */}<div class="small center watch-hint-v178" style="margin-top:8px;color:var(--cyan)">📺 Watch next week live: ×${TU("watchPayV178", 2)} points, ×2 reps, two card picks</div><button class="btn" style="margin-top:12px" onclick="window.__V178.closeCard()">Continue ›</button></div></div>`
     );
     requestAnimationFrame(() => {
       try {
@@ -39255,6 +39296,92 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
       h += postGameSeasonV168(e, w, w.us, w.them);
     } catch (_) {}
     return h;
+  }
+  /* ===== v193 W THE RECAP FOLDS =====
+   * The owner: "Hide the recap of the post-game play-by-play by default." The post-game card (`showPostGame`) kept
+   * its whole recap open under the reel — the season totals, the grade's line-by-line tally, the single-game box — and
+   * the card ran three screens long. It is one folded section now, `▸ PLAY-BY-PLAY RECAP`, under the YOUR GAME tiles,
+   * the season race and the reel (which stay up); a tap opens it, and the choice is remembered on the device
+   * (localStorage `rib.recapOpen.v193`, "1" open / "0" folded; folded by default). Inside, first, the play-by-play
+   * itself: the snaps he was in and every score and turnover, quarter and clock, in order (`playByPlayV193W`, off the
+   * live game's own rows — `recapMaxV193W` 40 at most). The Quick Play card (`simCardV178`) folds its box the same way
+   * (a simmed week has no plays to list). Kill switch `TU("v193Wrecap", 0)`: the recap is drawn open, as before. */
+  function recapOpenV193W() {
+    if (!TU("v193Wrecap", 1)) return !0;
+    try {
+      return localStorage.getItem("rib.recapOpen.v193") === "1";
+    } catch (_) {
+      return !1;
+    }
+  }
+  function recapFoldV193W(id, summary, inner) {
+    if (!TU("v193Wrecap", 1)) return inner;
+    const open = recapOpenV193W();
+    if (!document.getElementById("recapCssV193W"))
+      document.head.insertAdjacentHTML(
+        "beforeend",
+        `<style id="recapCssV193W">
+    .recap-v193w{margin:10px 0 2px;border-radius:11px;background:#00000040;border:1px solid rgba(255,255,255,.08)}
+    .recap-v193w>.recap-head-v193w{display:flex;align-items:center;gap:8px;width:100%;min-height:40px;padding:8px 11px;border:0;background:none;color:var(--gold);font:700 11px Oswald,sans-serif;letter-spacing:1.6px;cursor:pointer;text-align:left}
+    .recap-v193w>.recap-head-v193w small{margin-left:auto;font:500 11px 'Barlow Condensed',sans-serif;letter-spacing:.3px;color:var(--chalk-dim)}
+    .recap-v193w>.recap-body-v193w{padding:0 11px 10px}
+    .recap-v193w:not(.open)>.recap-body-v193w{display:none}
+    .pbp-v193w{display:flex;flex-direction:column;gap:3px;margin:0 0 8px;max-height:260px;overflow-y:auto}
+    .pbp-row-v193w{display:flex;gap:8px;align-items:baseline;padding:4px 6px;border-radius:7px;background:rgba(255,255,255,.03);font:400 12px/1.3 system-ui,sans-serif;color:#cdd8e8}
+    .pbp-row-v193w .t{flex:0 0 auto;min-width:56px;font:700 10px Oswald,sans-serif;letter-spacing:.8px;color:var(--chalk-dim)}
+    .pbp-row-v193w.me{border-left:2px solid var(--cyan)}
+    .pbp-row-v193w.score .d{color:var(--gold)}
+    .pbp-row-v193w.bad .d{color:#ff9f9a}
+  </style>`
+      );
+    return `<div class="recap-v193w${open ? " open" : ""}" id="recapV193W_${id}" data-fold="${id}"><button type="button" class="recap-head-v193w" aria-expanded="${open ? "true" : "false"}" onclick="toggleRecapV193W(this)"><span class="recap-arrow-v193w">${open ? "▾" : "▸"}</span> PLAY-BY-PLAY RECAP<small>${escHtml(String(summary || ""))}</small></button><div class="recap-body-v193w">${inner}</div></div>`;
+  }
+  function toggleRecapV193W(btn) {
+    const box = btn && btn.closest ? btn.closest(".recap-v193w") : null;
+    if (!box) return;
+    const open = !box.classList.contains("open");
+    box.classList.toggle("open", open);
+    btn.setAttribute("aria-expanded", open ? "true" : "false");
+    const a = box.querySelector(".recap-arrow-v193w");
+    a && (a.textContent = open ? "▾" : "▸");
+    try {
+      localStorage.setItem("rib.recapOpen.v193", open ? "1" : "0");
+    } catch (_) {}
+    buzzV193O("tick");
+  }
+  window.toggleRecapV193W = toggleRecapV193W;
+  // the plays he was in, and every score and turnover, off the live game's own rows
+  function playByPlayV193W(g, p) {
+    const rows = [];
+    try {
+      for (const t of (g && g.plays) || []) {
+        if (!t || t.header || /^(drive|period|toss|timeout|warning)$/.test(String(t.event || ""))) continue;
+        const d = String(t.desc || "").replace(/<[^>]*>/g, "").trim(),
+          D = d.toUpperCase(),
+          to = /INTERCEPT|FUMBLE|TURNOVER|SAFETY/.test(D),
+          sc = !!t.scored;
+        if (!t.involved && !sc && !to) continue;
+        const cls = (t.involved ? " me" : "") + (sc ? (t.offense === "us" ? " score" : " bad") : to ? " bad" : "");
+        rows.push(`<div class="pbp-row-v193w${cls}"><span class="t">${t.quarter > 4 ? "OT" : "Q" + (t.quarter || 1)}${t.clock ? " " + escHtml(String(t.clock)) : ""}</span><span class="d">${escHtml(d)}</span></div>`);
+      }
+    } catch (_) {}
+    const cap = Math.max(1, TU("recapMaxV193W", 40)),
+      more = rows.length > cap ? rows.length - cap : 0;
+    return `<div class="stat-sec-label" style="margin-top:4px">PLAY-BY-PLAY <small style="color:var(--chalk-dim);letter-spacing:0">${escHtml(String((p && p.name) || "his"))}'s snaps · every score and turnover</small></div><div class="pbp-v193w">${rows.length ? rows.slice(0, cap).join("") + (more ? `<div class="small" style="color:var(--chalk-dim)">+${more} more</div>` : "") : '<div class="small" style="color:var(--chalk-dim)">No snaps for him this game.</div>'}</div>`;
+  }
+  function simRecapV193W(e, w) {
+    if (!e || !w || w.satOut || !w.statLine || typeof window.__pgGridV193W !== "function") return "";
+    let box = "";
+    try {
+      box = window.__pgGridV193W(e.pos, w.statLine, null);
+    } catch (_) {
+      return "";
+    }
+    return recapFoldV193W(
+      "sim",
+      "grade " + (w.gameGrade || "") + " " + Math.round(w.perf || 0) + (w.snaps ? " · " + w.snaps + " snaps" : ""),
+      `<div class="small" style="color:var(--chalk-dim);margin:0 0 6px">Simmed — no snaps to replay. Watch a week live to see every play.</div><div class="stat-sec-label">THIS GAME</div><div class="fullbox">${box}</div>`
+    );
   }
   function closeCardV178() {
     const el = document.getElementById("simCardV178");
