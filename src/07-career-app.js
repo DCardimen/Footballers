@@ -6305,7 +6305,7 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
           key: "recovery",
           name: "Rapid Recovery",
           icon: "🧊",
-          desc: "Injuries rarer: about 2% a level, 11% at Lv 6.", /* v193: whole numbers on the tree (v92check) — 0.06 × the v153 B 0.3 a level */
+          desc: "Injuries about 2% rarer per level (11% at Lv 6).", /* v193: whole numbers on the tree (v92check) — 0.06 × the v153 B 0.3 a level */
           cost: 7,
           mult: 1.5,
           max: 6,
