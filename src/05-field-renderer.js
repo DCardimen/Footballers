@@ -4365,8 +4365,9 @@ class Ot extends mt.Scene {
     if (!o.force && P && (P._bigSlowNV193W || 0) >= TU("bigSlowPerPlayV193W", 1)) { B.skipped++; return false; }
     if (P) P._bigSlowNV193W = (P._bigSlowNV193W || 0) + 1;
     const ms = dram ? TU("bigSlowMsDramaticV193W", 1200) : TU("bigSlowMsSubtleV193W", 900);
-    this._bigSlowV193W = { kind: String(kind || ""), at: now, until: now + ms, target, chosen, mode, inMs: TU("bigSlowInMsV193W", 140), outMs: TU("bigSlowOutMsV193W", 280) };
-    B.fired++; B.last = Object.assign({}, this._bigSlowV193W); B.log.push(B.last); if (B.log.length > 40) B.log.shift();
+    // the window belongs to THIS play: one opened at the whistle never slows the next snap (a forced one is the check's)
+    this._bigSlowV193W = { kind: String(kind || ""), at: now, until: now + ms, target, chosen, mode, inMs: TU("bigSlowInMsV193W", 140), outMs: TU("bigSlowOutMsV193W", 280), play: o.force ? null : P };
+    B.fired++; B.last = Object.assign({}, this._bigSlowV193W, { play: undefined }); B.log.push(B.last); if (B.log.length > 40) B.log.shift();
     return true;
   }
   // the rate the window allows this frame (in units of 1×), or null when no window is open
@@ -4375,7 +4376,7 @@ class Ot extends mt.Scene {
     try { this.bigSlowWatchV193W(P, chosen); } catch (e) {}
     const W = this._bigSlowV193W, now = performance.now();
     let r = null;
-    if (W && now >= W.until) this._bigSlowV193W = null;
+    if (W && (now >= W.until || (W.play && W.play !== P))) this._bigSlowV193W = null;
     else if (W) {
       const t = now - W.at, left = W.until - now, ease = (q) => { q = Math.max(0, Math.min(1, q)); return q * q * (3 - 2 * q); };
       const k = t < W.inMs ? ease(t / W.inMs) : left < W.outMs ? ease(left / W.outMs) : 1;
