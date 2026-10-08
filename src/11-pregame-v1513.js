@@ -922,7 +922,7 @@ function v193HRenderD(from,id,S,R,pre){const h=v146HeldD(),key=[id||"",R?R.id+":
   v193HShowD=show;
   ["v193Score3","v193Score5"].forEach(i=>{const el=document.getElementById(i);if(!el)return;if(el.dataset.v193h===String(show.stamp)&&el.innerHTML)return;   // already showing it (a tween may be running)
     el.innerHTML=v193HHtmlD(show.S,show.pre);el.dataset.v193h=String(show.stamp);el.classList.toggle("rolled",!!(show.S&&show.S.fixed));if(tw&&show!==L)v193TweenD(el,tw)})}
-window.__V193H={on:v193HOnD,render:v193ScoreRenderD,shown:()=>v193HShowD,html:v193HHtmlD};
+window.__V193H={on:v193HOnD,render:v193ScoreRenderD,shown:()=>v193HShowD,html:v193HHtmlD,why:id=>v193WhyD(id)};
 function v193TweenD(el,from){const to=[...el.querySelectorAll("[data-n]")];if(to.length!==2)return;const t0=performance.now(),ms=v193TU("scoreTweenMsV193",500);
   const step=()=>{const k=Math.min(1,(performance.now()-t0)/ms);to.forEach((x,i)=>{x.textContent=Math.round(from[i]+(+x.dataset.n-from[i])*k)});if(k<1)requestAnimationFrame(step)};requestAnimationFrame(step)}
 function v193WhyD(id){if(!v193OnD())return"";const V=window.__PREGAME_V51,o=V&&V.oddsPick?V.oddsPick():null;if(!o||!o.modified)return"";if(id!==o.pick&&id!==o.scout)return"";
