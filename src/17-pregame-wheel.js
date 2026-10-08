@@ -263,7 +263,7 @@
    * default is chosen now), `defaultPickV146` reads every plan's click odds (`decidePlan` with those dice) and, when
    * the scout's plan is not green (`planGreenV193`) and another is, lights the greenest plan whose perf (the plan's
    * own + the matchup modifier, `__V146.facts`) is within `planGreenGapV193` of the scout's — the card says why
-   * (`oddsPickV193`). A remembered pick still wins. `revealPlanV193` shows the held outcome early (page 5's ROLL THE
+   * (`oddsPickV193`). A remembered pick wins only when green or picked this week (v193 H). `revealPlanV193` shows the held outcome early (page 5's ROLL THE
    * PLAN): from then on the pick is LOCKED (`heldV135.revealedV193`; `pickPlanV146` refuses with a toast), `bandForV146`
    * answers with the FIXED band for that plan (`fixed`, `amtG` / `amtR`) so the projection and the score follow, and
    * `rollSayV146` writes the week's roll at kickoff without the toast — it was already seen. Kill switch `v193B`. */
