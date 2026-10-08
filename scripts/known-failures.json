@@ -38,12 +38,6 @@
    "flaky": true
   },
   {
-   "check": "v104check",
-   "pattern": "^every pose that can show a number carries a band read off the art",
-   "note": "GAME (renderer): v109 B's catch sequence (`spr_<kit>_<dir>_catchseq<v>_<f>`) is registered after the v104 band scan and never gets a band, yet placeMarker NUMBERS it — its `detailedAction` regex /^(juke|stiff|hurdle|catch\\d|divecatch|pancake|getup)/ does not match 'catchseq'. Either read the band for the catchseq cells when they are registered, or add catchseq to detailedAction (hide the number through the reach, as for catch\\d)",
-   "since": "2026-09-24"
-  },
-  {
    "check": "heroflashcheck",
    "pattern": "^no spawn lands on the player",
    "note": "one spawn in the baseline read kit-mask alpha 19 (> MASK_MAX 8): the crowd polygon touches the feathered edge of the v106 kit mask, so a rare flash lands on the soft edge of the man. Not reproduced in v150 B's runs; GAME if it recurs (the spawn should reject mask alpha > 8, as the check does)",
