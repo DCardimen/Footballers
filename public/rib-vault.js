@@ -291,6 +291,21 @@
       total += k; cum.push(total); i++;                     // number of coins it did before
       if (i > 4000) break;                       // a belt for the braces
     }
+    /* v193 K: CENTRED UNDER THE DOOR. Even with a mirror-balanced lobe a seeded heap leans a little to
+     * whichever side its spilled coins happened to land, and the outline (not the mass) is what the eye
+     * centres. The heap's outline midpoint, averaged over the pile as it grows (a quarter full to full),
+     * is moved onto x = 0 — one constant for every coin, so the prefix rule (N coins = slots 0..N-1) and
+     * every slot's place relative to the others are untouched. */
+    if (v193KOn() && s.length > 8) {
+      var mids = 0, nm = 0;
+      for (var f = 1; f <= 4; f++) {
+        var kk = Math.max(2, Math.round(s.length * f / 4)), lo = 1e9, hi = -1e9;
+        for (i = 0; i < kk; i++) { var hw = s[i].size * 0.18; if (s[i].x - hw < lo) lo = s[i].x - hw; if (s[i].x + hw > hi) hi = s[i].x + hw; }
+        mids += (lo + hi) / 2; nm++;
+      }
+      var shiftX = mids / nm;
+      for (i = 0; i < s.length; i++) s[i].x -= shiftX;
+    }
     // how far out the hoard actually reaches, so the physics room can be built around it
     var ex = 0, ez = 0;
     for (i = 0; i < s.length; i++) {
@@ -546,7 +561,11 @@
     }
     this.drawCeiling(x, w, h);
     this.drawFloor(x, w, h);
-    this.bannerWords(x, w, h);
+    /* v193 K: THE BANNERS ARE PLAIN. The owner: "remove text from the vault asset in the background". The
+     * art's own lettering was painted out in v137 and these eight words were drawn over the cloth in its
+     * place; now the banners carry only their crowns. `RIB_TUNE.v193K = 0` draws the words again. */
+    if (!(window.RIB_TUNE && window.RIB_TUNE.v193K === 0)) this.bannerWordsOffV193K = true;
+    else this.bannerWords(x, w, h);
     /* the art is lit for a hero render; the vault is a room the interface has to be read
      * over and the hoard has to be the brightest thing in it. This is the grade. */
     var grade = x.createLinearGradient(0, 0, 0, h);

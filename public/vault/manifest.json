@@ -601,9 +601,9 @@
     524,
     634
    ],
-   "purpose": "the empty vault: the scene's foundation. Banner lettering painted out (the artwork misspells PRESTIGE); the renderer draws the words.",
+   "purpose": "the empty vault: the scene's foundation. Banner lettering painted out (the artwork misspells PRESTIGE); since v193 K the banners stay plain.",
    "anchor": "cover",
-   "bytes": 217172,
+   "bytes": 217754,
    "w": 1305,
    "h": 1268
   },

@@ -24,8 +24,8 @@ Two things it deliberately does NOT do, both documented in docs/PRESTIGE-VAULT.m
 
   * It does not ship the baked banner lettering. At native resolution the empty-room cell's
     banners read "NISCIPLIHE / PROGKESS / PRESTIOS / IMMORTALITY" - the word PRESTIGE is
-    misspelled in the artwork. clean_banners() paints the lettering out and the renderer
-    draws the four words itself in the game's own face.
+    misspelled in the artwork. clean_banners() paints the lettering out; v137 drew the four
+    words over the cloth in the game's own face, v193 K leaves the banners plain.
 """
 import argparse, json, os, sys
 import numpy as np
@@ -131,31 +131,54 @@ def clean_banners(room):
 
     The artwork's left banner reads NISCIPLIHE / PROGKESS / PRESTIOS / IMMORTALITY and the
     right one BIGGER / PLAYEDS / BRIGHTER / TOMGRROW - PRESTIGE is misspelled in the art.
-    The renderer draws the real four words in the game's own face; here the baked glyphs go.
+    The CROWNS are artwork, not text, and stay.
 
-    The fill is the panel's own cloth, taken as the per-column 30th percentile of the box:
-    the glyphs are the bright minority of any column they cross, so the low percentile IS
-    the cloth behind them. Blurring the patch instead leaves a lighter bar exactly where the
-    text was (the glyphs drag the local mean up), and interpolating from the rows just
-    outside the box smears whichever crown or gold piping sits there down the whole panel -
-    both were tried and looked at. The CROWNS are artwork, not text, and stay."""
+    v193 K: the banners are left PLAIN now (the renderer no longer draws words over them), so
+    the patch has to be invisible on its own. v137 filled the glyphs with the per-column 30th
+    percentile of the box, which left a barcode of vertical streaks and a visible box edge
+    once nothing covered it. The fill is a HARMONIC inpaint instead: only the glyph pixels
+    (and their glow) are unknown, every other pixel of the cloth is kept, and the unknown ones
+    relax to the smooth surface that meets the surrounding cloth on every side (Jacobi
+    iterations of the Laplace equation, seeded from the old percentile fill). A smooth fill
+    on a dark, softly-lit banner reads as cloth; a faint deterministic grain at the cloth's
+    own amplitude keeps it from looking airbrushed. Blurring the patch was tried in v137
+    (a lighter bar where the text was) and so was interpolating from outside rows (it smears
+    the crowns) - both are what the masked relaxation avoids."""
     a = np.asarray(room.convert('RGB')).astype(np.float32)
     out = a.copy()
-    # (x0,y0,x1,y1) of the LETTERING only, in room-cell coordinates
-    for (x0, y0, x1, y1) in [(58, 100, 118, 168), (390, 121, 440, 170)]:
-        patch = a[y0:y1, x0:x1]
-        # per-column 30th percentile: the lettering is the BRIGHT minority of each column,
-        # so the low percentile is the cloth itself. Sampling the rows just outside the box
-        # instead picks up whichever crown or piping happens to sit there and smears it
-        # down the panel.
-        cloth = np.percentile(patch, 30, axis=0)[None].repeat(y1 - y0, axis=0)
+    rng = np.random.RandomState(193)                       # the grain is the same every build
+    # (x0,y0,x1,y1) of the LETTERING only, in room-cell coordinates. v193 K: drawn tight round
+    # the glyphs, inside the banner's cloth - v137's boxes reached over the gold piping and the
+    # pillar beside the left banner, and the mask ate a stretch of both.
+    for (x0, y0, x1, y1) in [(68, 104, 116, 166), (392, 121, 436, 169)]:
+        m = 3                                              # a margin of known cloth round the box
+        X0, Y0, X1, Y1 = x0 - m, y0 - m, x1 + m, y1 + m
+        patch = a[Y0:Y1, X0:X1].copy()
+        inner = np.zeros(patch.shape[:2], bool); inner[m:-m, m:-m] = True
         lum, warm = patch.max(axis=2), patch[..., 0] - patch[..., 2]
-        ink = ((lum > 52) & (warm > 8)).astype(np.float32)
-        ink = np.asarray(Image.fromarray((ink * 255).astype(np.uint8), 'L')
-                         .filter(ImageFilter.MaxFilter(5))
-                         .filter(ImageFilter.GaussianBlur(1.6))).astype(np.float32) / 255.0
-        ink = np.clip(ink * 1.6, 0, 1)[..., None]
-        out[y0:y1, x0:x1] = patch * (1 - ink) + cloth * ink
+        ink = (((lum > 46) & (warm > 6)) & inner).astype(np.uint8) * 255
+        ink = np.asarray(Image.fromarray(ink, 'L').filter(ImageFilter.MaxFilter(7))).astype(np.float32) / 255.0
+        unknown = (ink > 0.5) & inner
+        # seed: the old per-column low percentile, then relax the unknown pixels
+        cloth = np.percentile(patch[m:-m, m:-m], 30, axis=0)
+        f = patch.copy()
+        f[m:-m, m:-m][unknown[m:-m, m:-m]] = np.broadcast_to(cloth[None], (y1 - y0, x1 - x0, 3))[unknown[m:-m, m:-m]]
+        for _ in range(1500):
+            avg = 0.25 * (np.roll(f, 1, 0) + np.roll(f, -1, 0) + np.roll(f, 1, 1) + np.roll(f, -1, 1))
+            f[unknown] = avg[unknown]
+        # the cloth's own grain, measured on the known cloth of the box
+        known = inner & ~unknown
+        sd = float(np.std(patch[known] - np.asarray(Image.fromarray(np.clip(patch, 0, 255).astype(np.uint8))
+                   .filter(ImageFilter.GaussianBlur(2))).astype(np.float32)[known])) if known.any() else 0.0
+        grain = rng.normal(0, 1, patch.shape[:2]).astype(np.float32)
+        grain = np.asarray(Image.fromarray(np.clip(grain * 40 + 128, 0, 255).astype(np.uint8), 'L')
+                           .filter(ImageFilter.GaussianBlur(0.7))).astype(np.float32) - 128
+        grain = grain / (grain.std() + 1e-6) * min(sd, 3.0) * 0.45
+        f[unknown] += grain[unknown][:, None]
+        # a feathered edge so the seam of the mask itself never shows
+        soft = np.asarray(Image.fromarray((unknown * 255).astype(np.uint8), 'L')
+                          .filter(ImageFilter.MaxFilter(3)).filter(ImageFilter.GaussianBlur(1.2))).astype(np.float32)[..., None] / 255.0
+        out[Y0:Y1, X0:X1] = patch * (1 - soft) + f * soft
     return Image.fromarray(np.clip(out, 0, 255).astype(np.uint8), 'RGB')
 
 
@@ -228,7 +251,7 @@ def main():
                 crop = upscale(clean_banners(crop), 2.6)
                 save(crop, 'room', man, 'env', box,
                      'the empty vault: the scene\'s foundation. Banner lettering painted out '
-                     '(the artwork misspells PRESTIGE); the renderer draws the words.',
+                     '(the artwork misspells PRESTIGE); since v193 K the banners stay plain.',
                      anchor='cover', quality=88)
             else:
                 crop = upscale(crop, 2.2)
