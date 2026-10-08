@@ -41482,8 +41482,9 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
   }
   function medalRewardsV193K() {
     if (!state) return null;
-    const M = medalStoreV179();
-    if (!M) return null;
+    // read only: never create the store here (a new store is a state change, and a change re-draws the profile)
+    const S = state.medalRewardsV179 || {},
+      M = { log: S.log || [], pending: S.pending || [], looksV187: S.looksV187 || [], fx: S.fx || {}, owned: S.owned || {}, seen: S.seen };
     const cards = medalCardsV193K(),
       iconOf = id => (cards.find(c => c.id === id) || {}).icon || "🎁",
       log = (M.log || []).map(l => ({ rank: l.rank, major: !!l.major, era: l.era == null ? null : l.era, id: l.id, name: l.name, icon: iconOf(l.id), lines: medalLogLinesV193K(l), pp: medalWindfallV193K(l) }));
@@ -41496,7 +41497,6 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
       majorsOwned: MEDAL_MAJOR_V179.filter(c => M.owned[c.id]).length,
       majorsAll: MEDAL_MAJOR_V179.length,
       seen: M.seen == null ? null : M.seen,
-      medals: medalCountV179(),
       looksOn: !!TU("v187", 1),
       lookEvery: Math.max(1, TU("medalLookEveryV187", 10))
     };
