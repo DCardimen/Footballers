@@ -39432,10 +39432,17 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
    *   Injury Time Out gear, a Recovery week) — and a button to the body (the condition card).
    * Haptic `error` then `heavy`. `injury.seenV193W` marks it shown. When it heals (`sitOutWeekV18`, the week's
    * condition update, the offseason) a smaller "Back from injury — cleared to play" pop-up follows (haptic `success`).
-   * The old toasts stand down while it is on. Kill switch `TU("v193Winj", 0)`: the toasts, no pop-ups.
+   * The old toasts stand down while it is on (off under an automated browser unless `v193WinjPrompt` is 1, v189 B's
+   * rule). Kill switch `TU("v193Winj", 0)`: the toasts, no pop-ups.
    * `window.__V193W` (`queue`, `shown`, `pump`, `force`); `v193Wcheck`. */
+  // on by default; off under an automated browser (v189 B's rule), so the checks and the simulator that click through
+  // weeks are not interrupted (they keep the old toasts) — a check that wants it sets `v193WinjPrompt` to 1
   function injPopOnV193W() {
-    return !!TU("v193Winj", 1);
+    let auto = !1;
+    try {
+      auto = !!(typeof navigator < "u" && navigator.webdriver);
+    } catch (_) {}
+    return !!TU("v193Winj", 1) && !!TU("v193WinjPrompt", auto ? 0 : 1);
   }
   const INJ_W = { shown: [], last: null, timer: 0 };
   // no Math.random() here: this runs inside the week's sim, and an extra draw would move every sample path after it

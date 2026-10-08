@@ -24,7 +24,7 @@ const page = await browser.newPage({ viewport: { width: 520, height: 900 } })
 const errs = []
 page.on('pageerror', e => errs.push('PAGEERROR: ' + e.message)); page.on('console', m => { if (m.type() === 'error' && !/Failed to load resource|net::ERR/.test(m.text())) errs.push('CONSOLE: ' + m.text().slice(0, 200)) })
 // no random injuries: the plan multiplier is 0, so only the check's forced ones land
-await page.addInitScript(() => { window.RIB_TUNE = Object.assign(window.RIB_TUNE || {}, { dayNightV144: 0, wxV144: 0, speedGateV151A: 0, v172jumbo: 0, injPlanMin: 0, injPlanMax: 0 })
+await page.addInitScript(() => { window.RIB_TUNE = Object.assign(window.RIB_TUNE || {}, { dayNightV144: 0, wxV144: 0, speedGateV151A: 0, v172jumbo: 0, injPlanMin: 0, injPlanMax: 0, v193WinjPrompt: 1 })
   try { localStorage.setItem('rib.coachTour.v119', 'off'); localStorage.setItem('rib.debriefOff.v122', 'off') } catch (e) {}
   setInterval(() => { document.querySelector('.onboard')?.remove() }, 60) })
 await page.goto(GAME_URL, { waitUntil: 'networkidle', timeout: 45000 }); await page.waitForTimeout(1200)
