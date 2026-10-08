@@ -12,6 +12,12 @@ Names in older entries are the career app's pre-v149 C minified names (`q`, `ms`
 <!-- new entries go here, newest first -->
 - **v193 L · Quick buy.** The owner: "for prestige at the top show 4 of the cheapest options from different categories for quick select. Pressing pulls that upgrade automatically. Add arrows to cycle." The tree opens on QUICK BUY under the PP banner: four tiles, each the cheapest node of a different branch, one tap buys it (no vault hold), ◀ ▶ step through the next fours in price order, and a node you cannot afford yet stays dimmed with how far away it is. Kill switch `v193L`. `v193Echeck`; the tree's scroll budget is 2.0. (`src/07`, `src/22`, `src/styles/00-app.css`.)
 - **v193 J · The redrawn nodes are paid back.** v193 E gave the seven "+% to every attribute a game" nodes new effects; a save that bought them paid for the old one. Once a save, at boot, every level of Twin Engines, Zen Focus, Trash Talk, Aura, Eternal Form, The Wall and Glass Cannon comes back as the PP it costs at today's prices, and the levels go to 0 — buy them back for the new effect, or spend it anywhere. A toast says so. Kill switch `v193J`. `v193Jcheck`. (`src/07-career-app.js`.)
+- **v193 G · Gear that stays interesting.** Levels no longer flatten: each rarity has a level ceiling — common 25,
+  rare 40, epic 60, legendary 85, mythic 110 (TU `gearLvlMax…V193G`) — the season's +5 stops there (in the bag and on
+  the body; a piece received above it keeps its level), and the row / compare panel read `Lv N / MAX` and "maxed — a
+  rarer piece grows further". Selling gear is now flat side income under v192 A's cap (`flatWhyV192A`: banked, paid at
+  the settle up to half the career's own pay), and a sale with no career running pays `gearSellIdleShareV193G` (half);
+  every price on screen is what the sale pays now, and the dialogs say why. Kill switch `TU("v193G", 0)`. `v193Acheck`.
 - **v193 A · The gear grows, and sells.** Every piece has a level — received at 1 + 5 × the league level it dropped at,
   and +5 to everything in the bag and on the body at every season's end — and the level is a flat +1% a level (cap ×2.5)
   on every bonus the piece carries, in both reads (`gearFx`, `gearTotalsV147`). SCRAP is SELL: 1 / 3 / 8 / 20 / 50 by

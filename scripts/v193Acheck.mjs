@@ -13,6 +13,13 @@
 // COMMONS, is sticky and sits in the GEAR tab; the compare view shows the level line and a SELL button
 // with the price; rows show Lv / +% / price; the locker fits 400x860 with no page scroll; no page errors.
 //
+// v193 G GEAR THAT STAYS INTERESTING: each rarity has a level ceiling (25 · 40 · 60 · 85 · 110, TU knobs);
+// a season stops growing a piece at it, in the bag AND on the body (twin and no twin), a piece received above
+// it keeps its level, and TU("v193G", 0) grows past it; the row and the compare panel read Lv N / MAX and
+// "maxed — a rarer piece grows further"; a sale during a career is tallied as flat side income (capped at the
+// settle by half the career's own pay — a 214 PP mythic against a 100 PP career pays 50), not with the switch
+// off; with no player alive a sale pays gearSellIdleShareV193G (half), and the dialog says so.
+//
 //   node scripts/v193Acheck.mjs        (GAME_URL=… to point it elsewhere)
 import { chromium } from 'playwright'
 import fs from 'node:fs'
@@ -139,7 +146,87 @@ ok(sale.paidB === 1 && sale.bank1 - sale.bank0 === 1 && !sale.hasB, 'a common se
 ok(sale.refused === 0 && sale.hasA, 'an equipped piece is refused', JSON.stringify({ refused: sale.refused, hasA: sale.hasA }))
 ok(sale.askedC === 0 && sale.stillC && sale.calls.length === 2 && sale.calls[0].t === 'Sell gear' && /\+6 PP/.test(sale.calls[0].ok), 'a rare piece asks through ribDialog (title "Sell gear", the price on the button) and a "no" keeps it', JSON.stringify(sale.calls[0]))
 ok(sale.soldC === 6 && sale.goneC && sale.bank2 - sale.bank1 === 6, 'a "yes" sells it for +6 (3 × (1 + 11 × .08) = 5.64) through the bank', JSON.stringify({ sold: sale.soldC, bank: sale.bank2 - sale.bank1 }))
-ok(sale.paidD === 62 && sale.ppB - sale.ppA === 62, 'with no player alive the sale pays PP straight (legendary t5 → 62)', JSON.stringify({ paid: sale.paidD, pp: sale.ppB - sale.ppA }))
+ok(sale.paidD === 31 && sale.ppB - sale.ppA === 31, 'with no player alive the sale pays PP straight, at the v193 G idle share (legendary t5: 62 → 31)', JSON.stringify({ paid: sale.paidD, pp: sale.ppB - sale.ppA }))
+
+// ---- 5b. v193 G: the rarity ceilings ----
+const ceil = await page.evaluate(() => {
+  const G = window.__V193A, H = window.__V193G, S = window.S, A = window.__GRIDIRON_AUDIT__
+  const p = A.newPlayer(S, 'RB'); p.pos = 'RB'; p.level = 3; S.player = p
+  const maxes = ['common', 'rare', 'epic', 'legendary', 'mythic'].map(r => H.max(r))
+  window.RIB_TUNE = window.RIB_TUNE || {}; window.RIB_TUNE.gearLvlMaxEpicV193G = 33
+  const knob = H.max('epic'); delete window.RIB_TUNE.gearLvlMaxEpicV193G
+  // a common one season short of its ceiling, in the bag with an equipped twin; a rare on the body with no twin
+  const C = { id: 'cc', slot: 'cleats', rarity: 'common', name: 'Worn Cleats', eff: 'growth', val: .03, icon: '👟', modsV147: 1, tierV147: 0, mods: [], lvl0V193: 1, lvlV193: 22 }
+  const R = { id: 'rr', slot: 'gloves', rarity: 'rare', name: 'Custom Gloves', eff: 'ppMult', val: .05, icon: '🧤', modsV147: 1, tierV147: 2, mods: [], lvl0V193: 11, lvlV193: 38 }
+  const Hi = { id: 'hi', slot: 'chain', rarity: 'common', name: 'Worn Chain', eff: 'power', val: 1, icon: '📿', modsV147: 1, tierV147: 8, mods: [] }   // received at 41, above common's 25
+  S.inventory = [C, Hi]; S.equipped = { cleats: JSON.parse(JSON.stringify(C)), gloves: R }
+  G.season()
+  const s1 = { C: C.lvlV193, eqC: S.equipped.cleats.lvlV193, R: R.lvlV193, Hi: [Hi.lvlV193, Hi.lvl0V193] }
+  G.season(); G.season()
+  const s3 = { C: C.lvlV193, eqC: S.equipped.cleats.lvlV193, R: R.lvlV193, Hi: Hi.lvlV193 }
+  const txt = { C: H.lvlTxt(C), maxedC: H.maxed(C), Hi: H.lvlTxt(Hi), maxedHi: H.maxed(Hi), mult: G.mult(C) }
+  // the kill switch: no ceiling
+  window.RIB_TUNE.v193G = 0
+  G.season()
+  const off = { C: C.lvlV193, eqC: S.equipped.cleats.lvlV193, R: R.lvlV193, max: H.max('common'), txt: H.lvlTxt(C) }
+  delete window.RIB_TUNE.v193G
+  // the hard cap still holds for a mythic at its ceiling
+  const M = { id: 'mm', slot: 'chain', rarity: 'mythic', name: 'GOAT Chain', eff: 'power', val: 1, icon: '📿', modsV147: 1, tierV147: 8, mods: [], lvl0V193: 41, lvlV193: 400 }
+  const capM = G.mult(M)
+  S.equipped = {}; S.inventory = []
+  return { maxes, knob, s1, s3, txt, off, capM }
+})
+ok(ceil.maxes.join(' ') === '25 40 60 85 110', 'each rarity has its own level ceiling: 25 · 40 · 60 · 85 · 110', ceil.maxes.join(' '))
+ok(ceil.knob === 33, 'the ceiling is a TU knob (gearLvlMaxEpicV193G)', ceil.knob)
+ok(ceil.s1.C === 25 && ceil.s1.eqC === 25, 'a season grows a common in the bag only up to its ceiling (22 → 25, not 27), and its equipped copy agrees', JSON.stringify(ceil.s1))
+ok(ceil.s1.R === 40, 'an equipped piece with no twin stops at its ceiling too (rare 38 → 40)', ceil.s1.R)
+ok(ceil.s1.Hi[0] === 41 && ceil.s1.Hi[1] === 41 && ceil.s3.Hi === 41, 'a piece received above its ceiling keeps its level and does not grow (common t8: 41)', JSON.stringify(ceil.s1.Hi))
+ok(ceil.s3.C === 25 && ceil.s3.eqC === 25 && ceil.s3.R === 40, 'more seasons do not move a maxed piece, in the bag or on the body', JSON.stringify(ceil.s3))
+ok(ceil.txt.C === '25 / 25' && ceil.txt.maxedC && ceil.txt.Hi === '41 / 41' && ceil.txt.maxedHi && near(ceil.txt.mult, 1.25), 'the level reads N / MAX, maxed at the ceiling (×1.25 for a maxed common)', JSON.stringify(ceil.txt))
+ok(ceil.off.C === 30 && ceil.off.eqC === 30 && ceil.off.R === 45 && ceil.off.max === Infinity && ceil.off.txt === '30', 'TU("v193G", 0): no ceilings, the pieces grow past them (25 → 30, 40 → 45)', JSON.stringify(ceil.off))
+ok(near(ceil.capM, 2.5), 'the ×2.5 hard cap stays', ceil.capM)
+
+// ---- 5c. v193 G: a sale is flat side income during a career; the idle sale pays the share ----
+const flat = await page.evaluate(async () => {
+  const G = window.__V193A, H = window.__V193G, S = window.S, B = window.__V136_C
+  const myth = id => ({ id, slot: 'chain', rarity: 'mythic', name: 'GOAT Chain', eff: 'power', val: 4, icon: '📿', modsV147: 1, tierV147: 8, mods: [] })
+  S.ppBankV136 = 0; S.ppBankFlatV192A = 0; S.ppBankLogV136 = []; S.equipped = {}
+  S.inventory = [myth('fm1')]
+  const price = G.price(S.inventory[0]), now = H.now(price)
+  const paid = G.sell('fm1')
+  const tally = { bank: S.ppBankV136, flat: S.ppBankFlatV192A, isFlat: H.flat('scrap') }
+  // the settle: the career paid 100, so the side money pays up to 50
+  const pp0 = S.pp, flushed = B.flush(100), settled = S.pp - pp0
+  // with the switch off a sale is not flat
+  window.RIB_TUNE = window.RIB_TUNE || {}; window.RIB_TUNE.v193G = 0
+  S.inventory = [myth('fm2')]
+  const paidOff = G.sell('fm2'), offFlat = S.ppBankFlatV192A || 0, offIsFlat = H.flat('scrap')
+  B.flush(null)
+  // no player alive, switch off: the full price straight
+  const keep = S.player; S.player = null
+  S.inventory = [myth('fm3')]; const ppO = S.pp, paidIdleOff = G.sell('fm3'), gotIdleOff = S.pp - ppO
+  delete window.RIB_TUNE.v193G
+  // no player alive, switch on: the share, and the dialog says so
+  S.inventory = [myth('fm4')]; const ppI = S.pp
+  const calls = [], real = window.ribDialog
+  window.ribDialog = { confirm: (m, o) => { calls.push({ m, o }); return Promise.resolve(true) } }
+  const paidIdle = await G.ask('fm4'), gotIdle = S.pp - ppI
+  // and during a career the dialog says the PP is banked and capped
+  S.player = keep; S.inventory = [myth('fm5')]
+  await G.ask('fm5')
+  window.ribDialog = real
+  B.flush(null)
+  S.inventory = []
+  return { price, now, paid, tally, flushed, settled, paidOff, offFlat, offIsFlat, paidIdleOff, gotIdleOff, paidIdle, gotIdle, idleMsg: calls[0] && calls[0].m, idleOk: calls[0] && calls[0].o.ok, liveMsg: calls[1] && calls[1].m, liveOk: calls[1] && calls[1].o.ok }
+})
+ok(flat.price === 214 && flat.now === 214 && flat.paid === 214, 'during a career a mythic t8 sells for its full 214 PP, banked', JSON.stringify({ price: flat.price, now: flat.now, paid: flat.paid }))
+ok(flat.tally.isFlat && flat.tally.bank === 214 && flat.tally.flat === 214, 'the sale is tallied as flat side income (ppBankFlatV192A)', JSON.stringify(flat.tally))
+ok(flat.flushed === 50 && flat.settled === 50, 'at the settle it pays up to half the career\'s own pay (a 100 PP career: 50 of the 214)', JSON.stringify({ flushed: flat.flushed, settled: flat.settled }))
+ok(flat.paidOff === 214 && flat.offFlat === 0 && !flat.offIsFlat, 'TU("v193G", 0): a sale is not flat', JSON.stringify({ paid: flat.paidOff, flat: flat.offFlat }))
+ok(flat.paidIdleOff === 214 && flat.gotIdleOff === 214, 'TU("v193G", 0): the idle sale pays the full price straight', JSON.stringify({ paid: flat.paidIdleOff, got: flat.gotIdleOff }))
+ok(flat.paidIdle === 107 && flat.gotIdle === 107 && /\+107 PP/.test(flat.idleOk || ''), 'with no player alive a sale pays the idle share (214 → 107), quoted on the button', JSON.stringify({ paid: flat.paidIdle, got: flat.gotIdle, ok: flat.idleOk }))
+ok(/Between careers a sale pays half of the price/.test(flat.idleMsg || ''), 'the idle dialog says plainly that between careers you get half', flat.idleMsg)
+ok(/\+214 PP/.test(flat.liveOk || '') && /PP is banked/.test(flat.liveMsg || '') && /up to half of what the career itself pays/.test(flat.liveMsg || ''), 'the career dialog says the PP is banked and side income pays up to half the career\'s own pay', flat.liveMsg)
 
 // ---- 6. the locker: the chip row, the rows, the compare view ----
 await page.evaluate(() => {
@@ -178,7 +265,7 @@ ok(lk.rows === lk.expect.RB && lk.rows > 0 && lk.rows < 24, 'the RB chip shows t
 ok(lk.page <= 1 && lk.app <= 1, 'the locker fits 400x860 with no page scroll', JSON.stringify({ page: lk.page, app: lk.app, panelOver: lk.panelOver }))
 ok(lk.sticky === 'sticky' && lk.inGear, 'the heading bar is sticky and sits in the GEAR tab', JSON.stringify({ sticky: lk.sticky, inGear: lk.inGear }))
 ok(lk.commons >= 3 && /SELL ALL COMMONS · \+\d+ PP/.test(lk.sellAll), 'SELL ALL COMMONS sits in the heading bar with its total', lk.sellAll.trim())
-ok(/Lv \d+ · \+\d+%/.test(lk.rowTxt) && /💰 \d+ PP/.test(lk.rowTxt), 'a row shows its level, its +% and its price', lk.rowTxt.replace(/\s+/g, ' '))
+ok(/Lv \d+ \/ \d+ · \+\d+%/.test(lk.rowTxt) && /💰 \d+ PP/.test(lk.rowTxt), 'a row shows its level, its +% and its price', lk.rowTxt.replace(/\s+/g, ' '))
 ok(lk.fold && /TOTAL GEAR BONUSES/.test(lk.sum) && /[+−]\d/.test(lk.sum), 'the totals card folds to one line and still reads as lines', lk.sum.replace(/\s+/g, ' ').slice(0, 100))
 
 await page.click('.gear-chips-v193 .gear-chip-v193[data-chip="all"]')
@@ -209,9 +296,25 @@ await page.evaluate(() => { const r = [...document.querySelectorAll('.gear-row')
 await page.waitForTimeout(600)
 const cmp = await page.evaluate(() => { const c = document.querySelector('.gear-cmp-v147'); return c ? { txt: c.innerText, lv: (c.querySelector('.gc-lv-v193') || {}).innerText || '', btn: (c.querySelector('.gr-sell-v193') || {}).innerText || '', page: document.scrollingElement.scrollHeight - innerHeight, app: (a => a.scrollHeight - a.clientHeight)(document.getElementById('app')) } : null })
 await page.screenshot({ path: `${OUT}/v193A_compare.png` })
-ok(cmp && /Level \d+ \(received at \d+\) · \+\d+% to every bonus · \+5 every season · sells for \d+ PP/.test(cmp.lv), 'the compare view shows the level line', cmp && cmp.lv)
+ok(cmp && /Level \d+ \/ \d+ \(received at \d+\) · \+\d+% to every bonus · (\+5 every season|maxed — a rarer piece grows further) · sells for \d+ PP \(banked/.test(cmp.lv), 'the compare view shows the level line', cmp && cmp.lv)
 ok(cmp && /💰 SELL · \+\d+ PP/.test(cmp.btn), 'the compare view sells with the price on the button', cmp && cmp.btn)
 ok(cmp && cmp.page <= 1 && cmp.app <= 1, 'and the page still does not scroll with the compare open', cmp && JSON.stringify({ page: cmp.page, app: cmp.app }))
+// v193 G: a maxed piece says so in its row and its compare panel
+const maxed = await page.evaluate(async () => {
+  const S = window.S, eq = S.equipped
+  window.__V193A.filter('all'); await new Promise(r => setTimeout(r, 200))
+  const it = S.inventory.find(i => i.rarity === 'common' && !(eq[i.slot] && eq[i.slot].id === i.id) && document.querySelector('.gear-row[data-gear="' + i.id + '"]:not(.sel)'))
+  it.lvl0V193 = 1; it.lvlV193 = 25
+  window.__V193A.filter('all'); await new Promise(r => setTimeout(r, 200))
+  document.querySelector('.gear-row[data-gear="' + it.id + '"] .gr-info').click(); await new Promise(r => setTimeout(r, 300))
+  const row = document.querySelector('.gear-row[data-gear="' + it.id + '"]')
+  const out = { row: (row.querySelector('.gr-eff') || {}).innerText || '', lv: (row.querySelector('.gc-lv-v193') || {}).innerText || '', btn: (row.querySelector('.gr-sell-v193') || {}).innerText || '', price: window.__V193A.price(it) }
+  row.querySelector('.gr-info').click(); await new Promise(r => setTimeout(r, 200))   // close it again: the next test opens a common
+  return out
+})
+ok(/Lv 25 \/ 25/.test(maxed.row) && /maxed — a rarer piece grows further/.test(maxed.row), 'a maxed row reads Lv 25 / 25 and "maxed — a rarer piece grows further"', maxed.row.replace(/\s+/g, ' '))
+ok(/Level 25 \/ 25/.test(maxed.lv) && /maxed — a rarer piece grows further/.test(maxed.lv) && !/every season/.test(maxed.lv), 'the compare panel says it is maxed instead of +5 every season', maxed.lv)
+ok(new RegExp('sells for ' + maxed.price + ' PP \\(banked').test(maxed.lv) && new RegExp('\\+' + maxed.price + ' PP').test(maxed.btn), "the compare panel's sell line quotes what the sale pays now (banked, during a career)", maxed.lv + ' | ' + maxed.btn)
 // SELL from the compare view (a common: no dialog) pays and removes
 const sold = await page.evaluate(async () => {
   const S = window.S, G = window.__V193A

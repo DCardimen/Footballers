@@ -9627,7 +9627,7 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
    *     its face (never under 1). What is banked that way (`state.ppBankFlatV192A`) is paid at the career's settle up to
    *     `flatPPCapV192A` (half) of what the career itself pays (at least `flatPPMinV192A`, 3) — the side money grows with the
    *     payout instead of in front of it. The medal windfall is `windfallShareV192A` (10%) of a career's pay, min 1.
-   *     Not flat (untouched): the UFF / Interstellar title-as-MVP challenges (`BIG_GOALS_V192A`), the career settle, the UFF season pay, Compound Interest, scrapping gear, refunds.
+   *     Not flat (untouched): the UFF / Interstellar title-as-MVP challenges (`BIG_GOALS_V192A`), the career settle, the UFF season pay, Compound Interest, refunds (selling gear is flat since v193 G — `flatWhyV192A`).
    *   PER-GAME ATTRIBUTES. Practice reps bank `repsNerfV192A` (50%) of what they did; the Extra reps card is
    *     `flipRepsV192A` (0.25 of a point, was 0.5).
    *   THE FATE ROLL. The plan's number is now a percent of the rolled attribute for the game (`fatePctMultV192A` ×), and
@@ -9656,6 +9656,10 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
   // ---- flat PP: a tenth of the face, and the banked part capped by the career's own payout
   const BIG_GOALS_V192A = { dflMvpTitle: 1, galaxyMvpTitle: 1 }; /* the two feats the whole game points at: never scaled */
   const FLAT_WHY_V192A = { milestone: 1, goal: 1, objective: 1, title: 1, nemesis: 1, daily: 1, flipV178: 1, bounty: 1 };
+  // v193 G: a gear sale ("scrap") is side income too — in the flat set while TU("v193G") is on
+  function flatWhyV192A(why) {
+    return !!(FLAT_WHY_V192A[why] || (why === "scrap" && gearSellFlatV193G()));
+  }
   function flatPPOnV192A() {
     return onV192A("flatPPV192A");
   }
@@ -9945,7 +9949,7 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
     }
     state.ppBankV136 = (state.ppBankV136 || 0) + n;
     state.ppBankLogV136 = (state.ppBankLogV136 || []).concat({ n, why: why || "", at: Date.now() }).slice(-40);
-    if (flatPPOnV192A() && FLAT_WHY_V192A[why]) state.ppBankFlatV192A = (state.ppBankFlatV192A || 0) + n; /* v192 A */
+    if (flatPPOnV192A() && flatWhyV192A(why)) state.ppBankFlatV192A = (state.ppBankFlatV192A || 0) + n; /* v192 A */
     return n;
   }
   function bankedV136() {
@@ -11211,7 +11215,7 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
       .join("");
     return `<div class="gear-cmp-v147"><div class="gc-h-v147">${same ? "EQUIPPED" : cur ? `vs <span style="color:${(RARITIES.find(i => i.key === cur.rarity) || {}).color}">${escHtml(cur.name)}</span>` : "slot is empty"}</div>${rows || '<div class="gm-none-v147">no effects</div>'}
     ${gearLevelLineV193(it)}
-    <div class="gc-btns-v147">${same ? `<button class="mr-buy" onclick="unequipGearV147('${it.slot}')">UNEQUIP</button>` : `<button class="mr-buy" onclick="equipGear('${it.id}')">EQUIP</button><button class="gr-scrap gr-sell-v193" onclick="sellGearV193('${it.id}')">💰 SELL · +${gearSellPriceV193(it)} PP</button>`}</div></div>`;
+    <div class="gc-btns-v147">${same ? `<button class="mr-buy" onclick="unequipGearV147('${it.slot}')">UNEQUIP</button>` : `<button class="mr-buy" onclick="equipGear('${it.id}')">EQUIP</button><button class="gr-scrap gr-sell-v193" onclick="sellGearV193('${it.id}')">💰 SELL · +${gearSellNowV193G(gearSellPriceV193(it))} PP</button>`}</div></div>`;
   }
   function gearPickV147(id) {
     _gearSelV147 = _gearSelV147 === id ? null : id;
@@ -11347,7 +11351,7 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
     inv.forEach(it => {
       if (!it || done.has(it)) return;
       gearLevelEnsureV193(it);
-      it.lvlV193 += per;
+      it.lvlV193 = gearGrowV193G(it, per); /* v193 G: never past its rarity's ceiling */
       done.add(it);
       n++;
     });
@@ -11359,7 +11363,7 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
       if (twin) {
         it.lvl0V193 = twin.lvl0V193;
         it.lvlV193 = twin.lvlV193;
-      } else it.lvlV193 += per;
+      } else it.lvlV193 = gearGrowV193G(it, per); /* v193 G */
       done.add(it);
       n++;
     });
@@ -11370,7 +11374,9 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
   function gearLevelLineV193(it) {
     if (!it) return "";
     gearLevelEnsureV193(it);
-    return `<div class="gc-lv-v193">Level ${gearLvlV193(it)} (received at ${it.lvl0V193}) · +${gearLvlPctV193(it)}% to every bonus · +${TU("gearLvlPerSeasonV193", 5) | 0} every season · sells for ${gearSellPriceV193(it)} PP</div>`;
+    /* v193 G: Lv N / MAX, "maxed" at the ceiling, and the sale at what it pays NOW */
+    const grows = gearMaxedV193G(it) ? `<span class="gc-max-v193g">maxed — a rarer piece grows further</span>` : `+${TU("gearLvlPerSeasonV193", 5) | 0} every season`;
+    return `<div class="gc-lv-v193">Level ${gearLvlTxtV193G(it)} (received at ${it.lvl0V193}) · +${gearLvlPctV193(it)}% to every bonus · ${grows} · sells for ${gearSellNowV193G(gearSellPriceV193(it))} PP${gearSellWhyV193G(!0)}</div>`;
   }
   function gearEquippedV193(it) {
     const eq = (state && state.equipped) || {};
@@ -11386,11 +11392,11 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
       showToast("Unequip it first.");
       return 0;
     }
-    const n = gearSellPriceV193(a);
+    const n = gearSellNowV193G(gearSellPriceV193(a)) /* v193 G: between careers, the idle share */;
     inv.splice(t, 1);
     _gearSelV147 === id && (_gearSelV147 = null);
     bankPPV136(n, "scrap");
-    showToast("💰 Sold " + a.name + " for +" + n + " PP" + (bankingV136() ? " (banked)" : ""));
+    showToast("💰 Sold " + a.name + " for +" + n + " PP" + gearSellToastV193G());
     saveGame();
     screenLocker();
     return n;
@@ -11404,9 +11410,9 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
       return Promise.resolve(0);
     }
     if (rarityIndex(a) < 1 || !TU("gearSellAskV193", 1)) return Promise.resolve(gearSellDoV193(id));
-    const n = gearSellPriceV193(a),
+    const n = gearSellNowV193G(gearSellPriceV193(a)),
       r = RARITIES[rarityIndex(a)] || RARITIES[0];
-    return askV150(`Sell ${a.name} (${r.name}, Lv ${gearLvlV193(a)}) for +${n} PP? It is gone for good.`, {
+    return askV150(`Sell ${a.name} (${r.name}, Lv ${gearLvlV193(a)}) for +${n} PP? It is gone for good.${gearSellWhyV193G()}`, {
       title: "Sell gear",
       ok: "Sell · +" + n + " PP",
       danger: !0
@@ -11418,8 +11424,8 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
   function sellCommonsV193() {
     const L = gearCommonsV193();
     if (!L.length) return Promise.resolve(0);
-    const total = L.reduce((R, it) => R + gearSellPriceV193(it), 0);
-    return askV150(`Sell all ${L.length} unequipped Common pieces for +${total} PP? They are gone for good.`, {
+    const total = gearSellNowV193G(L.reduce((R, it) => R + gearSellPriceV193(it), 0)); /* v193 G */
+    return askV150(`Sell all ${L.length} unequipped Common pieces for +${total} PP? They are gone for good.${gearSellWhyV193G()}`, {
       title: "Sell all commons",
       ok: "Sell · +" + total + " PP",
       danger: !0
@@ -11429,7 +11435,7 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
       state.inventory = (state.inventory || []).filter(it => !(it && ids.has(it.id)));
       _gearSelV147 && ids.has(_gearSelV147) && (_gearSelV147 = null);
       bankPPV136(total, "scrap");
-      showToast("💰 Sold " + L.length + " commons for +" + total + " PP" + (bankingV136() ? " (banked)" : ""));
+      showToast("💰 Sold " + L.length + " commons for +" + total + " PP" + gearSellToastV193G());
       saveGame();
       screenLocker();
       return total;
@@ -11508,6 +11514,92 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
     modVal: gearModValV193,
     sumToggle: () => gearSumToggleV193()
   };
+  /* ===== v193 G GEAR THAT STAYS INTERESTING =====
+   * Two holes in v193 A. LEVELS FLATTENED: +5 a season forever put every piece at the ×2.5 cap after ~30
+   * seasons, and rarity stopped mattering. Now each rarity has a level CEILING (`gearLvlMaxV193G`):
+   * common gearLvlMaxCommonV193G (25) · rare gearLvlMaxRareV193G (40) · epic gearLvlMaxEpicV193G (60) ·
+   * legendary gearLvlMaxLegendaryV193G (85) · mythic gearLvlMaxMythicV193G (110). `gearSeasonV193` grows a piece
+   * through `gearGrowV193G`, never past its ceiling; a piece RECEIVED above it keeps its received level but does
+   * not grow (its ceiling reads as max(ceiling, lvl0)); an over-grown old piece is never cut back. The ×2.5 hard
+   * cap stays. The row and the compare panel read `Lv N / MAX` and "maxed — a rarer piece grows further".
+   * SALES SKIPPED THE FLAT CAP: "scrap" was not in v192 A's FLAT_WHY_V192A, so a late mythic (~214 PP) was
+   * uncapped side income. `flatWhyV192A(why)` (read by `bankPPV136`) counts "scrap" as flat while this is on —
+   * banked during a career and paid at the settle up to half of what the career itself pays, like every other
+   * side payment. With NO player alive (`bankingV136()` false — e.g. selling on the career-end screen) a sale
+   * paid straight to `state.pp`, uncapped; now it pays gearSellIdleShareV193G (0.5) of the price
+   * (`gearSellNowV193G`, min 1), so the idle sale is not a loophole. The dialogs, the toast, the rows, SELL ALL
+   * COMMONS and the compare panel's sell line all quote what the sale pays NOW and say why.
+   * `TU("v193G", 0)`: no ceilings, a sale is not flat, the idle sale pays the full price.
+   * `window.__V193G`; `v193Acheck.mjs`. */
+  function gearOnV193G() {
+    return !!TU("v193G", 1);
+  }
+  const GEAR_LVL_MAX_V193G = { common: 25, rare: 40, epic: 60, legendary: 85, mythic: 110 };
+  /* a rarity's level ceiling (Infinity while off); takes a rarity key or a piece */
+  function gearLvlMaxV193G(rarity) {
+    if (!gearOnV193G()) return Infinity;
+    const k = rarity && typeof rarity === "object" ? rarity.rarity : rarity,
+      key = GEAR_LVL_MAX_V193G[k] != null ? k : "common",
+      knob = "gearLvlMax" + key.charAt(0).toUpperCase() + key.slice(1) + "V193G";
+    return Math.max(1, TU(knob, GEAR_LVL_MAX_V193G[key]) | 0);
+  }
+  /* this piece's own ceiling: its rarity's, or the level it was received at when that is higher */
+  function gearCapV193G(it) {
+    if (!it) return Infinity;
+    gearLevelEnsureV193(it);
+    return Math.max(gearLvlMaxV193G(it.rarity), it.lvl0V193 | 0);
+  }
+  /* the level after a season's growth: never past the ceiling, and never down */
+  function gearGrowV193G(it, per) {
+    gearLevelEnsureV193(it);
+    const lv = it.lvlV193 | 0,
+      cap = gearCapV193G(it);
+    return lv >= cap ? lv : Math.min(cap, lv + (per | 0));
+  }
+  function gearMaxedV193G(it) {
+    return !!it && gearOnV193G() && gearLvlV193(it) >= gearCapV193G(it);
+  }
+  function gearLvlTxtV193G(it) {
+    return gearLvlV193(it) + (gearOnV193G() ? " / " + gearCapV193G(it) : "");
+  }
+  // ---- the sale under the flat-prestige rule
+  function gearSellFlatV193G() {
+    return gearOnV193G();
+  }
+  /* what a sale of `price` pays right now: banked in full during a career (the settle caps the side income),
+   * the idle share between careers */
+  function gearSellNowV193G(price) {
+    price = Math.round(Number(price) || 0);
+    if (!(price > 0) || !gearOnV193G() || bankingV136()) return price;
+    return Math.max(1, Math.round(price * TU("gearSellIdleShareV193G", 0.5)));
+  }
+  /* the plain words a dialog carries (`short`: the compare panel's sell line) */
+  function gearSellWhyV193G(short) {
+    if (!gearOnV193G()) return "";
+    const live = bankingV136(),
+      share = Math.round(TU("gearSellIdleShareV193G", 0.5) * 100),
+      part = share === 50 ? "half" : share + "%";
+    if (short) return live ? " (banked — side income pays up to half of the career's own pay)" : ` (${part} of the price — no career is running)`;
+    return live
+      ? " During a career the PP is banked, and side income (sales, goals, milestones, titles) pays up to half of what the career itself pays."
+      : ` Between careers a sale pays ${part} of the price.`;
+  }
+  function gearSellToastV193G() {
+    if (!gearOnV193G()) return bankingV136() ? " (banked)" : "";
+    const share = Math.round(TU("gearSellIdleShareV193G", 0.5) * 100);
+    return bankingV136() ? " (banked — side income pays up to half the career's pay)" : ` (${share === 50 ? "half" : share + "%"} price — no career running)`;
+  }
+  window.__V193G = {
+    on: gearOnV193G,
+    max: gearLvlMaxV193G,
+    cap: gearCapV193G,
+    grow: gearGrowV193G,
+    maxed: gearMaxedV193G,
+    lvlTxt: gearLvlTxtV193G,
+    now: gearSellNowV193G,
+    flat: why => flatWhyV192A(why),
+    why: s => gearSellWhyV193G(s)
+  };
   function screenLocker() {
     gearMigrateV147();
     const _gl = document.querySelector(".gear-list-v147"),
@@ -11526,7 +11618,7 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
       shown = e.filter(n => n && gearChipPassV193(n, fk, t)),
       hidden = e.length - shown.length,
       commons = gearCommonsV193(),
-      commonsPP = commons.reduce((R, it) => R + gearSellPriceV193(it), 0);
+      commonsPP = gearSellNowV193G(commons.reduce((R, it) => R + gearSellPriceV193(it), 0)); /* v193 G: what it pays now */
     ((byId("screen").innerHTML = `
     <div class="eyebrow">Drops at every career end · rarer = more modifiers</div>
     <div class="eq-row eq-row-v147">
@@ -11560,7 +11652,7 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
         <span class="gr-ic">${n.icon}</span>
         <div class="gr-info" onclick="gearPickV147('${n.id}')">
           <div class="gr-name" style="color:${i.color}">${escHtml(n.name)} ${r ? '<span style="color:#57e07a">✓ EQUIPPED</span>' : ""}</div>
-          <div class="gr-eff"><b style="color:${i.color}">${i.name}</b> · ${s(n)} · <span class="gr-lv-v193">Lv ${gearLvlV193(n)} · +${gearLvlPctV193(n)}%</span> · <span class="gr-price-v193">💰 ${gearSellPriceV193(n)} PP</span></div>
+          <div class="gr-eff"><b style="color:${i.color}">${i.name}</b> · ${s(n)} · <span class="gr-lv-v193">Lv ${gearLvlTxtV193G(n)} · +${gearLvlPctV193(n)}%</span>${gearMaxedV193G(n) ? ` · <span class="gr-max-v193g">maxed — a rarer piece grows further</span>` : ""} · <span class="gr-price-v193">💰 ${gearSellNowV193G(gearSellPriceV193(n))} PP</span></div>
           ${gearModsHtmlV147(n, pos)}
         </div>
         ${r ? "" : `<button class="mr-buy" onclick="equipGear('${n.id}')">EQUIP</button>`}
@@ -26061,7 +26153,7 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
         <div class="statbox"><div class="n">+${bigOrRawV179(ledger ? ledger.total : r + (e._ppBankV136 || 0) + (e._ppDoubledV149E || 0))}</div><div class="l">PP Earned</div></div>
       </div>
       ${ledger ? "" : u > 0 ? `<div class="threshold-note" style="margin-top:8px;text-align:center">💰 Your legacy bonuses boosted PP earnings by <b style="color:var(--gold)">+${u}%</b></div>` : ""}
-      ${ledger ? "" : e._ppBankV136 ? `<div class="threshold-note bank-note-v136" style="margin-top:6px;text-align:center">🏦 <b style="color:var(--gold)">+${e._ppBankV136} PP</b> of that was banked during the career — goals, titles, seasons — and paid now, at the end.${e._flatCutV192A > 0 ? ` The side money (goals, milestones, titles) pays up to half of what the career itself pays — ${e._flatCutV192A} PP more went unpaid.` : ""}</div>` : ""}
+      ${ledger ? "" : e._ppBankV136 ? `<div class="threshold-note bank-note-v136" style="margin-top:6px;text-align:center">🏦 <b style="color:var(--gold)">+${e._ppBankV136} PP</b> of that was banked during the career — goals, titles, seasons — and paid now, at the end.${e._flatCutV192A > 0 ? ` The side money (goals, milestones, titles${gearSellFlatV193G() ? ", gear sales" : ""}) pays up to half of what the career itself pays — ${e._flatCutV192A} PP more went unpaid.` : ""}</div>` : ""}
     </div>
     ${ledger ? payLedgerHtmlV193D(ledger) : "" /* v193 D: the career's pay, every term a row */}
     ${legacyCardV152("career")}
