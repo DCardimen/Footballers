@@ -1298,7 +1298,7 @@ window.TU = function (k, d) { var t = window.RIB_TUNE; return t[k] !== undefined
     const _holdV151=(()=>{ const H=new Set(); if(!ballFrames||!ballFrames.length) return H; const bt={}; ballFrames.forEach(b=>{bt[Math.round(b.t)]=b;});
       actors.forEach(a=>{ for(const f of a.frames){ const b=bt[Math.round(f.t)]; if(b&&(b.h||0)<3&&Math.hypot(b.x-f.x,b.y-f.y)<TU("choreoHoldPxV151D",14)){H.add(a.id);break;} } }); return H; })();
     const _deTPv22=(fr,spd,side,id)=>{ if(!fr||fr.length<2)return fr; const MAX=(!_holdV151.has(id)&&TU("paceV151D",1))?Math.min(TU("choreoMaxStep",22),Math.max(TU("choreoDefMinStepV151D",5),(spd||130)*TU("choreoDefPaceV151D",1.45)*TICK/1000)):TU("choreoMaxStep",22); const out=[fr[0]]; let px=fr[0].x, py=fr[0].y; for(let k=1;k<fr.length;k++){ const dx=fr[k].x-px, dy=fr[k].y-py, d=Math.hypot(dx,dy); if(d>MAX){ px+=dx/d*MAX; py+=dy/d*MAX; } else { px=fr[k].x; py=fr[k].y; } out.push(Object.assign({},fr[k],{x:px,y:py})); } return out; };
-    return { duration:t, actors:actors.map(a=>({id:a.id,side:a.side,label:a.label,sp:Math.round(a.spd||SPEED[a.label]||130),nm:a._player&&a._player.name||null,skin:a._player&&Number.isFinite(a._player.skinTone)?a._player.skinTone:null,frames:_deTPv22(a.frames,a.spd,a.side,a.id)})),   // v151 D: sp rides the script
+    return { duration:t, actors:actors.map(a=>({id:a.id,side:a.side,label:a.label,sp:Math.round(a.spd||SPEED[a.label]||130),nm:a._player&&a._player.name||null,skin:a._player&&(Number.isFinite(a._player.skinTone)||/^#[0-9a-f]{6}$/i.test(a._player.skinTone))?a._player.skinTone:null,frames:_deTPv22(a.frames,a.spd,a.side,a.id)})),   // v151 D: sp rides the script
              ball:ballFrames, events, meta:{concept,targetId,losX,endX,dir,scoreDir,scored,
                featured, involved, targetRoute: targetRoute||null,
                coveragePlan:{shell,bracketTargetId,bracketHelperId,manAssignments,
@@ -5842,7 +5842,7 @@ window.__visionRadiusV96 = visionRadiusV96;
     if (_tke && _tke.youIn) { const _yu = S.all.find(a=>a.player&&a.player.you); out.assist = _yu ? _yu.player : null; }
     out.flags = flagCand;   // v30: what an official COULD have flagged — the game layer rolls the call
     out.log = { duration: t, events, ball: ballFrames,
-      actors: S.all.map(a=>({id:a.id, side:a.side, label:a.lb, sp:Math.round(a.spd), you:!!(a.player&&a.player.you), nm:a.player&&a.player.name||null, skin:a.player&&Number.isFinite(a.player.skinTone)?a.player.skinTone:null,   /* v151 D: who he is, for his skin tone (render-only) */ gas:Math.round(a.gas!==undefined?a.gas:(a.gas0!==undefined?a.gas0:100)), frames:a.frames})) };
+      actors: S.all.map(a=>({id:a.id, side:a.side, label:a.lb, sp:Math.round(a.spd), you:!!(a.player&&a.player.you), nm:a.player&&a.player.name||null, skin:a.player&&(Number.isFinite(a.player.skinTone)||/^#[0-9a-f]{6}$/i.test(a.player.skinTone))?a.player.skinTone:null,   /* v151 D: who he is, for his skin tone (render-only) */ gas:Math.round(a.gas!==undefined?a.gas:(a.gas0!==undefined?a.gas0:100)), frames:a.frames})) };
     /* Only a play the offence CARRIED to a spot: an incompletion's ball legitimately lands
      * yards downfield on a zero-yard play, and a pick's ball changes hands and comes back
      * the other way, so neither one's ball track means what `yards` means. */

@@ -172,13 +172,20 @@ if (!process.env.SKIP_LIVE) {
   }
   if (!live) info('the broadcast never came up — the live skin read is skipped')
   else {
-    await page.waitForTimeout(2500)
+    // he is not on every snap (a kickoff, the other unit): play on until a marker is his
+    for (let i = 0; i < 40; i++) {
+      const has = await M(() => !!window.__gridironScene.markers.find(m => m && m.team === 'you' && m.skin && m.skin.visible))
+      if (has) break
+      await M(() => { const b = [...document.querySelectorAll('button')].find(q => /^(CONTINUE|NEXT PLAY|NEXT)$/i.test((q.innerText || '').trim()) && q.offsetParent); if (b) b.click() })
+      await page.waitForTimeout(700)
+    }
+    await page.waitForTimeout(400)
     const LV = await M((h) => {
       const sc = window.__gridironScene, you = sc.markers.filter(m => m && (m.team === 'you' || m.kit === 'you'))
       const m = you[0]; if (!m) return { you: 0 }
       const lt = m.body && m.body.isTinted ? m.body.tintTopLeft : 0xffffff, tv = parseInt(h.slice(1), 16)
       const want = (((((tv >> 16) & 255) * ((lt >> 16) & 255) / 255) | 0) << 16)
-      return { you: you.length, tone: m.skinTone, skin: !!m.skin, tint: m.skin ? m.skin._tintV151 : null, lt, wantR: Math.round(((tv >> 16) & 255) * ((lt >> 16) & 255) / 255), gotR: m.skin && m.skin._tintV151 != null ? (m.skin._tintV151 >> 16) & 255 : null, want }
+      return { you: you.length, st: (window.__GRIDIRON_AUDIT__.getState().player || {}).skinTone, tone: m.skinTone, skin: !!m.skin, tint: m.skin ? m.skin._tintV151 : null, lt, wantR: Math.round(((tv >> 16) & 255) * ((lt >> 16) & 255) / 255), gotR: m.skin && m.skin._tintV151 != null ? (m.skin._tintV151 >> 16) & 255 : null, want }
     }, HEX)
     ok(LV.you >= 1 && LV.tone === HEX && (LV.tint == null || Math.abs(LV.gotR - LV.wantR) <= 1), 'on the live field the you-marker wears his custom hex (m.skinTone, the skin layer\'s tint = tone x light)', LV)
   }

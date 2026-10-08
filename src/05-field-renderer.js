@@ -1077,7 +1077,7 @@ function skinToneForV151D(actor, marker, idx) {
       const st = window.__getGridironState && window.__getGridironState(), pl = st && st.player;
       if (pl) return skinToneV151D({ skinTone: pl.skinTone, name: pl.name || "you" });
     }
-    if (actor && Number.isFinite(actor.skin)) return skinToneV151D({ skinTone: actor.skin });
+    if (actor && (Number.isFinite(actor.skin) || skinHexV193Q(actor.skin))) return skinToneV151D({ skinTone: actor.skin });   // v193 Q: the engine carries a custom hex too
     if (actor && actor.nm) return skinToneV151D({ name: actor.nm });
   } catch (e) {}
   return skinToneV151D("slot" + idx + ":" + (actor && actor.side || ""));
@@ -6136,6 +6136,8 @@ class Ot extends mt.Scene {
       ribSyncYouKitV96(this, d.kitSide);
       try { const V = window.__V105_2 = window.__V105_2 || {}; V.you = { side: d.team, kitSide: d.kitSide }; } catch (e) {}
       this.setTeam(d, "you");
+      // v193 Q: the man the game calls HIM wears his own skin — the sim's actor names a roster man (his name's tone), not his choice
+      if (TU("v193Q", 1)) { try { d.skinTone = skinToneForV151D({ you: true }, d, -1); } catch (e) {} }
       /* ===== v70 PLUMBOB — the you-marker is a crystal over the head, not an aura =====
        * v18 stacked four gold effects on the GROUND under your player: a pulsing glow
        * disc, a bright pulsing ring, four spinning arc segments, and a bobbing chevron.
