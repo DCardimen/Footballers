@@ -36,7 +36,8 @@
     "v193Ccheck",
     "v193Dcheck",
     "v193Bcheck",
-    "v193Jcheck"
+    "v193Jcheck",
+    "v193Ocheck"
    ]
   },
   "docs": {
@@ -619,7 +620,9 @@
     "v132 A YEAR",
     "v133 THE BOY",
     "GROW_V132",
-    "growDraw"
+    "growDraw",
+    "v193 O THE SEASON'S GROWTH",
+    "growCardV193O"
    ],
    "files": [
     "public/grow/**",
@@ -629,7 +632,8 @@
     "growcheck",
     "coachcheck",
     "declarecheck",
-    "walk"
+    "walk",
+    "v193Ocheck"
    ],
    "steps": [
     "`python3 scripts/build-grow-art.py` (if the figure's art changed)"
@@ -1610,7 +1614,9 @@
    "anchors": [
     "v151 E",
     "RIB_MUSIC",
-    "soundCardV151E"
+    "soundCardV151E",
+    "v193 O HAPTICS",
+    "ribHaptic"
    ],
    "files": [
     "src/30-music.js",
@@ -1627,7 +1633,8 @@
     "coachcheck",
     "vaultcheck",
     "layoutcheck",
-    "walk"
+    "walk",
+    "v193Ocheck"
    ]
   },
   "legacy": {
@@ -5075,6 +5082,20 @@
     "prestige-pacing"
    ],
    "runtimeSec": 30,
+   "slow": false,
+   "needsServer": true,
+   "pureNode": false,
+   "flaky": []
+  },
+  "v193Ocheck": {
+   "file": "scripts/v193Ocheck.mjs",
+   "desc": "v193 O — the season's growth, felt: the season-start snapshot and the season-end record (whole numbers); the report's WHAT CHANGED card under the grade lists every moved attribute old → new, biggest gain first, the bars animate (overshoot, settle) to the new values, the OVR and the total line land, the pot / XP pour wait (busy), the medal card under it; tap skips; reduced motion draws the end state; ribHaptic: no-op under webdriver, ?haptics=1 vibrates on the bars, a node buy, a medal claim, the plan roll; the 40 ms limit; Settings › SOUND › Vibration off/on; the skill sheet's +1 pop and LEVEL UP tier tag.",
+   "areas": [
+    "grow",
+    "audio",
+    "smoke"
+   ],
+   "runtimeSec": 45,
    "slow": false,
    "needsServer": true,
    "pureNode": false,
