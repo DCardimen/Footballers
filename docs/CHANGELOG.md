@@ -33,7 +33,7 @@ Names in older entries are the career app's pre-v149 C minified names (`q`, `ms`
   `cost·mult^i` a level while the price paid carries the branch factor (×24 a core node since v191 A) — it refunds what
   was paid. Kill switches `v193D`, `v193Drefund`. `v193Dcheck`. (`src/07`, `src/styles/00-app.css`.)
 - **v193 B · The plan shows its odds, rolls before kickoff, and your team is on the sheet.** (`src/11`, `17`, `07`.)
-  Every tile on the plan board is shaded by its click odds and prints them — green at 50%+ clicks, red at 35%+
+  Every tile on the plan board is shaded by its click odds and prints them — green at 40%+ clicks (the odds sit around 15–45%), red at 35%+
   backfires or under 25% clicks — and the best odds on the board wear BEST ODDS beside the scout's SCOUT. The
   scout's suggestion stays, but when it is not green the default lit is the greenest plan within 3 perf of it, and
   the card says why ("Scout says X · odds say Y"). Under the card, 🎲 ROLL THE PLAN reveals the week's held roll

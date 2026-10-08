@@ -881,7 +881,7 @@ let v193PvD=null,v193PreD=null;   // page 3's roster preview (the team page list
 function v193TU(k,d){try{return window.TU?window.TU(k,d):d}catch(e){return d}}
 function v193OnD(){return !!v193TU("v193B",1)}   // the board-only parts (tiles, the roll) already live inside choice mode; the score and the team page show with the wheel too
 function v193RevealedD(){try{const V=window.__PREGAME_V51;return V&&V.revealed?V.revealed():null}catch(e){return null}}
-function v193OddsClassD(b){if(!b||!v193OnD())return"";const G=v193TU("planGreenV193",.5),R=v193TU("planRedV193",.35),g=b.oddsG!=null?b.oddsG:b.g,r=b.oddsR!=null?b.oddsR:b.r;return(r>=R||g<.25)?" odds-r":g>=G?" odds-g":" odds-y"}
+function v193OddsClassD(b){if(!b||!v193OnD())return"";const G=v193TU("planGreenV193",.4),R=v193TU("planRedV193",.35),g=b.oddsG!=null?b.oddsG:b.g,r=b.oddsR!=null?b.oddsR:b.r;return(r>=R||g<.25)?" odds-r":g>=G?" odds-g":" odds-y"}
 function v193OddsPctD(b){if(!b)return null;const g=b.oddsG!=null?b.oddsG:b.g;return Math.round(g*100)}
 function v193BestD(plans){const V=window.__PREGAME_V51;if(!V||!V.band||!v193OnD()||!plans)return null;let best=null;
   plans.forEach(p=>{const b=V.band(p.id);if(!b)return;const g=b.oddsG!=null?b.oddsG:b.g;if(!best||g>best.g)best={id:p.id,g}});return best?best.id:null}
@@ -944,6 +944,7 @@ function v193StyleD(){if(document.getElementById("v193StyleEl"))return;document.
   .v146-tile .v193-odds{display:block;font:700 10px Oswald,sans-serif;letter-spacing:.5px;line-height:12px;margin-top:2px;color:var(--chalk-dim)}
   .v146-tile.odds-g .v193-odds{color:#8fe0a0}.v146-tile.odds-y .v193-odds{color:var(--gold)}.v146-tile.odds-r .v193-odds{color:#e8938b}
   .v146-tile s.best{background:#8fe0a0}
+  .v146-tile s{white-space:nowrap}   /* v193 B: "SCOUT · BEST ODDS" stays one line over the tile, never over the plan's name */
   .v146-tile.locked{opacity:.42;cursor:default}.v146-tile.locked.on{opacity:1}
   .v193-score{display:flex;align-items:baseline;gap:6px;flex-wrap:wrap;margin:0 0 6px;padding:5px 9px;border:1px solid rgba(143,224,160,.3);border-radius:8px;background:rgba(143,224,160,.06)}
   .v193-score:empty{display:none}

@@ -269,7 +269,7 @@
   let oddsPickV193=null;   // this week: {scout, scoutG, pick, pickG, modified, scoutPerf, pickPerf}
   const v193On=()=>!!(window.TU?window.TU("v193B",1):1);
   function oddsDefaultV193(pl,plans,sp,dice){
-    const G=window.TU?window.TU("planGreenV193",.5):.5,GAP=window.TU?window.TU("planGreenGapV193",3):3;
+    const G=window.TU?window.TU("planGreenV193",.4):.4,GAP=window.TU?window.TU("planGreenGapV193",3):3;
     const perfOf=id=>{try{const f=window.__V146&&window.__V146.facts?window.__V146.facts(null,id):null;return f?(f.perf||0)+(f.match||0):0}catch(e){return 0}};
     const gOf=id=>{const d=decidePlan(pl,plans,id,dice);return d?d.odds.g:0};
     const gS=gOf(sp.id),pS=perfOf(sp.id);

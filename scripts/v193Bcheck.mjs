@@ -79,7 +79,7 @@ ok(A.built.length === 8 && A.active.length === 7 && A.active[3] === 'v112PageTea
 // ---------------------------------------------------------------- 2. the board: odds on every tile, the best badged, the default modified
 await goPage('v112Page5')
 const B = await page.evaluate(() => {
-  const V = window.__PREGAME_V51, h = V.hold(), X = window.__V146, G = window.TU('planGreenV193', .5), GAP = window.TU('planGreenGapV193', 3)
+  const V = window.__PREGAME_V51, h = V.hold(), X = window.__V146, G = window.TU('planGreenV193', .4), GAP = window.TU('planGreenGapV193', 3)
   const T = el => el ? el.innerText.replace(/\s+/g, ' ').trim() : ''
   const tiles = [...document.querySelectorAll('#v112Page5 .v146-tile')].map(t => ({ id: t.dataset.plan, odds: +t.dataset.odds, cls: [...t.classList].find(c => /^odds-[gyr]$/.test(c)) || null, txt: T(t), on: t.classList.contains('on'), locked: t.classList.contains('locked'), badge: T(t.querySelector('s')) }))
   const bands = {}; h.plans.forEach(p => { const b = V.band(p.id); const f = X.facts(null, p.id); bands[p.id] = { g: b.g, r: b.r, perf: (f.perf || 0) + (f.match || 0), scout: !!b.scout } })
