@@ -16186,8 +16186,10 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
    * current training program, the games played and the games left, drawn as a
    * hollow green extension the real gain fills in at season's end. */
   function effAttrsV85(e) {
-    const out = { mult: 1, buffs: {}, muls: {}, eff: {}, delta: {}, gear: {} };
+    const out = { mult: 1, buffs: {}, muls: {}, eff: {}, delta: {}, gear: {}, persona: {} };
     if (!e || !e.attrs) return out;
+    /* v193 N: the personality's one-attribute game-day flat, as _raw adds it (kill switch: the old all-stats flat) */
+    const pf = personaGameFlatV193N(e.personaFxV20, e);
     const mult = (out.mult = condMultV54(e));
     /* v111: the sheet reads the wheel's flat swing AND v111's own entries — a lingering wear cut
      * counting its games down, and this game's focus pick, which is a MULTIPLIER rather than an
@@ -16203,7 +16205,11 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
         mu = out.muls[k] ? clamp99(out.muls[k], TU("focusMulFloor", 0.6), TU("focusMulCeil", TU("v171Cfocus", 1) ? 1.5 : 1.35)) : 1,
         v = Math.max(
           1,
-          Math.round((Math.round(a * mult) + (out.buffs[k] || 0)) * mu) + (out.gear[k] = gearAttrV147(k))
+          Math.round(
+            Math.round((Math.round(a * mult) + (out.buffs[k] || 0)) * mu) +
+              (out.persona[k] = pf.by[k] || 0) /* OFF (v193N 0): the old sheet, which never drew perfFlat */ +
+              (out.gear[k] = gearAttrV147(k))
+          )
         );
       /* v147 C: gear lands last, as in _raw */ out.eff[k] = v;
       out.delta[k] = v - a;
@@ -18195,6 +18201,8 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
                 return null;
               }
             })(),
+      // v193 N: the personality's game-day flat, read once a game ({ all, by: {attr: n} })
+      _pf193N = personaGameFlatV193N(window.__youPersonaFxV20, state && state.player),
       _raw = (w, k) => {
         let _v = w && w.attrs && w.attrs[k];
         if (!(_v > 0)) _v = TU("v141Fallback", 1) ? (w && Number(w.ovr)) || 45 : 45;
@@ -18211,8 +18219,8 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
             }
           if (_mu !== 1) _v *= clamp99(_mu, TU("focusMulFloor", 0.6), TU("focusMulCeil", TU("v171Cfocus", 1) ? 1.5 : 1.35)); /* v171 C: a hot focus reaches ×1.5 */
           /* v111: the focus is a multiplier, and it lands AFTER the body's swing. v193 E: the tree's game-day percent is
-           * gone; what remains is the personality page's own two-sided nudge (src/14) and the gear on him */ _v +=
-            ((window.__youPersonaFxV20 && window.__youPersonaFxV20.perfFlat) || 0) +
+           * gone; what remains is the personality page's own nudge (src/14 — v193 N: ONE attribute per pole) and the gear on him */ _v +=
+            _pf193N.all + (_pf193N.by[k] || 0) +
             gearAttrV147(k); /* v147 C: the gear on him */
         }
         /* v171 A: their face, the call's cuts and lifts, the plan's team lift — as rating POINTS (the fraction × `mulPtsV171`),
@@ -28268,6 +28276,25 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
       } catch (_) {}
     return fx && fx.v192C ? fx : null;
   }
+  /* ===== v193 N PERSONALITY GIVES A STAT, AND STATS ARE WHOLE =====
+   * The personality's game-day flat (src/14 `attrFlatV193N`): each `perf` pole moves ONE attribute by a whole number
+   * (Win-Now / Process → Grit, Coasts → Awareness, Me-First / Team-First → Vision) instead of v20's `perfFlat` on
+   * EVERY attribute. Returns { all, by }: `all` lands on every attribute (only the kill switch's old path), `by[k]` on
+   * one. Read once a game by simGameV2's accessor (`_raw`) and by `effAttrsV85` (the sheets). A save whose fx predates
+   * v193 N is recomputed (never re-billed — src/14 `__personaFxRefreshV192C`). Kill switch `TU("v193N", 0)`: the old
+   * all-stats `perfFlat`. The stats-are-whole half lives at each screen's display (rounded there, never stored). */
+  function personaGameFlatV193N(fx, e) {
+    if (e && e.personaV13 && (!fx || fx.v193N !== 1) && typeof window.__personaFxRefreshV192C === "function")
+      try {
+        fx = window.__personaFxRefreshV192C(e);
+      } catch (_) {}
+    if (!fx) return { all: 0, by: {} };
+    if (!TU("v193N", 1)) return { all: Number(fx.perfFlat) || 0, by: {} };
+    return { all: 0, by: fx.attrFlatV193N || {} };
+  }
+  window.__V193N = {
+    flat: e => personaGameFlatV193N((e || state.player) && (e || state.player).personaFxV20, e || state.player)
+  };
   function fatigueMulV192C(e) {
     const fx = personaFxV192C(e);
     return (fx && fx.fatigueMult) || 1;
