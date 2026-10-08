@@ -13,14 +13,17 @@
  * on it. The text stays in the DOM — this is `-webkit-line-clamp`, not a truncation — so anything
  * reading the page still reads all of it. */
 (function () {
+  /* v193 C: every view the bar can be seen on lights a tab \u2014 HUB for the career's own pages (rank, stats,
+   * the Hall, the profile, seasons), TREE for the prestige pages (dynasty, path, the locker), MENU for the
+   * menu's (settings, Score Attack, the leaderboard); "highscore" used to light TREE and "daily" HUB only */
   var NAV = [
-    { k: "hub",      go: "hub",      icon: "\u{1F3E0}", label: "HUB",    views: ["hub", "life", "daily"] },
+    { k: "hub",      go: "hub",      icon: "\u{1F3E0}", label: "HUB",    views: ["hub", "life", "daily", "rank", "stats", "hof", "profile", "seasons"] },
     { k: "season",   go: "season",   icon: "\u{1F4C5}", label: "SEASON", views: ["season", "event", "sim", "result"] },
     { k: "upgrade",  go: "upgrade",  icon: "\u{1F4C8}", label: "SKILLS", views: ["upgrade", "training"] },
-    { k: "shop",     go: "shop",     icon: "\u{1F333}", label: "TREE",   views: ["shop", "highscore"] },
-    { k: "menu",     go: "menu",     icon: "\u2630",    label: "MENU",   views: ["menu", "settings"] }
+    { k: "shop",     go: "shop",     icon: "\u{1F333}", label: "TREE",   views: ["shop", "dynasty", "path", "locker"] },
+    { k: "menu",     go: "menu",     icon: "\u2630",    label: "MENU",   views: ["menu", "settings", "highscore", "leaderboard"] }
   ];
-  var OFF = { live: 1, win: 1, gameover: 1, menu: 1 };          // no bar over the broadcast or the main menu
+  var OFF = { live: 1, win: 1, gameover: 1, menu: 1, tier: 1, club: 1 };   // no bar over the broadcast or the main menu; v193 C: nor over a choice that must be made (the program, the club)
   var OVERLAYS = "#growthV42,#pregameV1513,#pgOverlayV13,#personaV13,#growV132,#rib-vault-v137,.gameplan-overlay,.team-modal-v153,#teamModalV153";
   var bar = null, lastKey = "", lastOn = null;
 

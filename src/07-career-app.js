@@ -14281,7 +14281,7 @@
            <button class="btn secondary" onclick="confirmNew()">New Career</button>
          </div>`
         : `<button class="btn" onclick="startCareer()">▶ Start New Career</button>
-         ${state.pp > 0 || a ? `<div style="height:8px"></div><button class="btn secondary" onclick="go('shop')">🌳 Prestige Tree · ${state.pp} PP</button>` : ""}`
+         <div style="height:8px"></div><button class="btn secondary" onclick="go('shop')">🌳 Prestige Tree · ${state.pp} PP</button>` /* v193 C: always — the baked menu's PRESTIGE tile resolves to this button by text */
     }
     <div style="height:8px"></div>
     <button class="btn" style="background:linear-gradient(90deg,#f0bb45,#e0484f);color:#0b111b;font-weight:700" onclick="go('highscore')">⚡ SCORE ATTACK${state.highScore ? ` · BEST ${state.highScore.toLocaleString()}` : ""}</button>
@@ -14905,6 +14905,70 @@
     const e = document.getElementById("playerNameV96");
     e && (e.value = famLockedV139() ? famFirstV139(state.player.name) : state.player.name);
   };
+  /* ===== v193 C THE BUGS THE PASS FOUND =====
+   * (career) A read-only audit's defects, fixed minimally:
+   *   - THE SKIN IS HIS TO CHOOSE, at last: nothing ever set `player.skinTone` (v151 D reads it on the live
+   *     field). The position screen carries a row of eight round swatches under the name
+   *     (`skinSwatchesV193C`); `setSkinToneV193C(i)` sets `state.player.skinTone` (0-7) and saves.
+   *   - THE DOWN BAR during a kickoff read "1st & 10" (kickoffs carry preDown 1 / preToGo 10):
+   *     `downDistLabelV193C(row)` says KICKOFF, PAT, 2-PT TRY, and "& GOAL" once the line to gain is the
+   *     goal line (`startBall` is the offense's yards from its own goal, so 100 − startBall is the end zone).
+   *   - `endLive` read `state.player.weekResults` after the career could be gone (v146) — guarded.
+   *   - `tier` is entered through `goView` (saved: a reload returns to the choice) and the bottom nav hides on
+   *     tier / club (src/24-bottom-nav.js, which also lights HUB / TREE / MENU on every view it reaches).
+   *   - `rank`'s Back said hub on both branches; the fresh-save menu always draws the Prestige Tree button
+   *     (the baked menu's PRESTIGE tile resolves to it by text); a UFF arrival never reopened seals the hub
+   *     back to `win` (`sealedViewV192B`), where "Keep Playing" (continueNFL) reopens it.
+   * `window.__V193C.app`; scripts/v193Ccheck.mjs. */
+  const SKIN_TONES_V193C = ["#f3d2b3", "#e8bc97", "#d6a37c", "#bf8a62", "#a4704b", "#86573a", "#6a432c", "#4f3121"]; /* mirrors SKIN_TONES_V151D (05) */
+  function skinTonesV193C() {
+    const api = window.__V151D_SKIN_API;
+    return (api && Array.isArray(api.tones) && api.tones.length) ? api.tones : SKIN_TONES_V193C;
+  }
+  function skinSwatchesV193C(e) {
+    const tones = skinTonesV193C();
+    let cur = -1;
+    try {
+      cur = window.__skinToneV151D ? window.__skinToneV151D({ skinTone: e.skinTone, name: e.name || "you" }) : Number.isFinite(e.skinTone) ? e.skinTone : -1;
+    } catch (_) {}
+    return (
+      `<span class="l">SKIN</span>` +
+      tones
+        .map(
+          (c, i) =>
+            `<button type="button" class="skin-sw-v193c${i === cur ? " on" : ""}" style="background:${c}" onclick="setSkinToneV193C(${i})" role="radio" aria-checked="${i === cur}" aria-label="Skin tone ${i + 1} of ${tones.length}"></button>`
+        )
+        .join("")
+    );
+  }
+  function setSkinToneV193C(i) {
+    if (!state.player) return;
+    state.player.skinTone = Math.max(0, Math.min(skinTonesV193C().length - 1, i | 0));
+    saveGame();
+    const row = document.querySelector(".skin-row-v193c");
+    row && (row.innerHTML = skinSwatchesV193C(state.player));
+  }
+  window.setSkinToneV193C = setSkinToneV193C;
+  function downDistLabelV193C(t) {
+    if (!t) return "";
+    if (t.event === "kickoff") return "KICKOFF";
+    if (t.event === "xp") return "PAT";
+    if (t.event === "twopt") return "2-PT TRY";
+    const i = t.preDown || t.down || 1,
+      r = t.preToGo || t.toGo,
+      l = i + (i === 1 ? "st" : i === 2 ? "nd" : i === 3 ? "rd" : "th"),
+      spot = Number(t.startBall),
+      toGoal = Number.isFinite(spot) ? 100 - spot : null;
+    return l + " & " + (toGoal != null && Number.isFinite(Number(r)) && Number(r) >= toGoal ? "GOAL" : r);
+  }
+  window.__V193C = window.__V193C || { errs: {}, n: 0 };
+  window.__V193C.app = {
+    label: t => downDistLabelV193C(t),
+    endLive: () => endLive(),
+    setSkin: i => setSkinToneV193C(i),
+    swatches: () => (state.player ? skinSwatchesV193C(state.player) : ""),
+    tones: () => skinTonesV193C()
+  };
   function screenChoosePos() {
     const e = state.player,
       t = suggestPositions(e.attrs, e.body),
@@ -14925,6 +14989,7 @@
         "&quot;"
       )}" maxlength="24" autocomplete="off" spellcheck="false" aria-label="${famLockedV139() ? "First name" : "Player name"}" oninput="setPlayerNameV96(this.value)">${famLockedV139() ? `<span class="fam-name-v139" title="The family name. Change it in Settings.">${escHtml(famSurnameV139())}</span>` : ""}<button type="button" class="name-dice-v96" onclick="rerollNameV96()" title="Roll another name">🎲</button></div>
     <div class="small name-hint-v96">${famLockedV139() ? "Tap to name him — the " + escHtml(famSurnameV139()).toUpperCase() + " name is the line's" : "Tap the name to make it yours"}</div>
+    <div class="skin-row-v193c" role="radiogroup" aria-label="Skin tone">${skinSwatchesV193C(e)}</div>
     ${lineageCardV136(e)}
     ${rerollNoteV112(e)}
     <div class="card tight" style="border-color:#4a90c9">
@@ -15821,7 +15886,7 @@
       saveGame());
     const s = LEVELS[e.level].key;
     if (tiersFor(s) && !(e.tiers && e.tiers[s])) {
-      ((state.view = "tier"), render());
+      goView("tier"); /* v193 C: saved, so a reload returns to the choice */
       return;
     }
     (a > 0
@@ -22953,13 +23018,7 @@
                   : t.offense === "us"
                     ? "OUR BALL"
                     : "DEFENSE";
-      else if (t.event === "xp" || t.event === "twopt") s.textContent = t.event === "xp" ? "EXTRA POINT" : "2-PT TRY";
-      else {
-        const i = t.preDown || t.down,
-          r = t.preToGo || t.toGo,
-          l = i + (i === 1 ? "st" : i === 2 ? "nd" : i === 3 ? "rd" : "th");
-        s.textContent = l + " & " + r;
-      }
+      else s.textContent = downDistLabelV193C(t); /* v193 C: KICKOFF, PAT, 2-PT TRY, & GOAL */
     t.fx = Xi(t);
     const n = byId("commentary");
     if (n) {
@@ -24065,12 +24124,15 @@
       s > 0 ? e.fillRect(t - 26, 6, 26, a - 12) : e.fillRect(0, 6, 26, a - 12));
   }
   function endLive() {
-    if (
-      (window.GridironPhaser && window.GridironPhaser.cancel(),
-      liveCtl && liveCtl.anim && cancelAnimationFrame(liveCtl.anim),
-      (liveCtl = null),
-      state.player.weekResults && state.player.currentWeek != null)
-    ) {
+    window.GridironPhaser && window.GridironPhaser.cancel();
+    liveCtl && liveCtl.anim && cancelAnimationFrame(liveCtl.anim);
+    liveCtl = null;
+    if (!state.player) {
+      /* v193 C: a play can finish after the career it belonged to is gone (v146) — nothing to settle */
+      state._oppName = null;
+      return;
+    }
+    if (state.player.weekResults && state.player.currentWeek != null) {
       finishWeekGame();
       return;
     }
@@ -25262,7 +25324,7 @@
     <div class="small center">You're #${r} in your immediate group of ${i.length}. Nationally, cracking the top means surviving every future cut.</div>
   `),
       (byId("dock").innerHTML =
-        `<button class="btn secondary" onclick="go(S.player.seasonStats&&S.view==='rank'?'hub':'hub')">Back</button>`));
+        `<button class="btn secondary" onclick="go('hub')">Back</button>` /* v193 C: both branches said hub */));
   }
   function endCareer() {
     ((state.view = "gameover"), render());
@@ -39256,6 +39318,9 @@
     e = e || (state && state.player);
     if (!e || !onV192B() || !TU("v192Bseal", 1)) return null;
     if (e._settled && e._careerOverV192B) return "gameover";
+    /* v193 C: a UFF arrival never reopened (win → Hall → menu → CONTINUE) seals to the win screen, whose
+     * "Keep Playing" (continueNFL) is the one way back to a hub with an exit */
+    if (e._settled && e._wonShown && !e._arrivedV154 && (e.level | 0) >= 7) return "win";
     const F = e.declareFailV77;
     return F && F.level === e.level ? (e._settled ? "gameover" : "declineResult") : null;
   }

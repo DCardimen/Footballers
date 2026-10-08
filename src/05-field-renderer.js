@@ -1086,7 +1086,11 @@ function skinMaskV151D(src) {
   const hit = SKIN_MASKS_V151D.get(src); if (hit) return hit;
   let d;
   try { d = src.getContext("2d").getImageData(0, 0, 48, 48).data; } catch (e) { return null; }
-  const N = 48 * 48, warm = new Uint8Array(N), sk = new Uint8Array(N), L = new Float32Array(N);
+  const N = 48 * 48, warm = new Uint8Array(N), sk = new Uint8Array(N), hi = new Uint8Array(N), L = new Float32Array(N);
+  // v193 C: the skin's HIGHLIGHTS. The drawn skin is a saturated orange (hue 26-32, sat .9+); its lit edges and
+  // the face's lighter pixels sit at hue 31-46 and sat .3-.6, inside the recolour's gold band — the gold trim is
+  // sat .65 and up. A highlight that touches core skin is skin, whatever the neighbour vote says.
+  const hi193 = TU("v193C", 1), hiHue193 = TU("skinHiHueV193C", 46), hiSat193 = TU("skinHiSatV193C", .6);
   for (let i = 0; i < N; i++) {
     const r = d[i * 4], g = d[i * 4 + 1], b = d[i * 4 + 2], al = d[i * 4 + 3];
     if (al <= 24) continue;
@@ -1096,13 +1100,14 @@ function skinMaskV151D(src) {
     if (hue < 8 || hue >= 46) continue;
     warm[i] = 1; L[i] = l;
     if (hue < TU("skinHueV151D", 31) || (hue < 34 && l < 58)) sk[i] = 1;
+    else if (hi193 && hue < hiHue193 && sat < hiSat193) hi[i] = 1;
   }
   const mask = new Uint8Array(N); let n = 0, lsum = 0;
   for (let y = 0; y < 48; y++) for (let x = 0; x < 48; x++) {
     const i = y * 48 + x; if (!warm[i]) continue;
     let f = 0, w = 0;
     for (let yy = Math.max(0, y - 1); yy <= Math.min(47, y + 1); yy++) for (let xx = Math.max(0, x - 1); xx <= Math.min(47, x + 1); xx++) { const j = yy * 48 + xx; f += sk[j]; w += warm[j]; }
-    if (f > 0 && f >= w * .5) { mask[i] = 1; n++; lsum += L[i]; }
+    if ((f > 0 && f >= w * .5) || (hi[i] && f > 0)) { mask[i] = 1; n++; lsum += L[i]; }
   }
   const out = { mask, n, lmean: n ? lsum / n : 0, L };
   SKIN_MASKS_V151D.set(src, out); return out;
@@ -1125,6 +1130,54 @@ function skinRegisterV151D(scene, srcName, cell0, sk) {
   const V = window.__V151D_SKIN = window.__V151D_SKIN || { cells: 0, px: 0, restored: 0, layers: 0, frames: 0, tones: {} };
   return key;
 }
+/* ===== v193 C THE BUGS THE PASS FOUND =====
+ * (renderer) A read-only audit's defects, fixed minimally:
+ *   - THE SKIN IN THE KIT'S SECOND COLOUR. Three edge paths painted skin in p2: a cell whose mask found
+ *     fewer than six pixels got no restore at all (`skinMinPxV151D` now floors at 1 — whatever was found
+ *     comes back); the skin's warm highlights (hue 31-46, sat under .6, touching core skin) sat inside
+ *     ribRecolor's gold band and lost the neighbour vote (`skinMaskV151D` keeps them now); and the
+ *     cosmetics deco ran AFTER the restore, so `classify`'s class-2 band overpainted restored skin
+ *     (`kitCellV193C`: deco first, the restore last). The sideline backups draw the same registered
+ *     textures, so they ride along.
+ *   - SILENT CATCHES. The per-frame camera block, the QB vision cone and the coverage overlay swallowed
+ *     every throw — a frozen camera with nothing in the console. `warnOnceV193C(tag, e)` counts each
+ *     distinct message and warns once (`window.__V193C.errs`); the engine's featured-player block (04)
+ *     reports through the same helper.
+ *   - `detailedAction` did not know the catch sequence, so its cells were numbered without a band.
+ * Kill switch TU("v193C", 0): the old mask and the old restore order. `window.__V193C`;
+ * scripts/v193Ccheck.mjs. */
+const V193C = window.__V193C = window.__V193C || { errs: {}, n: 0 };
+function warnOnceV193C(tag, e) {
+  try {
+    const msg = tag + ": " + (e && e.message ? e.message : String(e));
+    V193C.n++;
+    if (!V193C.errs[msg]) { V193C.errs[msg] = 1; console.warn("[v193 C] " + msg, e); } else V193C.errs[msg]++;
+  } catch (_) {}
+}
+V193C.warn = warnOnceV193C;
+// one kit cell: the recolour, the cosmetic deco, then the skin back from the drawn cell — in that order
+function kitCellV193C(cell0, srcName, p1, p2, deco, band) {
+  let cv = ribRecolor(cell0, p1, p2);
+  const on = TU("v193C", 1);
+  const sk151 = TU("skinV151D", 1) ? skinMaskV151D(cell0) : null;
+  const has = !!(sk151 && sk151.n >= TU("skinMinPxV151D", on ? 1 : 6));
+  const restore = () => {
+    const c2 = cv.getContext("2d"), a = c2.getImageData(0, 0, 48, 48), b = cell0.getContext("2d").getImageData(0, 0, 48, 48);
+    for (let i = 0; i < 48 * 48; i++) if (sk151.mask[i]) { a.data[i * 4] = b.data[i * 4]; a.data[i * 4 + 1] = b.data[i * 4 + 1]; a.data[i * 4 + 2] = b.data[i * 4 + 2]; a.data[i * 4 + 3] = b.data[i * 4 + 3]; }
+    c2.putImageData(a, 0, 0);
+  };
+  const paint = () => { if (deco) { try { cv = deco(cv, srcName, band, cell0) || cv; } catch (e) { on && warnOnceV193C("deco " + srcName, e); } } };   // v151 B: a cosmetic deco reads the pose's own collar/waist and the raw art
+  let restored = false;
+  if (!on) { if (has) { try { restore(); restored = true; } catch (e) {} } paint(); }
+  else { paint(); if (has) { try { restore(); restored = true; } catch (e) { warnOnceV193C("skin restore " + srcName, e); } } }
+  return { cv, sk151: restored ? sk151 : null };
+}
+V193C.kitCell = (src, p1, p2, deco) => {
+  const c = typeof src === "string" ? (ribCellV91(src) || ribCellV22(src) || ribCell(src)) : src;
+  return c ? kitCellV193C(c, typeof src === "string" ? src : "idle_dn", p1, p2, deco || null, null) : null;
+};
+V193C.mask = c => skinMaskV151D(c);
+V193C.recolor = (c, p1, p2) => ribRecolor(c, p1, p2);
 // v45 REFEREE ZEBRA: paint vertical black bars across the torso band of a
 // recolored (white) official so the crew reads as the classic striped shirt
 // from broadcast distance. Only light, opaque pixels in the chest rows are
@@ -1727,19 +1780,15 @@ function ribRegisterTeam(scene, team, p1, p2, deco) {
     const cell0 = ribCellV91(srcName) || ribCellV22(srcName) || ribCell(srcName); if (!cell0) return;   // v91 > v22 > baked, by name
     RIB.numBandTex[key] = numBandV104(srcName, cell0);   // v104: where this pose wears its number
     (RIB.numSrcV176 || (RIB.numSrcV176 = {}))[key.replace(/^spr_[^_]+_/, "")] = srcName;   // v176: which drawn cell this pose is
-    let cv = ribRecolor(cell0, p1, p2);
     // v151 D: the kit never touches skin — the skin pixels come back from the drawn cell, and the
-    // texture remembers which grey skin cell its layer wears
-    const sk151 = TU("skinV151D", 1) ? skinMaskV151D(cell0) : null;
+    // texture remembers which grey skin cell its layer wears. v193 C: the cell is built by
+    // kitCellV193C (the recolour, the deco, then the skin), so a deco can no longer paint over it.
+    const built = kitCellV193C(cell0, srcName, p1, p2, deco, RIB.numBandTex[key]), cv = built.cv, sk151 = built.sk151;
     (RIB.skinOfTexV151D || (RIB.skinOfTexV151D = {}))[key] = null;
-    if (sk151 && sk151.n >= TU("skinMinPxV151D", 6)) {
-      try { const c2 = cv.getContext("2d"), a = c2.getImageData(0, 0, 48, 48), b = cell0.getContext("2d").getImageData(0, 0, 48, 48);
-        for (let i = 0; i < 48 * 48; i++) if (sk151.mask[i]) { a.data[i * 4] = b.data[i * 4]; a.data[i * 4 + 1] = b.data[i * 4 + 1]; a.data[i * 4 + 2] = b.data[i * 4 + 2]; a.data[i * 4 + 3] = b.data[i * 4 + 3]; }
-        c2.putImageData(a, 0, 0);
-        RIB.skinOfTexV151D[key] = skinRegisterV151D(scene, srcName, cell0, sk151);
+    if (sk151) {
+      try { RIB.skinOfTexV151D[key] = skinRegisterV151D(scene, srcName, cell0, sk151);
         const V = window.__V151D_SKIN; V.cells++; V.px += sk151.n; } catch (e) {}
     }
-    if (deco) { try { cv = deco(cv, srcName, RIB.numBandTex[key], cell0) || cv; } catch (e) {} }   // v151 B: a cosmetic deco reads the pose's own collar/waist and the raw art
     try { scene.textures.remove(key); } catch (e) {}
     scene.textures.addCanvas(key, cv);
   };
@@ -2885,7 +2934,7 @@ class Ot extends mt.Scene {
         this.camSpringV109(cam, pre147.x, pre147.y, this.camZoomFitV112(pre147.z), delta, this.screenPanBackKV175() * (FC ? TU("flagCamStiffK", 2.2) : (1 + cut * TU("camCutStiffK", 1.6)) * MD.stiff) * this.camStiffRateV147(r147, fol147 && !air147), pre147);
         if (P._camCut && P._camCut.t <= delta) this.v109E().cam.cuts++;
       }
-    } catch (e) {}
+    } catch (e) { warnOnceV193C("camera", e); }   /* v193 C: a frozen camera says why, once */
     // interpolate actors (skip during the glide-in so formations flow between plays)
     const fi = T / 33, i0 = Math.min(Math.floor(fi), 1e9), frac = fi - Math.floor(fi);
     const gliding = P.t < (P.delay || 0);
@@ -3253,8 +3302,8 @@ class Ot extends mt.Scene {
           this.lookG.lineStyle(2, col, 0.8).strokeCircle(x2, y2, 10 * (PJ(rm.sx, rm.sy).s || 1) + 6);
         }
       }
-    } catch (_e) {}
-    try { this.drawCoverV192F(P); } catch (_e) {}   // v192 F: zones, man lines, the open man's sparkle
+    } catch (_e) { warnOnceV193C("vision cone", _e); }   /* v193 C */
+    try { this.drawCoverV192F(P); } catch (_e) { warnOnceV193C("cover overlay", _e); }   // v192 F: zones, man lines, the open man's sparkle; v193 C: warned once
     // pending TD: celebrate the exact frame the carrier crosses the plane (sim space)
     if (P.pendTD) {
       const cm = this.markers[P.pendTD.idx];
@@ -6836,7 +6885,7 @@ class Ot extends mt.Scene {
     // side, any state), while linemen keep their numbers even in the pre-snap stance.
     const ribSideProfile = m.dirKey === "sd";
     const ribRearFacing = m.dirKey === "up" || m.dirKey === "ur";
-    const detailedAction = /^(juke|stiff|hurdle|catch\d|divecatch|pancake|getup)/.test(st);
+    const detailedAction = /^(juke|stiff|hurdle|catch\d|catchseq|divecatch|pancake|getup)/.test(st);   /* v193 C: the catch sequence hides the number through the reach, as catch\d does */
     const ribStance = st === "stance" || st === "stance2" || st === "stance3";   // v107
     const numberAllowed = st !== "down" && st !== "dive" && (!ribStance || m.isLine) && st.indexOf("tackle") !== 0 && !detailedAction && !ribSideProfile;
     m.label.setVisible(numberAllowed);
