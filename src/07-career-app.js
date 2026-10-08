@@ -5592,7 +5592,7 @@ ${col(
   }
   function scoutsExplainBtnV193E() {
     /* a span, not an anchor: the v146 E shell moves every `a[onclick]` in the dock into its chips row */
-    return `<span role="button" tabindex="0" class="scouts-i-v193e" onclick="event.stopPropagation();scoutsExplainV193E()" title="How the scouts decide" style="display:inline-flex;align-items:center;justify-content:center;min-width:36px;height:36px;margin:-9px -6px -9px -4px;cursor:pointer;vertical-align:middle"><b style="display:inline-block;min-width:18px;height:18px;line-height:17px;border-radius:9px;border:1px solid var(--gold);color:var(--gold);text-align:center;font-size:11px;font-weight:700">ⓘ</b></span>`; /* v193 R: a 36px target around an 18px mark */
+    return `<span role="button" tabindex="0" class="scouts-i-v193e" onclick="event.stopPropagation();scoutsExplainV193E()" title="How the scouts decide" style="display:inline-flex;align-items:center;justify-content:center;min-width:36px;height:36px;margin:-9px -6px -9px -4px;cursor:pointer;vertical-align:middle"><i style="display:inline-block;min-width:18px;height:18px;line-height:17px;border-radius:9px;border:1px solid var(--gold);color:var(--gold);text-align:center;font-size:11px;font-weight:700;font-style:normal">ⓘ</i></span>`; /* v193 R: a 36px target around an 18px mark */
   }
   // the four numbers, this player's own
   function scoutsExplainDataV193E() {
@@ -39568,7 +39568,7 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
       } catch (_) {}
     if (P.major && MEDAL_MAJOR_V179.some(x => x.id === c.id)) M.owned[c.id] = true;
     M.pending.shift();
-    M.log.push({ rank: P.rank, major: P.major, id: c.id, name: c.name, era: P.era });
+    M.log.push({ rank: P.rank, major: P.major, id: c.id, name: c.name, era: P.era, fx: c.fx && Object.keys(c.fx).length ? Object.assign({}, c.fx) : void 0, amt: c.amt || void 0 }); /* v193 K: the book quotes what it gave */
     M.log.length > 60 && M.log.splice(0, M.log.length - 60);
     try {
       syncCounters();
@@ -42051,5 +42051,61 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
     buzz: k => buzzV193O(k),
     vibrationOn: () => vibrationOnV193O(),
     toggleVibration: () => vibrationToggleV193O()
+  };
+  /* ===== v193 K THE BOOK SHOWS THE REWARDS, THE VAULT STANDS CENTRED =====
+   * (07's side.) The owner: "show medal rewards in that catalog book as well." The Legacy collection book
+   * (src/31-legacy.js) draws a ribbon under every medal for the reward it dealt and a "YOUR MEDAL REWARDS"
+   * section; this hook is everything it reads: every claimed choice (`M.log`, which since v193 K also keeps the
+   * card's fx and the windfall's amount, so the book quotes the effect line exactly — an older entry falls back on
+   * the card table's fx, then on the card's own name), the choices still waiting, the looks every 10 medals
+   * (v187), the running totals (`fxLinesV179(M.fx)`) and the Prestige the windfalls paid. Read only — the book
+   * never claims; it links to the chooser. Kill switch TU("v193K", 0) (the book drops the ribbons and the section).
+   * `window.__V193K`; `v193Kcheck`. */
+  function medalCardsV193K() {
+    return MEDAL_MAJOR_V179.concat(MEDAL_GREATER_V179, MEDAL_SMALL_V179);
+  }
+  function medalLogLinesV193K(entry) {
+    let fx = entry && entry.fx;
+    if (!fx) {
+      const card = medalCardsV193K().find(c => c.id === entry.id);
+      fx = card && card.fx;
+    }
+    const lines = fxLinesV179(fx || {});
+    if (!lines.length && entry.amt) lines.push("+" + fmtBigV179(entry.amt) + " Prestige Points, paid at once");
+    return lines;
+  }
+  function medalWindfallV193K(entry) {
+    if (entry.id !== "pp") return 0;
+    if (entry.amt) return Number(entry.amt) || 0;
+    const m = /\+([\d.,]+)\s*(K|M|B|T)?/.exec(String(entry.name || ""));
+    return m ? Math.round(parseFloat(m[1].replace(/,/g, "")) * ({ K: 1e3, M: 1e6, B: 1e9, T: 1e12 }[m[2]] || 1)) : 0;
+  }
+  function medalRewardsV193K() {
+    if (!state) return null;
+    // read only: never create the store here (a new store is a state change, and a change re-draws the profile)
+    const S = state.medalRewardsV179 || {},
+      M = { log: S.log || [], pending: S.pending || [], looksV187: S.looksV187 || [], fx: S.fx || {}, owned: S.owned || {}, seen: S.seen };
+    const cards = medalCardsV193K(),
+      iconOf = id => (cards.find(c => c.id === id) || {}).icon || "🎁",
+      log = (M.log || []).map(l => ({ rank: l.rank, major: !!l.major, era: l.era == null ? null : l.era, id: l.id, name: l.name, icon: iconOf(l.id), lines: medalLogLinesV193K(l), pp: medalWindfallV193K(l) }));
+    return {
+      log,
+      pending: (M.pending || []).map(P => ({ rank: P.rank, major: !!P.major, era: P.era == null ? null : P.era })),
+      looks: (M.looksV187 || []).map(x => ({ rank: x.rank, name: x.name, rar: x.rar, cat: x.cat })),
+      totals: fxLinesV179(M.fx),
+      pp: log.reduce((a, l) => a + l.pp, 0),
+      majorsOwned: MEDAL_MAJOR_V179.filter(c => M.owned[c.id]).length,
+      majorsAll: MEDAL_MAJOR_V179.length,
+      seen: M.seen == null ? null : M.seen,
+      looksOn: !!TU("v187", 1),
+      lookEvery: Math.max(1, TU("medalLookEveryV187", 10))
+    };
+  }
+  window.__V193K = {
+    on: () => !!(TU("v193K", 1) && TU("v179G", 1)),
+    rewards: medalRewardsV193K,
+    lookTier: n => medalLookTierV187(n),
+    fmt: n => fmtBigV179(n),
+    open: () => openMedalPickV179()
   };
 })();

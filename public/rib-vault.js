@@ -164,6 +164,7 @@
       return Math.max(0, Math.pow(Math.cos(q * Math.PI * 0.5), 0.92) * (0.90 + 0.10 * Math.cos(q * 3.1))); },
     lobe: function (th) { return 1 + 0.17 * Math.sin(th * 2 + 0.7) + 0.11 * Math.sin(th * 3 - 1.9) + 0.06 * Math.sin(th * 5 + 0.3); }
   };
+  function v193KOn() { try { return !(window.RIB_TUNE && window.RIB_TUNE.v193K === 0); } catch (e) { return true; } }
 
   /* ---------- the slots ---------- */
   /* THE HOARD IS MOSTLY STACKS.
@@ -222,6 +223,7 @@
 
   function buildSlots(coinBudget) {
     var R = rng(SEED), s = [], cum = [], total = 0, i = 0, grid = {};
+    var balance = v193KOn();
     while (total < coinBudget) {
       var u = Math.min(0.9999, total / coinBudget);
       var th, q, spill, rr, h, sink, x0, z0, y0, tries = 0;
@@ -282,6 +284,49 @@
       s[s.length - 1].cnt = k;                              // so a re-pour draws the same
       total += k; cum.push(total); i++;                     // number of coins it did before
       if (i > 4000) break;                       // a belt for the braces
+    }
+    /* v193 K: THE HEAP STANDS ON ITS MIDDLE. The pour above is v137's, draw for draw (the same columns, sizes,
+     * faces, mix — `vaultcheck`'s hoard), but `MOUND.lobe`'s odd harmonics reach 17% further out on the left than
+     * on the right (1.20 vs 1.02 of R along the x axis), so the heap sat up to 30 px left of the door. Which SIDE a coin lies on is the one free choice: in pour order,
+     * a coin that would push the heap's OUTLINE out goes to the side whose outline is shorter, any other coin to
+     * the lighter side (x -> -x; the same distance out, the same height, the same depth) — unless a coin already
+     * lies there, when it keeps its side. Both are measured the way the screen draws them (hoardBox: x * PILE.dx *
+     * k * CAM.spread, plus 0.6 of a coin's drawn size, per unit of the camera's span — the constants mirror CAM
+     * and PILE below), so at every balance the weight and the outline stand under the door. No random draw is
+     * spent, and the physics' surface (`surfaceAt`) is v137's. `RIB_TUNE.v193K = 0` restores the old heap. */
+    if (balance) {
+      var grid2 = {}, balX = 0, extL = 0, extR = 0;
+      for (i = 0; i < s.length; i++) {
+        var c = s[i], ax = Math.abs(c.x), kz5 = 1 / (1 + (0.27 + c.z * 0.26) * 2.35);
+        var e5 = ax * 1.20 * kz5 * 0.62 + 0.6 * Math.pow(kz5, 1.28) * 78 / 430 * c.size;
+        var side = e5 > Math.min(extL, extR) ? (extL <= extR ? -1 : 1) : (balX > 0 ? -1 : 1);
+        var nx = ax * side;
+        if (nx !== c.x && !claimFree(grid2, nx, c.z, c.y) && claimFree(grid2, c.x, c.z, c.y)) nx = c.x;
+        c.x = nx;
+        var ck2 = claimKey(nx, c.z, c.y);
+        (grid2[ck2] || (grid2[ck2] = [])).push([nx, c.z, c.y]);
+        if (nx < 0) extL = Math.max(extL, e5); else extR = Math.max(extR, e5);
+        balX += nx * c.cnt;
+      }
+    }
+    /* v193 K: CENTRED UNDER THE DOOR. What is left after the side rule above — one coin's overshoot of the
+     * outline, a little weight — is taken out with one constant for every coin (so the prefix rule, N coins =
+     * slots 0..N-1, and every slot's place relative to the others are untouched): the mean, over the pile as it
+     * grows (an eighth full to full), of the heap's weight centre and its outline's midpoint, both as drawn. */
+    if (balance && s.length > 8) {
+      var mids = 0, nm = 0, K0 = 1 / (1 + 0.27 * 2.35);
+      for (var f = 1; f <= 8; f++) {
+        var kk = Math.max(2, Math.round(s.length * f / 8)), lo = 1e9, hi = -1e9, mw = 0, mx = 0;
+        for (i = 0; i < kk; i++) {
+          var kz = 1 / (1 + (0.27 + s[i].z * 0.26) * 2.35), px = s[i].x * 1.20 * kz * 0.62, hw = 0.6 * Math.pow(kz, 1.28) * 78 / 430 * s[i].size;
+          if (px - hw < lo) lo = px - hw;
+          if (px + hw > hi) hi = px + hw;
+          mx += px * s[i].cnt; mw += s[i].cnt;
+        }
+        mids += ((lo + hi) / 2 + mx / Math.max(1, mw)) / 2; nm++;
+      }
+      var shiftX = mids / nm / (1.20 * K0 * 0.62);   // back into ground units, at the pile's own depth
+      for (i = 0; i < s.length; i++) s[i].x -= shiftX;
     }
     // how far out the hoard actually reaches, so the physics room can be built around it
     var ex = 0, ez = 0;
@@ -538,7 +583,11 @@
     }
     this.drawCeiling(x, w, h);
     this.drawFloor(x, w, h);
-    this.bannerWords(x, w, h);
+    /* v193 K: THE BANNERS ARE PLAIN. The owner: "remove text from the vault asset in the background". The
+     * art's own lettering was painted out in v137 and these eight words were drawn over the cloth in its
+     * place; now the banners carry only their crowns. `RIB_TUNE.v193K = 0` draws the words again. */
+    if (!(window.RIB_TUNE && window.RIB_TUNE.v193K === 0)) this.bannerWordsOffV193K = true;
+    else this.bannerWords(x, w, h);
     /* the art is lit for a hero render; the vault is a room the interface has to be read
      * over and the hoard has to be the brightest thing in it. This is the grade. */
     var grade = x.createLinearGradient(0, 0, 0, h);
@@ -1271,6 +1320,14 @@
     }
     this._hbN = n; this._hbW = this.cw; this._hbH = this.ch; this._hb = box;
     return box;
+  };
+  /* v193 K: where the hoard stands on screen — its weight centre (every drawn coin, a column counted once per
+   * coin in it) and its outline's midpoint. `v193Kcheck` holds both under the door. */
+  Scene.prototype.hoardCentreV193K = function () {
+    var k = M.slotsFor(this.slots, Math.round(this.nShown)), s = this.slots.slot, p = {}, mx = 0, mw = 0;
+    for (var i = 0; i < k; i++) { this.cam.project(s[i].x * PILE.dx, s[i].y * PILE.dy, PILE.z + s[i].z * PILE.dz, p); mx += p.x * s[i].cnt; mw += s[i].cnt; }
+    var h = this.hoardBox();
+    return { mass: mw ? mx / mw : this.cw / 2, outline: (h.x0 + h.x1) / 2 };
   };
 
   /* Where a point on the screen lands in the hoard's own ground space. The horizontal is
