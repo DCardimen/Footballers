@@ -7125,8 +7125,8 @@
 
   /* ===== v193 I EVERY SHEET, EVERY PHONE =====
    * The generator's skin mask (cel_*_skin_*x.png) is the CORE skin; the lit edges of an arm or a face sit in ribRecolor's
-   * gold band outside it, so a kit whose second colour is skin-like wore them as p2 (scripts/v193Icheck.mjs: ~40% of the
-   * frames). `skinLocalV193I` cuts the frame's piece of the mask (1 = the generator's) and grows it with the field's own
+   * gold band outside it, so a kit whose second colour is skin-like wore them as p2 (scripts/v193Icheck.mjs: 4 of 36 v161 A
+   * frames at 1x over the limit). `skinLocalV193I` cuts the frame's piece of the mask (1 = the generator's) and grows it with the field's own
    * rule (`__V161A_FIELD.skinGrow`, 05 `skinGrowV193I`; 2 = grown), and the tone paints both — the tone's reference
    * lightness stays the generator's. Off: TU v193C 0 or skinGrowV193I 0 (the field's switch returns 0 pixels grown). */
   function skinLocalV193I(sk, sw, r, w, h, src, F) {
