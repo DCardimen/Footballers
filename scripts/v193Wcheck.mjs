@@ -11,6 +11,7 @@
 //     screen with HOW LONG matching the real weeks (the games he then sits, the week he is back), the heal opens the
 //     "cleared to play" pop-up, two injuries in a quick-simmed run show in order (hurt, healed, hurt, healed), nothing
 //     shows over the Quick Play card; `seenV193W`; no page errors.
+//   Screens: scripts/_v193W_{card,recap,injury,heal,settings}.png
 //   node scripts/v193Wcheck.mjs        (GAME_URL=http://localhost:5173/)
 import { chromium } from 'playwright'
 import { CHROME, GAME_URL } from './lib/env.mjs'
@@ -95,11 +96,12 @@ const card = await page.evaluate(() => {
   const f = o.querySelector('.recap-v193w'), body = f && f.querySelector('.recap-body-v193w'), hero = o.querySelector('#pgHeroV186'), reel = o.querySelector('#reelV178')
   return { fold: !!f, open: f && f.classList.contains('open'), bodyH: body ? body.getBoundingClientRect().height : -1, head: f && f.querySelector('.recap-head-v193w').innerText.replace(/\s+/g, ' ').trim(), hero: !!hero && hero.getBoundingClientRect().height > 0, reel: !reel || reel.getBoundingClientRect().height > 0, seasonInside: !!(f && f.querySelector('.fullbox')), pbp: f ? f.querySelectorAll('.pbp-row-v193w').length : 0, dlg: !!document.querySelector('#ribDlgV149 .inj-pop-v193w') }
 })
-console.log('card:', JSON.stringify(card))
+console.log('card:', JSON.stringify(card)); await page.screenshot({ path: 'scripts/_v193W_card.png' }).catch(() => {})
 ok(card && card.fold && !card.open && card.bodyH === 0 && /PLAY-BY-PLAY RECAP/.test(card.head || ''), 'the post-game recap is folded by default behind ▸ PLAY-BY-PLAY RECAP', card)
 ok(card && card.hero && card.reel && card.seasonInside, 'the YOUR GAME tiles and the reel stay up; the season / game box is inside the fold', card)
 const tap = await page.evaluate(async () => { const o = document.getElementById('pgOverlayV13'), f = o.querySelector('.recap-v193w'); f.querySelector('.recap-head-v193w').click(); await new Promise(r => setTimeout(r, 120))
   return { open: f.classList.contains('open'), h: f.querySelector('.recap-body-v193w').getBoundingClientRect().height, ls: localStorage.getItem('rib.recapOpen.v193'), rows: f.querySelectorAll('.pbp-row-v193w').length } })
+await page.evaluate(() => document.querySelector('#pgOverlayV13 .recap-v193w').scrollIntoView({ block: 'start' })); await page.screenshot({ path: 'scripts/_v193W_recap.png' }).catch(() => {})
 ok(tap.open && tap.h > 40 && tap.ls === '1', 'a tap opens it (the play-by-play and the box) and the device remembers', tap)
 ok(card && !card.dlg, 'no injury pop-up over the post-game card', card)
 await page.waitForTimeout(2000)
@@ -122,7 +124,7 @@ const L = await page.evaluate(() => {
   const p = window.__getGridironState().player, c = p.conditionV11, inj = c && c.injury, sit = window.__mustSitV18(p)
   return { name: d.querySelector('.inj-name-v193w').textContent, what: d.querySelector('.inj-what-v193w').textContent, how: d.querySelector('.inj-how-v193w').textContent, out: +d.dataset.out, id: d.dataset.id, cur: inj && { id: inj.idV193W, name: inj.name, wr: inj.weeksRemaining, sev: inj.severity }, sit, view: window.__getGridironState().view, means: d.querySelector('.inj-means-v193w').textContent }
 })
-console.log('live injury:', JSON.stringify(pre), JSON.stringify(L))
+console.log('live injury:', JSON.stringify(pre), JSON.stringify(L)); await page.screenshot({ path: 'scripts/_v193W_injury.png' }).catch(() => {})
 ok(!L.none && L.cur && L.id === L.cur.id && L.name === L.cur.name, 'the knock that became an injury in the watched game opens the pop-up after the card', L)
 ok(!L.none && /(1st|2nd|3rd|4th) quarter|overtime|in the game/.test(L.what), 'WHAT HAPPENED names the snap (quarter and clock) — or the game', L.what)
 ok(!L.none && L.cur && (L.sit ? new RegExp('Out ' + (L.cur.wr) + ' game').test(L.how) : L.cur.wr > 0 ? new RegExp('next ' + L.cur.wr + ' game').test(L.how) : /through it/.test(L.how)), 'HOW LONG is the injury\'s own weeks', { how: L.how, cur: L.cur, sit: L.sit })
@@ -161,7 +163,7 @@ ok(!(await readDlg()), 'still once after another screen')
 const w2 = await simWeek(null)
 await page.evaluate(() => window.go('season'))
 const d2 = await waitDlg()
-console.log('heal:', JSON.stringify(d2))
+console.log('heal:', JSON.stringify(d2)); await page.screenshot({ path: 'scripts/_v193W_heal.png' }).catch(() => {})
 ok(d2 && d2.kind === 'heal' && /CLEARED TO PLAY/.test(d2.txt) && d2.back === wi + 2, 'the heal opens the "cleared to play" pop-up, back for the same week', d2)
 await okDlg(); await page.waitForTimeout(500)
 const w3 = await simWeek(null)
@@ -205,7 +207,7 @@ const set = await page.evaluate(async () => { const r = document.getElementById(
   r.querySelector('button[data-mode=off]').click(); await new Promise(res => setTimeout(res, 200))
   const r2 = document.getElementById('bigSlowRowV193W'); out.after = r2 && [...r2.querySelectorAll('button[data-mode]')].filter(b => b.classList.contains('secondary')).map(b => b.dataset.mode); out.stored = window.__getGridironState().settings.bigSlowV193W
   return out })
-console.log('settings:', JSON.stringify(set))
+console.log('settings:', JSON.stringify(set)); await page.evaluate(() => document.getElementById('bigSlowRowV193W')?.scrollIntoView({ block: 'center' })); await page.screenshot({ path: 'scripts/_v193W_settings.png' }).catch(() => {})
 ok(set.row && set.live && set.modes.join() === 'off,subtle,dramatic' && set.active.join() === 'subtle', 'Settings › LIVE GAME has the "Big-play slow motion" row: Off · Subtle · Dramatic, Subtle by default', set)
 ok(set.after && set.after.join() === 'off' && set.stored === 'off', 'Off is stored and drawn', set)
 
