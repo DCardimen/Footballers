@@ -11656,10 +11656,14 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
    *     the kill switch reads it back). The base effects (`power`, `startAll`) stay flat.
    * Kill switch `TU("v193X", 1)` → 0: every roll and every piece reads its old flat number again. `window.__V193X`;
    * `v193Xcheck.mjs`. */
-  /* the typical attribute by level (Pee Wee … Interstellar): KEY = the position's rated stats (the roll pools), ALL = the
-   * mean of every attribute — season-end sheets of scripts/careersim.mjs careers (docs/CHANGELOG.md, v193 X) */
+  /* the typical attribute by level (Pee Wee … Interstellar): KEY = the mean of the position's roll-pool stats (the
+   * growth wheel's POOLS, which the plan roll and the story wheel draw from too), ALL = the mean of every attribute.
+   * MEASURED, Pee Wee → College: the season-end sheets of scripts/careersim.mjs careers (smart policy, 2 accounts, 3
+   * careers each, 82 seasons) — key 17.6 · 30.6 · 48.1 · 56.5 · 76.4 · 102.9, all 16.5 · 22.9 · 31.8 · 36.3 · 46.5 · 61.8.
+   * EXTRAPOLATED above College (no probe career got there in the time): the Combine and the UFF on the same climb, the
+   * Interstellar League at v183's "a newcomer ~OVR 350". College's key is 100 → a flat point is exactly 1%. */
   function refTablesV193X() {
-    return { key: [16, 28, 42, 56, 66, 72, 78, 85, 135], all: [13, 23, 34, 45, 53, 58, 62, 68, 108] }; /* a function, so a boot-time render can never outrun it (v140) */
+    return { key: [18, 31, 48, 57, 76, 100, 115, 140, 350], all: [16, 23, 32, 36, 46, 62, 70, 85, 210] }; /* a function, so a boot-time render can never outrun it (v140) */
   }
   function rollPctOnV193X() {
     return !!TU("v193X", 1);

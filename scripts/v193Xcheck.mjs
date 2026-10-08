@@ -128,10 +128,10 @@ const I = await M(() => {
   const am = it.mods.filter((m) => /^a_/.test(m.k))
   r.newPiece = { tag: it.attrPctV193X, mods: am, ok: am.every((m) => m.flatV193X > 0 && m.v === X.gearPct(m.flatV193X, 5) && Number.isInteger(m.v)) }
   // an old piece migrates once
-  const old = { id: 'old_x', slot: 'gloves', rarity: 'epic', name: 'Phantom Gloves', eff: 'growth', val: 0.05, icon: '🧤', modsV147: 1, tierV147: 4, mods: [{ k: 'a_speed', v: 10 }, { k: 'p_rushYds', v: 0.1 }] }
+  const old = { id: 'old_x', slot: 'gloves', rarity: 'epic', name: 'Phantom Gloves', eff: 'growth', val: 0.05, icon: '🧤', modsV147: 1, tierV147: 4, mods: [{ k: 'a_speed', v: 6 }, { k: 'p_rushYds', v: 0.1 }] }
   V.ensure(old); const once = JSON.stringify(old.mods); V.ensure(old); V.ensure(old)
-  r.migrate = { mods: old.mods, tag: old.attrPctV193X, want: X.gearPct(10, 4), twice: JSON.stringify(old.mods) === once }
-  // as strong as before at the tier it dropped: at the reference attribute it is ~10 points
+  r.migrate = { mods: old.mods, tag: old.attrPctV193X, want: X.gearPct(6, 4), twice: JSON.stringify(old.mods) === once }
+  // as strong as before at the tier it dropped: at the reference attribute it is ~6 points
   S.equipped = { gloves: old }; L.ensure(old); old.lvlV193 = 0
   const ref4 = X.ref(4, true); p.attrs.speed = ref4; r.atRef = { ref4, pts: V.effAttrs(p).gear.speed }
   // the level multiplier rides on top, and the points keep pace with the attribute
@@ -148,14 +148,14 @@ const I = await M(() => {
   window.RIB_TUNE.v193X = 0; S.equipped = Object.assign({}, S.equipped)
   r.capOff = V.get('a_speed')
   S.equipped = { gloves: old }; p.attrs.speed = 80
-  r.off = { got: V.get('a_speed'), want: Math.round(10 * L.mult(old)), gear: V.effAttrs(p).gear.speed }
+  r.off = { got: V.get('a_speed'), want: Math.round(6 * L.mult(old)), gear: V.effAttrs(p).gear.speed }
   delete window.RIB_TUNE.v193X; S.equipped = Object.assign({}, S.equipped)
   r.back = V.get('a_speed')
   return r
 })
 ok(I.newPiece.tag === 1 && I.newPiece.ok, 'a new piece rolls its attribute modifiers as whole percents of the tier\'s typical attribute (flat kept)', I.newPiece.mods)
-ok(I.migrate.tag === 1 && I.migrate.mods[0].v === I.migrate.want && I.migrate.mods[0].flatV193X === 10 && I.migrate.mods[1].v === 0.1 && I.migrate.twice, 'an old piece migrates its a_* once (+10 Speed at tier 4 → +' + I.migrate.want + '%), production lines untouched', I.migrate)
-ok(Math.abs(I.atRef.pts - 10) <= 1, 'at the tier\'s typical attribute the piece is as strong as before (~+10)', I.atRef)
+ok(I.migrate.tag === 1 && I.migrate.mods[0].v === I.migrate.want && I.migrate.mods[0].flatV193X === 6 && I.migrate.mods[1].v === 0.1 && I.migrate.twice, 'an old piece migrates its a_* once (+6 Speed at tier 4 → +' + I.migrate.want + '%), production lines untouched', I.migrate)
+ok(Math.abs(I.atRef.pts - 6) <= 1, 'at the tier\'s typical attribute the piece is as strong as before (~+6)', I.atRef)
 ok(I.level.got === I.level.want && I.level.mult > 1, 'the v193 A level multiplier rides on top (a whole percent)', I.level)
 ok(I.pts.at80 === I.pts.want80 && I.pts.at200 === I.pts.want200 && I.pts.at200 > I.pts.at80, 'effAttrsV85: the points are the percent of his own attribute (keeps pace)', I.pts)
 ok(I.cap.got === I.cap.cap && I.cap.cap === 25, 'two +20% pieces are capped at gearAttrPctCapV193X (25%)', I.cap)

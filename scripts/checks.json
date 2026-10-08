@@ -39,7 +39,8 @@
     "v193Jcheck",
     "v193Pcheck",
     "v193Icheck",
-    "v193Ocheck"
+    "v193Ocheck",
+    "v193Xcheck"
    ]
   },
   "docs": {
@@ -139,7 +140,8 @@
   "gear": {
    "desc": "v147 C — gear rolled modifiers, catalogue, migration, locker",
    "anchors": [
-    "v147 C"
+    "v147 C",
+    "v193 X"
    ],
    "files": [],
    "checks": [
@@ -153,7 +155,9 @@
     "v146Echeck",
     "v146Dcheck",
     "walk",
-    "menu-integration-check"
+    "menu-integration-check",
+    "v193Xcheck",
+    "v192Acheck"
    ]
   },
   "camera": {
@@ -273,7 +277,8 @@
    "desc": "v146 D — the weekly plan board, projection / variance, form swing, the live game inputs",
    "anchors": [
     "v146 D",
-    "v193 B"
+    "v193 B",
+    "v193 X"
    ],
    "files": [],
    "checks": [
@@ -291,7 +296,8 @@
     "bootviewcheck",
     "walk",
     "matchupcheck",
-    "v193Bcheck"
+    "v193Bcheck",
+    "v193Xcheck"
    ],
    "variants": [
     "`POS=QB,DL,S` for `v146Dcheck` (default RB,WR,LB)"
@@ -588,7 +594,8 @@
   "wheel": {
    "desc": "v135 — the game-plan wheel, the held roll, the fifth pregame page",
    "anchors": [
-    "v135"
+    "v135",
+    "v193 X"
    ],
    "files": [],
    "checks": [
@@ -598,7 +605,8 @@
     "v111Bcheck",
     "v85check",
     "walk",
-    "scrollcheck"
+    "scrollcheck",
+    "v193Xcheck"
    ]
   },
   "goals": {
@@ -4955,7 +4963,8 @@
    "file": "scripts/v192Acheck.mjs",
    "desc": "v192 — flat prestige (milestones, challenges, orders, titles, Daily Drive, bounties) pays a tenth and the flat bank is capped at half the career's pay; the medal windfall 10%; practice reps and the reps card halved; the fate roll is a percent that can pass the cap; the Extra Card is a 1.2M Impossible node; flip stats spread, Focused Reps leans them.",
    "areas": [
-    "season"
+    "season",
+    "gear"
    ],
    "runtimeSec": 60,
    "slow": false,
@@ -5193,6 +5202,21 @@
     "cosmetics"
    ],
    "runtimeSec": 100,
+   "slow": false,
+   "needsServer": true,
+   "pureNode": false,
+   "flaky": []
+  },
+  "v193Xcheck": {
+   "file": "scripts/v193Xcheck.mjs",
+   "desc": "v193 X — rolls and items in percent: at Pee Wee / College / UFF attribute levels the old flat roll vs the new percent (equal at College within 15%, fewer points below, more above, the same share of the attribute); the growth wheel, the plan roll (silentPlan), the story wheel, the +1 Permanent and Extra reps flips and the fate roll hand out whole percents through the real functions and compose into points off the attribute; the projection prices the percent; gear a_* modifiers roll as percents of the tier's typical attribute, an old piece migrates once, the level multiplier rides on top, the per-attribute cap is 25%, effAttrsV85 carries the points; v193X 0 restores every flat number; no decimals on the locker, the hub chips or the roll lines.",
+   "areas": [
+    "gear",
+    "plan",
+    "wheel",
+    "smoke"
+   ],
+   "runtimeSec": 45,
    "slow": false,
    "needsServer": true,
    "pureNode": false,
