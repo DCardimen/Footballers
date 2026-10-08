@@ -1060,6 +1060,7 @@ function ribRecolor(src, p1hex, p2hex) {
  * Kill switch `TU("skinV151D", 0)`: no layer, and the old recolour. `window.__V151D_SKIN`. */
 const SKIN_TONES_V151D = ["#f3d2b3", "#e8bc97", "#d6a37c", "#bf8a62", "#a4704b", "#86573a", "#6a432c", "#4f3121"];
 function skinToneV151D(p) {
+  if (p && typeof p.skinTone === "string" && skinHexV193Q(p.skinTone)) return skinHexV193Q(p.skinTone);   // v193 Q: his custom tone
   if (p && Number.isFinite(p.skinTone)) return Math.max(0, Math.min(SKIN_TONES_V151D.length - 1, Math.round(p.skinTone)));
   const s = String(p && typeof p === "object" ? (p.name || p.id || "") : (p == null ? "" : p));
   let h = 2166136261; for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); }
@@ -6503,7 +6504,7 @@ class Ot extends mt.Scene {
     if (!key || !this.textures.exists(key) || m.body.visible === false) { if (sk.visible) sk.setVisible(false); return; }
     if (sk.texture.key !== key) sk.setTexture(key);
     if (!sk.visible) sk.setVisible(true);
-    const b = m.body, tone = SKIN_TONES_V151D[m.skinTone != null ? m.skinTone : 3] || SKIN_TONES_V151D[3];
+    const b = m.body, tone = skinHexV193Q(m.skinTone != null ? m.skinTone : 3) || SKIN_TONES_V151D[3];   // v193 Q: an index or his custom hex
     const tv = parseInt(tone.slice(1), 16), lt = b.isTinted ? b.tintTopLeft : 0xffffff;
     const mulc = (s2) => Math.round(((tv >> s2) & 255) * ((lt >> s2) & 255) / 255);
     const tint = (mulc(16) << 16) | (mulc(8) << 8) | mulc(0);
@@ -9069,7 +9070,7 @@ class Ot extends mt.Scene {
       else if (A && A.nm) { const parts = String(A.nm).trim().split(/\s+/); name = parts[parts.length - 1]; }
     } catch (e) {}
     const kit = m ? (you ? "you" : (m.kit || m.team || "off")) : (idx >= 11 ? "def" : "off");
-    return { idx, you, kit, name: name.toUpperCase().slice(0, 14), tone: m && Number.isFinite(m.skinTone) ? m.skinTone : null };
+    return { idx, you, kit, name: name.toUpperCase().slice(0, 14), tone: m && (Number.isFinite(m.skinTone) || skinHexV193Q(m.skinTone)) ? m.skinTone : null };   // v193 Q: a custom hex rides too
   }
   // the team's colours (ints, brightened for a dark kit so a burst still shows against the night)
   partyColsV177C(kit, extra) {
@@ -11562,6 +11563,75 @@ class Dt {
     rebindOnSwapV163A(this.game);   // v163 A: and a texture swapped under a sprite is rebound before it is drawn
   }
 }
+/* ===== v193 Q HIS SKIN, HIS NUMBER, HIS KIT =====
+ * (the field) The creation screen's ninth swatch is a CUSTOM tone: `player.skinTone` is a preset index (0-7, v193 C)
+ * or a hex string ("#a4704b", a picker held to plausible skin: hue 15-40, saturation 25-60%, lightness 18-85%).
+ * `skinHexV193Q(v)` is the ONE resolver here: an index -> SKIN_TONES_V151D[i], a valid hex -> itself (lower-case),
+ * anything else -> null. `skinToneV151D` hands a custom hex through (so the you-marker's `m.skinTone` may be a hex),
+ * `skinSyncV151D` tints with the resolved hex, and the jumbotron party's hero carries it to src/28's celebration
+ * body. Published as `window.__V193Q.skinHex` for src/28 and src/07 (05 and 28 share no code). Kill switch
+ * TU("v193Q", 0): a hex reads as "no choice" (the name's tone), as before. Looks only. */
+function skinHexV193Q(v) {
+  if (typeof v === "string") { const t = v.trim(); return /^#[0-9a-f]{6}$/i.test(t) && TU("v193Q", 1) ? t.toLowerCase() : null; }
+  if (typeof v === "number" && Number.isFinite(v)) return SKIN_TONES_V151D[Math.max(0, Math.min(SKIN_TONES_V151D.length - 1, Math.round(v)))];
+  return null;
+}
+/* THE LOCKER'S PREVIEW IS THE FIELD'S MAN. src/28 drew every uniform / helmet preview off the loading chase's cell
+ * recolour (03 `cell`), which is not what the field wears: it skips every pixel darker than L 38 (the jersey's folds stay
+ * navy), sends the skin's warm highlights to the kit's second colour, keeps the art's orange placeholder for skin, and
+ * prints no number. `fieldPreviewV193Q(cell, p1, p2, deco, tone, num, spec)` builds one drawn cell exactly as
+ * `ribRegisterTeam` does (`kitCellV193C`: the recolour, the deco, the skin restored), then lays the v151 D skin layer on
+ * it in his tone and the v176 print on the chest (the same placement, `placeV176`, and the same ink rule as `inkV176`,
+ * read off this canvas), with no scene. Returns { cv, mask (the skin), skinPx, numPx, num (the print's pixels) }. */
+function fieldPreviewV193Q(srcName, p1, p2, deco, tone, num, spec) {
+  const cell0 = ribCellV91(srcName) || ribCellV22(srcName) || ribCell(srcName); if (!cell0) return null;
+  const built = kitCellV193C(cell0, srcName, p1, p2, deco || null, numBandV104(srcName, cell0));
+  const N = 48, cv = document.createElement("canvas"); cv.width = N; cv.height = N;
+  const x = cv.getContext("2d"); x.imageSmoothingEnabled = false; x.drawImage(built.cv, 0, 0);
+  const img = x.getImageData(0, 0, N, N), d = img.data, sk = built.sk151, out = { cv, mask: sk ? sk.mask : null, skinPx: 0, numPx: 0, num: null, tone: null };
+  // the skin layer: v151 D's grey luminance cell times his tone (the preview's light is white)
+  if (sk && TU("skinV151D", 1)) {
+    const hx = skinHexV193Q(tone != null ? tone : 3) || SKIN_TONES_V151D[3], tv = hexRgbV176(hx), g = skinCellV151D(srcName, cell0, sk).getContext("2d").getImageData(0, 0, N, N).data;
+    for (let i = 0; i < N * N; i++) { if (!sk.mask[i]) continue; const v = g[i * 4]; d[i * 4] = Math.round(tv[0] * v / 255); d[i * 4 + 1] = Math.round(tv[1] * v / 255); d[i * 4 + 2] = Math.round(tv[2] * v / 255); d[i * 4 + 3] = 255; out.skinPx++; }
+    out.tone = hx;
+  }
+  // the print: v176's placement on this cell, its ink off these pixels (or the number font's spec)
+  const str = String(num == null ? "" : num).replace(/[^0-9]/g, "").slice(0, 2), F = facingV176(srcName);
+  if (str && F && TU("v176sew", 1)) {
+    try {
+      const P = placeV176(srcName, F, false, str, spec && spec.narrow), TC = P ? torsoClassV176(srcName, cell0) : null;
+      if (P && TC) {
+        const J = [[], [], []], S2 = [[], [], []], med = (a) => { a.sort((p, q) => p - q); return a.length ? a[a.length >> 1] : 0; };
+        for (let i = 0; i < N * N; i++) { const k = TC.cls[i] === 1 ? J : TC.cls[i] === 2 ? S2 : null; if (k && d[i * 4 + 3] > 200) { k[0].push(d[i * 4]); k[1].push(d[i * 4 + 1]); k[2].push(d[i * 4 + 2]); } }
+        if (J[0].length) {
+          const j = J.map(med), alt = S2[0].length ? S2.map(med) : null, nom = hexRgbV176(p1), nom2 = hexRgbV176(p2), Ln = lumRgbV176(nom), La = lumRgbV176(nom2);
+          let fill, trim;
+          if (Ln > TU("sewLightV176", 160)) { fill = alt && Ln - La > TU("sewInkGapV176", 80) ? alt : nom.map((v) => Math.round(v * 0.18)); trim = null; }
+          else { fill = [255, 255, 255]; trim = alt && 255 - La > TU("sewTrimGapV176", 45) && Math.abs(La - Ln) > 30 ? alt : j.map((v) => Math.round(v * 0.5)); }
+          if (spec) { fill = hexRgbV176(spec.fill); trim = hexRgbV176(spec.trim); }
+          const T = P.T, lo = TU("sewShadeLoV176", 0.62), hi = TU("sewShadeHiV176", 1.1), mask = new Uint8Array(N * N);
+          const set = (px, py, c) => { if (py < T.y0 || T.at(px, py) !== 1) return; const i = py * N + px, f = Math.max(lo, Math.min(hi, T.lumAt(px, py) / T.med));
+            d[i * 4] = Math.min(255, c[0] * f); d[i * 4 + 1] = Math.min(255, c[1] * f); d[i * 4 + 2] = Math.min(255, c[2] * f); d[i * 4 + 3] = 255; if (!mask[i]) { mask[i] = 1; out.numPx++; } };
+          const fillPx = [], isFill = new Set();
+          for (const p of P.Lo.parts) for (let gy = 0; gy < p.g.length; gy++) { const row = p.g[gy]; for (let gx = 0; gx < row.length; gx++) if (row[gx] === "#") { const fx = P.x0 + p.x + gx, fy = P.y0 + gy; fillPx.push(fx, fy); isFill.add(fy * N + fx); } }
+          if (P.trim && trim) {   // round the OUTSIDE of the numerals only (a 0's counter stays shirt), as v176 does
+            const bx0 = P.x0 - 2, by0 = P.y0 - 2, bw = P.Lo.w + 4, bh = P.Lo.h + 4, outside = new Uint8Array(bw * bh), q = [0];
+            outside[0] = 1;
+            while (q.length) { const jj = q.pop(), qx = jj % bw, qy = (jj / bw) | 0;
+              for (const [ddx, ddy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) { const nx = qx + ddx, ny = qy + ddy; if (nx < 0 || ny < 0 || nx >= bw || ny >= bh) continue; const nj = ny * bw + nx; if (outside[nj] || isFill.has((by0 + ny) * N + bx0 + nx)) continue; outside[nj] = 1; q.push(nj); } }
+            for (let k = 0; k < fillPx.length; k += 2) for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) { const tx = fillPx[k] + dx, ty = fillPx[k + 1] + dy; if (!isFill.has(ty * N + tx) && outside[(ty - by0) * bw + (tx - bx0)]) set(tx, ty, trim); }
+          }
+          for (let k = 0; k < fillPx.length; k += 2) set(fillPx[k], fillPx[k + 1], fill);
+          out.num = mask;
+        }
+      }
+    } catch (e) {}
+  }
+  x.putImageData(img, 0, 0);
+  return out;
+}
+window.__V193Q = Object.assign(window.__V193Q || {}, { skinHex: skinHexV193Q, tones: SKIN_TONES_V151D, fieldPreview: fieldPreviewV193Q });
+
 window.PhaserFieldBridge = Dt;
 window.__pickFeaturedIndex = pickFeaturedIndex;
 
