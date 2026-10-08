@@ -585,10 +585,10 @@
     }).join("");
   }
   function pageHtml(g, p) {
-    var R = g.R, have = Math.min(500, R.rank), P = pages(), T = P[p], last = P.length - 1, cells = [];
+    var R = g.R, have = Math.min(500, R.rank), P = pages(), T = P[p], last = P.length - 1, cells = [], RW = rwDataV193K();
     for (var r = T.from; r <= T.to; r++) {
-      var on = r <= have;
-      cells.push('<button type="button" class="lgb-cell' + (on ? "" : " locked") + (r === R.medal ? " cur" : "") + (r === have + 1 ? " next" : "") + (r % 10 === 0 ? " ms" : "") + '" data-rank="' + r + '">' + medalHtml(r, 28, { flat: true, locked: !on, title: false }) + "</button>");
+      var on = r <= have, rw = RW ? rwOfV193K(RW, r, have) : null;   // v193 K: the reward ribbon under the medal
+      cells.push('<button type="button" class="lgb-cell' + (on ? "" : " locked") + (r === R.medal ? " cur" : "") + (r === have + 1 ? " next" : "") + (r % 10 === 0 ? " ms" : "") + '" data-rank="' + r + '"' + (rw ? ' title="' + esc("Legacy " + r + " — " + rw.text) + '"' : "") + ">" + medalHtml(r, 28, { flat: true, locked: !on, title: false }) + (rw ? rwRibbonV193K(rw) : "") + "</button>");
     }
     var owned = Math.max(0, Math.min(T.to - T.from + 1, have - T.from + 1));
     return '<div class="lgb-page" data-page="' + p + '" style="--tint:' + (T.tint || "#3a2610") + '"><div class="lgb-pt"><b><i class="lgb-sw"></i>' + esc(T.name) + "</b><small>RANKS " + T.from + "–" + T.to + " · " + owned + "/" + (T.to - T.from + 1) + simsPageV159B(T) + "</small></div>" +
@@ -602,7 +602,191 @@
     var p = BOOK.page;
     return '<div class="card lg-book-v152"><div class="lgk-head"><span>THE COLLECTION BOOK</span><b>' + have + " / 500</b></div>" +
       '<div class="lgb-tabs">' + tabsHtml(g, p) + '</div><div class="lgb-stage" style="--lgb-rows:' + pages().reduce(function (m, t) { return Math.max(m, Math.ceil((t.to - t.from + 1) / 10)); }, 1) + '">' + pageHtml(g, p) + "</div>" +
-      '<div class="lgb-hint">SWIPE OR TAP A CORNER TO TURN THE PAGE</div><div class="lgb-detail"></div></div>';
+      '<div class="lgb-hint">SWIPE OR TAP A CORNER TO TURN THE PAGE</div><div class="lgb-detail"></div>' + rwSummaryV193K() + "</div>";
+  }
+  /* ===== v193 K THE BOOK SHOWS THE REWARDS, THE VAULT STANDS CENTRED =====
+   * (the book's side) The owner: "Show medal rewards in that catalog book as well. Improve the page turn animation."
+   * THE REWARDS. Every medal on a page wears a small ribbon under it for the reward it dealt (v179 G's choice, read from
+   * 07 through `window.__V193K.rewards()`): the claimed card's icon, 🎁 for a choice still waiting, and for a medal not
+   * earned yet what it WILL deal — "2" (a choice of two) or ★ (every 10th: a MAJOR, a choice of two unique upgrades, and
+   * v187's new look). The cell's title and the tap-detail spell it out ("MEDAL REWARD · 🧬 +1 starting Speed · +1 Speed
+   * at the start of every career"; "Waiting — CHOOSE NOW ▸"; "MAJOR: a choice of two unique upgrades + a new epic look").
+   * Under the book, "YOUR MEDAL REWARDS": every reward claimed (newest first, six then SHOW ALL) with its effect line
+   * (`fxLinesV179`), the running totals of every permanent bonus, the majors owned, the windfall PP, the looks earned,
+   * a key to the ribbons, and the chooser when one is waiting. The book's look is unchanged; the ribbons are captions.
+   * THE PAGE TURN (`prepTurnV193K`). The leaf CURLS: it is five hinged strips (two fifths of the page, then four narrower
+   * ones) nested on the spine, each turning a little AHEAD of the one before it (`LEAD_V193K`), so the free edge leads and
+   * the paper bends instead of swinging like a door. Every strip is shaded by its own angle (Lambert: darker as it turns
+   * edge-on) with a darker band at its fold and a soft highlight along the bend; the back of the leaf is paper with the
+   * page's print showing faintly through it (mirrored, as it would be); the shadow it casts slides across the page beneath;
+   * the leaf fades as it settles past the spine, so it never sweeps off the book. 450 ms, ease-in-out (a riffle's middle
+   * pages 190). A swipe follows the finger and completes past HALF (or on a flick), else falls back. Reduced motion: a
+   * plain 220 ms cross-fade, no 3D at all. Kill switch TU("v193K", 0): no ribbons, no section, v152 A's leaf. `v193Kcheck`. */
+  var tuK = function (k, d) { try { return typeof TU === "function" ? TU(k, d) : d; } catch (e) { return d; } };
+  function rwDataV193K() {
+    var K = window.__V193K, D = null;
+    try { if (!K || !tuK("v193K", 1) || !K.on()) return null; D = K.rewards(); } catch (e) { return null; }
+    if (!D) return null;
+    D.byRank = {}; D.pendRank = {}; D.lookRank = {};
+    D.log.forEach(function (l) { if (l.era == null) D.byRank[l.rank] = l; });
+    D.pending.forEach(function (q) { if (q.era == null && !D.pendRank[q.rank]) D.pendRank[q.rank] = q; });
+    D.looks.forEach(function (x) { D.lookRank[x.rank] = x; });
+    return D;
+  }
+  function lookToComeV193K(D, r) {
+    if (!D.looksOn || r % D.lookEvery) return "";
+    var t = ""; try { t = window.__V193K.lookTier(r) || ""; } catch (e) {}
+    return "a new " + (t ? t + " " : "") + "look";
+  }
+  /* what medal r dealt, or will deal: { kind, icon, text, ... } */
+  function rwOfV193K(D, r, have) {
+    var l = D.byRank[r], q = D.pendRank[r], look = D.lookRank[r], lk = look ? "🎨 " + look.name + " (" + look.rar + " look)" : "";
+    if (l) return { kind: l.major ? "major" : "got", icon: l.icon, name: l.name, lines: l.lines, major: l.major, look: lk,
+      text: (l.major ? "MAJOR · " : "") + l.name + (l.lines.length ? " — " + l.lines.join(" · ") : "") + (lk ? " · " + lk : "") };
+    if (q) return { kind: "wait", icon: "🎁", wait: 1, major: q.major, look: lk,
+      text: "waiting — " + (q.major ? "MAJOR: a choice of two sealed unique upgrades" : "a choice of two rewards") + ", yours to pick" + (lk ? " · " + lk : "") };
+    if (r <= have) {
+      if (r === 1) return { kind: "none", icon: "", text: "where every legacy starts — no reward to deal" };
+      return { kind: "none", icon: lk ? "🎨" : "", look: lk,
+        text: (D.log.length >= 60 ? "its choice is older than the rewards ledger keeps (the last 60)" : "earned before the medal rewards began — no choice was dealt") + (lk ? " · " + lk : "") };
+    }
+    var lf = lookToComeV193K(D, r);
+    if (r % 10 === 0) return { kind: "fmajor", icon: "★", text: "MAJOR: a choice of two unique upgrades" + (lf ? " + " + lf + " (every " + D.lookEvery + " medals)" : "") };
+    return { kind: "fsmall", icon: "2", text: "a choice of two rewards" + (lf ? " + " + lf : "") };
+  }
+  function rwRibbonV193K(rw) { return rw.icon ? '<i class="lgb-rib-v193k k-' + rw.kind + '" aria-hidden="true">' + esc(rw.icon) + "</i>" : ""; }
+  function rwDetailV193K(r, have) {
+    var D = rwDataV193K(); if (!D) return "";
+    var rw = rwOfV193K(D, r, have), h;
+    if (rw.kind === "got" || rw.kind === "major")
+      h = "<b>" + (rw.major ? "MAJOR · " : "") + esc(rw.icon + " " + rw.name) + "</b>" + (rw.lines.length ? "<span>" + rw.lines.map(esc).join(" · ") + "</span>" : "") + (rw.look ? "<span>" + esc(rw.look) + "</span>" : "");
+    else if (rw.wait)
+      h = "<b>🎁 " + (rw.major ? "A MAJOR TO CHOOSE" : "A REWARD TO CHOOSE") + "</b><span>" + esc(rw.text) + '</span><button type="button" class="lgb-rwgo-v193k" data-rwgo-v193k="1">CHOOSE NOW ▸</button>';
+    else h = "<span>" + esc(rw.text.charAt(0).toUpperCase() + rw.text.slice(1)) + "</span>";
+    return '<div class="lgb-drw-v193k k-' + rw.kind + '"><em>MEDAL REWARD</em>' + h + "</div>";
+  }
+  function rwSummaryV193K() {
+    var D = rwDataV193K(); if (!D) return "";
+    var rows = D.log.slice().reverse(), SHOWN = 6, waiting = D.pending.length;
+    var big = function (n) { try { return window.__V193K.fmt(n); } catch (e) { return fmt(n); } };
+    var item = function (l) {
+      return '<li class="' + (l.major ? "maj" : "") + '"><i>' + esc(l.icon) + "</i><div><b>" + (l.era != null ? "NEW ERA · " : "#" + l.rank + " · ") + (l.major && l.era == null ? "MAJOR · " : "") + esc(l.name) + "</b>" +
+        (l.lines.length ? "<small>" + l.lines.map(esc).join(" · ") + "</small>" : "") + "</div></li>";
+    };
+    return '<div class="lgb-rw-v193k"><div class="lgb-rwh"><span>YOUR MEDAL REWARDS</span><b>' + D.log.length + " claimed</b></div>" +
+      '<div class="lgb-rwchips"><span>' + D.majorsOwned + " / " + D.majorsAll + " majors owned</span>" + (D.pp ? "<span>+" + esc(big(D.pp)) + " PP in windfalls</span>" : "") +
+      (D.looksOn ? "<span>" + D.looks.length + " look" + (D.looks.length === 1 ? "" : "s") + " earned</span>" : "") +
+      (waiting ? '<button type="button" class="lgb-rwgo-v193k" data-rwgo-v193k="1">🎁 ' + waiting + " waiting — choose ▸</button>" : "") + "</div>" +
+      '<div class="lgb-rwt">RUNNING TOTALS · EVERY CAREER</div>' +
+      (D.totals.length ? '<ul class="lgb-rwtot">' + D.totals.map(function (t) { return "<li>" + esc(t) + "</li>"; }).join("") + "</ul>" : '<div class="lgb-rwnone">No permanent bonus yet — your next medal deals the first choice.</div>') +
+      (rows.length ? '<div class="lgb-rwt">EVERY REWARD CLAIMED · NEWEST FIRST</div><ul class="lgb-rwlist-v193k">' + rows.map(item).join("") + "</ul>" +
+        (rows.length > SHOWN ? '<button type="button" class="lgb-rwmore-v193k" data-more="SHOW ALL ' + rows.length + ' ▾">SHOW ALL ' + rows.length + " ▾</button>" : "") : "") +
+      (D.looks.length ? '<div class="lgb-rwt">LOOKS · ONE EVERY ' + D.lookEvery + ' MEDALS</div><div class="lgb-rwlooks">' + D.looks.slice().reverse().map(function (x) { return "<span>#" + x.rank + " 🎨 " + esc(x.name) + " <small>" + esc(x.rar) + "</small></span>"; }).join("") + "</div>" : "") +
+      '<div class="lgb-rwkey"><span><i class="lgb-rib-v193k k-got">💰</i>what a medal paid</span><span><i class="lgb-rib-v193k k-wait">🎁</i>waiting to be chosen</span>' +
+      '<span><i class="lgb-rib-v193k k-fsmall">2</i>a choice of two to come</span><span><i class="lgb-rib-v193k k-fmajor">★</i>a MAJOR' + (D.looksOn ? " + a look" : "") + " to come</span></div></div>";
+  }
+  /* ---- v193 K: the curling leaf ---- */
+  var SEG_V193K = [0.4, 0.18, 0.15, 0.14, 0.13], LEAD_V193K = [0, 0.08, 0.15, 0.21, 0.26];   // five strips: a bend, not a fold
+  function curlLeafV193K(pageEl, W) {
+    var leaf = document.createElement("div"), parent = leaf, off = 0, segs = [];
+    leaf.className = "lgb-leaf lgb-curl-v193k";
+    var copy = function (extra, o) {
+      var c = pageEl.cloneNode(true);
+      c.classList.remove("lgb-page"); c.classList.add("lgb-pin-v193k"); if (extra) c.classList.add(extra);
+      c.style.width = W + "px"; c.style.left = -o + "px";
+      return c;
+    };
+    var prevW = 0;
+    SEG_V193K.forEach(function (f, i) {
+      var w = W * f, seg = document.createElement("div"), last = i === SEG_V193K.length - 1;
+      // each strip hangs off the last one's free edge; a hair of overlap so no seam opens at a crease
+      seg.className = "lgb-seg-v193k"; seg.style.width = (w + (last ? 0 : 0.75)) + "px"; seg.style.left = prevW + "px";
+      prevW = w;
+      var front = document.createElement("div"), back = document.createElement("div");
+      front.className = "lgb-sf-v193k"; back.className = "lgb-sf-v193k lgb-sb-v193k";
+      front.appendChild(copy("", off));
+      var thru = copy("lgb-thru-v193k", off); thru.style.transformOrigin = (off + w / 2) + "px 50%"; back.appendChild(thru);   // the print, through the paper
+      var fsh = document.createElement("i"), bsh = document.createElement("i"); fsh.className = bsh.className = "lgb-ssh-v193k";
+      front.appendChild(fsh); back.appendChild(bsh);
+      seg.appendChild(front); seg.appendChild(back); parent.appendChild(seg);
+      segs.push({ el: seg, fsh: fsh, bsh: bsh, w: w });
+      parent = seg; off += w;
+    });
+    leaf.__segs = segs;
+    return leaf;
+  }
+  function prepTurnV193K(book, p) {
+    var g = ledger(); if (!g) return null;
+    var stage = book.querySelector(".lgb-stage"), cur = stage && stage.querySelector(".lgb-page"); if (!cur) return null;
+    var W = stage.clientWidth || cur.offsetWidth || 300;
+    var fwd = p > BOOK.page, oldP = BOOK.page, tmp = document.createElement("div"); tmp.innerHTML = pageHtml(g, p);
+    var np = tmp.firstChild, leaf, under;
+    if (fwd) { leaf = curlLeafV193K(cur, W); cur.replaceWith(np); under = np; }   // the old page curls away, the new one waits beneath
+    else { leaf = curlLeafV193K(np, W); under = cur; }                             // the new page curls in over the old
+    var shadow = document.createElement("i"); shadow.className = "lgb-under"; stage.appendChild(shadow);
+    stage.appendChild(leaf);
+    var S = leaf.__segs, n = S.length;
+    var faces = leaf.querySelectorAll(".lgb-sf-v193k");
+    // Lambert, as the reader sees it: a strip facing the page is lit, one turned edge-on is dark
+    function dark(A) { return (1 - Math.abs(Math.cos(A * Math.PI / 180))) * 0.62; }
+    /* one strip's shade, continuous across the creases: its left edge wears the angle half-way to the strip before,
+     * its right edge half-way to the next, and a soft highlight rides the middle of a bending strip */
+    function shade(el, A, Aprev, Anext, spine, back, bend) {
+      var l = dark((A + Aprev) / 2) + spine, m = dark(A), r = dark((A + Anext) / 2), hl = Math.min(0.2, bend).toFixed(3);
+      el.style.background = "linear-gradient(" + (back ? 270 : 90) + "deg,rgba(40,22,6," + Math.min(0.8, l).toFixed(3) + ") 0%,rgba(40,22,6," + m.toFixed(3) + ") 45%,rgba(255,246,222," + hl + ") 60%,rgba(40,22,6," + r.toFixed(3) + ") 100%)";
+    }
+    function apply(k) {
+      k = Math.max(0, Math.min(1, k));
+      var lift = Math.sin(k * Math.PI), prev = 0, reach = 0, A = [];
+      for (var i = 0; i < n; i++) { var e = Math.min(1, k + LEAD_V193K[i] * lift); A.push(fwd ? -180 * e : -180 * (1 - e)); }
+      for (i = 0; i < n; i++) {
+        var rel = A[i] - prev;
+        if (i === 0) leaf.style.transform = "rotateY(" + A[0].toFixed(2) + "deg) translateZ(" + (lift * 8).toFixed(1) + "px)";
+        else S[i].el.style.transform = "rotateY(" + rel.toFixed(2) + "deg)";
+        var show = A[i] > -90;                                                   // which face is toward us
+        shade(show ? S[i].fsh : S[i].bsh, A[i], i ? A[i - 1] : A[0], i < n - 1 ? A[i + 1] : A[i], i ? 0 : lift * 0.22, !show, i ? Math.abs(rel) / 60 * lift : 0);
+        reach += S[i].w * Math.cos(A[i] * Math.PI / 180);
+        prev = A[i];
+      }
+      /* past the spine the leaf settles onto a page this book does not have: it fades rather than sweep off the card
+       * (the faces fade, not the leaf — opacity on the leaf would flatten its 3D) */
+      var e0 = Math.min(1, k + LEAD_V193K[0] * lift), past = fwd ? e0 : 1 - e0, op = past > 0.8 ? Math.max(0, 1 - (past - 0.8) / 0.2).toFixed(3) : "";
+      for (i = 0; i < faces.length; i++) faces[i].style.opacity = op;
+      var edge = Math.max(0, Math.min(W, reach)), soft = Math.max(16, W * 0.22 * (0.35 + lift));
+      shadow.style.opacity = (Math.min(1, lift * 1.6) * (reach > 0 ? 1 : 0.4)).toFixed(3);
+      shadow.style.background = "linear-gradient(90deg,rgba(40,20,5,0) " + edge.toFixed(0) + "px,rgba(40,20,5,.42) " + edge.toFixed(0) + "px,rgba(40,20,5,0) " + (edge + soft).toFixed(0) + "px)";
+    }
+    function end(landP, cb) {
+      leaf.remove(); shadow.remove();
+      if (landP !== p) { if (fwd) { var t2 = document.createElement("div"); t2.innerHTML = pageHtml(g, landP); under.replaceWith(t2.firstChild); } BOOK.page = landP; }
+      else { if (!fwd) under.replaceWith(np); BOOK.page = p; }
+      setTabs(book, g, BOOK.page);
+      cb && cb();
+    }
+    function tween(k0, k1, ms, landP, cb) {
+      var t0 = 0;
+      function fr(ts) { if (!t0) t0 = ts; var t = Math.min(1, (ts - t0) / ms), e = t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2; apply(k0 + (k1 - k0) * e); if (t < 1) requestAnimationFrame(fr); else end(landP, cb); }
+      requestAnimationFrame(fr);
+    }
+    apply(0);
+    UI.curlV193K = (UI.curlV193K || 0) + 1;
+    return { fwd: fwd, curl: true, apply: apply, commit: function (k0, ms, cb) { tween(k0, 1, ms, p, cb); }, cancel: function (k0, ms, cb) { tween(k0, 0, ms, oldP, cb); } };
+  }
+  /* reduced motion: the new page fades in over the old one, flat */
+  function crossFadeV193K(book, np) {
+    var g = ledger(), st = book.querySelector(".lgb-stage"), cur = st && st.querySelector(".lgb-page");
+    BOOK.page = np;
+    var tmp = document.createElement("div"); tmp.innerHTML = pageHtml(g, np);
+    var nw = tmp.firstChild;
+    if (!cur || !nw.animate) { st.innerHTML = pageHtml(g, np); setTabs(book, g, np); landed(book, true); return; }
+    cur.classList.remove("lgb-page"); cur.classList.add("lgb-pin-v193k", "lgb-xf-v193k");
+    st.insertBefore(nw, cur);
+    UI.fadeV193K = (UI.fadeV193K || 0) + 1;
+    var a = cur.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 220, easing: "ease-in-out", fill: "forwards" });
+    nw.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 220, easing: "ease-in-out" });
+    var done = function () { if (cur.parentNode) cur.remove(); };
+    a.onfinish = done; setTimeout(done, 400);
+    setTabs(book, g, np); landed(book, true);
   }
   /* ---- the page turn ----
    * A leaf with two faces turns on the spine (the left edge) in 3D: FORWARD, the page you were on lifts, curls and
@@ -627,6 +811,7 @@
   }
   /* prepare a turn to page p: returns {leaf, under, apply(progress 0..1), commit(ms, cb), cancel(ms, cb)} */
   function prepTurn(book, p) {
+    if (tuK("v193K", 1)) return prepTurnV193K(book, p);   // v193 K: the curling leaf
     var g = ledger(); if (!g) return null;
     var stage = book.querySelector(".lgb-stage"), cur = stage && stage.querySelector(".lgb-page"); if (!cur) return null;
     var fwd = p > BOOK.page, oldP = BOOK.page, tmp = document.createElement("div"); tmp.innerHTML = pageHtml(g, p);
@@ -681,13 +866,14 @@
     for (var k = BOOK.page + dir; dir > 0 ? k <= np : k >= np; k += dir) seq.push(k);
     if (seq.length > 4) seq = seq.slice(0, 2).concat(seq.slice(-2));       // a riffle, not a lecture
     UI.turns = (UI.turns || 0) + 1;
+    if (reduced() && tuK("v193K", 1)) return crossFadeV193K(book, np);   // v193 K: a plain cross-fade
     if (reduced()) { var g = ledger(), st = book.querySelector(".lgb-stage"); BOOK.page = np; st.innerHTML = pageHtml(g, np); setTabs(book, g, np); landed(book, true); return; }
     book.__turning = 1;
     (function next(j) {
       var last = j === seq.length - 1, T = prepTurn(book, seq[j]);
       if (!T) { book.__turning = 0; return; }
       sfx("flip", last ? 1 : 1.2 + j * 0.05);
-      T.commit(0, last ? 640 : 190, function () { if (last) { book.__turning = 0; landed(book); } else next(j + 1); });
+      T.commit(0, last ? (T.curl ? 450 : 640) : 190, function () { if (last) { book.__turning = 0; landed(book); } else next(j + 1); });
     })(0);
   }
   function detail(book, r) {
@@ -697,7 +883,7 @@
     var how = r === 1 ? "Where every legacy starts." : on ? (got && got.by ? "Earned by <b>" + esc(got.by) + "</b>" + (when ? " · " + esc(when) : "") : "Earned in the careers before the book was kept.") :
       "Unlocks at <b>" + fmt(X.xpAt(r)) + "</b> Legacy XP · <b>" + fmt(X.xpAt(r) - L.xp) + "</b> to go";
     d.innerHTML = '<div class="lgb-d">' + '<span class="lgb-dslot" data-size="84">' + medalHtml(r, 84, { locked: !on }) + "</span><div><div class=\"lgb-dn\">" + (on ? esc(name(r)) : "???") + "</div>" +
-      '<div class="lgb-dr">RANK ' + r + " · " + esc(tierName(r)) + (r % 10 === 0 ? " · MILESTONE +" + fmt(X.bounty(r)) + " PP" : "") + '</div><div class="lgb-dh">' + how + "</div></div></div>";
+      '<div class="lgb-dr">RANK ' + r + " · " + esc(tierName(r)) + (r % 10 === 0 ? " · MILESTONE +" + fmt(X.bounty(r)) + " PP" : "") + '</div><div class="lgb-dh">' + how + "</div>" + rwDetailV193K(r, Math.min(500, R.rank)) + "</div></div>";
     d.classList.add("on");
     UI.book++;
   }
@@ -706,6 +892,8 @@
       if (book.__dragged) { book.__dragged = 0; return; }
       var tab = ev.target.closest(".lgb-tab"); if (tab) return turn(book, +tab.dataset.page);
       var tn = ev.target.closest(".lgb-turn"); if (tn) return turn(book, BOOK.page + +tn.dataset.turn);
+      var go = ev.target.closest("[data-rwgo-v193k]"); if (go) { try { window.__V193K.open(); } catch (e) {} return; }   // v193 K: the summary's "choose now"
+      var tog = ev.target.closest(".lgb-rwmore-v193k"); if (tog) { var ls = book.querySelector(".lgb-rwlist-v193k"); if (ls) ls.classList.toggle("all"); tog.textContent = ls && ls.classList.contains("all") ? "SHOW THE LATEST ▴" : tog.dataset.more; return; }
       var cell = ev.target.closest(".lgb-cell");
       if (cell) {
         book.querySelectorAll(".lgb-cell.sel").forEach(function (c) { c.classList.remove("sel"); }); cell.classList.add("sel"); detail(book, +cell.dataset.rank);
@@ -737,7 +925,7 @@
       if (!d.T) return;
       setTimeout(function () { book.__dragged = 0; }, 60);   // swallow only the click the drag itself makes
       var flick = Math.abs(d.vx || 0) > 0.6 && ((d.T.fwd && d.vx < 0) || (!d.T.fwd && d.vx > 0));
-      if (d.k > 0.33 || flick) d.T.commit(d.k, Math.max(160, 520 * (1 - d.k)), function () { book.__turning = 0; landed(book); });
+      if (d.k > (d.T.curl ? 0.5 : 0.33) || flick) d.T.commit(d.k, Math.max(160, (d.T.curl ? 450 : 520) * (1 - d.k)), function () { book.__turning = 0; landed(book); });
       else d.T.cancel(d.k, Math.max(140, 380 * d.k), function () { book.__turning = 0; sfx("thump", 1.2); });
     }
     stage.addEventListener("pointerup", release); stage.addEventListener("pointercancel", release);
@@ -1138,6 +1326,60 @@
       ".lgs9-club{margin-top:7px;padding:6px 8px;border-radius:8px;text-align:center;font:700 10.5px Oswald,sans-serif;letter-spacing:1.2px;color:#141208;background:linear-gradient(180deg,#f6cf6a,#e0a92f)}",
       ".lgs9-fine{margin-top:6px;font:400 10px 'Barlow Condensed',sans-serif;color:#7d8796}",
       ".lgb-sims-v159b{color:#ffd76f}.lgb-sims-v159b.done{color:#57e07a}"
+    ].join("\n");
+    (document.head || document.documentElement).appendChild(st);
+  })();
+  /* v193 K: the reward ribbons, the YOUR MEDAL REWARDS section, the curling leaf, the cross-fade */
+  (function () {
+    if (document.getElementById("lgcss-v193k")) return;
+    var st = document.createElement("style"); st.id = "lgcss-v193k";
+    st.textContent = [
+      /* the ribbon under a medal */
+      ".lgb-rib-v193k{display:inline-grid;place-items:center;min-width:11px;height:11px;padding:0 1px;border-radius:3px 3px 5px 5px;font:700 7.5px/1 Oswald,sans-serif;font-style:normal;color:#3a2610;background:linear-gradient(180deg,#f6dc8e,#c9a13b);box-shadow:0 1px 0 rgba(58,38,16,.45);pointer-events:none}",
+      ".lgb-cell>.lgb-rib-v193k{position:absolute;right:0;bottom:-1px;z-index:2}",
+      ".lgb-rib-v193k.k-got,.lgb-rib-v193k.k-major,.lgb-rib-v193k.k-wait,.lgb-rib-v193k.k-none{font-size:8px}",
+      ".lgb-rib-v193k.k-major{background:linear-gradient(180deg,#fff3c4,#f0bb45);box-shadow:0 0 0 1px #8a5a00,0 0 5px rgba(240,187,69,.8)}",
+      ".lgb-rib-v193k.k-wait{background:linear-gradient(180deg,#b6f5c6,#57e07a);animation:lgRibV193K 1.4s ease-in-out infinite}",
+      "@keyframes lgRibV193K{0%,100%{transform:scale(1)}50%{transform:scale(1.25)}}",
+      ".lgb-rib-v193k.k-fsmall{opacity:.6;background:rgba(243,233,208,.7);color:rgba(122,90,48,.85);box-shadow:inset 0 0 0 1px rgba(122,90,48,.35)}",
+      ".lgb-rib-v193k.k-fmajor{background:rgba(255,231,168,.75);color:#8a5a00;box-shadow:inset 0 0 0 1px #b8862a}",
+      ".lgb-rib-v193k.k-none{background:none;box-shadow:none}",
+      /* the tap-detail's reward line */
+      ".lgb-drw-v193k{margin-top:6px;padding:5px 8px;border-radius:7px;border-left:3px solid #c9a13b;background:rgba(240,187,69,.08)}",
+      ".lgb-drw-v193k em{display:block;font:600 8.5px Oswald,sans-serif;font-style:normal;letter-spacing:1.6px;color:#c9a13b}",
+      ".lgb-drw-v193k b{display:block;font:700 13px Oswald,sans-serif;letter-spacing:.4px;color:#fff3c4}",
+      ".lgb-drw-v193k span{display:block;font:500 12px 'Barlow Condensed',sans-serif;color:var(--chalk-dim,#9fb0c4);line-height:1.3}",
+      ".lgb-drw-v193k.k-major{border-left-color:#f0bb45;background:rgba(240,187,69,.16)}.lgb-drw-v193k.k-wait{border-left-color:#57e07a}",
+      ".lgb-drw-v193k .lgb-rwgo-v193k{margin-top:5px}",
+      /* YOUR MEDAL REWARDS — a page of the same paper */
+      ".lgb-rw-v193k{margin-top:10px;padding:9px 10px 8px;border-radius:3px 6px 6px 3px;background:linear-gradient(90deg,#d8c79f 0,#efe3c6 4%,#f3e9d0 60%,#e2d2ab 100%);box-shadow:inset 6px 0 10px -6px rgba(90,58,28,.55),inset 0 0 18px rgba(90,58,28,.35);color:#3a2610}",
+      ".lgb-rwh{display:flex;justify-content:space-between;align-items:baseline;border-bottom:1.5px solid rgba(90,58,28,.35);padding-bottom:4px}.lgb-rwh span{font:700 14px Oswald,sans-serif;letter-spacing:2px}.lgb-rwh b{font:600 10px Oswald,sans-serif;letter-spacing:1px;color:#7a5a30}",
+      ".lgb-rwchips{display:flex;flex-wrap:wrap;gap:4px;margin-top:7px}.lgb-rwchips span{padding:2px 7px;border-radius:999px;background:rgba(90,58,28,.12);font:600 10px Oswald,sans-serif;letter-spacing:.6px;color:#5a3a1c}",
+      ".lgb-rwgo-v193k{padding:3px 9px;border:0;border-radius:999px;cursor:pointer;background:#3a2610;color:#ffe7a8;font:700 10.5px Oswald,sans-serif;letter-spacing:.8px}",
+      ".lgb-rwt{margin-top:9px;padding-bottom:2px;border-bottom:1px solid rgba(90,58,28,.25);font:700 9.5px Oswald,sans-serif;letter-spacing:1.6px;color:#7a5a30}",
+      ".lgb-rwtot{margin:4px 0 0;padding-left:16px;font:500 12.5px 'Barlow Condensed',sans-serif;line-height:1.3;color:#3a2610}",
+      ".lgb-rwnone{margin-top:4px;font:500 12px 'Barlow Condensed',sans-serif;color:#6a4a24}",
+      ".lgb-rwlist-v193k{list-style:none;margin:2px 0 0;padding:0}.lgb-rwlist-v193k:not(.all) li:nth-child(n+7){display:none}",
+      ".lgb-rwlist-v193k li{display:flex;gap:7px;align-items:flex-start;padding:4px 0;border-bottom:1px dotted rgba(90,58,28,.3)}",
+      ".lgb-rwlist-v193k i{flex:none;width:20px;text-align:center;font-style:normal;font-size:15px;line-height:18px}",
+      ".lgb-rwlist-v193k div{min-width:0}.lgb-rwlist-v193k b{display:block;font:600 12.5px Oswald,sans-serif;letter-spacing:.3px;color:#3a2610}",
+      ".lgb-rwlist-v193k small{display:block;font:500 11.5px 'Barlow Condensed',sans-serif;line-height:1.25;color:#6a4a24}",
+      ".lgb-rwlist-v193k li.maj b{color:#8a5a00}.lgb-rwlist-v193k li.maj i{filter:drop-shadow(0 0 3px rgba(240,187,69,.9))}",
+      ".lgb-rwmore-v193k{display:block;margin:5px auto 0;padding:2px 8px;border:0;background:none;cursor:pointer;font:700 10px Oswald,sans-serif;letter-spacing:1.5px;color:#7a5a30}",
+      ".lgb-rwlooks{display:flex;flex-wrap:wrap;gap:3px 10px;margin-top:4px;font:500 12px 'Barlow Condensed',sans-serif;color:#3a2610}.lgb-rwlooks small{color:#7a5a30}",
+      ".lgb-rwkey{display:flex;flex-wrap:wrap;gap:4px 12px;margin-top:9px;font:500 10.5px 'Barlow Condensed',sans-serif;color:#6a4a24}.lgb-rwkey i{margin-right:4px;vertical-align:0}",
+      /* the curling leaf: three hinged strips of paper */
+      ".lgb-curl-v193k{position:absolute;inset:0;z-index:3;transform-origin:0 50%;transform-style:preserve-3d;will-change:transform,opacity;pointer-events:none}",
+      ".lgb-seg-v193k{position:absolute;top:0;bottom:0;transform-origin:0 50%;transform-style:preserve-3d}",
+      ".lgb-sf-v193k{position:absolute;inset:0;overflow:hidden;-webkit-backface-visibility:hidden;backface-visibility:hidden;background:#f3e9d0}",
+      ".lgb-sb-v193k{transform:rotateY(180deg);background:linear-gradient(270deg,#cdb98c 0,#e9dcbc 8%,#efe4c8 70%,#dccb9f 100%)}",
+      ".lgb-pin-v193k{position:absolute;top:0;bottom:0;margin:0;box-sizing:border-box;display:flex;flex-direction:column;min-height:calc(var(--lgb-rows,5) * ((100cqw - 16px) / 10 + 3px) + 94px);background:linear-gradient(90deg,#d8c79f 0,#efe3c6 4%,#f3e9d0 60%,#e2d2ab 100%);border-radius:3px 6px 6px 3px;padding:9px 8px 6px;box-shadow:inset 6px 0 10px -6px rgba(90,58,28,.55),inset 0 0 18px rgba(90,58,28,.35);color:#3a2610}",
+      ".lgb-pin-v193k .lgb-foot{margin-top:auto}",
+      ".lgb-thru-v193k{transform:scaleX(-1);opacity:.1;filter:grayscale(.5) blur(.5px);background:none!important;box-shadow:none!important}",
+      ".lgb-ssh-v193k{position:absolute;inset:0;pointer-events:none}",
+      /* reduced motion: the old page fades off the new one */
+      ".lgb-xf-v193k{left:0;right:0;width:auto;z-index:2;pointer-events:none}",
+      "@media(prefers-reduced-motion:reduce){.lgb-rib-v193k.k-wait{animation:none}}"
     ].join("\n");
     (document.head || document.documentElement).appendChild(st);
   })();
