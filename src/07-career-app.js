@@ -39438,13 +39438,15 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
     return !!TU("v193Winj", 1);
   }
   const INJ_W = { shown: [], last: null, timer: 0 };
-  function injIdV193W() {
-    return "i" + Date.now().toString(36) + Math.floor(Math.random() * 1e6).toString(36);
+  // no Math.random() here: this runs inside the week's sim, and an extra draw would move every sample path after it
+  function injIdV193W(e) {
+    e.injSeqV193W = (e.injSeqV193W | 0) + 1;
+    return "i" + (e.totalSeasons | 0) + "_" + e.injSeqV193W + "_" + Date.now().toString(36);
   }
   function hurtNoteV193W(e, wk, inj, src) {
     if (!injPopOnV193W() || !e || !inj) return;
     try {
-      inj.idV193W || (inj.idV193W = injIdV193W());
+      inj.idV193W || (inj.idV193W = injIdV193W(e));
       inj.seenV193W = !1;
       const Q = (e.injQV193W = Array.isArray(e.injQV193W) ? e.injQV193W : []),
         wi = e.weekResults && wk ? e.weekResults.indexOf(wk) : -1;
