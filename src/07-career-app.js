@@ -31854,7 +31854,11 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
     const win = ready
       ? S.filter(s => s.us > s.them).length / S.length
       : clamp99(0.5 + ((us - them) / TU("marginPerOvr", 0.7)) * 0.024, 0.05, 0.95);
+    /* v193 H: how sure the number is — the standard error of the margin over the sample games (SD / √n, rounded,
+     * at least 1); the curve, with no games to measure, says `projScoreCurvePmV193H` */
+    const sure = projScoreSureV193H(S, ready);
     return {
+      ...sure,
       us,
       them,
       usR: Math.round(us),
@@ -31869,6 +31873,23 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
       src,
       win
     };
+  }
+  /* ===== v193 H THE ODDS DECIDE THE DEFAULT, THE SCORE SAYS HOW SURE (the score) =====
+   * PROJECTED 15–12 read as a promise, and while the background sampler was still filling it jumped by a field goal
+   * every game it finished. `projScoreSureV193H(samples, ready)` puts a ± on it: the standard error of the margin
+   * (us − them) across the sample games, SD / √n, rounded, at least 1 (`pm`, with `sd` and `se`); before the engine is
+   * ready the curve says `projScoreCurvePmV193H` (7). `early` (n < `projScoreEarlyNV193H`, 6) makes the pages say
+   * "early read". The pages (11, `v193ScoreRenderD`) throttle and tween the number. Kill switch `TU("v193H", 1)`. */
+  function projScoreSureV193H(S, ready) {
+    if (!TU("v193H", 1)) return {};
+    const n = S.length,
+      early = n < TU("projScoreEarlyNV193H", 6);
+    if (!ready || n < 2) return { pm: Math.max(1, Math.round(TU("projScoreCurvePmV193H", 7))), sd: null, se: null, early };
+    const m = S.map(s => s.us - s.them),
+      mean = m.reduce((a, x) => a + x, 0) / n,
+      sd = Math.sqrt(m.reduce((a, x) => a + (x - mean) * (x - mean), 0) / (n - 1)),
+      se = sd / Math.sqrt(n);
+    return { pm: Math.max(1, Math.round(se)), sd, se, early };
   }
   window.__V146 = {
     project: projectV146,
