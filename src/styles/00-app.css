@@ -159,3 +159,7 @@ html.shell-v146 .prestige-chip img.coin-v147{width:14px!important;height:14px!im
   .gear-chip-v193{min-height:36px;display:inline-flex;align-items:center}
   .season-gain-v193d .sg-head{min-height:36px}
 }
+/* v193 U: the QUICK BUY title and its subtitle stack, so the ◀ ▶ arrows never leave a 360px screen */
+.qb-h-v193l .sn-k-v193e{flex-direction:column!important;align-items:flex-start!important;gap:1px!important;min-width:0;flex:1 1 auto}
+.qb-h-v193l .sn-k-v193e small{white-space:normal}
+.qb-nav-v193l{flex:none}
