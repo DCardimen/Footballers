@@ -617,8 +617,9 @@
    * THE PAGE TURN (`prepTurnV193K`). The leaf CURLS: it is five hinged strips (two fifths of the page, then four narrower
    * ones) nested on the spine, each turning a little AHEAD of the one before it (`LEAD_V193K`), so the free edge leads and
    * the paper bends instead of swinging like a door. Every strip is shaded by its own angle (Lambert: darker as it turns
-   * edge-on) with a darker band at its fold and a soft highlight along the bend; the back of the leaf is paper with the
-   * page's print showing faintly through it (mirrored, as it would be); the shadow it casts slides across the page beneath;
+   * edge-on), continuous across the creases, darker at the spine and with a soft highlight along the bend; the back of the
+   * leaf is ruled paper; the copies on it are still pictures (no shine, glint or drop-shadow repainting inside the 3D
+   * layer — five full-page copies with them ran at 4 fps headless); the shadow it casts slides across the page beneath;
    * the leaf fades as it settles past the spine, so it never sweeps off the book. 450 ms, ease-in-out (a riffle's middle
    * pages 190). A swipe follows the finger and completes past HALF (or on a flick), else falls back. Reduced motion: a
    * plain 220 ms cross-fade, no 3D at all. Kill switch TU("v193K", 0): no ribbons, no section, v152 A's leaf. `v193Kcheck`. */
@@ -705,7 +706,6 @@
       var front = document.createElement("div"), back = document.createElement("div");
       front.className = "lgb-sf-v193k"; back.className = "lgb-sf-v193k lgb-sb-v193k";
       front.appendChild(copy("", off));
-      var thru = copy("lgb-thru-v193k", off); thru.style.transformOrigin = (off + w / 2) + "px 50%"; back.appendChild(thru);   // the print, through the paper
       var fsh = document.createElement("i"), bsh = document.createElement("i"); fsh.className = bsh.className = "lgb-ssh-v193k";
       front.appendChild(fsh); back.appendChild(bsh);
       seg.appendChild(front); seg.appendChild(back); parent.appendChild(seg);
@@ -764,6 +764,7 @@
       cb && cb();
     }
     function tween(k0, k1, ms, landP, cb) {
+      UI.turnMsV193K = ms;   // what the turn was asked to take (the check reads it: a starved headless frame clock cannot)
       var t0 = 0;
       function fr(ts) { if (!t0) t0 = ts; var t = Math.min(1, (ts - t0) / ms), e = t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2; apply(k0 + (k1 - k0) * e); if (t < 1) requestAnimationFrame(fr); else end(landP, cb); }
       requestAnimationFrame(fr);
@@ -1375,7 +1376,9 @@
       ".lgb-sb-v193k{transform:rotateY(180deg);background:linear-gradient(270deg,#cdb98c 0,#e9dcbc 8%,#efe4c8 70%,#dccb9f 100%)}",
       ".lgb-pin-v193k{position:absolute;top:0;bottom:0;margin:0;box-sizing:border-box;display:flex;flex-direction:column;min-height:calc(var(--lgb-rows,5) * ((100cqw - 16px) / 10 + 3px) + 94px);background:linear-gradient(90deg,#d8c79f 0,#efe3c6 4%,#f3e9d0 60%,#e2d2ab 100%);border-radius:3px 6px 6px 3px;padding:9px 8px 6px;box-shadow:inset 6px 0 10px -6px rgba(90,58,28,.55),inset 0 0 18px rgba(90,58,28,.35);color:#3a2610}",
       ".lgb-pin-v193k .lgb-foot{margin-top:auto}",
-      ".lgb-thru-v193k{transform:scaleX(-1);opacity:.1;filter:grayscale(.5) blur(.5px);background:none!important;box-shadow:none!important}",
+      ".lgb-sb-v193k::after{content:'';position:absolute;inset:0;background:repeating-linear-gradient(0deg,rgba(90,58,28,.05) 0 1px,transparent 1px 19px)}",
+      /* the copies on the leaf are still pictures: no shine sweeps, glints, drop-shadows or pops repainting inside a 3D layer every frame */
+      ".lgb-pin-v193k *,.lgb-pin-v193k *::before,.lgb-pin-v193k *::after{animation:none!important;transition:none!important}.lgb-curl-v193k .lg-medal-v152{filter:none!important}.lgb-curl-v193k .lg-shine{display:none!important}",
       ".lgb-ssh-v193k{position:absolute;inset:0;pointer-events:none}",
       /* reduced motion: the old page fades off the new one */
       ".lgb-xf-v193k{left:0;right:0;width:auto;z-index:2;pointer-events:none}",

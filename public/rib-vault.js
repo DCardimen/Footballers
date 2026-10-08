@@ -230,6 +230,19 @@
 
   function buildSlots(coinBudget) {
     var R = rng(SEED), s = [], cum = [], total = 0, i = 0, grid = {};
+    /* v193 K: THE HEAP STANDS ON ITS MIDDLE. A coin's side (left or right of the door) is the one free choice in
+     * where it lands — the lobe is mirror-symmetric, so x -> -x keeps every coin on the mound's surface. A coin
+     * that would push the heap's OUTLINE out goes to the side whose outline is shorter; any other coin goes to
+     * the lighter side. Both are measured the way the screen draws them (hoardBox: x * PILE.dx * k * CAM.spread
+     * plus 0.6 of a coin's drawn size, per unit of the camera's span — the constants mirror CAM and PILE below),
+     * so at every balance the outline and the weight are centred under the door. No extra random draw is spent:
+     * the seed's sequence, and so every other property of every coin, is exactly what it was. */
+    var balance = v193KOn(), balX = 0, extL = 0, extR = 0;
+    function sideV193K(x, z) {
+      var kz = 1 / (1 + (0.27 + z * 0.26) * 2.35), e = Math.abs(x) * 1.20 * kz * 0.62 + 0.6 * Math.pow(kz, 1.28) * 78 / 430;
+      if (e > Math.min(extL, extR)) return extL <= extR ? -1 : 1;    // it reaches past the shorter side: it goes there
+      return balX > 0 ? -1 : 1;                                     // inside the outline: to the lighter side
+    }
     while (total < coinBudget) {
       var u = Math.min(0.9999, total / coinBudget);
       var th, q, spill, rr, h, sink, x0, z0, y0, tries = 0;
@@ -251,6 +264,7 @@
         sink = 0.80 + 0.20 * R();
         x0 = Math.cos(th) * rr;
         z0 = Math.sin(th) * rr * 0.62;           // the hoard is an ellipse on the floor
+        if (balance) x0 = Math.abs(x0) * sideV193K(x0, z0);   // v193 K: left or right of the door, by the outline and the weight
         y0 = h * sink;
       } while (!claimFree(grid, x0, z0, y0) && ++tries < CLAIM_TRIES);
       var ck = claimKey(x0, z0, y0);
@@ -289,21 +303,30 @@
       if (total + k > coinBudget) k = coinBudget - total;   // land exactly on the budget,
       s[s.length - 1].cnt = k;                              // so a re-pour draws the same
       total += k; cum.push(total); i++;                     // number of coins it did before
+      if (balance) {
+        var kz5 = 1 / (1 + (0.27 + z0 * 0.26) * 2.35), e5 = Math.abs(x0) * 1.20 * kz5 * 0.62 + 0.6 * Math.pow(kz5, 1.28) * 78 / 430 * s[s.length - 1].size;
+        if (x0 < 0) extL = Math.max(extL, e5); else extR = Math.max(extR, e5);
+        balX += x0 * k;
+      }
       if (i > 4000) break;                       // a belt for the braces
     }
-    /* v193 K: CENTRED UNDER THE DOOR. Even with a mirror-balanced lobe a seeded heap leans a little to
-     * whichever side its spilled coins happened to land, and the outline (not the mass) is what the eye
-     * centres. The heap's outline midpoint, averaged over the pile as it grows (a quarter full to full),
-     * is moved onto x = 0 — one constant for every coin, so the prefix rule (N coins = slots 0..N-1) and
-     * every slot's place relative to the others are untouched. */
-    if (v193KOn() && s.length > 8) {
-      var mids = 0, nm = 0;
-      for (var f = 1; f <= 4; f++) {
-        var kk = Math.max(2, Math.round(s.length * f / 4)), lo = 1e9, hi = -1e9;
-        for (i = 0; i < kk; i++) { var hw = s[i].size * 0.18; if (s[i].x - hw < lo) lo = s[i].x - hw; if (s[i].x + hw > hi) hi = s[i].x + hw; }
-        mids += (lo + hi) / 2; nm++;
+    /* v193 K: CENTRED UNDER THE DOOR. What is left after the side rule above — one coin's overshoot of the
+     * outline, a little weight — is taken out with one constant for every coin (so the prefix rule, N coins =
+     * slots 0..N-1, and every slot's place relative to the others are untouched): the mean, over the pile as it
+     * grows (an eighth full to full), of the heap's weight centre and its outline's midpoint, both as drawn. */
+    if (balance && s.length > 8) {
+      var mids = 0, nm = 0, K0 = 1 / (1 + 0.27 * 2.35);
+      for (var f = 1; f <= 8; f++) {
+        var kk = Math.max(2, Math.round(s.length * f / 8)), lo = 1e9, hi = -1e9, mw = 0, mx = 0;
+        for (i = 0; i < kk; i++) {
+          var kz = 1 / (1 + (0.27 + s[i].z * 0.26) * 2.35), px = s[i].x * 1.20 * kz * 0.62, hw = 0.6 * Math.pow(kz, 1.28) * 78 / 430 * s[i].size;
+          if (px - hw < lo) lo = px - hw;
+          if (px + hw > hi) hi = px + hw;
+          mx += px * s[i].cnt; mw += s[i].cnt;
+        }
+        mids += ((lo + hi) / 2 + mx / Math.max(1, mw)) / 2; nm++;
       }
-      var shiftX = mids / nm;
+      var shiftX = mids / nm / (1.20 * K0 * 0.62);   // back into ground units, at the pile's own depth
       for (i = 0; i < s.length; i++) s[i].x -= shiftX;
     }
     // how far out the hoard actually reaches, so the physics room can be built around it
@@ -1298,6 +1321,14 @@
     }
     this._hbN = n; this._hbW = this.cw; this._hbH = this.ch; this._hb = box;
     return box;
+  };
+  /* v193 K: where the hoard stands on screen — its weight centre (every drawn coin, a column counted once per
+   * coin in it) and its outline's midpoint. `v193Kcheck` holds both under the door. */
+  Scene.prototype.hoardCentreV193K = function () {
+    var k = M.slotsFor(this.slots, Math.round(this.nShown)), s = this.slots.slot, p = {}, mx = 0, mw = 0;
+    for (var i = 0; i < k; i++) { this.cam.project(s[i].x * PILE.dx, s[i].y * PILE.dy, PILE.z + s[i].z * PILE.dz, p); mx += p.x * s[i].cnt; mw += s[i].cnt; }
+    var h = this.hoardBox();
+    return { mass: mw ? mx / mw : this.cw / 2, outline: (h.x0 + h.x1) / 2 };
   };
 
   /* Where a point on the screen lands in the hoard's own ground space. The horizontal is
