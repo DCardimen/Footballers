@@ -14,6 +14,16 @@
   const PL=()=>{const s=ST();return s&&s.player||null};
   const SET=()=>{const s=ST();if(!s)return{};s.settings=s.settings||{};return s.settings};
   const cl=(v,a,b)=>Math.max(a,Math.min(b,v));
+  /* ===== v193 X ROLLS AND ITEMS IN PERCENT (the growth wheel) =====
+   * An outcome's "+N" is a PERCENT of each stat it lands on now (src/07 `rollPctV193X`: the old flat N × the College
+   * calibration, a whole number). The roll keeps its flat `amt` (the kill switch's number) and carries `pct`; an effect
+   * stores both, and `compose` turns the percent into points off the attribute at kickoff (`rollPtsV193X`, at least 1),
+   * so a three-season effect keeps pace with the sheet it rides. TU("v193X", 0): the flat amounts again. */
+  const X193=()=>window.__V193X||null;
+  const pctOn=()=>{const x=X193();return !!(x&&x.on())};
+  const pctOf=flat=>{const x=X193();return x?Math.abs(x.pct(flat)):0};
+  // "+6% Speed (+4)" for one stat, or the old "+4 SPD" while the switch is off
+  const statTxt=(pl,k,sign,amt,pct,lbl)=>{const x=X193();if(pctOn()&&pct!=null&&x)return x.txt(pl,k,(sign<0?-1:1)*pct,false,lbl);return(sign<0?"−":"+")+amt+" "+lbl};
   const POOLS={QB:["throwing","awareness","vision","acceleration","discipline"],RB:["speed","agility","acceleration","ballControl","vision"],WR:["speed","catching","agility","jumping","acceleration"],TE:["catching","blocking","strength","agility","awareness"],OL:["blocking","strength","awareness","discipline"],DL:["strength","tackling","quickness","acceleration","awareness"],LB:["tackling","awareness","speed","strength","vision"],CB:["speed","agility","jumping","awareness","quickness"],S:["tackling","speed","awareness","jumping","vision"]};
   const LBL={speed:"SPD",agility:"AGI",acceleration:"ACC",ballControl:"BCT",vision:"VIS",throwing:"THR",awareness:"AWR",catching:"CTH",blocking:"BLK",strength:"STR",tackling:"TKL",quickness:"QCK",jumping:"JMP",discipline:"DIS"};
   // v43: combinatorial option pool - THEME x NAME x INTENSITY generates ~160
@@ -61,7 +71,7 @@
       // wheel about as evenly as chance, which made the personality sliders feel
       // decorative; the exponent is what turns "he likes this a bit more" into a
       // visibly fatter wedge and "this is not him at all" into a sliver.
-      opts.push({theme:th.id,icon:th.icon,name:th.names[(rand()*th.names.length)|0],tag:tier.tag,stats,amt,dur,risk:tier.risk+(th.risky||0),fat:th.fat||0,
+      opts.push({theme:th.id,icon:th.icon,name:th.names[(rand()*th.names.length)|0],tag:tier.tag,stats,amt,pct:pctOf(amt),dur,risk:tier.risk+(th.risky||0),fat:th.fat||0,
         w:Math.pow(Math.max(.4,th.w(p)),cl(TU("wheelPersonaPow",1.85),1,4))});
     }
     // v62: no wedge may VANISH. Sharpening the weights is the point, but a
@@ -192,12 +202,12 @@
     const permanent=band==="green"&&opt.tag!=="LIGHT"&&rand()<(.1+prest*.008);
     if(streak>=2&&band==="green")story+=" (Habit formed - it runs deeper.)";
     if(lastBad&&band==="green")story+=" (Redemption.)";
-    return{card:opt.theme,icon:opt.icon,name:opt.name,band,sign,stats:opt.stats,amt,tier,permanent,story,jive,odds,nudge,jiveTraits:jiveTraits(pl,opt.theme),fatigue:opt.fat?(band==="red"?opt.fat:Math.round(opt.fat/2)):0,ctx:ctx||"season",tag:opt.tag,fit:+opt.w.toFixed(1)}
+    return{card:opt.theme,icon:opt.icon,name:opt.name,band,sign,stats:opt.stats,amt,pct:pctOf(amt)/* v193 X */,tier,permanent,story,jive,odds,nudge,jiveTraits:jiveTraits(pl,opt.theme),fatigue:opt.fat?(band==="red"?opt.fat:Math.round(opt.fat/2)):0,ctx:ctx||"season",tag:opt.tag,fit:+opt.w.toFixed(1)}
   }
   function applyOutcome(pl,out){
     pl.growthFxV42=pl.growthFxV42||[];
-    const fx={label:out.icon+" "+out.name,story:out.story,sign:out.sign,stats:out.stats,amt:out.amt,permanent:!!out.permanent&&out.sign>0,gamesLeft:out.tier.games||null,seasonsLeft:out.tier.seasons?out.tier.seasons:(out.tier.season?1:null),src:out.ctx};
-    if(fx.permanent){fx.amt=1+Math.round(Math.random()*2);fx.gamesLeft=null;fx.seasonsLeft=null}   // small +1..3 forever
+    const fx={label:out.icon+" "+out.name,story:out.story,sign:out.sign,stats:out.stats,amt:out.amt,pct:out.pct!=null?out.pct:pctOf(out.amt)/* v193 X */,permanent:!!out.permanent&&out.sign>0,gamesLeft:out.tier.games||null,seasonsLeft:out.tier.seasons?out.tier.seasons:(out.tier.season?1:null),src:out.ctx};
+    if(fx.permanent){fx.amt=1+Math.round(Math.random()*2);fx.pct=pctOf(fx.amt);fx.gamesLeft=null;fx.seasonsLeft=null}   // small +1..3 forever (v193 X: as a percent)
     pl.growthFxV42.push(fx);
     (pl.growthHistV42=pl.growthHistV42||[]).push({card:out.card,sign:out.sign,week:pl.currentWeek||0});
     pl.growthHistV42=pl.growthHistV42.slice(-12);
@@ -208,13 +218,20 @@
   function compose(pl){
     if(!pl||!Array.isArray(pl.growthFxV42)||!pl.growthFxV42.length)return null;
     const soften=cl(dial("soften",0),0,3);
-    const sum={};
+    const sum={},pc={},x=X193(),on=pctOn();
     for(const fx of pl.growthFxV42){
-      let a=fx.amt*(fx.sign<0?-1:1);
+      const sg=fx.sign<0?-1:1;
+      if(on&&x&&fx.pct!=null){                                             // v193 X: a percent of each stat, in points today
+        let p=fx.pct*sg;
+        if(p<0&&soften)p=p*(1-soften*.25);
+        for(const k of fx.stats){sum[k]=(sum[k]||0)+x.pts(pl,k,p);pc[k]=(pc[k]||0)+p}
+        continue;
+      }
+      let a=fx.amt*sg;
       if(a<0&&soften)a=Math.round(a*(1-soften*.25));                      // Settings: soften game-day debuffs
       for(const k of fx.stats)sum[k]=(sum[k]||0)+a;
     }
-    return Object.keys(sum).filter(k=>sum[k]).map(k=>({stat:k,amt:sum[k],max:false}));
+    return Object.keys(sum).filter(k=>sum[k]).map(k=>pc[k]!=null?{stat:k,amt:sum[k],pct:Math.round(pc[k]),max:false}:{stat:k,amt:sum[k],max:false});
   }
   function seasonKey(pl){return(pl.level||0)+"-"+(pl.seasonsAtLevel||0)+"-"+(pl.seasonSeed||0)}
   // ---- wheel overlay (auto-rolled, personality-weighted) ----
@@ -915,7 +932,7 @@ function gateV139(root,cfg,go,DS){
        * wizard, which is already a page you have to press through. */
       gate: ctx==="season" ? "One roll decides what you commit to this year \u2014 your personality loads the wheel, and what it lands on rides every week of the season." : null,
       opts:opts.map(o=>({key:o.theme,skill:o.theme,icon:o.icon,name:o.name,col:wcol(o.theme),art:"th_"+o.theme,w:o.w,
-        line1:`+${o.amt} ${o.stats.map(k=>LBL[k]).join(" / ")} · ${durTxtOf(o.dur)}`,
+        line1:`+${pctOn()?o.pct+"%":o.amt} ${o.stats.map(k=>LBL[k]).join(" / ")} · ${durTxtOf(o.dur)}`,   /* v193 X: a percent of each */
         line2:`${o.tag} · RISK ${Math.round(o.risk*100)}%`,
         line2col:o.tag==="ALL-IN"?"#ff9d5c":o.tag==="OBSESSIVE"?"#f0bb45":"#8fa2bb"})),
       pick:idx, turns:(pl.growthHistV42||[]).length,
@@ -926,7 +943,7 @@ function gateV139(root,cfg,go,DS){
       result:{band:out.band,
         headline:`<span class="gv64-head" style="font-size:15px;margin:0">${skillIco(out.card,out.icon,30)}<span>${out.name} — ${out.band==="green"?"IT PAYS OFF":out.band==="neutral"?"HALF MEASURES":"IT BACKFIRES"}</span></span>`,
         story:out.story,
-        lines:out.stats.map(k=>(out.sign>0?"+":"−")+(out.permanent?"1-3":out.amt)+" "+(LBL[k]||k)).join(" · "),
+        lines:out.stats.map(k=>out.permanent?(out.sign>0?"+":"−")+(pctOn()?pctOf(1)+"–"+pctOf(3)+"%":"1-3")+" "+(LBL[k]||k):statTxt(pl,k,out.sign,out.amt,out.pct,LBL[k]||k)).join(" · "),   /* v193 X */
         dur:durTxtOf(out.tier,out.permanent)},
       onDone:()=>{applyOutcome(pl,out);onDone&&onDone(out)},
     });
@@ -978,7 +995,7 @@ function gateV139(root,cfg,go,DS){
   setInterval(()=>{try{
     const s=ST(),pl=PL(),scr=document.getElementById("screen");if(!s||!pl||!scr)return;
     if(s.view==="hub"&&!scr.querySelector(".gv42-chips")&&Array.isArray(pl.growthFxV42)&&pl.growthFxV42.length){
-      const chips=pl.growthFxV42.map(fx=>`<span style="display:inline-block;margin:3px 4px 0 0;padding:3px 9px;border-radius:20px;font:600 11px Oswald;border:1px solid ${fx.sign<0?"#7d3f3f":"#3f7d4d"};color:${fx.sign<0?"#ff9d94":"#7fe89a"}">${fx.label} ${fx.sign<0?"−":"+"}${fx.amt} · ${fx.permanent?"PERM":fx.gamesLeft!=null?fx.gamesLeft+"g":fx.seasonsLeft+"szn"}</span>`).join("");
+      const chips=pl.growthFxV42.map(fx=>`<span style="display:inline-block;margin:3px 4px 0 0;padding:3px 9px;border-radius:20px;font:600 11px Oswald;border:1px solid ${fx.sign<0?"#7d3f3f":"#3f7d4d"};color:${fx.sign<0?"#ff9d94":"#7fe89a"}">${fx.label} ${fx.sign<0?"−":"+"}${pctOn()&&fx.pct!=null?fx.pct+"%":fx.amt} · ${fx.permanent?"PERM":fx.gamesLeft!=null?fx.gamesLeft+"g":fx.seasonsLeft+"szn"}</span>`).join("");
       (scr.querySelector(".card")||scr.firstElementChild)?.insertAdjacentHTML("afterend",`<div class="card gv42-chips"><div class="eyebrow">ACTIVE GROWTH EFFECTS</div>${chips}</div>`);
     }
     if(s.view==="settings"&&!scr.querySelector(".gv42-set")){
@@ -992,7 +1009,7 @@ function gateV139(root,cfg,go,DS){
     }
   }catch(e){}},900);
   // telemetry / harness
-  window.__GROWTH_V42={compose,rollOutcome,applyOutcome,genOptions,THEMES,TIERS,POOLS,LBL,persona,jiveOf,bandOdds,jiveTraits,jiveFrom,traitLedger,showWheel,showWheelIn,spinWheel,wcol,wshade,NEUTRAL,TRAIT_LBL,
+  window.__GROWTH_V42={statTxt,pctOf,compose,rollOutcome,applyOutcome,genOptions,THEMES,TIERS,POOLS,LBL,persona,jiveOf,bandOdds,jiveTraits,jiveFrom,traitLedger,showWheel,showWheelIn,spinWheel,wcol,wshade,NEUTRAL,TRAIT_LBL,
     simulate(n){const out=[];for(let i=0;i<(n||100);i++){
       const pl={pos:["QB","RB","WR","LB","CB"][i%5],seasonSeed:1e6+i,seasonsPlayedTotal:i,personaV13:{aggression:i*3%11,iq:i*5%11,eq:i*7%11,longterm:i*2%11,workethic:i*4%11,loyalty:5,confidence:i*6%11,coachability:i*8%11},prestigeLifetime:i%3===0?0:i%3===1?8:18,coachTrust:20+i*7%70,momentum103:30+i*11%50,conditionV11:{fatigue:i*5%30}};
       const rand=seededRand(pl,"sim"+i);const opts=genOptions(pl,rand,5);if(!opts.length)continue;
