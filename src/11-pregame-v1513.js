@@ -509,6 +509,8 @@ const V112_PAGES_D=[
   {id:"v112Page1",kick:"YOUR INVOLVEMENT",title:"How much of this game is yours?",sub:"Five steps, from spot snaps to every snap. Pick one."},
   {id:"v112Page2",kick:"YOUR FOCUS",title:"Sharpen one thing",sub:"One stat, this game only — how much each card sharpens rolls fresh every week, and sometimes the drill goes sideways. Pick one, or none."},
   {id:"v112Page3",kick:"THE SCOUT & THE PLAN",title:"Who you are playing",sub:"The read on them, and the mix your coordinator has settled on. Nothing here needs an answer."},
+  /* v193 B: your team — the two elevens and what the prestige gives each man; only with `v193B` on (`when`) */
+  {id:"v112PageTeam",kick:"YOUR TEAM",title:"Who lines up, and what your prestige gives them",sub:"Your eleven on offense and your eleven on defense — every man's rating this game, and what your tree, your Locker Room and your plan put on him. You are in there too.",when:()=>{try{return v193OnD()}catch(e){return!1}}},
   {id:"v112Page4",kick:"THE IMPACT",title:"What you take onto the field",sub:"Your involvement, your focus, the body and the bill — all of it, applied."},
   /* v135: the wheel's own page. See `v135MountD` — the plan was rolled and held the moment the
    * staff's deck appeared; this page only spins it, and then names the final stat. */
@@ -520,7 +522,7 @@ const V112_PAGES_D=[
   {id:"v112Page6",kick:"RIVALRY WEEK",title:"How do you play the rival?",sub:"Five approaches. The wheel picks yours — your personality loads it, and a locked one is off the wheel. It counts from this game on.",when:()=>{try{return rivalPageV136()}catch(e){return!1}}},
   {id:"v112Page7",kick:"YOUR SHEET",title:"What you carry onto the field",get sub(){return v146OnD()?"Every number below is the one you play with — the focus, the body and the week, all applied. The plan's roll lands at kickoff.":"Every number below is the one you play with — the focus, the body, the wheel and the week, all applied. Then kickoff."}}];
 function v112ActiveD(){return V112_PAGES_D.filter(p=>!p.when||p.when())}
-function v112NextLabelD(i){const AP=v112ActiveD(),N=AP[i+1];if(!N)return"CONTINUE TO MATCH";if(N.id==="v112Page5")return v146OnD()?"THE GAME PLAN ›":"SPIN THE WHEEL ›";if(N.id==="v112Page6")return"RIVALRY WEEK ›";if(N.id==="v112Page7")return"YOUR SHEET ›";return"NEXT ›"}
+function v112NextLabelD(i){const AP=v112ActiveD(),N=AP[i+1];if(!N)return"CONTINUE TO MATCH";if(N.id==="v112PageTeam")return"YOUR TEAM ›";if(N.id==="v112Page5")return v146OnD()?"THE GAME PLAN ›":"SPIN THE WHEEL ›";if(N.id==="v112Page6")return"RIVALRY WEEK ›";if(N.id==="v112Page7")return"YOUR SHEET ›";return"NEXT ›"}
 let v112PageD=0;
 function v112DotsD(i){return v112ActiveD().map((p,j)=>`<i class="${j===i?"on":j<i?"lit":""}" data-i="${j}" onclick="__v112GoD(${j})" title="${esc(p.kick)}"></i>`).join("")}
 function v112ShowPageD(i){
@@ -534,9 +536,10 @@ function v112ShowPageD(i){
   const sk=document.getElementById("v112Skip"); if(sk) sk.hidden=last;
   if(P.id==="v112Page5") v135MountD(); else v135ParkD();
   if(P.id==="v112Page6") v136MountRivalD(); else v136ParkRivalD();
+  if(P.id==="v112PageTeam"){try{v193TeamD()}catch(e){}}   // v193 B
   if(P.id==="v112Page4"||last) v112RenderFinalD();
   else if(P.id!=="v112Page5"&&P.id!=="v112Page6"){try{v111RenderV111()}catch(e){}}
-  try{const pj=document.getElementById("v146Proj");if(pj)pj.hidden=(P.id==="v112Page4");v146ProjD();v146FullD()}catch(e){}   // v146 D: the projection follows every page
+  try{const pj=document.getElementById("v146Proj");if(pj)pj.hidden=(P.id==="v112Page4"||P.id==="v112PageTeam");v146ProjD();v146FullD();v193ScoreRenderD()}catch(e){}   // v146 D: the projection follows every page (v193 B: the score with it; the team page has its own room)
   const sc=document.getElementById("pregameV1513"); if(sc) sc.scrollTop=0;
 }
 window.__v112GoD=function(i){v112ShowPageD(i)};
@@ -638,7 +641,7 @@ function v112StyleD(){ if(document.getElementById("v112StyleDEl")) return;
   </style>`);
 }
 function v112ShellD(a){
-  v112StyleD(); v146StyleD(); const n=V112_PAGES_D.length;
+  v112StyleD(); v146StyleD(); v193StyleD(); const n=V112_PAGES_D.length;
   return `<div class="pregame-v1513 v112-wiz-d" id="pregameV1513"><div class="pregame-panel-v1513">
     <div class="v112-top"><div class="v112-kick" id="v112Kick">STEP 1 OF ${n}</div>
       <div class="v112-title" id="v112Title">—</div><div class="v112-sub" id="v112Sub">—</div>
@@ -647,6 +650,7 @@ function v112ShellD(a){
     <div class="v112-page" id="v112Page1">${gsUsageBlockV23()}</div>
     <div class="v112-page" id="v112Page2" hidden>${gsFocusBlockV23()}</div>
     <div class="v112-page" id="v112Page3" hidden>${a.scout}${gsPlanBlockV23()}</div>
+    <div class="v112-page" id="v112PageTeam" hidden><div id="v193Team"></div></div>
     <div class="v112-page" id="v112Page4" hidden><div id="v112Impact"></div><div id="v146Full"></div></div>
     <div class="v112-page" id="v112Page5" hidden><div id="v171Calls"></div><div id="v135Wheel"></div><div id="v135Final"></div></div>
     <div class="v112-page" id="v112Page6" hidden><div id="v136Rival"></div><div id="v136RivalOut"></div></div>
@@ -773,7 +777,8 @@ function v136SummaryHTMLD(){const S=gsStateV23;if(!S)return"";const pl=S.pl,wk=S
   const row=(k,v,c)=>`<div class="v112-imp-row"><span>${k}</span><b${c?` style="color:${c}"`:""}>${v}</b></div>`;
   const bandC=b=>b==="green"?"#8fe0a0":b==="red"?"#e8938b":"#cfd6a8";
   let out=`<div class="v112-imp v136-sum" id="v136SumD"><h4>📋 THE WEEK, SETTLED</h4>`;
-  if(d&&v146OnD()){const b=window.__PREGAME_V51.band&&window.__PREGAME_V51.band(d.win.id);out+=row("Game plan",`${esc(d.win.name)} · <small style="font-weight:400;color:var(--chalk-dim)">you chose it · ${b?`${Math.round(b.g*100)}% clicks, ${Math.round(b.r*100)}% backfires — `:""}rolls at kickoff</small>`)}   // v146 D
+  if(d&&v146OnD()){const b=window.__PREGAME_V51.band&&window.__PREGAME_V51.band(d.win.id),R=v193RevealedD();   // v146 D · v193 B: a revealed roll is named
+    out+=row("Game plan",`${esc(d.win.name)} · <small style="font-weight:400;color:var(--chalk-dim)">you chose it · ${R?`<span style="color:${bandC(R.band)}">rolled: ${R.say}</span> — ${esc(R.lines)}`:`${b?`${Math.round(b.g*100)}% clicks, ${Math.round(b.r*100)}% backfires — `:""}rolls at kickoff`}</small>`)}
   else out+=d?row("Game plan",`${esc(d.win.name)} · <span style="color:${bandC(d.band)}">${d.band==="green"?"IT CLICKS":d.band==="neutral"?"IT'LL DO":"IT BACKFIRES"}</span>${h.applied?"":" · unspun"}`):row("Game plan","the scout's pick","var(--chalk-dim)");
   try{if(wk&&wk.rivalV128&&pl&&pl.eventChoice&&pl.eventChoice.rivalV128){const ec=pl.eventChoice;out+=row("Rivalry week",ec.pendingV136?"spun on the way out":esc(ec.chosenV136||"the approach from the season's start"),ec.pendingV136?"var(--chalk-dim)":"#c9b8ff")}}catch(e){}
   out+=`<div class="v112-imp-note">${v146OnD()?"The sheet below is what you actually carry onto the field — the focus multiplier, the body's swing and any lingering cut are already in those numbers; the plan's roll and swing land at kickoff.":"The sheet below is what you actually carry onto the field — the focus multiplier, the body's swing, the wheel's swing and any lingering cut are already in those numbers."}</div></div>`;return out}
@@ -805,29 +810,33 @@ function v146ProjD(){const el=document.getElementById("v146Proj");if(!el)return;
   if(!P){el.innerHTML="";return}
   const H=P.head,plan=P.plan,rows=P.rows.filter(r=>r.mean!=null&&(r.head||r.mean>=.05));
   if(!P.ready){el.innerHTML=`<div class="v146-ph"><b>📊 PROJECTING</b><span>playing this week in the engine · ${P.n}/${P.N}</span></div>`;return}
-  el.innerHTML=`<div class="v146-ph"><b>📊 PROJECTED</b><span>${plan?esc((plan.icon||"")+" "+plan.name):""}</span>${H&&H.pct!=null?`<em style="color:${v146VarColD(H.pct)}">VARIANCE ±${H.pct}%</em>`:""}</div>
-    <div class="v146-pr">${rows.slice(0,5).map(r=>`<span class="${r.head?"hd":""}"><b>${v146NumD(r.mean)}</b><small>${esc(r.label)}</small><i>${Math.round(r.lo)}–${Math.round(r.hi)}</i></span>`).join("")||`<span><b>${P.grade?Math.round(P.grade.mean):"—"}</b><small>Grade</small><i>${P.grade?Math.round(P.grade.lo)+"–"+Math.round(P.grade.hi):""}</i></span>`}</div>`}
+  const R=v193RevealedD(),pre=v193PreProjD(),dl=r=>v193RowDeltaD(pre,r),gd=P.grade&&pre&&pre.grade?v193SigD(P.grade.mean-pre.grade.mean,false):"";   // v193 B: ▲/▼ against the pre-roll projection
+  el.innerHTML=`<div class="v146-ph"><b>📊 PROJECTED</b><span>${plan?esc((plan.icon||"")+" "+plan.name):""}</span>${R?`<i class="v193-rolled ${R.band}">🎲 ${R.say}</i>`:""}${H&&H.pct!=null?`<em style="color:${v146VarColD(H.pct)}">VARIANCE ±${H.pct}%</em>`:""}</div>
+    <div class="v146-pr">${rows.slice(0,5).map(r=>`<span class="${r.head?"hd":""}"><b>${v146NumD(r.mean)}${dl(r)}</b><small>${esc(r.label)}</small><i>${Math.round(r.lo)}–${Math.round(r.hi)}</i></span>`).join("")||`<span><b>${P.grade?Math.round(P.grade.mean):"—"}${gd}</b><small>Grade</small><i>${P.grade?Math.round(P.grade.lo)+"–"+Math.round(P.grade.hi):""}</i></span>`}</div>`}
 /* page 4: the same projection, whole — with the grade and what the variance is made of */
 function v146FullD(){const el=document.getElementById("v146Full");if(!el)return;const P=v146ProjectD();if(!P){el.innerHTML="";return}
   const row=(k,v,c)=>`<div class="v112-imp-row"><span>${k}</span><b${c?` style="color:${c}"`:""}>${v}</b></div>`;
   if(!P.ready){el.innerHTML=`<div class="v112-imp v146-full"><h4>📊 PROJECTED BOX SCORE</h4><div class="v112-imp-note">Playing this week in the engine — ${P.n} of ${P.N} games in.</div></div>`;return}
-  const H=P.head;
-  el.innerHTML=`<div class="v112-imp v146-full" id="v146FullD"><h4>📊 PROJECTED BOX SCORE · 80% RANGE</h4>${P.rows.filter(r=>r.mean!=null&&(r.head||r.mean>=.05)).map(r=>row(esc(r.label),`${v146NumD(r.mean)} <small class="v146-rg">${Math.round(r.lo)}–${Math.round(r.hi)}</small>`)).join("")}
-    ${P.grade?row("Game grade",`${Math.round(P.grade.mean)} <small class="v146-rg">${Math.round(P.grade.lo)}–${Math.round(P.grade.hi)}</small>`):""}
+  const H=P.head,pre=v193PreProjD(),dl=r=>v193RowDeltaD(pre,r),gd=P.grade&&pre&&pre.grade?v193SigD(P.grade.mean-pre.grade.mean,false):"";   // v193 B
+  el.innerHTML=`<div class="v112-imp v146-full" id="v146FullD"><h4>📊 PROJECTED BOX SCORE · 80% RANGE</h4>${P.rows.filter(r=>r.mean!=null&&(r.head||r.mean>=.05)).map(r=>row(esc(r.label),`${v146NumD(r.mean)}${dl(r)} <small class="v146-rg">${Math.round(r.lo)}–${Math.round(r.hi)}</small>`)).join("")}
+    ${P.grade?row("Game grade",`${Math.round(P.grade.mean)}${gd} <small class="v146-rg">${Math.round(P.grade.lo)}–${Math.round(P.grade.hi)}</small>`):""}
     ${H&&H.pct!=null?row("Variance",`±${H.pct}% <small class="v146-rg">engine ±${H.sim}% · plan ±${H.plan}%</small>`,v146VarColD(H.pct)):""}
     <div class="v112-imp-note">${V146_VAR_LINE} Projected if he stays on the field — an injury in this game books it as a DNP. (${P.n} games of this week, run in the real engine.)</div></div>`}
 /* page 5: the board */
 /* v171 A: a tile says what THIS plan does — its game rating and its own swing — not the engine's variance, which is the same number on every tile */
-function v146TileD(id,on,f,b,P){const rs=f&&f.ratingShift!=null?f.ratingShift:null,sw=f&&f.formPts!=null?f.formPts:null,col=rs==null?"var(--chalk-dim)":rs>0.05?"#8fe0a0":rs<-0.05?"#e8938b":"var(--chalk)";
-  return`<button class="v146-tile${on?" on":""}" data-plan="${esc(id)}" onclick="__v146PickD('${esc(id)}')"><i>${esc(f.icon||"📋")}</i><b>${esc(f.name)}</b><em style="color:${col}">${rs==null?"—":(rs>0?"+":rs<0?"−":"±")+Math.abs(Math.round(rs*10)/10).toFixed(1)}</em><u>${sw!=null?"swing ±"+(Math.round(sw*10)/10).toFixed(1):""}</u>${b&&b.scout?`<s>SCOUT</s>`:""}</button>`}
+/* v193 B: a tile is shaded by its click odds (`odds-g` / `odds-y` / `odds-r`), prints them, and the best odds on the board get a badge */
+function v146TileD(id,on,f,b,x){x=x||{};const rs=f&&f.ratingShift!=null?f.ratingShift:null,sw=f&&f.formPts!=null?f.formPts:null,col=rs==null?"var(--chalk-dim)":rs>0.05?"#8fe0a0":rs<-0.05?"#e8938b":"var(--chalk)";
+  const oc=v193OddsClassD(b),pct=v193OnD()?v193OddsPctD(b):null,badge=b&&b.scout&&x.best?"SCOUT · BEST ODDS":x.best?"BEST ODDS":b&&b.scout?"SCOUT":"";
+  return`<button class="v146-tile${on?" on":""}${oc}${x.locked?" locked":""}" data-plan="${esc(id)}"${pct!=null?` data-odds="${pct}"`:""} onclick="__v146PickD('${esc(id)}')"><i>${esc(f.icon||"📋")}</i><b>${esc(f.name)}</b><em style="color:${col}">${rs==null?"—":(rs>0?"+":rs<0?"−":"±")+Math.abs(Math.round(rs*10)/10).toFixed(1)}</em><u>${sw!=null?"swing ±"+(Math.round(sw*10)/10).toFixed(1):""}</u>${pct!=null?`<small class="v193-odds">${b.fixed?(b.band==="green"?"🎲 CLICKS":b.band==="red"?"🎲 BACKFIRES":"🎲 IT'LL DO"):pct+"% clicks"}</small>`:""}${badge?`<s${x.best&&!(b&&b.scout)?' class="best"':""}>${badge}</s>`:""}</button>`}
 function v146CardD(id){const X=window.__V146,f=X&&X.facts(null,id),V=window.__PREGAME_V51,b=V&&V.band?V.band(id):null;if(!f)return"";
   const P=v146ProjectD(id),H=P&&P.head,lab=k=>(window.__statLabelV25&&window.__statLabelV25(k))||k,sg=(v,d)=>(v>0?"+":v<0?"−":"±")+Math.abs(Math.round(v*(d||1))/(d||1));
   const row=(k,v,c)=>`<div class="v146-r"><span>${k}</span><b${c?` style="color:${c}"`:""}>${v}</b></div>`;
   const mt=f.counter?`counters them ${sg(f.match)}`:f.trap?`they punish it ${sg(f.match)}`:f.match?`${sg(f.match)}`:"neutral";
-  let h=`<div class="v146-hd"><span>${esc(f.icon||"📋")}</span><div><b>${esc(f.name)}${b&&b.scout?` <s>SCOUT PICK</s>`:""}</b><small>${esc(f.desc)}</small></div></div><div class="v146-g">`;
+  let h=`<div class="v146-hd"><span>${esc(f.icon||"📋")}</span><div><b>${esc(f.name)}${b&&b.scout?` <s>SCOUT PICK</s>`:""}</b><small>${esc(f.desc)}</small></div></div>${v193WhyD(id)}<div class="v146-g">`;   // v193 B: why the odds lit another plan
   h+=row("Game rating",`${sg(f.ratingShift,10)} <small>plan ${sg(f.perf)}, matchup: ${esc(mt)}${f.rep>=2?` · ${f.rep} wks running`:""}</small>`,f.ratingShift>0?"#8fe0a0":f.ratingShift<0?"#e8938b":"");
   {const tl=v171TeamLiftD(f);if(tl!=null)h+=row("Team",`${tl>0?"+":tl<0?"−":"±"}${Math.abs(tl).toFixed(1)}% <small>to every teammate's ratings in this game</small>`,tl>0?"#8fe0a0":tl<0?"#e8938b":"")}   // v171 A: the rating reaches the team
-  if(b){h+=row("The roll",`<span style="color:#8fe0a0">${Math.round(b.g*100)}% clicks</span> · <span style="color:#e8938b">${Math.round(b.r*100)}% backfires</span>`);
+  if(b){if(b.fixed)h+=row("The roll",`<span style="color:${b.band==="green"?"#8fe0a0":b.band==="red"?"#e8938b":"#cfd6a8"}">🎲 ROLLED — ${b.band==="green"?"IT CLICKS":b.band==="red"?"IT BACKFIRES":"IT'LL DO"}</span> <small>(it was ${Math.round(b.oddsG*100)}% / ${Math.round(b.oddsR*100)}%)</small>`);   // v193 B: revealed on this page
+    else h+=row("The roll",`<span style="color:#8fe0a0">${Math.round(b.g*100)}% clicks</span> · <span style="color:#e8938b">${Math.round(b.r*100)}% backfires</span>`);
     h+=row("Clicks / backfires",`+3–5 ${b.statsG.map(k=>esc(lab(k))).join(", ")} · −3–4 ${b.statsR.map(k=>esc(lab(k))).join(", ")}`)}
   /* v192 A: the fate buff is a percent of the attribute (it may pass the cap) — the points it is today in brackets */
   const fPct=f.fate&&f.fate.pct!=null,fP=v=>(Math.abs(v-Math.round(v))<0.05?Math.round(v):(+v).toFixed(1))+"%";
@@ -839,16 +848,154 @@ function v146CardD(id){const X=window.__V146,f=X&&X.facts(null,id),V=window.__PR
   return h}
 function v146BoardD(){v171CallsD();const host=document.getElementById("v135Wheel"),fin=document.getElementById("v135Final");if(!host)return;const h=v146HeldD();
   if(!h||!h.plans){host.innerHTML=`<div class="v135-none">The plan is set — the scout's pick.</div>`;if(fin)fin.innerHTML="";return}
-  const id=v146PlanIdD(),X=window.__V146,V=window.__PREGAME_V51;
-  host.innerHTML=`<div class="v146-board" id="v146Plan"><div class="v171-sub">📋 YOUR GAME PLAN <small>how you play it</small></div><div class="v146-tiles">${h.plans.map(p=>{const f=X&&X.facts(null,p.id)||{icon:p.icon,name:p.name};return v146TileD(p.id,p.id===id,f,V&&V.band?V.band(p.id):null,v146ProjectD(p.id))}).join("")}</div></div>`;
-  if(fin)fin.innerHTML=`<div class="v146-card" id="v146Card">${v146CardD(id)}</div>`}
+  const id=v146PlanIdD(),X=window.__V146,V=window.__PREGAME_V51,best=v193BestD(h.plans),locked=!!v193RevealedD();   // v193 B: the best odds on the board, and a revealed roll locks every tile
+  host.innerHTML=`<div class="v146-board" id="v146Plan"><div class="v171-sub">📋 YOUR GAME PLAN <small>how you play it</small></div>${v193ScoreSlotD("v193Score5")}<div class="v146-tiles">${h.plans.map(p=>{const f=X&&X.facts(null,p.id)||{icon:p.icon,name:p.name};return v146TileD(p.id,p.id===id,f,V&&V.band?V.band(p.id):null,{best:p.id===best,locked})}).join("")}</div></div>`;
+  if(fin)fin.innerHTML=`<div class="v146-card" id="v146Card">${v146CardD(id)}</div>${v193RollBlockD()}`;
+  v193ScoreRenderD()}
 window.__v146PickD=function(id){const V=window.__PREGAME_V51;if(!V||!V.pick)return;if(!V.pick(id))return;v146BoardD();v146ProjD()};
-function v146RenderAllD(){if(!document.getElementById("pregameV1513"))return;v146ProjD();v146FullD();if(v146OnD()&&document.getElementById("v146Plan")){
+function v146RenderAllD(){if(!document.getElementById("pregameV1513"))return;v146ProjD();v146FullD();v193ScoreRenderD();if(v146OnD()&&document.getElementById("v146Plan")){
   v171CallsD(true);
   const c=document.getElementById("v146Card");if(c)c.innerHTML=v146CardD(v146PlanIdD())}}
 try{window.__V146&&window.__V146.onSample(()=>v146RenderAllD())}catch(e){}
 (function(){const U=window.__v111PickUsageV111,Fo=window.__v111PickFocusV111;
   window.__v111PickUsageV111=function(k){U&&U(k);v146RenderAllD()};window.__v111PickFocusV111=function(k){Fo&&Fo(k);v146RenderAllD()}})();
+/* ===== v193 B THE PLAN SHOWS ITS ODDS (the pages) =====
+ * Three things the owner asked for. (1) THE ODDS ARE VISIBLE: every tile on the plan board is shaded by its click
+ * odds (`odds-g` ≥ `planGreenV193`, `odds-r` at `planRedV193` backfires or under 25% clicks, `odds-y` between) and
+ * prints them; the best odds on the board wear BEST ODDS beside the scout's SCOUT. The default pick is modified by
+ * them in `17` (`defaultPickV146`): a scout's plan that is not green gives way to the greenest plan within
+ * `planGreenGapV193` perf of it, and the card says why (`v193WhyD`). (2) ROLL BEFORE KICKOFF: under the plan card,
+ * 🎲 ROLL THE PLAN (`rollPlanNowV193`) reveals the held outcome for the SELECTED plan — the same dice `holdPlanV135`
+ * drew, nothing re-rolled — with a short dice spin, then the result line. From then on the pick is LOCKED (the tiles
+ * dim, `pickPlanV146` refuses), the band is FIXED (`bandForV146`), so the strip, the full box score, the plan card
+ * and the projected score all redraw against the pre-roll projection (`v193PreD`, ▲/▼ per stat and on the grade);
+ * `commitHeldV135` still applies the swing once at kickoff, without the toast. (3) THE PROJECTED SCORE: `__V146.score`
+ * (07) is shown on page 3 beside the WIN CHANCE and on page 5 above the tiles — PROJECTED 27–21 — and tweens to its
+ * new numbers after the roll. (4) YOUR TEAM is a page of its own after the scout (`v112PageTeam`, `v193TeamD`): the
+ * two elevens from the same preview page 3 draws (`__previewMatchupV22`, now with each man's Locker Room +1s and the
+ * team nodes' lift in OVR points), chips for what the prestige and the plan give each man, the you-player marked
+ * with what he carries, and a header from `teamQualityV192B` — the team without → with the prestige. Kill switch
+ * `TU("v193B", 1)`: 0 = no shading or default change, no roll button, no score, no team page. `window.__V193B`;
+ * `v193Bcheck`. */
+let v193PvD=null,v193PreD=null;   // page 3's roster preview (the team page lists the same men) · the projection before the roll
+function v193TU(k,d){try{return window.TU?window.TU(k,d):d}catch(e){return d}}
+function v193OnD(){return !!v193TU("v193B",1)}   // the board-only parts (tiles, the roll) already live inside choice mode; the score and the team page show with the wheel too
+function v193RevealedD(){try{const V=window.__PREGAME_V51;return V&&V.revealed?V.revealed():null}catch(e){return null}}
+function v193OddsClassD(b){if(!b||!v193OnD())return"";const G=v193TU("planGreenV193",.5),R=v193TU("planRedV193",.35),g=b.oddsG!=null?b.oddsG:b.g,r=b.oddsR!=null?b.oddsR:b.r;return(r>=R||g<.25)?" odds-r":g>=G?" odds-g":" odds-y"}
+function v193OddsPctD(b){if(!b)return null;const g=b.oddsG!=null?b.oddsG:b.g;return Math.round(g*100)}
+function v193BestD(plans){const V=window.__PREGAME_V51;if(!V||!V.band||!v193OnD()||!plans)return null;let best=null;
+  plans.forEach(p=>{const b=V.band(p.id);if(!b)return;const g=b.oddsG!=null?b.oddsG:b.g;if(!best||g>best.g)best={id:p.id,g}});return best?best.id:null}
+function v193ScoreD(planId){try{return v193OnD()&&window.__V146&&window.__V146.score?window.__V146.score(v146StateD(planId)):null}catch(e){return null}}
+function v193ScoreSlotD(id){return v193OnD()?`<div class="v193-score" id="${id}"></div>`:""}
+function v193SigD(d,dec){if(d==null||!isFinite(d)||Math.abs(d)<.05)return"";const n=dec?(Math.round(Math.abs(d)*10)/10).toFixed(1):Math.round(Math.abs(d));return`<u class="v193-d ${d>0?"up":"dn"}">${d>0?"▲":"▼"}${n}</u>`}
+/* the pre-roll projection, only while the revealed plan is the one on the board */
+function v193PreProjD(){const R=v193RevealedD();return R&&v193PreD&&v193PreD.proj&&v193PreD.id===R.id&&R.id===v146PlanIdD()?v193PreD.proj:null}
+function v193RowDeltaD(pre,r){if(!pre||!pre.rows||!r||r.mean==null)return"";const q=pre.rows.find(x=>x.k===r.k);return q&&q.mean!=null?v193SigD(r.mean-q.mean,true):""}
+function v193ScoreHtmlD(S,pre){if(!S)return"";const d=pre&&pre.us!=null?S.us-pre.us:null;
+  return`<span class="l">PROJECTED</span><b><span data-n="${S.usR}">${S.usR}</span>–<span data-n="${S.themR}">${S.themR}</span></b>${v193SigD(d,true)}<small>${S.ready?`${S.n} games in the engine`:"off the matchup"}${S.lift?` · plan ${S.lift>0?"+":"−"}${(Math.round(Math.abs(S.lift)*10)/10).toFixed(1)}`:""}${S.fixed?` · rolled ${S.roll>0?"+":S.roll<0?"−":"±"}${Math.abs(S.roll)}`:""}</small>`}
+function v193ScoreNumsD(){const el=document.getElementById("v193Score5")||document.getElementById("v193Score3"),n=el?[...el.querySelectorAll("[data-n]")].map(x=>+x.dataset.n):[];return n.length===2?n:null}
+function v193ScoreRenderD(from){if(!v193OnD())return;const id=v146PlanIdD(),S=v193ScoreD(id),R=v193RevealedD(),pre=R&&v193PreD&&v193PreD.id===R.id?v193PreD.score:null;
+  ["v193Score3","v193Score5"].forEach(i=>{const el=document.getElementById(i);if(!el)return;el.innerHTML=v193ScoreHtmlD(S,pre);el.classList.toggle("rolled",!!(S&&S.fixed));if(from)v193TweenD(el,from)})}
+function v193TweenD(el,from){const to=[...el.querySelectorAll("[data-n]")];if(to.length!==2)return;const t0=performance.now(),ms=v193TU("scoreTweenMsV193",500);
+  const step=()=>{const k=Math.min(1,(performance.now()-t0)/ms);to.forEach((x,i)=>{x.textContent=Math.round(from[i]+(+x.dataset.n-from[i])*k)});if(k<1)requestAnimationFrame(step)};requestAnimationFrame(step)}
+function v193WhyD(id){if(!v193OnD())return"";const V=window.__PREGAME_V51,o=V&&V.oddsPick?V.oddsPick():null;if(!o||!o.modified)return"";if(id!==o.pick&&id!==o.scout)return"";
+  const nm=k=>{const h=v146HeldD(),p=h&&h.plans?h.plans.find(x=>x.id===k):null;return p?p.name:k};
+  return`<div class="v193-why" id="v193Why">🔭 Scout says <b>${esc(nm(o.scout))}</b> (${Math.round(o.scoutG*100)}% clicks) · 🎲 odds say <b>${esc(nm(o.pick))}</b> (${Math.round(o.pickG*100)}%)${id===o.pick?" — lit for you. Pick anything.":""}</div>`}
+function v193RollBlockD(){if(!v193OnD())return"";const h=v146HeldD();if(!h||!h.dice||h.applied)return"";const R=v193RevealedD();
+  if(!R)return`<div class="v193-rollwrap" id="v193RollWrap"><button type="button" class="btn v193-roll" id="v193Roll" onclick="rollPlanNowV193()">🎲 ROLL THE PLAN</button><small>See now whether it comes off — the projection moves, and the pick is locked. Or leave it: it rolls at kickoff.</small></div>`;
+  return v193OutD(R)}
+function v193OutD(R){const c=R.band==="green"?"g":R.band==="red"?"r":"n";
+  return`<div class="v193-out ${c}" id="v193Out"><i class="v193-die">🎲</i><div><b>${esc(R.icon||"📋")} ${esc(R.name)} — ${R.say}</b><small>${esc(R.story||"")} <em>${esc(R.lines)}</em></small><span>Rolled. The pick is locked — it stands at kickoff.</span></div></div>`}
+function rollPlanNowV193(){const V=window.__PREGAME_V51;if(!V||!V.reveal||!v193OnD()||v193RevealedD())return;
+  const id=v146PlanIdD();v193PreD={id,proj:v146ProjectD(id),score:v193ScoreD(id),nums:v193ScoreNumsD()};
+  const R=V.reveal();if(!R)return;
+  const wrap=document.getElementById("v193RollWrap");
+  if(wrap){wrap.outerHTML=`<div class="v193-out rolling" id="v193Out"><i class="v193-die spin">🎲</i><div><b>ROLLING…</b></div></div>`;setTimeout(v193AfterRollD,v193TU("rollMsV193",450))}
+  else v193AfterRollD()}
+function v193AfterRollD(){if(!document.getElementById("pregameV1513"))return;const from=(v193PreD&&v193PreD.nums)||null;v146BoardD();const o=document.getElementById("v193Out");if(o)o.classList.add("land");v146ProjD();v146FullD();v193ScoreRenderD(from)}
+window.rollPlanNowV193=rollPlanNowV193;
+/* the team page: the two elevens, what the prestige gives each man, and the you-player with what he carries */
+function v193TeamD(){const el=document.getElementById("v193Team");if(!el)return;if(!v193OnD()){el.innerHTML="";return}
+  const S=gsStateV23,pl=S&&S.pl,wk=S&&(S.wk||S.stray);if(!pl){el.innerHTML="";return}
+  const pv=v193PvD||((window.__previewMatchupV22&&pl.pos)?window.__previewMatchupV22(pl.pos,wk&&wk.perf):null);
+  let Q=null;try{Q=window.__V192B&&window.__V192B.team?window.__V192B.team():null}catch(e){Q=null}
+  const id=v146PlanIdD(),f=id&&window.__V146&&window.__V146.facts?window.__V146.facts(null,id):null,tl=f?v171TeamLiftD(f):null;
+  let foc=null;try{foc=v111FocusRowV111(pl,wk)}catch(e){}
+  const lab=k=>(window.__statLabelV25&&window.__statLabelV25(k))||k,ts=(window.pregameTempStats?window.pregameTempStats(pl,wk):[]).filter(t=>/Boost|Setback/.test(t.l||""));
+  const sg=n=>(n>0?"+":n<0?"−":"±")+Math.abs(n),n1=n=>(Math.round(n*10)/10).toFixed(1).replace(/\.0$/,"");
+  const head=Q?`<div class="v193-th" id="v193TeamHead"><b>Your prestige lifts this team from ${Q.base} → ${Q.full}</b><small>team nodes ${sg(Q.lift)}${Q.liftPct?` (+${n1(Q.liftPct)}% on every teammate)`:""} · Locker Room ${sg(Q.locker)}${Q.lockerLv?` (${Q.lockerLv} levels of +1s)`:""} · legacy share ${sg(Q.share)}</small></div>`:"";
+  const nudge=(!Q||(Q.lift<=0&&Q.locker<=0))?`<div class="v193-nudge" id="v193Nudge">Team nodes and the Locker Room in the Prestige tree raise these men — every level shows up here.</div>`:"";
+  if(!pv||!pv.us||!pv.us.players){el.innerHTML=head+nudge+`<div class="v135-none">The roster is drawn at kickoff.</div>`;return}
+  const chip=(t,c)=>`<i class="${c||""}">${t}</i>`;
+  const man=m=>{const chips=[];
+    if(m.you){chips.push(chip("YOU","you"));if(foc)chips.push(chip(`×${(Math.round((Number(foc.mul)||1.2)*100)/100).toFixed(2)} ${esc(lab(foc.stat))} focus`,"g"));if(f)chips.push(chip(`${esc(f.icon||"📋")} ${esc(f.name)}`,"p"));ts.slice(0,3).forEach(t=>chips.push(chip(esc(t.v),t.good?"g":"r")))}
+    else{if(m.locker)chips.push(chip(`+${m.locker} Locker Room`,"g"));if(m.lift)chips.push(chip(`+${n1(m.lift)} team nodes`,"g"));if(tl)chips.push(chip(`${tl>0?"+":"−"}${n1(Math.abs(tl))}% plan`,tl>0?"g":"r"));if(m.star)chips.push(chip("⭐ STAR","s"));if(m.weak)chips.push(chip("WEAK LINK","r"))}
+    return`<div class="v193-man${m.you?" you":""}" data-pos="${esc(m.pos)}"><span class="num">#${m.num!=null?m.num:"—"}</span><span class="pos">${esc(m.pos)}</span><span class="nm">${esc(m.name)}</span><span class="ovr">${m.ovr}</span><span class="chips">${chips.join("")}</span></div>`};
+  const off=pv.us.players.filter(m=>m.off),def=pv.us.players.filter(m=>!m.off);
+  el.innerHTML=head+nudge+`<div class="v193-roster" id="v193Roster"><h5>OFFENSE · ${pv.us.ovr} TEAM OVR</h5>${off.map(man).join("")}<h5>DEFENSE</h5>${def.map(man).join("")}</div>
+    <div class="v112-imp-note">OVR is each man's rating this game, the Locker Room's +1s already in it. Team nodes lift every teammate by the percent shown; the plan's lift lands at kickoff with the roll.</div>`}
+window.__V193B={on:v193OnD,score:id=>v193ScoreD(id),odds:id=>{const V=window.__PREGAME_V51;return V&&V.band?V.band(id):null},reveal:rollPlanNowV193,revealed:v193RevealedD,locked:()=>!!v193RevealedD(),
+  pick:()=>{const V=window.__PREGAME_V51;return V&&V.oddsPick?V.oddsPick():null},pre:()=>v193PreD,team:v193TeamD,best:()=>{const h=v146HeldD();return h&&h.plans?v193BestD(h.plans):null}};
+function v193StyleD(){if(document.getElementById("v193StyleEl"))return;document.head.insertAdjacentHTML("beforeend",`<style id="v193StyleEl">
+  .v146-tile.odds-g{border-left:3px solid #8fe0a0;background:linear-gradient(100deg,rgba(143,224,160,.18),rgba(255,255,255,.04) 70%)}
+  .v146-tile.odds-y{border-left:3px solid var(--gold);background:linear-gradient(100deg,rgba(240,187,69,.15),rgba(255,255,255,.04) 70%)}
+  .v146-tile.odds-r{border-left:3px solid #e8938b;background:linear-gradient(100deg,rgba(232,147,139,.18),rgba(255,255,255,.04) 70%)}
+  .v146-tile.on.odds-g,.v146-tile.on.odds-y,.v146-tile.on.odds-r{background:rgba(240,187,69,.14)}
+  .v146-tile .v193-odds{display:block;font:700 10px Oswald,sans-serif;letter-spacing:.5px;line-height:12px;margin-top:2px;color:var(--chalk-dim)}
+  .v146-tile.odds-g .v193-odds{color:#8fe0a0}.v146-tile.odds-y .v193-odds{color:var(--gold)}.v146-tile.odds-r .v193-odds{color:#e8938b}
+  .v146-tile s.best{background:#8fe0a0}
+  .v146-tile.locked{opacity:.42;cursor:default}.v146-tile.locked.on{opacity:1}
+  .v193-score{display:flex;align-items:baseline;gap:6px;flex-wrap:wrap;margin:0 0 6px;padding:5px 9px;border:1px solid rgba(143,224,160,.3);border-radius:8px;background:rgba(143,224,160,.06)}
+  .v193-score:empty{display:none}
+  .v193-score .l{font:700 9.5px Oswald,sans-serif;letter-spacing:1.4px;color:#8fe0a0}
+  .v193-score b{font:700 18px Oswald,sans-serif;color:var(--chalk);letter-spacing:.5px;line-height:1}
+  .v193-score small{font:600 10.5px Barlow Condensed,sans-serif;color:var(--chalk-dim);flex:1;min-width:0;text-align:right}
+  .v193-score.rolled{border-color:rgba(240,187,69,.5)}
+  .odds-head-v20 .v193-score{flex:1 1 100%;margin:6px 0 0}
+  .v193-d{font:700 10px Oswald,sans-serif;text-decoration:none;margin-left:3px;vertical-align:middle}
+  .v193-d.up{color:#8fe0a0}.v193-d.dn{color:#e8938b}
+  .v146-pr b .v193-d{font-size:9px;vertical-align:top}
+  .v193-rolled{font:700 10px Oswald,sans-serif;font-style:normal;letter-spacing:.8px;white-space:nowrap}
+  .v193-rolled.green{color:#8fe0a0}.v193-rolled.red{color:#e8938b}.v193-rolled.neutral{color:#cfd6a8}
+  .v193-why{margin-top:5px;padding:5px 8px;border-radius:7px;background:rgba(143,224,160,.1);border:1px solid rgba(143,224,160,.3);font:600 11.5px Barlow Condensed,sans-serif;color:var(--chalk-dim);line-height:1.3}
+  .v193-why b{color:var(--chalk)}
+  .v193-rollwrap{margin-top:8px;text-align:center}
+  .v193-rollwrap .btn.v193-roll{width:100%;margin:0;min-height:46px;font-size:15px;letter-spacing:1.5px;box-shadow:0 0 0 1px rgba(240,187,69,.5) inset}
+  .v193-rollwrap small{display:block;margin-top:5px;font:400 10.5px system-ui;color:var(--chalk-dim);line-height:1.3}
+  .v193-out{display:flex;gap:9px;align-items:flex-start;margin-top:8px;padding:9px 10px;border-radius:10px;border:1px solid var(--line);background:rgba(255,255,255,.04)}
+  .v193-out.g{border-color:rgba(143,224,160,.6);background:rgba(143,224,160,.1)}
+  .v193-out.r{border-color:rgba(232,147,139,.6);background:rgba(232,147,139,.1)}
+  .v193-out.n{border-color:rgba(207,214,168,.5);background:rgba(207,214,168,.07)}
+  .v193-out .v193-die{font-style:normal;font-size:26px;line-height:1;flex:0 0 30px;text-align:center}
+  .v193-out .v193-die.spin{animation:v193spin .45s linear infinite}
+  .v193-out.land{animation:v193land .25s ease-out}
+  .v193-out>div{flex:1;min-width:0}
+  .v193-out b{display:block;font:700 14px Oswald,sans-serif;letter-spacing:.3px;color:var(--chalk)}
+  .v193-out.g b{color:#8fe0a0}.v193-out.r b{color:#e8938b}.v193-out.n b{color:#cfd6a8}
+  .v193-out small{display:block;margin-top:2px;font:400 11.5px system-ui;color:var(--chalk-dim);line-height:1.3}
+  .v193-out small em{font-style:normal;color:var(--chalk);font-weight:600}
+  .v193-out span{display:block;margin-top:3px;font:700 9.5px Oswald,sans-serif;letter-spacing:1px;color:var(--gold)}
+  @keyframes v193spin{from{transform:rotate(0)}to{transform:rotate(360deg)}}
+  @keyframes v193land{from{transform:scale(.92);opacity:.4}to{transform:scale(1);opacity:1}}
+  .v193-th{padding:8px 11px;border:1px solid rgba(240,187,69,.34);border-radius:10px;background:rgba(240,187,69,.05);margin-bottom:6px}
+  .v193-th b{display:block;font:700 13.5px Oswald,sans-serif;color:var(--chalk)}
+  .v193-th small{display:block;margin-top:2px;font:600 11px Barlow Condensed,sans-serif;color:var(--chalk-dim);line-height:1.3}
+  .v193-nudge{margin-bottom:6px;padding:6px 9px;border:1px dashed rgba(255,255,255,.22);border-radius:8px;font:600 11px Barlow Condensed,sans-serif;color:var(--chalk-dim);line-height:1.3}
+  .v193-roster{max-height:46vh;overflow:auto;border:1px solid var(--line);border-radius:10px;background:rgba(255,255,255,.03);padding:2px 8px;-webkit-overflow-scrolling:touch}
+  .v193-roster h5{margin:5px 0 3px;font:700 10px Oswald,sans-serif;letter-spacing:1.4px;color:var(--gold)}
+  .v193-man{display:grid;grid-template-columns:30px 26px minmax(0,1fr) 30px;grid-template-areas:"num pos nm ovr" "num pos chips ovr";align-items:center;gap:0 5px;padding:3px 0;border-bottom:1px solid rgba(255,255,255,.06);font:600 12px Barlow Condensed,sans-serif;color:var(--chalk)}
+  .v193-man:last-child{border-bottom:0}
+  .v193-man.you{background:rgba(240,187,69,.1);margin:0 -8px;padding:4px 8px;border-radius:7px}
+  .v193-man .num{grid-area:num;color:var(--chalk-dim);font-size:11px}
+  .v193-man .pos{grid-area:pos;color:var(--chalk-dim);font-size:11px}
+  .v193-man .nm{grid-area:nm;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .v193-man .ovr{grid-area:ovr;text-align:right;font:700 14px Oswald,sans-serif}
+  .v193-man .chips{grid-area:chips;display:flex;flex-wrap:wrap;gap:3px;min-width:0}
+  .v193-man .chips:empty{display:none}
+  .v193-man .chips i{font:700 9.5px Barlow Condensed,sans-serif;font-style:normal;letter-spacing:.3px;padding:0 5px;border-radius:5px;background:rgba(255,255,255,.08);color:var(--chalk-dim);white-space:nowrap}
+  .v193-man .chips i.g{background:rgba(143,224,160,.16);color:#8fe0a0}.v193-man .chips i.r{background:rgba(232,147,139,.16);color:#e8938b}
+  .v193-man .chips i.you{background:var(--gold);color:#111}.v193-man .chips i.p,.v193-man .chips i.s{background:rgba(240,187,69,.18);color:var(--gold)}
+  </style>`)}
 /* ===== v171 A THE MATCHUP CALL (the page) =====
  * Page 5 opens on the opponent's face — their star, their weak link, the unit to fear and the one to attack —
  * and the calls the staff will let him make against it (`__V171.offer`): how many are open is his SAY (coach
@@ -1011,6 +1158,7 @@ function showPregame(ctx,args){
   // the team OVRs + top-5 shown MATCH the opponent you actually play. Falls back
   // to the old scouting-scale roster only if the preview hook is unavailable.
   const pv=(window.__previewMatchupV22&&player&&player.pos)?window.__previewMatchupV22(player.pos, week&&week.perf):null;
+  v193PvD=pv;   // v193 B: the team page lists the same men page 3 previews
   let oursR,theirsR,ourOvr,theirOvr;
   if(pv){ oursR=pv.us.players; theirsR=pv.opp.players; ourOvr=pv.us.ovr; theirOvr=pv.opp.ovr; }
   else { oursR=userRoster(); theirsR=opponentRoster(week); ourOvr=rosterAvg(oursR,anchor); theirOvr=rosterAvg(theirsR,anchor); }
@@ -1028,7 +1176,7 @@ function showPregame(ctx,args){
   // plan (_gameScriptV23) and the shared stylesheet — the wizard just places its three blocks on
   // three different pages instead of stacking them in one column.
   gsSectionV23(oursR,theirsR,player,week);
-  const scoutHTML=`<div class="pregame-match-v1513"><div class="pregame-team-v1513">${pregameEmblemV44(true,ourName)}<b>${esc(ourName)}</b><small>${Math.round(ourOvr)} TEAM OVR</small></div><div class="pregame-vs-v1513">VS</div><div class="pregame-team-v1513 away">${pregameEmblemV44(false,theirName)}<b>${esc(theirName)}</b><small>${Math.round(theirOvr)} TEAM OVR</small></div></div><div class="pregame-odds-v20"><div class="odds-head-v20"><div class="odds-big-v20" style="color:${winClamped>=57?'#7fe0a0':winClamped>45?'var(--gold)':'#ff9a9a'}">${winClamped}%<small>WIN CHANCE</small></div><div class="odds-lab-v20"><b>${esc(lab)}</b><small>${Math.round(ourOvr)} vs ${Math.round(theirOvr)} team OVR${week?.playoff?' · playoff':''}</small></div></div><div class="odds-bar-v20"><i style="width:${winClamped}%"></i></div><div class="odds-notes-v20">${notes.map(n=>`<div class="${n.good?'g':'b'}">${n.good?'▲':'▼'} ${esc(n.txt)}</div>`).join('')}</div></div><details class="v112-fold"><summary>PLAYERS TO WATCH · top five from each roster</summary><div class="pregame-lists-v1513"><div class="pregame-card-v1513"><h3>${esc(ourName)} · TOP 5</h3>${rows(ours)}</div><div class="pregame-card-v1513"><h3>${esc(theirName)} · TOP 5</h3>${rows(theirs)}</div></div></details>`;
+  const scoutHTML=`<div class="pregame-match-v1513"><div class="pregame-team-v1513">${pregameEmblemV44(true,ourName)}<b>${esc(ourName)}</b><small>${Math.round(ourOvr)} TEAM OVR</small></div><div class="pregame-vs-v1513">VS</div><div class="pregame-team-v1513 away">${pregameEmblemV44(false,theirName)}<b>${esc(theirName)}</b><small>${Math.round(theirOvr)} TEAM OVR</small></div></div><div class="pregame-odds-v20"><div class="odds-head-v20"><div class="odds-big-v20" style="color:${winClamped>=57?'#7fe0a0':winClamped>45?'var(--gold)':'#ff9a9a'}">${winClamped}%<small>WIN CHANCE</small></div><div class="odds-lab-v20"><b>${esc(lab)}</b><small>${Math.round(ourOvr)} vs ${Math.round(theirOvr)} team OVR${week?.playoff?' · playoff':''}</small></div>${v193ScoreSlotD('v193Score3')}</div><div class="odds-bar-v20"><i style="width:${winClamped}%"></i></div><div class="odds-notes-v20">${notes.map(n=>`<div class="${n.good?'g':'b'}">${n.good?'▲':'▼'} ${esc(n.txt)}</div>`).join('')}</div></div><details class="v112-fold"><summary>PLAYERS TO WATCH · top five from each roster</summary><div class="pregame-lists-v1513"><div class="pregame-card-v1513"><h3>${esc(ourName)} · TOP 5</h3>${rows(ours)}</div><div class="pregame-card-v1513"><h3>${esc(theirName)} · TOP 5</h3>${rows(theirs)}</div></div></details>`;
   const fix=(week?.playoff?(week.round||'Playoff'):'WEEK '+(week?.week||'—'));
   document.body.insertAdjacentHTML('beforeend',v112ShellD({fix,ourName,theirName,scout:scoutHTML,
     temp:tempStatsPanel(player,week),stats:pregamePlayerStatsV25(player)}));

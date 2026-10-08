@@ -20,7 +20,7 @@
       return Math.floor(this.between(t, a + 1));
     }
   }
-  const PLAN_IDS = ["disciplined", "feature", "explosive", "team", "recovery"],
+  const PLAN_IDS = ["disciplined", "feature", "explosive", "team", "recover", "recovery"] /* v193 B: Rest & Recover is "recover" — both rest plans are on the board */,
     SPECIALIZATIONS = [
       {
         id: "tactician",
@@ -602,7 +602,7 @@
   }
   function updateConditionAfterGame(e, t, a, s) {
     const n = ensureCondition(e),
-      i = { disciplined: 5, feature: 11, explosive: 16, team: 9, recovery: -10 },
+      i = { disciplined: 5, feature: 11, explosive: 16, team: 9, recovery: -10, recover: -10 } /* v193 B: "recover" rests too */,
       r = Math.max(0, (e.age || 18) - 28) * 0.7,
       l = t.snaps || Math.round((e.snapShare || 0.2) * 65),
       d0 = (i[a] ?? 7) + l * 0.12 + r,
@@ -734,7 +734,7 @@
       t === e.counterPlan && ((n += s === "tactician" ? 7 : 4), (i += 2), (l = `Countered ${e.weakness}`)),
       t === e.trapPlan && ((n -= 5), (r += 0.025), (l = `${e.strength} punished the plan`)),
       a >= 2 && ((n -= Math.min(7, 2 + a * 1.5)), (l += " · opponent adapted")),
-      t === "recovery" && ((n -= 3), (r -= 0.08)),
+      (t === "recovery" || t === "recover") && ((n -= 3), (r -= 0.08)) /* v193 B: Rest & Recover ("recover") was never read here */,
       { perf: n, trust: i, injuryRisk: r, note: l }
     );
   }
@@ -3707,7 +3707,7 @@
   function recoveryProjection(e, t) {
     const a = e.conditionV11 || { fatigue: 20, recovery: 55, susceptibility: 18 },
       n =
-        ({ disciplined: 5, feature: 11, explosive: 16, team: 9, recovery: -14 }[t] ?? 7) +
+        ({ disciplined: 5, feature: 11, explosive: 16, team: 9, recovery: -14, recover: -14 }[t] ?? 7) /* v193 B */ +
         Math.max(0, (e.age || 22) - 28) * 0.7,
       i = clamp(a.fatigue + n - (a.recovery || 55) * 0.11, 0, 100),
       r = tunedInjuryRisk(0.008 + (a.susceptibility || 18) / 900 + i / 1150, e);
@@ -16674,6 +16674,13 @@
         seen.add(nm2);
       });
     })();
+    // v193 B: what the team nodes gave each man, in OVR points (m(Y) is u·(0.72 + Y·0.5), so the lift on C is this much a man)
+    {
+      const liftPtsV193 = teamLiftOnV190() ? Math.round(u * 0.5 * teamLiftDV190(C0) * 10) / 10 : 0;
+      [...P.off, ...P.def].forEach(m => {
+        if (m && !m.you) m.liftV193 = liftPtsV193;
+      });
+    }
     // v191 B: the Locker Room — each named teammate's +1s, his attributes redrawn from the new number
     if (lockerOnV191()) {
       const side = [...P.off, ...P.def],
@@ -20423,7 +20430,11 @@
           ovr: Math.round((x.ovr || 0) * (x._starV171 || x._weakV171 ? x._mulV171 || 1 : 1)),
           you: !!x.you,
           star: !!x._starV171,
-          weak: !!x._weakV171
+          weak: !!x._weakV171,
+          off: !!x.isOff /* v193 B: the team page lists the two elevens */,
+          num: x.num,
+          locker: x.lockerV191 || 0 /* v193 B: the Locker Room's +1s on this man */,
+          lift: x.liftV193 || 0 /* v193 B: the team nodes' lift on this man, in OVR points */
         }));
       return { seed, us: { ovr: c.us.ovr, players: roster(c.us) }, opp: { ovr: c.opp.ovr, players: roster(c.opp) } };
     } catch (err) {
@@ -29459,7 +29470,7 @@
       (t.snapShare = Math.round(clamp99((e.snapShare || 0.12) * l.snapMultiplier, 0.04, 0.98) * 100) / 100),
       (t.snaps = Math.max(3, Math.round((e.level >= 5 ? 68 : 52) * t.snapShare * randRange(0.88, 1.12)))));
     let y = l.injuryRisk + (s.inj || 0) + (r.injuryRisk || 0) + (d.injuryRisk || 0);
-    (a === "recovery" && (y -= 0.08),
+    ((a === "recovery" || a === "recover") && (y -= 0.08) /* v193 B: both rest plans */,
       (y = tunedInjuryRisk(y + (c.injured ? 0.055 : 0), e) * (t.rivalV128 ? RIVAL_MULT_V128() : 1)),
       (t.injuryRiskV12 = y),
       /* v128: the rivalry costs double, and the card says so before you play it */ (t.lifeEffectsV12 = d),
@@ -30638,7 +30649,17 @@
       1,
       100
     );
-    return { stat: g.stat, key: u.key, sr: shareRelV146(e, u.key), touch: u.touchMul, focus: fb ? fb.key : null, perf, call: g.callV171 || null };
+    return {
+      stat: g.stat,
+      key: u.key,
+      sr: shareRelV146(e, u.key),
+      touch: u.touchMul,
+      focus: fb ? fb.key : null,
+      perf,
+      call: g.callV171 || null,
+      us: g.usScore != null ? Number(g.usScore) : null /* v193 B: the sample's scoreline feeds the projected score */,
+      them: g.themScore != null ? Number(g.themScore) : null
+    };
   }
   /* a projection must not touch the career: et()'s wrappers roll a luck line and move coach trust, so
    * every top-level key of the player (and of the state) that a sample changed is put back as it was */
@@ -30797,7 +30818,7 @@
         (p.inj || 0) +
         (r.injuryRisk || 0) +
         ((I.d && I.d.injuryRisk) || 0) -
-        (id === "recovery" ? 0.08 : 0);
+        (id === "recovery" || id === "recover" ? 0.08 : 0) /* v193 B: both rest plans */;
     /* ca(): the game's own injury roll (injChanceV54, the number page 4 shows) survives only if a second roll under the plan's multiplier does */
     let pInj = null,
       injBase = null,
@@ -30809,7 +30830,7 @@
       injMul = Math.min(1, injPlanMultV54({ injury: yy }));
       pInj = ch * injMul;
     } catch (_) {}
-    const fat = { disciplined: 5, feature: 11, explosive: 16, team: 9, recovery: -10 }[id];
+    const fat = { disciplined: 5, feature: 11, explosive: 16, team: 9, recovery: -10, recover: -10 }[id] /* v193 B */;
     return {
       id,
       icon: p.icon,
@@ -30872,9 +30893,9 @@
     };
     const bands = B
       ? [
-          [B.g || 0, one(B.statsG, TU("projBandGV146", 4))],
+          [B.g || 0, one(B.statsG, B.amtG != null ? B.amtG : TU("projBandGV146", 4))] /* v193 B: a revealed roll passes its own amount */,
           [B.n || 0, 0],
-          [B.r || 0, one(B.statsR, -TU("projBandRV146", 3.5))]
+          [B.r || 0, one(B.statsR, -(B.amtR != null ? B.amtR : TU("projBandRV146", 3.5)))]
         ]
       : [[1, 0]];
     const fz =
@@ -30959,8 +30980,79 @@
       mult: { V: sr, t, Afoc, seedFx, EM, EM2 }
     };
   }
+  /* ===== v193 B THE PROJECTED SCORE =====
+   * The pregame projected a box score and a win chance but never a SCORELINE, so the plan board had nothing on it
+   * that moved when the plan was rolled. `projScoreV193(st)` is the projected US–THEM for one usage / plan / band:
+   * the mean of the scores of the headless games `projSampleV146` has played (each sample now carries `us` / `them`),
+   * or, before three are in, a curve off the same team pair the quick sim scores with (`teamPairV76`, `marginPerOvr`
+   * a point, round a base of `projScoreBaseV193`). On top of it: the plan's team lift (the v171 percent the plan
+   * puts on every teammate, `projScorePerPctV193` points per percent) and the plan's roll — before the roll, the
+   * expected value of the click (`projScoreClickV193`) and the backfire (`projScoreBackfireV193`) at the band's odds;
+   * once revealed (`band.fixed`), the whole click or backfire. Kill switch `v193B`. `window.__V146.score`. */
+  function projScoreV193(st) {
+    if (!TU("v193B", 1)) return null;
+    const e = state && state.player;
+    if (!e || !e.pos) return null;
+    const w = curWeekV111(e);
+    if (!w) return null;
+    projResetV146(e);
+    st = st || {};
+    const S = projV146.samples.filter(s => s && s.us != null && s.them != null),
+      ready = S.length >= TU("projMinV146", 3);
+    let us, them, src;
+    if (ready) {
+      us = S.reduce((a, s) => a + s.us, 0) / S.length;
+      them = S.reduce((a, s) => a + s.them, 0) / S.length;
+      src = "engine";
+    } else {
+      let gap = 0;
+      try {
+        const pair = teamPairV76(e, { wk: w });
+        gap = pair.us - pair.opp;
+      } catch (_) {}
+      const base = TU("projScoreBaseV193", 24) * (0.5 + ((e.level | 0) / 7) * 0.5) /* Pee Wee games score about half a UFF game's */,
+        margin = TU("marginPerOvr", 0.7) * gap;
+      us = base + margin / 2;
+      them = base - margin / 2;
+      src = "curve";
+    }
+    const base = { us, them };
+    /* the plan's lift on the team — the same percent the plan card prints (v171 A's planTeamKV171 on perf + matchup) */
+    const P = st.plan ? planFactsV146(e, st.plan) : null,
+      liftPct = P ? clamp99(((P.perf || 0) + (P.match || 0)) * TU("planTeamKV171", 0.004) * 100, -4, 5) : 0,
+      lift = liftPct * TU("projScorePerPctV193", 0.5);
+    us += lift;
+    /* the roll: expected before it is revealed, whole once it is */
+    const B = st.band || null,
+      click = TU("projScoreClickV193", 3),
+      back = TU("projScoreBackfireV193", 3);
+    let roll = 0;
+    if (B) roll = B.fixed ? (B.g >= 1 ? click : B.r >= 1 ? -back : 0) : (B.g || 0) * click - (B.r || 0) * back;
+    us += roll;
+    us = Math.max(0, us);
+    them = Math.max(0, them);
+    const win = ready
+      ? S.filter(s => s.us > s.them).length / S.length
+      : clamp99(0.5 + ((us - them) / TU("marginPerOvr", 0.7)) * 0.024, 0.05, 0.95);
+    return {
+      us,
+      them,
+      usR: Math.round(us),
+      themR: Math.round(them),
+      base,
+      lift,
+      liftPct,
+      roll,
+      fixed: !!(B && B.fixed),
+      n: S.length,
+      ready,
+      src,
+      win
+    };
+  }
   window.__V146 = {
     project: projectV146,
+    score: projScoreV193 /* v193 B */,
     facts: planFactsV146,
     sample: projSampleV146,
     sampleN: projSampleNV146,

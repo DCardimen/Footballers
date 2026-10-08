@@ -1,6 +1,6 @@
 // Dev check: v136 — THE LINEAGE, THE BANK, THE RIVALRY SPIN AND THE SHEET AS THE LAST PAGE.
 // Drives a real career at phone width and proves, in order:
-//   A. the pregame: seven pages on a rivalry game (six otherwise), the plan wheel on page 5 (a queued
+//   A. the pregame: eight pages on a rivalry game (seven otherwise — v193 B put YOUR TEAM after the scout), the plan wheel on page 6 (a queued
 //      crossroads ahead of it if one is due), the RIVALRY WEEK page after it spinning the five approaches
 //      with every locked one left off, the approach landing in player.eventChoice, and YOUR SHEET as the
 //      LAST page with the week settled above it and exactly one way to the field.
@@ -69,7 +69,7 @@ const wiz = () => ev(({ visSrc }) => { const vis = eval(visSrc); const T = el =>
     gos: [...document.querySelectorAll('button,[onclick],a')].filter(vis).map(T).filter(t => /CONTINUE TO MATCH/i.test(t)).length, skipHidden: (document.getElementById('v112Skip') || {}).hidden,
     dupIds: (() => { const ids = [...document.querySelectorAll('#pregameV1513 [id]')].map(x => x.id); return ids.filter((id, i) => ids.indexOf(id) !== i) })(), scrollW: document.documentElement.scrollWidth, clientW: document.documentElement.clientWidth } }, { visSrc: vis })
 const P1 = await wiz()
-ok(P1.active.length === 7 && P1.active[5] === 'v112Page6' && P1.active[6] === 'v112Page7' && P1.rival && P1.dots === 7 && /STEP 1 OF 7/.test(P1.kick), 'a rivalry game has SEVEN pages — the rivalry page after the wheel, the sheet last', JSON.stringify({ active: P1.active, kick: P1.kick }))
+ok(P1.active.length === 8 && P1.active[3] === 'v112PageTeam' && P1.active[6] === 'v112Page6' && P1.active[7] === 'v112Page7' && P1.rival && P1.dots === 8 && /STEP 1 OF 8/.test(P1.kick), 'a rivalry game has EIGHT pages — YOUR TEAM after the scout (v193 B), the rivalry page after the plan, the sheet last', JSON.stringify({ active: P1.active, kick: P1.kick }))
 ok(P1.sheetPage === 'v112Page7' && !P1.sheetVis, 'the sheet is on the last page and nowhere else', P1.sheetPage)
 const seen = []
 let last = null
@@ -88,8 +88,8 @@ const kicks = seen.map(w => w.kick.replace(/STEP \d+ OF \d+ · /, ''))
 // v146 D: the weekly plan is CHOSEN off a board on page 5 by default (planWheelV146 = 0) — no plan wheel
 // spins and nothing is applied until kickoff; the rivalry approach is still a wheel on page 6
 const CH = await ev(() => window.__PREGAME_V51.choice())
-ok(JSON.stringify(kicks) === JSON.stringify(['YOUR INVOLVEMENT', 'YOUR FOCUS', 'THE SCOUT & THE PLAN', 'THE IMPACT', CH ? 'THE GAME PLAN' : 'THE WHEEL', 'RIVALRY WEEK', 'YOUR SHEET']), 'the pages come in order, the sheet last', kicks.join(' → '))
-const W5 = seen[4], W6 = seen[5], W7 = seen[6] || {}
+ok(JSON.stringify(kicks) === JSON.stringify(['YOUR INVOLVEMENT', 'YOUR FOCUS', 'THE SCOUT & THE PLAN', 'YOUR TEAM', 'THE IMPACT', CH ? 'THE GAME PLAN' : 'THE WHEEL', 'RIVALRY WEEK', 'YOUR SHEET']), 'the pages come in order, the sheet last', kicks.join(' → '))
+const W5 = seen[5], W6 = seen[6], W7 = seen[7] || {}   // v193 B: the plan board is page 6 now, the rival 7, the sheet 8
 if (CH) ok(W5 && W5.planSpins === 0 && W5.held && !W5.held.applied && /RIVALRY WEEK/.test(W5.next), 'page 5: the plan board — he picks, no plan wheel spins (a queued crossroads still spins first), nothing applied before kickoff, NEXT reads RIVALRY WEEK (v146 D)', JSON.stringify({ spins: W5 && W5.planSpins, crossroads: W5 && W5.crossroads, held: W5 && W5.held, next: W5 && W5.next }))
 else ok(W5 && W5.planSpins === 1 && W5.held && W5.held.applied && W5.wheels === 1 && /RIVALRY WEEK/.test(W5.next), 'page 5: the plan wheel spun once (a queued crossroads ahead of it if due), its swing applied, NEXT reads RIVALRY WEEK', JSON.stringify({ spins: W5 && W5.planSpins, crossroads: W5 && W5.crossroads, held: W5 && W5.held, next: W5 && W5.next }))
 ok(W6 && W6.rivalWheel && W6.rivalOpts === 5 && /RIVALRY WEEK/.test(W6.rivalTitle || '') && W6.wheels === (CH ? 1 : 2), CH ? 'page 6: the RIVALRY wheel is mounted into the page, all five approaches open' : 'page 6: the RIVALRY wheel is mounted into the page beside the landed plan wheel, all five approaches open', JSON.stringify({ wheel: W6 && W6.rivalWheel, opts: W6 && W6.rivalOpts, title: W6 && W6.rivalTitle, wheels: W6 && W6.wheels }))

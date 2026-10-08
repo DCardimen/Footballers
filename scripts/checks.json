@@ -30,7 +30,8 @@
     "v156Acheck",
     "v164Echeck",
     "formcheck",
-    "accelcheck"
+    "accelcheck",
+    "v193Bcheck"
    ]
   },
   "docs": {
@@ -262,7 +263,8 @@
   "plan": {
    "desc": "v146 D — the weekly plan board, projection / variance, form swing, the live game inputs",
    "anchors": [
-    "v146 D"
+    "v146 D",
+    "v193 B"
    ],
    "files": [],
    "checks": [
@@ -279,7 +281,8 @@
     "simcheck",
     "bootviewcheck",
     "walk",
-    "matchupcheck"
+    "matchupcheck",
+    "v193Bcheck"
    ],
    "variants": [
     "`POS=QB,DL,S` for `v146Dcheck` (default RB,WR,LB)"
@@ -541,7 +544,8 @@
    "anchors": [
     "v136 A",
     "v112 D",
-    "v126"
+    "v126",
+    "v193 B"
    ],
    "files": [],
    "checks": [
@@ -556,7 +560,8 @@
     "namecheck",
     "splashcheck",
     "shot",
-    "matchupcheck"
+    "matchupcheck",
+    "v193Bcheck"
    ],
    "variants": [
     "`WHEEL=1` for `v112Dcheck`"
@@ -4974,6 +4979,20 @@
     "season"
    ],
    "runtimeSec": 90,
+   "slow": false,
+   "needsServer": true,
+   "pureNode": false,
+   "flaky": []
+  },
+  "v193Bcheck": {
+   "file": "scripts/v193Bcheck.mjs",
+   "desc": "v193 B — every plan tile is shaded by its click odds and prints them (BEST ODDS badged), the scout's default gives way to the greenest plan within the perf gap, ROLL THE PLAN reveals the held band and locks the pick (the strip, the box score and the projected score move), PROJECTED US–THEM on pages 3 and 5, YOUR TEAM lists the 22 men with what the prestige gives each; \"recover\" is read as a rest plan; v193B 0 restores the old wizard.",
+   "areas": [
+    "plan",
+    "pregame",
+    "smoke"
+   ],
+   "runtimeSec": 110,
    "slow": false,
    "needsServer": true,
    "pureNode": false,
