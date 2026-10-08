@@ -41495,10 +41495,10 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
       window.ribHaptic && window.ribHaptic(kind);
     } catch (_) {}
   }
-  const HAPTIC_KEY_V193O = "rib.haptics.v193";
+  /* the key is spelled inline: the boot draws a saved Settings view from the top of the file (v140), before any const here */
   function vibrationOnV193O() {
     try {
-      return localStorage.getItem(HAPTIC_KEY_V193O) !== "off";
+      return localStorage.getItem("rib.haptics.v193") !== "off";
     } catch (_) {
       return true;
     }
@@ -41513,7 +41513,7 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
   function vibrationToggleV193O() {
     const on = !vibrationOnV193O();
     try {
-      on ? localStorage.removeItem(HAPTIC_KEY_V193O) : localStorage.setItem(HAPTIC_KEY_V193O, "off");
+      on ? localStorage.removeItem("rib.haptics.v193") : localStorage.setItem("rib.haptics.v193", "off");
     } catch (_) {}
     try {
       state.settings || (state.settings = {});
@@ -41530,7 +41530,7 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
   // a save whose old "Haptic feedback" row was switched off keeps it off on this device (once)
   function vibrationMigrateV193O() {
     try {
-      if (state && state.settings && state.settings.haptics === false && localStorage.getItem(HAPTIC_KEY_V193O) == null) localStorage.setItem(HAPTIC_KEY_V193O, "off");
+      if (state && state.settings && state.settings.haptics === false && localStorage.getItem("rib.haptics.v193") == null) localStorage.setItem("rib.haptics.v193", "off");
     } catch (_) {}
   }
   // the declare without the scouts' reveal (the reveal buzzes itself when it lands)
@@ -41659,7 +41659,7 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
       ringMax = Math.max(need, R.ovr1, R.ovr0, 1);
     return { R, rows, scale, gained, lost, net: gained + lost, ovr0: R.ovr0, ovr1: R.ovr1, ring0: R.ovr0 / ringMax, ring1: R.ovr1 / ringMax, lapAt: lap < scale ? pct(lap) : null };
   }
-  const RING_C_V193O = 2 * Math.PI * 26;
+  const RING_C_V193O = 2 * Math.PI * 26; /* the OVR ring's circumference (r 26) */
   function growCardHtmlV193O(D) {
     const rows = D.rows
       .map((r, i) => {
@@ -41772,9 +41772,13 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
     return !1;
   }
   function growBusyV193O() {
-    const c = GROW_V193O.card;
-    if (!c || !c.isConnected || GROW_V193O.done || !c.getClientRects().length) return !1;
-    return !GROW_V193O.started || performance.now() - GROW_V193O.started < TU("growBusyMaxMsV193O", 8000);
+    try {
+      const c = GROW_V193O.card;
+      if (!c || !c.isConnected || GROW_V193O.done || !c.getClientRects().length) return !1;
+      return !GROW_V193O.started || performance.now() - GROW_V193O.started < TU("growBusyMaxMsV193O", 8000);
+    } catch (_) {
+      return !1; /* called from bankCardsV189 — never a throw, even before this block has run */
+    }
   }
   function growClearV193O() {
     GROW_V193O.timers.forEach(t => clearTimeout(t));
