@@ -305,7 +305,8 @@
       lines:d.stats.length&&d.band!=="neutral"?d.stats.map(k=>(d.out.sign>0?"+":"−")+d.out.amt+" "+(LBL[k]||k)).join(" · "):"no swing this game",
       say:d.band==="green"?"IT CLICKS":d.band==="neutral"?"IT'LL DO":"IT BACKFIRES",story:d.out.story,odds:d.odds}}
   function revealPlanV193(){const h=heldV135;if(!h||!h.dice||h.applied||!v193On())return null;
-    if(!h.revealedV193){h.revealedV193=h.d.win.id;h.revealedAtV193=Date.now()}
+    if(!h.revealedV193){h.revealedV193=h.d.win.id;h.revealedAtV193=Date.now();
+      try{const b=h.d&&h.d.band;window.ribHaptic&&window.ribHaptic(b==="green"?"success":b==="neutral"?"warning":"error")}catch(e){}}   // v193 O HAPTICS: it clicks / it'll do / it backfires
     return revealedV193()}
   function defaultPickV146(pl,plans,dice){const has=id=>id&&plans.some(p=>p.id===id);const sp=plans.find(p=>p.scout);
     const odds=!!(dice&&sp&&v193On()&&choiceV146());let dropped=null;

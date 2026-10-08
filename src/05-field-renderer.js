@@ -6115,6 +6115,9 @@ class Ot extends mt.Scene {
     /* ===== v151 B HIS TOUCHDOWN, HIS WAY — the equipped celebration plays over the stadium's own, on HIS score only ===== */
     try { const P = this.play, cm = P && P.carrierId != null ? this.markers[P.carrierId] : null, C = window.RIB_COSMETICS;
       if (cm && cm.team === "you" && C && C.celebrate) { const cp0 = PJ(x, y); C.celebrate(this, cp0.x, cp0.y, cm); } } catch (e) {}
+    /* ===== v193 O HAPTICS — HIS touchdown (the featured you-marker carried it in) lands as a reward buzz ===== */
+    try { const P = this.play, F = P && P.script && P.script.meta && P.script.meta.featured;
+      if (F && F.isMe && P.carrierId != null && F.index === P.carrierId && window.ribHaptic) window.ribHaptic("reward"); } catch (e) {}
     { const P = this.play, pay = P && P.payload || {};   // v95: the badge is the TOUCHDOWN text, anchored on the crossing
       BADGE_V95.show("touchdown", { sub: pay.event === "run" || pay.event === "pass" ? badgeYdsV95(pay.yards).replace("+", "") : "", x, y, scene: this, token: "td:" + (P ? P.__ballTokenV1514 : Date.now()) }); }
     const cp = PJ(x, y); x = cp.x; y = cp.y;

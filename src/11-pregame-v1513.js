@@ -543,7 +543,7 @@ function v112ShowPageD(i){
   const sc=document.getElementById("pregameV1513"); if(sc) sc.scrollTop=0;
 }
 window.__v112GoD=function(i){v112ShowPageD(i)};
-window.__v112NextD=function(){if(v112PageD>=v112ActiveD().length-1){window.continuePregameV1513&&window.continuePregameV1513();return}v112ShowPageD(v112PageD+1)};   // v136: the last ACTIVE page is the way in
+window.__v112NextD=function(){try{window.ribHaptic&&window.ribHaptic("tap")}catch(e){}/* v193 O HAPTICS */if(v112PageD>=v112ActiveD().length-1){window.continuePregameV1513&&window.continuePregameV1513();return}v112ShowPageD(v112PageD+1)};   // v136: the last ACTIVE page is the way in
 window.__v112BackD=function(){if(v112PageD<=0){window.closePregameV1513&&window.closePregameV1513();return}v112ShowPageD(v112PageD-1)};
 window.__v112SkipD=function(){window.continuePregameV1513&&window.continuePregameV1513()};
 /* The final page, stated in one panel: everything the week has done to the man before a snap is

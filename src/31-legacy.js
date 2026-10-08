@@ -166,6 +166,7 @@
   }
 
   function buzz(style) { try { window.ribHaptics && window.ribHaptics.impact(style || "MEDIUM"); } catch (e) {} }
+  function hapt(kind) { try { window.ribHaptic && window.ribHaptic(kind); } catch (e) {} }   // v193 O HAPTICS
 
   /* ---------------- the swap: the old medal breaks, the new one lands ---------------- */
   function rays(host, color, big) {                 // god rays behind the new medal
@@ -291,7 +292,7 @@
     var a = g.L.last && g.L.last.id === id ? g.L.last : null;
     if (!a) { card.removeAttribute("data-pending"); return; }
     var from = X.rank(a.xpFrom), to = X.rank(a.xpTo), gn = card.querySelector(".lgc-gn"), slot = card.querySelector(".lgc-slot"), barEl = card.querySelector(".lgc-bar"), fill = barEl && barEl.querySelector("i");
-    var into = card.querySelector(".lgc-into"), done = false, raf = 0, timer = 0, combo = 0, shownMedal = from.medal;
+    var into = card.querySelector(".lgc-into"), done = false, raf = 0, timer = 0, combo = 0, shownMedal = from.medal, hx = 0;
     UI.pours.push({ id: id, from: from.rank, to: to.rank, gain: a.gain });
     var spark = document.createElement("i"); spark.className = "lgc-spark"; if (barEl) barEl.appendChild(spark);
     var segs = [], x = a.xpFrom;
@@ -321,7 +322,7 @@
         if (into) into.textContent = fmt(got);
         if (gn) gn.textContent = fmt(xx - a.xpFrom);
         if (sg[2] && !charged && pct > 72) { charged = true; card.classList.add("lgc-charging"); sfx("riser", Math.max(0.12, (d * (1 - k)) / 1000)); }
-        if (ts - tick > (n > 10 ? 110 : 75) && k < 1) { tick = ts; sfx("tick", 1 + pct / 220 + Math.min(0.5, combo * 0.04)); }
+        if (ts - tick > (n > 10 ? 110 : 75) && k < 1) { tick = ts; sfx("tick", 1 + pct / 220 + Math.min(0.5, combo * 0.04)); if (hx++ % 2 === 0 && hx < 40) hapt("tick"); }   // v193 O: a light tick every other step, ~20 a pour
         if (k < 1) raf = requestAnimationFrame(frame);
         else if (sg[2]) rankUp(sg[1]);
         else { si++; run(); }
@@ -537,7 +538,9 @@
       var split = !!document.querySelector("#screen > .hubv75-tabs") || Date.now() - c.__lgAt > 1000;
       if (!split) { setTimeout(soon, 250); return; }
       // v190 D: never under the offseason body screen (v132) or the coach — the pour waits until the report is in view
-      var cover = document.getElementById("growV132") || (window.__RIB_COACH && window.__RIB_COACH.isOpen && (gstate() || {}).view === "result");
+      var busy93 = !!(window.__V193O && window.__V193O.busy && window.__V193O.busy());   // v193 O: the season's growth bars play first, then the pour
+      var cover = document.getElementById("growV132") || (window.__RIB_COACH && window.__RIB_COACH.isOpen && (gstate() || {}).view === "result") || busy93;
+      if (busy93) setTimeout(soon, 300);
       var vis = !cover && c.getClientRects().length > 0 && !c.closest(".hubv97-fold:not(.on)");
       if (vis) pour(c);
       var t = document.querySelector('.hubv75-tab[data-sec="xp"]'); if (t) t.classList.toggle("lg-tab-pulse", !vis && !c.__lgPour);
