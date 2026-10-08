@@ -18,6 +18,7 @@
     "v110check",
     "v146Bcheck",
     "v147Ccheck",
+    "v193Acheck",
     "scrollcheck",
     "freshcheck",
     "v142check",
@@ -135,6 +136,7 @@
    "files": [],
    "checks": [
     "v147Ccheck",
+    "v193Acheck",
     "bootviewcheck",
     "v85check",
     "creditcheck",
@@ -4974,6 +4976,19 @@
     "season"
    ],
    "runtimeSec": 90,
+   "slow": false,
+   "needsServer": true,
+   "pureNode": false,
+   "flaky": []
+  },
+  "v193Acheck": {
+   "file": "scripts/v193Acheck.mjs",
+   "desc": "v193 A — gear levels: a drop is received at 1 + tier×5, an old piece gets its level from its tier, the level is a flat +1%/level on gearFx AND gearV147 (integers stay integers, kill switch, ×2.5 cap), a season settle adds 5 to the bag and the equipped copy and drops the totals memo, SELL pays by the level received (not the grown one) through the bank, refuses equipped, asks for rare+, SELL ALL COMMONS; the locker's chip row defaults to the player's position and filters, the bar is sticky in the GEAR tab, the compare view shows the level line and SELL · +N PP, no page scroll at 400x860; screenshots v193A_locker.png / v193A_compare.png / v193A_shell.png.",
+   "areas": [
+    "smoke",
+    "gear"
+   ],
+   "runtimeSec": 60,
    "slow": false,
    "needsServer": true,
    "pureNode": false,

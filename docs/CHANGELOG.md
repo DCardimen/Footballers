@@ -10,6 +10,15 @@ Names in older entries are the career app's pre-v149 C minified names (`q`, `ms`
 `index.html` + `src/` (`docs/LAYOUT.md`).
 
 <!-- new entries go here, newest first -->
+- **v193 A · The gear grows, and sells.** Every piece has a level — received at 1 + 5 × the league level it dropped at,
+  and +5 to everything in the bag and on the body at every season's end — and the level is a flat +1% a level (cap ×2.5)
+  on every bonus the piece carries, in both reads (`gearFx`, `gearTotalsV147`). SCRAP is SELL: 1 / 3 / 8 / 20 / 50 by
+  rarity × (1 + 8% × the level it was RECEIVED at — never the grown one), still banked through the career; a rare+ piece
+  asks first, a common sells on the tap, SELL ALL COMMONS sits in the heading bar. The locker's heading bar is sticky and
+  carries a quick-select chip row (ALL · QB · RB · WR/TE · OL · DL/LB · DB · EQUIPPABLE — the player's own position first,
+  an empty chip says what it hides), the totals card folds to one line until tapped, and the inventory keeps a 260px
+  scroll box before the shell squeezes it. `TU("v193A", 0)` restores the raw numbers and the flat price. `window.__V193A`;
+  `v193Acheck`. (`src/07-career-app.js`, `src/25-shell.js`, `src/styles/00-app.css`.)
 - **v192 — a playtest pass in six parts.** (`src/04`, `05`, `07`, `14`, `public/rib-menu*`, `public/rib-vault*`.)
   - **A · The economy, to scale.** Flat prestige (milestones, challenges, orders, titles, nemesis, Daily Drive, Legacy
     bounties) pays a tenth of its face (milestones 1,1,1,1,2,4,7,22), and what a career banks on the side is paid only up

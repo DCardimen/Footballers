@@ -143,6 +143,7 @@ await page.evaluate(() => {
   const R = ['common', 'rare', 'epic', 'legendary', 'mythic'], slots = ['cleats', 'gloves', 'chain'], eff = ['power', 'perfFlat', 'ppMult', 'growth', 'injDown', 'startAll', 'pointsFlat']
   for (let i = 0; i < 24; i++) S.inventory.push(V.roll({ id: 'lk_' + i, slot: slots[i % 3], rarity: R[i % 5], name: ['Worn', 'Custom', 'Phantom', 'Golden', 'GOAT'][i % 5] + ' ' + ['Cleats', 'Gloves', 'Chain'][i % 3], eff: eff[i % 7], val: { power: 3, perfFlat: 2, ppMult: .08, growth: .05, injDown: .08, startAll: 3, pointsFlat: 2 }[eff[i % 7]], icon: ['👟', '🧤', '📿'][i % 3] }, i % 8))
   S.equipped = { gloves: S.inventory[4], cleats: S.inventory[3], chain: S.inventory[2] }
+  window.__V193A && window.__V193A.filter('all')   // v193 A: the chip row opens on the player's position; this check counts every piece
   window.go('locker')
 })
 await page.waitForTimeout(2500)
