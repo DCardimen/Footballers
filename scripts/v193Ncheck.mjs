@@ -147,7 +147,7 @@ const visit = async (tag, fn, wait = 350) => { await M(fn); await page.waitForTi
 const seen = {}
 seen.season = await visit('season', () => window.go('season'))
 // one quick-play week: the YOUR GAME card (heroHtmlV189) and the season race
-seen.simcard = await visit('quick-play card', async () => { const b = document.querySelector('#dock button[onclick="playWeek(false)"]'); b ? b.click() : window.playWeek(false) }, 1200)
+seen.simcard = await visit('quick-play card', async () => { const b = document.querySelector('#dock button[onclick="playWeek(false)"]'); b ? b.click() : window.playWeek(false) }, 700)
 // YOUR GAME (heroHtmlV189 — the live post-game card and the quick-play card both draw it): the week just played, and a
 // box whose numbers are fractional (a season summed from fractional lines must still print whole numbers)
 seen.hero = await M(() => {
@@ -199,7 +199,7 @@ ok(end.view === 'result', 'the season ended on the report', end)
 await M(() => { document.getElementById('growV132')?.remove(); window.go('result') })
 await page.waitForTimeout(400)
 seen.result = await M(() => { document.getElementById('growV132')?.remove(); return { view: window.S.view, lines: window.__scanAllV193N('season report') } })
-seen.grow = await visit('growth screen', async () => { window.__GROW_V132.show(); await new Promise(r => setTimeout(r, 300)); window.__GROW_V132.finish() }, 5200)
+seen.grow = await visit('growth screen', async () => { window.__GROW_V132.show(); await new Promise(r => setTimeout(r, 300)); window.__GROW_V132.finish() }, 1500)
 await M(() => { try { window.__GROW_V132.close() } catch (e) {} document.getElementById('growV132')?.remove() })
 // re-seed the fractions (the season's growth rewrote them) and walk every stat screen
 await M(() => { const A = window.__GRIDIRON_AUDIT__, p = A.getState().player, fr = [47.38, 12.5, 99.999, 33.333, 61.07, 20.25, 70.6667, 55.55, 41.01, 66.666, 18.4, 77.777, 50.5, 39.99, 88.123, 24.75, 58.3]; A.ATTRS.forEach((k, i) => { p.attrs[k] = fr[i % fr.length] }) })
