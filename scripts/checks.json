@@ -39,7 +39,8 @@
     "v193Jcheck",
     "v193Pcheck",
     "v193Icheck",
-    "v193Ocheck"
+    "v193Ocheck",
+    "v193Vcheck"
    ]
   },
   "docs": {
@@ -314,7 +315,8 @@
     "vaultcheck",
     "walk",
     "v193Ccheck",
-    "v193Mcheck"
+    "v193Mcheck",
+    "v193Vcheck"
    ],
    "look": [
     "`node scripts/v146Eshot.mjs`"
@@ -5193,6 +5195,19 @@
     "cosmetics"
    ],
    "runtimeSec": 100,
+   "slow": false,
+   "needsServer": true,
+   "pureNode": false,
+   "flaky": []
+  },
+  "v193Vcheck": {
+   "file": "scripts/v193Vcheck.mjs",
+   "desc": "v193 V — icons in the menu's style: at 390x844 @3x every bottom-nav tab shows a loaded icon element (the menu tiles' football / dumbbell / coin / gear art, a drawn SVG calendar for SEASON), 20-28 px, no emoji text, labels kept, 36 px targets, the lit tab's gold glow; the section bar and its spray carry the tab's icon (hub, season, tree, locker, profile); every tree branch tab a drawn icon in its own colour, names kept, not clipped; a failed image gives its emoji back; TU v193V 0 = the emoji everywhere; the bar fits 360 px; at 900 px every section tab strip (hub, season, settings, tree, locker, profile) shows icons",
+   "areas": [
+    "shell",
+    "smoke"
+   ],
+   "runtimeSec": 65,
    "slow": false,
    "needsServer": true,
    "pureNode": false,
