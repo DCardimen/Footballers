@@ -9516,7 +9516,7 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
    *     its face (never under 1). What is banked that way (`state.ppBankFlatV192A`) is paid at the career's settle up to
    *     `flatPPCapV192A` (half) of what the career itself pays (at least `flatPPMinV192A`, 3) — the side money grows with the
    *     payout instead of in front of it. The medal windfall is `windfallShareV192A` (10%) of a career's pay, min 1.
-   *     Not flat (untouched): the UFF / Interstellar title-as-MVP challenges (`BIG_GOALS_V192A`), the career settle, the UFF season pay, Compound Interest, scrapping gear, refunds.
+   *     Not flat (untouched): the UFF / Interstellar title-as-MVP challenges (`BIG_GOALS_V192A`), the career settle, the UFF season pay, Compound Interest, refunds (selling gear is flat since v193 G — `flatWhyV192A`).
    *   PER-GAME ATTRIBUTES. Practice reps bank `repsNerfV192A` (50%) of what they did; the Extra reps card is
    *     `flipRepsV192A` (0.25 of a point, was 0.5).
    *   THE FATE ROLL. The plan's number is now a percent of the rolled attribute for the game (`fatePctMultV192A` ×), and
@@ -26042,7 +26042,7 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
         <div class="statbox"><div class="n">+${bigOrRawV179(ledger ? ledger.total : r + (e._ppBankV136 || 0) + (e._ppDoubledV149E || 0))}</div><div class="l">PP Earned</div></div>
       </div>
       ${ledger ? "" : u > 0 ? `<div class="threshold-note" style="margin-top:8px;text-align:center">💰 Your legacy bonuses boosted PP earnings by <b style="color:var(--gold)">+${u}%</b></div>` : ""}
-      ${ledger ? "" : e._ppBankV136 ? `<div class="threshold-note bank-note-v136" style="margin-top:6px;text-align:center">🏦 <b style="color:var(--gold)">+${e._ppBankV136} PP</b> of that was banked during the career — goals, titles, seasons — and paid now, at the end.${e._flatCutV192A > 0 ? ` The side money (goals, milestones, titles) pays up to half of what the career itself pays — ${e._flatCutV192A} PP more went unpaid.` : ""}</div>` : ""}
+      ${ledger ? "" : e._ppBankV136 ? `<div class="threshold-note bank-note-v136" style="margin-top:6px;text-align:center">🏦 <b style="color:var(--gold)">+${e._ppBankV136} PP</b> of that was banked during the career — goals, titles, seasons — and paid now, at the end.${e._flatCutV192A > 0 ? ` The side money (goals, milestones, titles${gearSellFlatV193G() ? ", gear sales" : ""}) pays up to half of what the career itself pays — ${e._flatCutV192A} PP more went unpaid.` : ""}</div>` : ""}
     </div>
     ${ledger ? payLedgerHtmlV193D(ledger) : "" /* v193 D: the career's pay, every term a row */}
     ${legacyCardV152("career")}
