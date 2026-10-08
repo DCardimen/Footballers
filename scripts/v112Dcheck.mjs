@@ -22,6 +22,8 @@
 //   * (v146 D) PAGE 5 IS THE PLAN BOARD — the player CHOOSES the weekly plan off the board; the tap is
 //     held, nothing is applied until kickoff, BACK and forward keep the pick. WHEEL=1 runs the v135
 //     wheel assertions instead, with planWheelV146 = 1 (the dial that restores the wheel).
+//   * (v193 B) YOUR TEAM is a page of its own right after the scout, so an ordinary week is seven live
+//     pages of eight built (the plan board is page 6, the sheet page 7); its own assertions are v193Bcheck's.
 //   node scripts/v112Dcheck.mjs        (GAME_URL, POS=RB, SHOT=dir, WHEEL=1)
 import { chromium } from 'playwright'
 import { CHROME, GAME_URL } from './lib/env.mjs'
@@ -111,13 +113,13 @@ const impSnaps = imp => { const m = /Involvement[^\n]*?(\d+)% snaps/.exec(imp ||
 
 // ---------------------------------------------------------------- 1. one decision a page
 const P1 = await readWiz()
-ok(P1.pages.length === 7 && P1.active && P1.active.length === 6 && !P1.active.includes('v112Page6'), 'seven pages are built, six of them live on an ordinary week — the rivalry page only on a rivalry game (v136)', (P1.active || []).join('/'))
+ok(P1.pages.length === 8 && P1.active && P1.active.length === 7 && P1.active[3] === 'v112PageTeam' && !P1.active.includes('v112Page6'), 'eight pages are built, seven of them live on an ordinary week — YOUR TEAM after the scout (v193 B), the rivalry page only on a rivalry game (v136)', (P1.active || []).join('/'))
 ok(P1.pages.filter(p => p.shown).length === 1 && P1.pages[0].shown, 'exactly one of them is on screen, and it is the first', P1.pages.map(p => p.id + '=' + p.shown).join(' '))
-ok(/STEP 1 OF 6/.test(P1.kick) && /INVOLVEMENT/i.test(P1.kick), 'page 1 announces itself', P1.kick + ' — "' + P1.title + '"')
+ok(/STEP 1 OF 7/.test(P1.kick) && /INVOLVEMENT/i.test(P1.kick), 'page 1 announces itself', P1.kick + ' — "' + P1.title + '"')
 ok(P1.ladder.length === 5 && P1.ladder.every(s => s.vis), 'the five-step ladder is the decision on page 1', P1.ladder.map(s => s.k).join('/'))
 ok(P1.ladder.every(s => s.h >= 44), 'and its steps are thumb-sized', 'min height ' + Math.min(...P1.ladder.map(s => s.h)) + 'px')
 ok(!P1.focus.some(f => f.vis) && !P1.planVis, 'the focus cards and the coordinator are NOT competing with it', `focus visible=${P1.focus.filter(f => f.vis).length} plan=${P1.planVis}`)
-ok(P1.dots.length === 6 && P1.dots[0] === 'on', 'a page indicator says where he is', P1.dots.join('|'))
+ok(P1.dots.length === 7 && P1.dots[0] === 'on', 'a page indicator says where he is', P1.dots.join('|'))
 
 await tapNext()
 const P2 = await readWiz()
@@ -131,11 +133,15 @@ const P3 = await readWiz()
 ok(P3.page === 2 && P3.pages[2].shown, 'page 3 is the scout and the plan', P3.kick)
 ok(P3.planVis && /coordinator's plan/i.test(P3.plan || '') && /% pass/.test(P3.plan || ''), 'the coordinator reads back as one line', P3.plan)
 ok(/GAME SCRIPT/.test(P3.impactBar || '') && !!P3.fillPct && parseFloat(P3.fillPct) > 0, 'and the impact bar draws its fill', 'width=' + P3.fillPct)
-ok(/NEXT/i.test(P3.next), 'nothing on it is required — NEXT is live with no input', P3.next)
+ok(/YOUR TEAM/i.test(P3.next), 'nothing on it is required — NEXT is live with no input, and it leads to YOUR TEAM (v193 B)', P3.next)
+
+await tapNext()
+const PT = await readWiz()
+ok(PT.page === 3 && PT.pages[3].shown && /YOUR TEAM/i.test(PT.kick) && /NEXT/i.test(PT.next), 'page 4 is YOUR TEAM (v193 B) — informational, NEXT is live', PT.kick)
 
 await tapNext()
 const P4 = await readWiz()
-ok(P4.page === 3 && P4.pages[3].shown, 'page 4 is the impact', P4.kick)
+ok(P4.page === 4 && P4.pages[4].shown, 'page 5 is the impact', P4.kick)
 ok(!!P4.imp && P4.sheetPage === 'v112Page7' && !P4.sheetVis, 'the effect on next game — the sheet itself is the LAST page now (v136)', (P4.imp || '').slice(0, 58) + ' · sheet on ' + P4.sheetPage)
 ok(WHEEL ? /SPIN THE WHEEL/i.test(P4.next || '') : /THE GAME PLAN/i.test(P4.next || ''), WHEEL ? 'and the button on it sends him to the wheel' : 'and the button on it sends him to the game plan (v146 D)', P4.next)
 ok(await page.evaluate(() => !document.getElementById('growthV42')), 'no wheel has spun anywhere yet — nothing opened over the season screen (v135)')
@@ -147,7 +153,7 @@ await tapNext()
 if (!WHEEL) {   // ---------------------------------------------------------------- 1b (v146 D). page 5: the board — he picks
   const P5 = await readWiz()
   const B5 = await page.evaluate(() => { const T = el => el ? el.innerText.replace(/\s+/g, ' ') : ''; const h = window.__V135.hold(); return { board: !!document.querySelector('#v112Page5 #v146Plan'), wheel: !!document.getElementById('growthV42'), tiles: [...document.querySelectorAll('#v112Page5 .v146-tile')].map(t => t.dataset.plan), lit: (document.querySelector('.v146-tile.on') || {}).dataset?.plan, card: T(document.getElementById('v146Card')), plans: h.plans.map(p => p.id), dis: document.getElementById('v112Next').disabled } })
-  ok(P5.page === 4 && P5.pages[4].shown && /STEP 5 OF 6/.test(P5.kick) && /GAME PLAN/i.test(P5.kick), 'page 5 is the game plan', P5.kick)
+  ok(P5.page === 5 && P5.pages[5].shown && /STEP 6 OF 7/.test(P5.kick) && /GAME PLAN/i.test(P5.kick), 'page 6 is the game plan', P5.kick)
   ok(B5.board && !B5.wheel && B5.tiles.length === B5.plans.length && B5.lit === held.win, 'it is the BOARD — every plan the staff drew up as a tile, the held pick lit, and no wheel', `${B5.tiles.length} tiles, lit ${B5.lit}`)
   ok(!B5.dis && /YOUR SHEET/i.test(P5.next || ''), 'NEXT is live — nothing spins, nothing waits', P5.next)
   ok(new RegExp(held.name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i').test(B5.card) && /VARIANCE ±\d+%/.test(B5.card), 'the card names the plan and prints its variance', B5.card.slice(0, 90))
@@ -163,7 +169,7 @@ if (!WHEEL) {   // -------------------------------------------------------------
 } else {
 const P5 = await readWiz()
 const W5 = await page.evaluate(() => { const w = document.querySelector('#v112Page5 #growthV42'); const r = w ? w.getBoundingClientRect() : null; return { inPage: !!w, inline: w ? w.dataset.inline : null, fixed: w ? getComputedStyle(w).position : null, wheel: !!document.querySelector('#v112Page5 #gv50wheel'), w: r ? Math.round(r.width) : 0, title: w ? (w.querySelector('div > div') || {}).textContent : null, dis: document.getElementById('v112Next').disabled } })
-ok(P5.page === 4 && P5.pages[4].shown && /STEP 5 OF 6/.test(P5.kick) && /WHEEL/i.test(P5.kick), 'page 5 is the wheel', P5.kick)
+ok(P5.page === 5 && P5.pages[5].shown && /STEP 6 OF 7/.test(P5.kick) && /WHEEL/i.test(P5.kick), 'page 6 is the wheel', P5.kick)
 ok(W5.inPage && W5.inline === '1' && W5.fixed !== 'fixed' && W5.wheel && W5.w > 200, 'the wheel is mounted INTO the page — the same card, no fixed backdrop', JSON.stringify(W5))
 ok(/^\s*PREGAME/.test(W5.title || ''), 'and it is the plan wheel', (W5.title || '').slice(0, 40))
 ok(W5.dis && /SPINNING/i.test(P5.next || ''), 'NEXT waits while the wheel is in the air', P5.next)
@@ -185,14 +191,14 @@ ok(R5.standing && R5.spins === 1 && R5.buffs === F5.buffs && /YOUR SHEET/i.test(
 // ---------------------------------------------------------------- 1c. the last page is the sheet (v136 A)
 await tapNext()
 const P6 = await readWiz()
-ok(P6.page === 5 && /STEP 6 OF 6/.test(P6.kick) && /SHEET/i.test(P6.kick), 'the last page is YOUR SHEET', P6.kick)
+ok(P6.page === 6 && /STEP 7 OF 7/.test(P6.kick) && /SHEET/i.test(P6.kick), 'the last page is YOUR SHEET', P6.kick)
 ok(P6.sheetPage === 'v112Page7' && P6.sheetVis && !!P6.sheet, 'and the effective sheet is on it, visible', (P6.sheet || '').slice(0, 50))
 ok(!!P6.summary && /WEEK, SETTLED/.test(P6.summary) && new RegExp(held.name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i').test(P6.summary), WHEEL ? 'headed by the week, settled — the plan the wheel landed on' : 'headed by the week, settled — the plan he chose', (P6.summary || '').slice(0, 90))
 ok(/CONTINUE TO MATCH/i.test(P6.next || '') && P6.gos.length === 1 && P6.skipHidden, 'and the one way to the field is its primary button', P6.next)
-await page.evaluate(() => window.__V112_D.go(3)); await page.waitForTimeout(200)
+await page.evaluate(() => window.__V112_D.go(4)); await page.waitForTimeout(200)
 
 // ---------------------------------------------------------------- 2. back, and the choice survives
-await tapBack(); await tapBack()
+await tapBack(); await tapBack(); await tapBack()
 const B2 = await readWiz()
 ok(B2.page === 1, 'BACK walks back a page at a time', 'page ' + (B2.page + 1) + ' — ' + B2.kick)
 await page.evaluate(() => document.getElementById('v111Focus_' + window.__V111_UI.focusFor(window.__V111_UI.player().pos)[2].key).click())
@@ -207,8 +213,8 @@ await page.waitForTimeout(250)
 const U = await readWiz()
 ok(U.S.weekUsage === 'everysnap' && U.ladder.find(s => s.k === 'everysnap').on, 'an involvement picked on page 1 writes week.usageV111', 'week.usageV111=' + U.S.weekUsage)
 
-await tapNext(); await tapNext(); await tapNext()      // all the way to the impact page
-await tapBack(); await tapBack(); await tapBack()      // and all the way home
+await tapNext(); await tapNext(); await tapNext(); await tapNext()      // all the way to the impact page
+await tapBack(); await tapBack(); await tapBack(); await tapBack()      // and all the way home
 const R = await readWiz()
 ok(R.page === 0, 'the round trip lands back on page 1', R.kick)
 ok(R.S.weekUsage === 'everysnap' && R.ladder.find(s => s.k === 'everysnap').on && R.ladder.filter(s => s.on).length === 1,
@@ -230,7 +236,7 @@ for (const k of ['limited', 'normal', 'everysnap']) {
   await page.evaluate(() => window.__V112_D.go(0))
   await page.evaluate(k => document.getElementById('v111Step_' + k).click(), k)
   await page.waitForTimeout(180)
-  await page.evaluate(() => window.__V112_D.go(3))
+  await page.evaluate(() => window.__V112_D.go(4))
   await page.waitForTimeout(260)
   const F = await readWiz()
   const m = F.S.forecast, us = F.S.usage
@@ -247,17 +253,17 @@ ok(seen[0].mLoad < seen[1].mLoad && seen[1].mLoad < seen[2].mLoad && seen[0].wea
 // the focus reaches the sheet on the same page
 const fk = await page.evaluate(() => { window.__V112_D.go(1); const l = window.__V111_UI.focusFor(window.__V111_UI.player().pos); document.getElementById('v111Focus_' + l[0].key).click(); return l[0].key })
 await page.waitForTimeout(200)
-await page.evaluate(() => window.__V112_D.go(3)); await page.waitForTimeout(300)
+await page.evaluate(() => window.__V112_D.go(4)); await page.waitForTimeout(300)
 const FP = await readWiz()
 ok(/Game focus/i.test(FP.imp) && !/None/.test(FP.imp.split('Body')[0]), 'the focus he picked is named on the last page', (FP.imp || '').slice(0, 120))
 ok(!!FP.sheetFocus && /×1\.\d/.test(FP.sheetFocus), 'and the stat sheet under it carries the multiplier (v171 C: the card\'s own roll)', FP.sheetFocus)
 ok(/%/.test((FP.imp.match(/Body[^A-Za-z]*([-+]?\d+% to every attribute)/) || [])[1] || ''), 'the body\'s own swing is stated too', (FP.imp.match(/Body[^A-Za-z]*([-+]?\d+% to every attribute)/) || [])[1])
 
 // ---------------------------------------------------------------- 5. the way to the field, on every page
-for (let i = 0; i < 6; i++) {
+for (let i = 0; i < 7; i++) {
   await page.evaluate(i => window.__V112_D.go(i), i)
   await page.waitForTimeout(220)
-  if (i === 4 && WHEEL) {   // v135: the wheel page has no way to the field until the wheel has landed
+  if (i === 5 && WHEEL) {   // v135: the wheel page has no way to the field until the wheel has landed
     const mid = await readWiz()
     ok(mid.gos.length === 0 && /SPINNING/i.test(mid.next || ''), 'page 5: NO way to the field while the wheel is in the air', mid.next)
     await page.waitForFunction(() => { const g = document.getElementById('gv42go'); return g && g.style.display !== 'none' }, null, { timeout: 30000 }).catch(() => null)
@@ -272,7 +278,7 @@ for (let i = 0; i < 6; i++) {
   await page.screenshot({ path: `${SHOT}_p${i + 1}.png` })
   await page.setViewportSize({ width: 400, height: 900 })
 }
-console.log('     shots', `${SHOT}_p1..p6.png`)
+console.log('     shots', `${SHOT}_p1..p7.png`)
 
 // ---------------------------------------------------------------- 6. the defaults reach the game untouched
 ok(await toPregame(), 'a third open, and this time he touches nothing')

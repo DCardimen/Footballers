@@ -32,6 +32,23 @@ Names in older entries are the career app's pre-v149 C minified names (`q`, `ms`
   cut-vs-arrival rates, and what an arrival would pay); collapsible, remembered. Fixed: the free respec refunded
   `cost·mult^i` a level while the price paid carries the branch factor (×24 a core node since v191 A) — it refunds what
   was paid. Kill switches `v193D`, `v193Drefund`. `v193Dcheck`. (`src/07`, `src/styles/00-app.css`.)
+- **v193 B · The plan shows its odds, rolls before kickoff, and your team is on the sheet.** (`src/11`, `17`, `07`.)
+  Every tile on the plan board is shaded by its click odds and prints them — green at 50%+ clicks, red at 35%+
+  backfires or under 25% clicks — and the best odds on the board wear BEST ODDS beside the scout's SCOUT. The
+  scout's suggestion stays, but when it is not green the default lit is the greenest plan within 3 perf of it, and
+  the card says why ("Scout says X · odds say Y"). Under the card, 🎲 ROLL THE PLAN reveals the week's held roll
+  for the selected plan (the same dice, nothing re-rolled) with a short dice spin — IT CLICKS / IT'LL DO / IT
+  BACKFIRES and the stats it moves — then locks the pick; the projection strip, the full box score, the plan card
+  and page 7 redraw against the pre-roll numbers (▲/▼), and the swing still lands once at kickoff, without the
+  toast. A projected scoreline (PROJECTED 27–21) sits beside the WIN CHANCE on page 3 and above the tiles on page 5:
+  the mean of the engine's own sampled games, plus the plan's team lift and the roll (expected before, whole after),
+  tweening to its new numbers after the roll. YOUR TEAM is a new page after the scout: the two elevens from the same
+  preview, each man's OVR and what your prestige gives him (+N Locker Room, +N team nodes, ±N% plan), you marked
+  with what you carry, and a header — "Your prestige lifts this team from N → N (team nodes, Locker Room, legacy
+  share)" — or the nudge to the tree. Fixed: Rest & Recover (`recover`) now gets the rest-plan reads only
+  Recovery & Treatment (`recovery`) had (the matchup modifier, the injury terms, the fatigue tables). Knobs
+  `planGreenV193`, `planRedV193`, `planGreenGapV193`, `projScorePerPctV193`, `projScoreClickV193`,
+  `projScoreBackfireV193`, `projScoreBaseV193`, `rollMsV193`, `scoreTweenMsV193`; kill switch `v193B`. `v193Bcheck`.
 - **v192 — a playtest pass in six parts.** (`src/04`, `05`, `07`, `14`, `public/rib-menu*`, `public/rib-vault*`.)
   - **A · The economy, to scale.** Flat prestige (milestones, challenges, orders, titles, nemesis, Daily Drive, Legacy
     bounties) pays a tenth of its face (milestones 1,1,1,1,2,4,7,22), and what a career banks on the side is paid only up
