@@ -11645,12 +11645,13 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
    *     +3..+5 and a backfire's −3..−4 on the pool stats → `out.pct`; the projection's expected click / backfire,
    *     `projBandGV146` / `projBandRV146`, priced per stat through the same function — `bandForV146` carries `pctG` /
    *     `pctR`), the story wheel's buffs (`__mkTempBuffsV25`), the legendary "+1 Permanent" flip and the Extra reps flip
-   *     (`applyFlipV178`), and the fate roll (v192 A's percent, re-based: `fatePctMultV192A` defaults to this
-   *     calibration, so a plan's "+5" there means what "+5" means here).
+   *     (`applyFlipV178`), and the fate roll (v192 A's percent through the same calibration — `rollPctV193X(flat ×
+   *     fatePctMultV192A)`, whole, the House Money hedge too; with College at 100 it reads as v192 A's one-for-one).
    *   THE ITEMS. A gear attribute modifier (`a_*`) is a percent of the attribute: a piece's flat roll is converted ONCE
    *     against the typical attribute at the tier it dropped at (`refTablesV193X().all[tierV147]` — every attribute, since a piece
-   *     is not tied to a position), so it is as strong as before at the level it dropped and keeps pace afterwards. The
-   *     v193 A/G level multiplier rides on top (still a whole percent), the per-attribute cap is `gearAttrPctCapV193X`
+   *     is not tied to a position), so it is as strong as before at the level it dropped and keeps pace afterwards — never
+   *     past the cap (`gearRefMinTierV193X` prices low tiers against a higher tier's sheet, if early drops crowd the late
+   *     ones out). The v193 A/G level multiplier rides on top (still a whole percent), the per-attribute cap is `gearAttrPctCapV193X`
    *     (25%) instead of v147's flat 20, and the points land in `_raw` and `effAttrsV85` off the wearer's own attribute.
    *     An old piece converts lazily (`gearPctEnsureV193X`, tagged `attrPctV193X`, the flat value kept as `flatV193X` so
    *     the kill switch reads it back). The base effects (`power`, `startAll`) stay flat.
