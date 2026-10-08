@@ -5592,7 +5592,7 @@ ${col(
   }
   function scoutsExplainBtnV193E() {
     /* a span, not an anchor: the v146 E shell moves every `a[onclick]` in the dock into its chips row */
-    return `<span role="button" tabindex="0" class="scouts-i-v193e" onclick="event.stopPropagation();scoutsExplainV193E()" title="How the scouts decide" style="display:inline-block;min-width:18px;height:18px;line-height:17px;border-radius:9px;border:1px solid var(--gold);color:var(--gold);text-align:center;font-size:11px;font-weight:700;cursor:pointer;margin-left:4px;vertical-align:middle">ⓘ</span>`;
+    return `<span role="button" tabindex="0" class="scouts-i-v193e" onclick="event.stopPropagation();scoutsExplainV193E()" title="How the scouts decide" style="display:inline-flex;align-items:center;justify-content:center;min-width:36px;height:36px;margin:-9px -6px -9px -4px;cursor:pointer;vertical-align:middle"><b style="display:inline-block;min-width:18px;height:18px;line-height:17px;border-radius:9px;border:1px solid var(--gold);color:var(--gold);text-align:center;font-size:11px;font-weight:700">ⓘ</b></span>`; /* v193 R: a 36px target around an 18px mark */
   }
   // the four numbers, this player's own
   function scoutsExplainDataV193E() {
@@ -39900,6 +39900,10 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
 .chip-bank-v192b[hidden]{display:none!important}
 .chip-bank-v192b b{color:#f2c94c;font-weight:700}.chip-bank-v192b i{font-style:normal;color:#7fe0a0}
 @media (max-width:400px){html.shell-v146 body .topbar{gap:4px!important;padding-left:8px!important;padding-right:8px!important}html.shell-v146 body .topbar .prestige-chip .chip-plus{width:28px!important}html.shell-v146 body .topbar .mute-v151e,html.shell-v146 body .topbar .team-creator-btn-v153{width:32px!important;min-width:32px!important}}
+/* v193 R: every top-bar target is 36px and no text under 11px (v153 E's floors). On a narrow phone the prestige chip's own
+   medal count (the crest and its number) goes — the Legacy chip beside it shows the medals — and that pays for the room. */
+.chip-bank-v192b{font-size:11px!important;align-self:stretch;min-height:36px;min-width:36px;align-items:center}
+@media (max-width:400px){html.shell-v146 body .topbar .prestige-chip .honor-crest-v153,html.shell-v146 body .topbar .prestige-chip .honor-crest-v153+span{display:none!important}html.shell-v146 body .topbar .prestige-chip .chip-plus{width:36px!important}html.shell-v146 body .topbar .mute-v151e,html.shell-v146 body .topbar .team-creator-btn-v153{width:36px!important;min-width:36px!important}}
 .pb-v192b{font:500 13px 'Barlow Condensed',sans-serif;color:var(--chalk);text-align:left;max-height:62vh;overflow:auto}
 .pb-v192b h5{font:700 11px Oswald,sans-serif;letter-spacing:1.6px;color:var(--gold);margin:12px 0 4px}
 .pb-v192b h5:first-child{margin-top:0}
@@ -41466,7 +41470,7 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
         gate = d.querySelector(".gate-v179"),
         parts = [];
       n > 0 && parts.push(`🌳 <b>${n}</b> upgrade${n === 1 ? "" : "s"} affordable — <span role="button" onclick="go('shop')" style="color:var(--gold);text-decoration:underline;cursor:pointer">spend</span>`);
-      !gate && parts.push(`🔭 <span role="button" onclick="scoutsExplainV193E()" style="cursor:pointer">How the scouts decide ${scoutsExplainBtnV193E()}</span>`); /* spans: the shell would move anchors (src/25) */
+      !gate && parts.push(`🔭 <span role="button" onclick="scoutsExplainV193E()" style="cursor:pointer;display:inline-flex;align-items:center;min-height:36px">How the scouts decide ${scoutsExplainBtnV193E()}</span>`); /* spans: the shell would move anchors (src/25) */
       parts.length && d.insertAdjacentHTML("afterbegin", `<div class="small center afford-v193e" style="margin-bottom:6px;opacity:.8">${parts.join(" · ")}</div>`);
     } catch (_) {}
     return r;
