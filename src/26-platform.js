@@ -390,11 +390,13 @@
   function styleFor(ms) { return ms < 15 ? 'LIGHT' : ms < 40 ? 'MEDIUM' : 'HEAVY'; }
   var ribHaptics = {
     impact: function (style) {
+      if (!hapticsOnV193O()) return;   // v193 O: the per-device Vibration switch
       var H = P.native && plugin('Haptics');
       if (H) return H.impact({ style: String(style || 'MEDIUM').toUpperCase() }).catch(function () {});
       try { navigator.vibrate && navigator.vibrate({ LIGHT: 10, MEDIUM: 20, HEAVY: 40 }[String(style || 'MEDIUM').toUpperCase()] || 20); } catch (e) {}
     },
     notify: function (type) {
+      if (!hapticsOnV193O()) return;
       var H = P.native && plugin('Haptics');
       if (H) return H.notification({ type: String(type || 'SUCCESS').toUpperCase() }).catch(function () {});
       try { navigator.vibrate && navigator.vibrate(type === 'error' ? [35, 45, 35] : [20, 35, 55]); } catch (e) {}
@@ -415,6 +417,73 @@
     };
     try { Object.defineProperty(navigator, 'vibrate', { configurable: true, writable: true, value: shim }); } catch (e) { try { navigator.vibrate = shim; } catch (e2) {} }
   }
+
+  /* ===== v193 O HAPTICS =====
+   * The owner: "Anything you can to add vibrations and haptic feedback to rewards, decisions, etc." ONE helper,
+   * `window.ribHaptic(kind)`, for every new call site (07's `buzzV193O`, 11, 17, 31, 05):
+   *   tick (the lightest: a bar, a coin, a step) · tap · select · success · warning · error · heavy · reward (a short pattern)
+   * Native (Capacitor Haptics): impact({style}) / notification({type}) / selectionChanged (after one selectionStart);
+   * the web: navigator.vibrate(pattern) where it exists (Android Chrome); else nothing.
+   *   THE SWITCH  Settings › SOUND › "Vibration" (07 `vibrationRowV193O`), per device in localStorage `rib.haptics.v193`
+   *               ("off" = off; default ON). It also gates `ribHaptics.impact/notify` and navigator.vibrate itself, so
+   *               the game's older calls (the vault, the reel, the live TD) obey it too.
+   *   THE LIMIT   one buzz per `MIN_GAP` 40 ms; a stronger kind inside the gap still lands (a tap's buzz never eats
+   *               the purchase's success right after it), a lighter one is dropped.
+   *   HEADLESS    a complete no-op under navigator.webdriver (timing checks are not disturbed) unless `?haptics=1`.
+   * `window.ribHaptic.stats()` / `.log` / `.on()` / `.set(on)` are what scripts/v193Ocheck.mjs reads. */
+  var HKEY_V193O = 'rib.haptics.v193', MIN_GAP_V193O = 40;
+  function hapticsOnV193O() { try { return localStorage.getItem(HKEY_V193O) !== 'off'; } catch (e) { return true; } }
+  function headlessV193O() { try { return !!navigator.webdriver && !/[?&]haptics=1\b/.test(location.search); } catch (e) { return false; } }
+  var WEB_V193O = { tick: 6, tap: 12, select: 9, success: [14, 50, 26], warning: [26, 70, 26], error: [40, 50, 40, 50, 40], heavy: 50, reward: [12, 40, 12, 40, 38] };
+  var RANK_V193O = { tick: 0, select: 1, tap: 1, success: 2, warning: 2, error: 3, heavy: 3, reward: 3 };
+  var lastV193O = { t: -1e9, rank: -1 }, selStartedV193O = false;
+  function nativeV193O(H, kind) {
+    var no = function () {};
+    if (kind === 'tick' || kind === 'select') {
+      if (H.selectionChanged) {
+        if (!selStartedV193O && H.selectionStart) { selStartedV193O = true; try { H.selectionStart().catch(no); } catch (e) {} }
+        return H.selectionChanged().catch(function () { try { H.impact({ style: 'LIGHT' }).catch(no); } catch (e) {} });
+      }
+      return H.impact({ style: 'LIGHT' }).catch(no);
+    }
+    if (kind === 'tap') return H.impact({ style: 'LIGHT' }).catch(no);
+    if (kind === 'heavy') return H.impact({ style: 'HEAVY' }).catch(no);
+    if (kind === 'success' || kind === 'warning' || kind === 'error') return H.notification({ type: kind.toUpperCase() }).catch(no);
+    // reward: a short pattern — the success chime, then a heavy thump
+    H.notification({ type: 'SUCCESS' }).catch(no);
+    setTimeout(function () { try { H.impact({ style: 'HEAVY' }).catch(no); } catch (e) {} }, 150);
+  }
+  function ribHaptic(kind) {
+    kind = WEB_V193O[kind] != null ? kind : 'tap';
+    var S = ribHaptic._s; S.asked++;
+    if (!hapticsOnV193O()) { S.off++; return false; }
+    if (headlessV193O()) { S.headless++; return false; }
+    var now = (window.performance && performance.now()) || Date.now(), rank = RANK_V193O[kind];
+    if (now - lastV193O.t < MIN_GAP_V193O && rank <= lastV193O.rank) { S.limited++; return false; }
+    lastV193O.t = now; lastV193O.rank = rank;
+    S.fired++; ribHaptic.log.push(kind); if (ribHaptic.log.length > 60) ribHaptic.log.shift();
+    try {
+      var H = P.native && plugin('Haptics');
+      if (H) { nativeV193O(H, kind); return true; }
+      if (typeof navigator.vibrate !== 'function') return false;
+      navigator.vibrate(WEB_V193O[kind]);
+      return true;
+    } catch (e) { return false; }
+  }
+  ribHaptic._s = { asked: 0, fired: 0, off: 0, headless: 0, limited: 0 };
+  ribHaptic.log = [];
+  ribHaptic.stats = function () { var o = {}, s = ribHaptic._s; for (var k in s) o[k] = s[k]; o.on = hapticsOnV193O(); o.headless = headlessV193O(); return o; };
+  ribHaptic.on = hapticsOnV193O;
+  ribHaptic.set = function (on) { try { if (on) localStorage.removeItem(HKEY_V193O); else localStorage.setItem(HKEY_V193O, 'off'); } catch (e) {} return hapticsOnV193O(); };
+  ribHaptic.kinds = Object.keys(WEB_V193O);
+  window.ribHaptic = ribHaptic;
+  // the older calls (the vault's coin rain, the reel, the live TD's vib) go through navigator.vibrate: the switch gates them too
+  (function () {
+    var v0 = navigator.vibrate;
+    if (typeof v0 !== 'function') return;
+    var gated = function (p) { if (!hapticsOnV193O()) return false; return v0.call(navigator, p); };
+    try { Object.defineProperty(navigator, 'vibrate', { configurable: true, writable: true, value: gated }); } catch (e) { try { navigator.vibrate = gated; } catch (e2) {} }
+  })();
 
   /* ---------- window.open in the shell: a blank window is an in-app frame, an outside link the system browser ---------- */
   if (P.native) {

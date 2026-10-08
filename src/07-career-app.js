@@ -11397,6 +11397,7 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
     _gearSelV147 === id && (_gearSelV147 = null);
     bankPPV136(n, "scrap");
     showToast("💰 Sold " + a.name + " for +" + n + " PP" + gearSellToastV193G());
+    buzzV193O("success"); /* v193 O */
     saveGame();
     screenLocker();
     return n;
@@ -11436,6 +11437,7 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
       _gearSelV147 && ids.has(_gearSelV147) && (_gearSelV147 = null);
       bankPPV136(total, "scrap");
       showToast("💰 Sold " + L.length + " commons for +" + total + " PP" + gearSellToastV193G());
+      buzzV193O("success"); /* v193 O */
       saveGame();
       screenLocker();
       return total;
@@ -15119,6 +15121,7 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
       ${row("sndSfxOnV151E", settingOn("sound"), "Sound effects", "Broadcast cues, rewards, and game-impact audio", "toggleSetting('sound')")}
       ${slider("sndSfxV151E", "Effects volume", sfxVol, "sfxVol")}
       ${row("sndVoiceV151E", voice, "Coach's voice", "The coach's blips as he talks you through a screen", "coachVoiceV151E()")}
+      ${vibrationRowV193O() /* v193 O HAPTICS: the per-device Vibration switch */}
     </div>`;
   }
   function coachVoiceV151E() {
@@ -15152,7 +15155,7 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
       ${TU("v156D", 1) ? myPlaysSettingV159B() : "" /* v156 D; v159 B: a member perk / the ad while the store is ON */}
       ${toggleRow("fastSim", "Faster live sim", "Speed up the default play animation")}
       ${jumboRowV164F() /* v164 F: the messages on the big screen */}
-      ${toggleRow("haptics", "Haptic feedback", "Vibration for touchdowns, setbacks, and major choices")}
+      ${TU("v193O", 1) ? "" : toggleRow("haptics", "Haptic feedback", "Vibration for touchdowns, setbacks, and major choices") /* v193 O: Settings › SOUND › Vibration */}
     </div>
     ${experienceRowV158B() /* v158 B: EXPERIENCE — Off (current build) · Free-to-play · Member (a preview); the GAME tab */}
     ${betaCardV181() /* v181: the beta tuning sliders */}
@@ -16754,6 +16757,7 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
     (t.tiers || (t.tiers = {}),
       (t.tiers[a.key] = e),
       delete t._tierStarPaidV139,
+      buzzV193O("success") /* v193 O */,
       saveGame(),
       showToast(
         "Committed to " + s.name + "!"
@@ -16839,6 +16843,7 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
     return t && PROGRAMS[t.prog] ? t.prog : "balanced";
   }
   function chooseTraining(e) {
+    buzzV193O("select"); /* v193 O */
     ((state.player.training = e), saveGame());
     const t = state.player;
     t.midInjury = Math.random() < 0.35;
@@ -17062,8 +17067,10 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
     const _lkV128 = rivalLockV128(s.eff, t);
     if (_lkV128 && !_lkV128.ok) {
       showToast("🔒 Locked — you need " + _lkV128.need + " " + _lkV128.name + " and you have " + _lkV128.have + ".");
+      buzzV193O("warning"); /* v193 O */
       return;
     } /* v128: locked means locked */
+    buzzV193O("select"); /* v193 O */
     (s.eff.ppCost && (state.pp -= s.eff.ppCost),
       (t.eventChoice = s.eff),
       (function () {
@@ -26528,6 +26535,7 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
       showToast(t.name + " → Lv " + state.tree[e]),
       screenPrestige(),
       syncCounters());
+    buzzV193O("success"); /* v193 O */
   }
   function shopBack() {
     goView(state.player && state.player.pos ? "hub" : "menu");
@@ -30371,6 +30379,7 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
       s = a.weekResults.findIndex(i => !i.played);
     if (s < 0) return;
     const n = a.weekResults[s];
+    buzzV193O("select"); /* v193 O */
     (resolveWeekV11(a, n, e), closeGamePlan103(), saveGame(), startWeek(!!t));
   }
   prepareWeek103 = function (e) {
@@ -35143,6 +35152,7 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
         }
         var us = g.usScore != null ? g.usScore : 0,
           them = g.themScore != null ? g.themScore : 0;
+        counted || buzzV193O(us > them ? "reward" : us < them ? "error" : "warning"); /* v193 O: the final whistle — a win, a loss */
         // How many games this season line covers, and the record. THIS game is not on
         // weekResults yet — the week is finalised only after the card is dismissed — so
         // its result comes off the live scoreboard, or the card shows a win as 0-1.
@@ -38584,7 +38594,7 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
       b && (b.innerHTML = `<i>${c.icon}</i>${escHtml(pk.say)}<small>${c.rar.toUpperCase()}</small>`);
     }
     playSfx(c.rar === "legendary" || c.rar === "epic" ? "big" : "good");
-    haptic(c.rar === "legendary" ? [30, 40, 60, 40, 80] : 22);
+    buzzV193O(c.rar === "legendary" || c.rar === "epic" ? "reward" : "select"); /* v193 O (was the save's haptic()) */
     // v178 J: the rarity lands — the row glows the card's colour, a rare+ card throws confetti, an epic+ shakes it
     const row = document.getElementById("rvFlipV178");
     if (row) {
@@ -39284,6 +39294,9 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
     try {
       playSfx(R.win ? "big" : "bad");
     } catch (_) {}
+    /* v193 O: each roll lands with a tick, the verdict with the result */
+    for (let i = 0; i < n; i++) setTimeout(() => buzzV193O("tick"), (0.35 + i * 1.05 + 0.85) * 1000);
+    setTimeout(() => (R.win ? buzzV193O("reward") : (buzzV193O("error"), setTimeout(() => buzzV193O("heavy"), 260))), end * 1000);
   }
   window.declareFromHub = declareFromHub;
   /* ===== v179 I THE CEILING IS BUILT =====
@@ -39532,6 +39545,7 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
       syncCounters();
       saveGame();
     } catch (_) {}
+    buzzV193O("reward"); /* v193 O */
     return c;
   }
   // the simulator's (and a "pick for me") choice: the stronger card by a plain value table, or the weaker
@@ -39737,11 +39751,15 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
   }
   function countUpV189(el, from, to, ms) {
     if (!el) return;
-    const t0 = performance.now();
+    const t0 = performance.now(),
+      steps = Math.max(0, Math.min(TU("potTicksV193O", 20), Math.round(to - from))); /* v193 O: a light tick per step, ~20 at most */
+    let ticked = 0;
     const step = t => {
       const k = Math.min(1, (t - t0) / ms),
-        v = Math.round(from + (to - from) * (1 - Math.pow(1 - k, 3)));
+        e3 = 1 - Math.pow(1 - k, 3),
+        v = Math.round(from + (to - from) * e3);
       el.textContent = fmtBigV179(v);
+      if (steps && el.isConnected && Math.floor(e3 * steps) > ticked) ((ticked = Math.floor(e3 * steps)), buzzV193O(k >= 1 ? "success" : "tick"));
       k < 1 && el.isConnected && requestAnimationFrame(step);
     };
     requestAnimationFrame(step);
@@ -39765,7 +39783,8 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
     // v190 D: the Legacy medal card sits under the report card, at the top — it was the last thing on the page
     if (state.view === "result" && TU("v190top", 1)) {
       const lg = sc.querySelector(".legacy-card-v152"),
-        first = sc.querySelector(".card");
+        gw = sc.querySelector("#growCardV193O") /* v193 O: the season's growth sits under the grade, the medal card under it */,
+        first = gw && gw.previousElementSibling ? gw : sc.querySelector(".card");
       if (lg && first && first !== lg && first.nextElementSibling !== lg) first.insertAdjacentElement("afterend", lg);
     }
     // the season report: the season's bank, animated
@@ -39786,12 +39805,14 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
       const animate = !B.seenResult;
       B.seenResult = !0;
       const html = bankCardHtmlV189("bankResultV189", animate ? B.from : shown, shown, "PP this career has earned — paid into the Vault when it ends"),
-        first = sc.querySelector(".card"),
+        gw193 = sc.querySelector("#growCardV193O"),
+        first = gw193 && gw193.previousElementSibling ? gw193 : sc.querySelector(".card"),
         lgc = TU("v190top", 1) && sc.querySelector(".legacy-card-v152"),
         anchor = lgc && first && first.nextElementSibling === lgc ? lgc : first; /* v190 D: under the medal card, beside it */
       anchor ? anchor.insertAdjacentHTML("afterend", html) : sc.insertAdjacentHTML("afterbegin", html);
       /* v190 D: fills with the Legacy XP bar — its pour starts 600 ms after the card is in view */
-      animate && setTimeout(() => countUpV189(sc.querySelector("#bankResultV189 .num"), B.from, shown, TU("potFillMsV190", 2400)), TU("v190top", 1) ? 600 : 0);
+      const potGo = () => (growBusyV193O() ? setTimeout(potGo, 200) : countUpV189(sc.querySelector("#bankResultV189 .num"), B.from, shown, TU("potFillMsV190", 2400))); /* v193 O: after the growth bars */
+      animate && setTimeout(potGo, TU("v190top", 1) ? 600 : 0);
       return;
     }
     // the prestige screen: the pot as the last season left it
@@ -41452,4 +41473,546 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
   };
   window.__istGateV179 = e => istGateV179(e || (state && state.player));
   window.__V179 = { flipDeal: (w, n) => flipDealV179(state.player, w || {}, n || 1), applyFlip: (id, w) => (applyFlipV178(state.player, id, w), applyFlipV178.pts), fairGrade: (U, snap, opp) => (fairGradeV179(state.player, U, snap == null ? 0.9 : snap, opp == null ? 72 : opp), fairGradeV179.last), rankFloor: (g, why) => rankFloorV179(state.player, g, why), gradeWhy: gradeWhyHtmlV179, parts: ceilingPartsV179, potGain: nodePotGainV179, fxText: fxTextV179, bar: e => scoutBarV179(e || (state && state.player)), potential: potentialV179, verdict: () => V179K.last, gate: istGateV179, medalGate: e => medalGateV179(e || (state && state.player)), fmt: fmtBigV179, price: branchPriceV179, medals: { sync: medalSyncV179, open: openMedalPickV179, tap: tapMedalV179, claim: claimMedalV179, auto: m => (autoMedalV179(typeof m === 'string' ? m : 'good'), document.getElementById('medalPickV179')?.remove(), render()), autoQuiet: autoMedalV179, close: () => document.getElementById('medalPickV179')?.remove(), newPlayer: () => newPlayer(), eraUp: () => tryNextEra(), store: medalStoreV179, fx: medalFxV179, deal: dealMedalV179 } };
+  /* ===== v193 O HAPTICS =====
+   * The owner: "Anything you can to add vibrations and haptic feedback to rewards, decisions, etc." 26 owns the one helper,
+   * `window.ribHaptic(kind)` (tick · tap · select · success · warning · error · heavy · reward; Capacitor Haptics on native,
+   * navigator.vibrate on the web, a no-op under navigator.webdriver unless ?haptics=1, one buzz per 40 ms). 07 calls it
+   * through `buzzV193O(kind)` (hoisted, try-wrapped — never a throw from a render): a tree node bought (`buyNode`, so the
+   * QUICK BUY too), a medal reward claimed (`claimMedalV179`), a card flipped on the reel (`reelPickV178`), a training /
+   * event / game plan picked (`chooseTraining` — CONFIRM TRAINING lands there —, `chooseEvent`, `chooseGamePlanV11`), a
+   * tier committed (`chooseTier`), gear sold (`gearSellDoV193`, `sellCommonsV193`), the declare (each roll of the
+   * scouts' verdict ticks, the verdict lands as a reward or an error + heavy; a declare without the reveal buzzes from the
+   * `advanceLevel` / `failDeclareV77` wrappers), the final whistle of a watched game (`showPostGame`: win = reward,
+   * loss = error), the pot's count-up (`countUpV189`: a tick per step, 20 at most), the season's growth bars (below) and
+   * every +1 on the skill sheet (below). 11 (the pregame NEXT), 17 (the plan's roll: clicks / it'll do / backfires), 31
+   * (the Legacy XP pour) and 05 (HIS touchdown) call `window.ribHaptic` themselves.
+   * THE SWITCH: Settings › SOUND › "Vibration" (`vibrationRowV193O`, drawn from localStorage `rib.haptics.v193` alone, so
+   * a boot restore never waits on 26 — v140); `vibrationToggleV193O()` writes it and keeps the save's old
+   * `settings.haptics` (the retired LIVE GAME "Haptic feedback" row, `haptic()`) in step. Kill switch TU "v193O" 0 (the
+   * old row comes back; the growth card and the sheet's pop go). `window.__V193O`; scripts/v193Ocheck.mjs. */
+  function buzzV193O(kind) {
+    try {
+      window.ribHaptic && window.ribHaptic(kind);
+    } catch (_) {}
+  }
+  const HAPTIC_KEY_V193O = "rib.haptics.v193";
+  function vibrationOnV193O() {
+    try {
+      return localStorage.getItem(HAPTIC_KEY_V193O) !== "off";
+    } catch (_) {
+      return true;
+    }
+  }
+  function vibrationRowV193O() {
+    const on = vibrationOnV193O();
+    return `<div class="toggle-row" id="vibRowV193O" onclick="vibrationToggleV193O()">
+    <div class="toggle-info"><div class="toggle-label">📳 Vibration</div><div class="toggle-desc">Haptic taps on rewards, decisions, level-ups and big plays — this device only</div></div>
+    <div class="switch ${on ? "on" : ""}"><i></i></div>
+  </div>`;
+  }
+  function vibrationToggleV193O() {
+    const on = !vibrationOnV193O();
+    try {
+      on ? localStorage.removeItem(HAPTIC_KEY_V193O) : localStorage.setItem(HAPTIC_KEY_V193O, "off");
+    } catch (_) {}
+    try {
+      state.settings || (state.settings = {});
+      state.settings.haptics = on; /* the save's old switch (haptic(), the vault bridge) follows the device's */
+      saveGame();
+    } catch (_) {}
+    const row = document.getElementById("vibRowV193O"),
+      sw = row && row.querySelector(".switch");
+    sw && sw.classList.toggle("on", on);
+    on && buzzV193O("success");
+    return on;
+  }
+  window.vibrationToggleV193O = vibrationToggleV193O;
+  // a save whose old "Haptic feedback" row was switched off keeps it off on this device (once)
+  function vibrationMigrateV193O() {
+    try {
+      if (state && state.settings && state.settings.haptics === false && localStorage.getItem(HAPTIC_KEY_V193O) == null) localStorage.setItem(HAPTIC_KEY_V193O, "off");
+    } catch (_) {}
+  }
+  // the declare without the scouts' reveal (the reveal buzzes itself when it lands)
+  function declareBuzzV193O(kind) {
+    setTimeout(() => {
+      if (document.getElementById("verdictV179")) return;
+      kind === "fail" ? (buzzV193O("error"), setTimeout(() => buzzV193O("heavy"), 260)) : buzzV193O("reward");
+    }, 0);
+  }
+  const advanceV193O = advanceLevel;
+  advanceLevel = function () {
+    const lv = state && state.player && state.player.level;
+    const r = advanceV193O.apply(this, arguments);
+    try {
+      state && state.player && state.player.level > lv && declareBuzzV193O("up");
+    } catch (_) {}
+    return r;
+  };
+  const failDeclareV193O = failDeclareV77;
+  failDeclareV77 = function () {
+    const r = failDeclareV193O.apply(this, arguments);
+    declareBuzzV193O("fail");
+    return r;
+  };
+
+  /* ===== v193 O THE SEASON'S GROWTH, FELT =====
+   * The owner: "End of season add an animation to the bars. What changed, show movement and make it incredibly
+   * satisfying seeing growth." The report's Development list said "9 → 12" in small print on its GROWTH tab. Now the
+   * GRADE tab opens on a WHAT CHANGED card, right under the report card: every attribute that moved this season, as a
+   * bar that starts at the OLD value and grows to the NEW one — biggest gain first, `growStaggerMsV193O` (120 ms) apart,
+   * each fill eased with an overshoot (cubic-bezier(.34,1.56,.64,1)) and settled, the number counting old → new, a "+N"
+   * chip popping in green (a decline: red, the bar shrinking, a short shake), a shimmer across a bar that crosses a mark
+   * (its soft cap, a grade tier 80 / 140 / 200, the 250 lap) with the mark named; then the OVR ring counts up with a
+   * burst of particles (a canvas, no library), and the total: "+N attribute points this season". A tap skips to the end;
+   * prefers-reduced-motion draws the end at once. Haptics: a tick a bar, a reward at the OVR burst.
+   * THE TRUTH: `player.attrsAtSeasonStartV193O` is snapshotted when a season's games start (a `startSeasonGames` wrapper,
+   * if there is none) and re-taken at every season's end, so "this season" is everything since the last report — the
+   * points spent between weeks, the training, the season-end development, the age. `finishWrapV193O` writes
+   * `player.growV193O {at, from, to, ovr0, ovr1, seen}` (whole numbers) once a season; an older save without a snapshot
+   * falls back to the season's own `attrsBefore`. THE SCALE: one scale for the card, `max(soft cap / growCapAtV193O (0.8),
+   * value × 1.06)` over the rows, so the soft cap (`drSoftCap`, ≤ `attrCap`) sits at the same place on every bar and a
+   * +1 at Pee Wee is a visible step (the sheet's 250 scale would make it a 0.4% sliver).
+   * THE ORDER: it waits for every cover (the offseason body screen #growV132, the coach, a decision overlay, the medal
+   * chooser, the verdict); while it plays, `growBusyV193O()` holds the Legacy XP pour (31) and the pot's count-up (v189),
+   * which then follow it top-down. The v190 D medal card goes under this card. Kill switch TU "v193O" 0. */
+  function onV193O() {
+    return TU("v193O", 1) !== 0;
+  }
+  function wholeAttrsV193O(a) {
+    const o = {};
+    ATTR_KEYS.forEach(k => (o[k] = wholeNum((a && a[k]) || 0)));
+    return o;
+  }
+  function growRecordV193O(p, base) {
+    const from = wholeAttrsV193O(base || (p.seasonStats && p.seasonStats.attrsBefore) || p.attrs),
+      to = wholeAttrsV193O(p.attrs);
+    let ovr0 = 0;
+    try {
+      ovr0 = Math.round(playerOvr(Object.assign({}, p, { attrs: Object.assign({}, p.attrs, from) })));
+    } catch (_) {}
+    p.growV193O = { at: p.totalSeasons, level: p.level, from, to, ovr0, ovr1: Math.round(playerOvr(p)), seen: !1, base: base ? "season" : "attrsBefore" };
+    p.attrsAtSeasonStartV193O = Object.assign({}, p.attrs); /* the next season counts from this report */
+    return p.growV193O;
+  }
+  function finishWrapV193O(f0) {
+    return function () {
+      const p = state && state.player,
+        ss0 = p && p.seasonStats;
+      let base = null;
+      try {
+        base = p && p.attrsAtSeasonStartV193O ? Object.assign({}, p.attrsAtSeasonStartV193O) : null;
+      } catch (_) {}
+      const r = f0.apply(this, arguments);
+      try {
+        const q = state && state.player;
+        if (onV193O() && q && q === p && q.seasonStats && q.seasonStats !== ss0 && !(q.growV193O && q.growV193O.at === q.totalSeasons)) {
+          growRecordV193O(q, base);
+          typeof document < "u" && growCardV193O(); /* the report was drawn before the record existed */
+        }
+      } catch (x) {
+        console.warn("[v193 O finish]", x);
+      }
+      return r;
+    };
+  }
+  function startWrapV193O(f0) {
+    return function () {
+      try {
+        const p = state && state.player;
+        p && p.attrs && !p.attrsAtSeasonStartV193O && (p.attrsAtSeasonStartV193O = Object.assign({}, p.attrs));
+      } catch (_) {}
+      return f0.apply(this, arguments);
+    };
+  }
+  finishSeasonGames = finishWrapV193O(finishSeasonGames);
+  typeof window.finishSeasonGames === "function" && (window.finishSeasonGames = finishWrapV193O(window.finishSeasonGames));
+  startSeasonGames = startWrapV193O(startSeasonGames);
+  typeof window.startSeasonGames === "function" && (window.startSeasonGames = startWrapV193O(window.startSeasonGames));
+
+  // the rows: every attribute that moved, the biggest gain first, declines last (the steepest last)
+  function growDataV193O(p) {
+    const R = p && p.growV193O;
+    if (!R || R.at !== p.totalSeasons) return null;
+    const capAt = Math.max(0.3, Math.min(1, TU("growCapAtV193O", 0.8))),
+      lap = barScaleV164E() || 250,
+      rows = ATTR_KEYS.filter(k => R.to[k] !== R.from[k])
+        .map(k => {
+          const from = R.from[k],
+            to = R.to[k],
+            sc = drSoftCap(p, k),
+            marks = [];
+          if (from < sc && to >= sc) marks.push("SOFT CAP");
+          if (ovrGradeClass(from) !== ovrGradeClass(to) && to > from) marks.push(to >= 200 ? "ELITE TIER" : to >= 140 ? "HIGH TIER" : "MID TIER");
+          if (Math.floor(to / lap) > Math.floor(from / lap)) marks.push("×" + (Math.floor(to / lap) + 1) + " LAP");
+          return { k, from, to, d: to - from, sc, marks, name: (ATTR_INFO[k] && ATTR_INFO[k].name) || k, icon: (ATTR_INFO[k] && ATTR_INFO[k].icon) || "" };
+        })
+        .sort((a, b) => b.d - a.d || a.name.localeCompare(b.name));
+    let scale = 1;
+    rows.forEach(r => (scale = Math.max(scale, r.sc / capAt, r.to * 1.06, r.from * 1.06)));
+    scale = Math.ceil(scale);
+    const pct = v => Math.max(0, Math.min(100, (v / scale) * 100)),
+      gained = rows.reduce((s, r) => s + Math.max(0, r.d), 0),
+      lost = rows.reduce((s, r) => s + Math.min(0, r.d), 0);
+    rows.forEach(r => ((r.w0 = pct(r.from)), (r.w1 = pct(r.to)), (r.cap = pct(r.sc))));
+    const need = (LEVELS[p.level] && LEVELS[p.level].need) || 100,
+      ringMax = Math.max(need, R.ovr1, R.ovr0, 1);
+    return { R, rows, scale, gained, lost, net: gained + lost, ovr0: R.ovr0, ovr1: R.ovr1, ring0: R.ovr0 / ringMax, ring1: R.ovr1 / ringMax, lapAt: lap < scale ? pct(lap) : null };
+  }
+  const RING_C_V193O = 2 * Math.PI * 26;
+  function growCardHtmlV193O(D) {
+    const rows = D.rows
+      .map((r, i) => {
+        const up = r.d > 0;
+        return `<div class="g93-row ${up ? "up" : "down"}" data-k="${r.k}" data-from="${r.from}" data-to="${r.to}" data-i="${i}" style="--w0:${r.w0.toFixed(2)}%;--w1:${r.w1.toFixed(2)}%">
+      <span class="g93-n">${r.icon} ${escHtml(r.name)}</span>
+      <div class="g93-track">${up ? `<i class="g93-gain"></i><i class="g93-base"></i>` : `<i class="g93-lost"></i><i class="g93-fill"></i>`}<em class="g93-cap" style="left:${r.cap.toFixed(2)}%" title="Soft cap ${r.sc}"></em>${D.lapAt != null ? `<em class="g93-lap" style="left:${D.lapAt.toFixed(2)}%"></em>` : ""}<i class="g93-shine"></i></div>
+      <b class="g93-v">${r.from}</b>
+      <span class="g93-chip">${up ? "+" : "−"}${Math.abs(r.d)}</span>${r.marks.length ? `<span class="g93-tag">${r.marks.join(" · ")}</span>` : ""}
+    </div>`;
+      })
+      .join("");
+    const dO = D.ovr1 - D.ovr0,
+      total = D.lost ? `<b>+${D.gained}</b> attribute points this season <span class="g93-neg">· −${-D.lost} lost</span>` : `<b>+${D.gained}</b> attribute point${D.gained === 1 ? "" : "s"} this season`;
+    return `<div class="card grow-v193o" id="growCardV193O" onclick="growSkipV193O()" data-at="${D.R.at}">
+    <div class="g93-head">
+      <div class="g93-t"><div class="g93-k">📈 WHAT CHANGED</div><div class="g93-s">This season · ${D.rows.length} attribute${D.rows.length === 1 ? "" : "s"} moved</div></div>
+      <div class="g93-ovr${dO > 0 ? " up" : dO < 0 ? " down" : ""}"><canvas class="g93-fx" width="180" height="180"></canvas><svg viewBox="0 0 64 64" aria-hidden="true"><circle class="g93-rbg" cx="32" cy="32" r="26"/><circle class="g93-rfg" cx="32" cy="32" r="26" style="stroke-dasharray:${RING_C_V193O.toFixed(2)};stroke-dashoffset:${(RING_C_V193O * (1 - D.ring0)).toFixed(2)}"/></svg><b class="g93-ovn">${D.ovr0}</b><small>OVR${dO ? ` <i>${dO > 0 ? "+" : "−"}${Math.abs(dO)}</i>` : ""}</small></div>
+    </div>
+    <div class="g93-rows">${rows}</div>
+    <div class="g93-total">${total}</div>
+    <div class="g93-tap">tap to skip</div>
+  </div>`;
+  }
+  function cssGrowV193O() {
+    if (document.getElementById("growCssV193O")) return;
+    const st = document.createElement("style");
+    st.id = "growCssV193O";
+    st.textContent = `
+.grow-v193o{position:relative;border-color:rgba(127,224,160,.45)!important;background:radial-gradient(120% 70% at 85% 0%,rgba(127,224,160,.10),transparent 60%),linear-gradient(180deg,rgba(255,255,255,.04),rgba(13,18,28,.94))!important;cursor:pointer;overflow:visible}
+.grow-v193o .g93-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:8px}
+.grow-v193o .g93-k{font:700 15px Oswald,sans-serif;letter-spacing:2px;color:#7fe0a0}
+.grow-v193o .g93-s{font:500 12px 'Barlow Condensed',sans-serif;color:var(--chalk-dim);letter-spacing:.4px}
+.grow-v193o .g93-ovr{position:relative;width:64px;height:64px;flex:0 0 64px;display:flex;flex-direction:column;align-items:center;justify-content:center}
+.grow-v193o .g93-ovr svg{position:absolute;inset:0;width:64px;height:64px;transform:rotate(-90deg)}
+.grow-v193o .g93-rbg{fill:none;stroke:rgba(255,255,255,.09);stroke-width:5}
+.grow-v193o .g93-rfg{fill:none;stroke:#f0bb45;stroke-width:5;stroke-linecap:round;transition:stroke-dashoffset .9s cubic-bezier(.34,1.4,.64,1)}
+.grow-v193o .g93-ovr.up .g93-rfg{stroke:#7fe0a0}.grow-v193o .g93-ovr.down .g93-rfg{stroke:#e08a8a}
+.grow-v193o .g93-ovn{position:relative;font:700 22px/1 Oswald,sans-serif;color:#fff;font-variant-numeric:tabular-nums}
+.grow-v193o .g93-ovr small{position:relative;font:600 9px/1 Oswald,sans-serif;letter-spacing:1.5px;color:var(--chalk-dim);margin-top:2px}
+.grow-v193o .g93-ovr small i{font-style:normal;color:#7fe0a0;opacity:0;transition:opacity .3s}
+.grow-v193o .g93-ovr.down small i{color:#e08a8a}
+.grow-v193o .g93-ovr.lit small i{opacity:1}
+.grow-v193o .g93-ovr.lit .g93-ovn{animation:g93Pop .55s cubic-bezier(.2,1.5,.35,1)}
+.grow-v193o .g93-ovr.lit:after{content:"";position:absolute;inset:-6px;border-radius:50%;box-shadow:0 0 22px 4px rgba(127,224,160,.45);opacity:0;animation:g93Glow 1.2s ease-out}
+.grow-v193o .g93-fx{position:absolute;left:50%;top:50%;width:180px;height:180px;margin:-90px 0 0 -90px;pointer-events:none;z-index:3}
+.grow-v193o .g93-rows{display:flex;flex-direction:column;gap:5px}
+.grow-v193o .g93-row{position:relative;display:grid;grid-template-columns:minmax(84px,32%) 1fr 34px 42px;align-items:center;gap:7px;min-height:20px}
+.grow-v193o .g93-n{font:600 12.5px 'Barlow Condensed',sans-serif;color:var(--chalk);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.grow-v193o .g93-track{position:relative;height:10px;border-radius:5px;background:rgba(255,255,255,.07);overflow:hidden}
+.grow-v193o .g93-track i,.grow-v193o .g93-track em{position:absolute;top:0;bottom:0;display:block;font-style:normal}
+.grow-v193o .g93-base{left:0;width:var(--w0);background:linear-gradient(90deg,#5d6b7e,#8a97a8);border-radius:5px 0 0 5px;z-index:1}
+.grow-v193o .g93-gain{left:0;width:var(--w0);border-radius:5px;background:linear-gradient(90deg,#3f9e5a,#7fe0a0 70%,#d8ffc9);box-shadow:0 0 8px rgba(127,224,160,.6);transition:width .72s cubic-bezier(.34,1.56,.64,1)}
+.grow-v193o .g93-fill{left:0;width:var(--w0);border-radius:5px;background:linear-gradient(90deg,#5d6b7e,#8a97a8);z-index:1;transition:width .5s cubic-bezier(.55,0,.75,.4)}
+.grow-v193o .g93-lost{left:var(--w1);width:calc(var(--w0) - var(--w1));background:repeating-linear-gradient(45deg,rgba(224,138,138,.75) 0 4px,rgba(160,50,50,.75) 4px 8px);opacity:0;transition:opacity .4s ease .25s}
+.grow-v193o .g93-cap{width:2px;margin-left:-1px;background:#f0bb45;box-shadow:0 0 4px rgba(240,187,69,.8);z-index:2;opacity:.85}
+.grow-v193o .g93-lap{width:2px;margin-left:-1px;background:#ff8a80;z-index:2;opacity:.7}
+.grow-v193o .g93-shine{left:-40%;width:40%;z-index:3;background:linear-gradient(90deg,transparent,rgba(255,255,255,.85),transparent);opacity:0}
+.grow-v193o .g93-v{font:700 14px Oswald,sans-serif;color:#fff;text-align:right;font-variant-numeric:tabular-nums}
+.grow-v193o .g93-chip{justify-self:start;font:700 11px/1 Oswald,sans-serif;letter-spacing:.5px;padding:3px 6px;border-radius:999px;color:#0b1119;background:linear-gradient(180deg,#8ee07c,#4fa844);transform:scale(0);opacity:0}
+.grow-v193o .g93-row.down .g93-chip{background:linear-gradient(180deg,#e08a8a,#a33a3a);color:#fff}
+.grow-v193o .g93-tag{position:absolute;right:48px;top:-7px;font:700 8.5px/1 Oswald,sans-serif;letter-spacing:1px;color:#f0bb45;text-shadow:0 0 6px rgba(240,187,69,.7);opacity:0;transform:translateY(4px);transition:opacity .3s,transform .3s}
+.grow-v193o .g93-total{margin-top:9px;text-align:center;font:600 14px 'Barlow Condensed',sans-serif;color:var(--chalk-dim);opacity:0;transform:translateY(6px);transition:opacity .45s ease,transform .45s ease}
+.grow-v193o .g93-total b{font:700 18px Oswald,sans-serif;color:#7fe0a0}.grow-v193o .g93-neg{color:#e08a8a}
+.grow-v193o .g93-tap{position:absolute;right:10px;bottom:6px;font:500 10px 'Barlow Condensed',sans-serif;color:var(--chalk-dim);opacity:.6}
+.grow-v193o.g93-done .g93-tap{display:none}
+.grow-v193o .g93-row.go .g93-gain{width:var(--w1)}
+.grow-v193o .g93-row.go .g93-fill{width:var(--w1)}
+.grow-v193o .g93-row.go .g93-lost{opacity:1}
+.grow-v193o .g93-row.down.go{animation:g93Shake .42s ease .2s}
+.grow-v193o .g93-row.landed .g93-chip{animation:g93Chip .42s cubic-bezier(.2,1.4,.35,1) forwards}
+.grow-v193o .g93-row.landed .g93-v{animation:g93Pop .4s cubic-bezier(.2,1.5,.35,1)}
+.grow-v193o .g93-row.landed .g93-tag{opacity:1;transform:none}
+.grow-v193o .g93-row.cross .g93-shine{animation:g93Shine .9s ease-out}
+.grow-v193o .g93-row.cross .g93-track{box-shadow:0 0 0 1px rgba(240,187,69,.55),0 0 10px rgba(240,187,69,.35)}
+.grow-v193o.g93-done .g93-total{opacity:1;transform:none}
+.grow-v193o.g93-static *{transition:none!important;animation:none!important}
+.grow-v193o.g93-static .g93-chip{transform:none;opacity:1}
+@keyframes g93Chip{0%{transform:scale(0);opacity:0}60%{transform:scale(1.15);opacity:1}100%{transform:scale(1);opacity:1}}
+@keyframes g93Pop{0%{transform:scale(1)}40%{transform:scale(1.22)}100%{transform:scale(1)}}
+@keyframes g93Shake{0%,100%{transform:none}20%{transform:translateX(-4px)}40%{transform:translateX(4px)}60%{transform:translateX(-3px)}80%{transform:translateX(2px)}}
+@keyframes g93Shine{0%{left:-40%;opacity:0}15%{opacity:1}100%{left:110%;opacity:0}}
+@keyframes g93Glow{0%{opacity:0}25%{opacity:1}100%{opacity:0}}
+@media (prefers-reduced-motion:reduce){.grow-v193o *{transition:none!important;animation:none!important}.grow-v193o .g93-chip{transform:none;opacity:1}}
+/* v193 O: the skill sheet's +1 lands */
+.uv-pop-v193o{display:inline-block;animation:g93Pop .38s cubic-bezier(.2,1.5,.35,1)}
+.ovr-pop-v193o{animation:g93OvrPop .7s cubic-bezier(.2,1.4,.35,1)}
+@keyframes g93OvrPop{0%{transform:scale(1);text-shadow:none}35%{transform:scale(1.18);color:#7fe0a0;text-shadow:0 0 14px rgba(127,224,160,.9)}100%{transform:scale(1);text-shadow:none}}
+.lvl-up-v193o{position:relative;animation:g93LvlUp 1.1s ease-out}
+@keyframes g93LvlUp{0%{box-shadow:0 0 0 0 rgba(240,187,69,0)}25%{box-shadow:0 0 0 2px rgba(240,187,69,.9),0 0 22px 4px rgba(240,187,69,.55)}100%{box-shadow:0 0 0 0 rgba(240,187,69,0)}}
+.lvl-tag-v193o{position:absolute;right:10px;top:-4px;z-index:5;font:700 10px/1 Oswald,sans-serif;letter-spacing:1.4px;color:#0b1119;background:linear-gradient(180deg,#ffe9a0,#f0bb45);padding:4px 7px;border-radius:999px;box-shadow:0 0 12px rgba(240,187,69,.8);pointer-events:none;animation:g93Tag 1.4s ease-out forwards}
+@keyframes g93Tag{0%{opacity:0;transform:translateY(6px) scale(.6)}18%{opacity:1;transform:translateY(-4px) scale(1.1)}30%{transform:translateY(-4px) scale(1)}80%{opacity:1}100%{opacity:0;transform:translateY(-14px)}}
+@media (prefers-reduced-motion:reduce){.uv-pop-v193o,.ovr-pop-v193o,.lvl-up-v193o,.lvl-tag-v193o{animation:none!important}.lvl-tag-v193o{display:none}}`;
+    document.head.appendChild(st);
+  }
+  const GROW_V193O = { card: null, started: 0, done: !1, timers: [], raf: 0, waitIv: 0, plays: 0, skips: 0 };
+  function reducedV193O() {
+    try {
+      return !!(window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches);
+    } catch (_) {
+      return !1;
+    }
+  }
+  // what must be gone before the bars play (the offseason body screen and the coach first — v189 D / v190 D)
+  function growCoveredV193O() {
+    if (document.querySelector("#growV132,#growthV42,#medalPickV179,#verdictV179,.decision-overlay,.life-event-overlay-v12,#mz149Ad")) return !0;
+    try {
+      if (window.__RIB_COACH && window.__RIB_COACH.isOpen) return !0;
+    } catch (_) {}
+    return !1;
+  }
+  function growBusyV193O() {
+    const c = GROW_V193O.card;
+    if (!c || !c.isConnected || GROW_V193O.done || !c.getClientRects().length) return !1;
+    return !GROW_V193O.started || performance.now() - GROW_V193O.started < TU("growBusyMaxMsV193O", 8000);
+  }
+  function growClearV193O() {
+    GROW_V193O.timers.forEach(t => clearTimeout(t));
+    GROW_V193O.timers = [];
+    cancelAnimationFrame(GROW_V193O.raf);
+    clearInterval(GROW_V193O.waitIv);
+    GROW_V193O.waitIv = 0;
+  }
+  // the card on the report: under the report card (the grade), once a season's record exists
+  function growCardV193O() {
+    if (!onV193O() || !state || state.view !== "result" || !state.player) return;
+    const sc = byId("screen"),
+      p = state.player;
+    if (!sc || sc.querySelector("#growCardV193O")) return;
+    const D = growDataV193O(p);
+    if (!D || (!D.rows.length && D.ovr0 === D.ovr1)) return;
+    cssGrowV193O();
+    const grade = sc.querySelector(".season-grade"),
+      anchor = (grade && grade.closest(".card")) || sc.querySelector(".card");
+    const html = growCardHtmlV193O(D);
+    anchor ? anchor.insertAdjacentHTML("afterend", html) : sc.insertAdjacentHTML("afterbegin", html);
+    const card = sc.querySelector("#growCardV193O");
+    growClearV193O();
+    Object.assign(GROW_V193O, { card, started: 0, done: !1, data: D });
+    // v190 D: the medal card (and the pot under it) sit under this one
+    try {
+      const lg = sc.querySelector(".legacy-card-v152");
+      if (lg && TU("v190top", 1) && card.nextElementSibling !== lg && lg.parentNode === card.parentNode) {
+        const pot = lg.nextElementSibling && lg.nextElementSibling.id === "bankResultV189" ? lg.nextElementSibling : null;
+        card.insertAdjacentElement("afterend", lg);
+        pot && lg.insertAdjacentElement("afterend", pot);
+      }
+    } catch (_) {}
+    if (D.R.seen || reducedV193O()) return growFinishV193O(!0);
+    GROW_V193O.waitIv = setInterval(() => {
+      if (!card.isConnected) return clearInterval(GROW_V193O.waitIv);
+      if (growCoveredV193O() || !card.getClientRects().length) return;
+      clearInterval(GROW_V193O.waitIv);
+      GROW_V193O.waitIv = 0;
+      growPlayV193O(card, D);
+    }, 200);
+  }
+  function countV193O(el, from, to, ms) {
+    if (!el) return;
+    const t0 = performance.now(),
+      step = t => {
+        const k = Math.min(1, (t - t0) / ms),
+          e = 1 - Math.pow(1 - k, 3);
+        el.textContent = String(Math.round(from + (to - from) * e));
+        k < 1 && el.isConnected && !GROW_V193O.done && requestAnimationFrame(step);
+      };
+    requestAnimationFrame(step);
+  }
+  function growPlayV193O(card, D) {
+    GROW_V193O.started = performance.now();
+    GROW_V193O.plays++;
+    const rows = [...card.querySelectorAll(".g93-row")],
+      stag = TU("growStaggerMsV193O", 120),
+      barMs = TU("growBarMsV193O", 720),
+      lead = 250,
+      T = (fn, ms) => GROW_V193O.timers.push(setTimeout(fn, ms));
+    rows.forEach((row, i) => {
+      const r = D.rows[i];
+      T(() => {
+        row.classList.add("go");
+        buzzV193O("tick");
+        countV193O(row.querySelector(".g93-v"), r.from, r.to, barMs - 80);
+      }, lead + i * stag);
+      T(() => {
+        row.classList.add("landed");
+        r.marks.length && r.d > 0 && row.classList.add("cross");
+      }, lead + i * stag + barMs - 60);
+    });
+    const ovrAt = lead + Math.max(0, rows.length - 1) * stag + barMs + 120;
+    T(() => growOvrV193O(card, D, !1), ovrAt);
+    T(() => growFinishV193O(!1), ovrAt + 1000);
+  }
+  function growOvrV193O(card, D, quiet) {
+    const box = card.querySelector(".g93-ovr"),
+      fg = card.querySelector(".g93-rfg");
+    if (!box) return;
+    fg && (fg.style.strokeDashoffset = (RING_C_V193O * (1 - D.ring1)).toFixed(2));
+    if (quiet) {
+      box.querySelector(".g93-ovn").textContent = String(D.ovr1);
+      box.classList.add("lit");
+      return;
+    }
+    countV193O(box.querySelector(".g93-ovn"), D.ovr0, D.ovr1, 800);
+    GROW_V193O.timers.push(
+      setTimeout(() => {
+        box.classList.add("lit");
+        D.ovr1 > D.ovr0 || D.gained > 0 ? (growBurstV193O(box.querySelector(".g93-fx"), D.ovr1 >= D.ovr0), buzzV193O("reward")) : buzzV193O("warning");
+      }, 760)
+    );
+  }
+  // the burst: a few dozen sparks from the ring, gravity, fade — a canvas, no library
+  function growBurstV193O(cv, good) {
+    if (!cv || !cv.getContext || reducedV193O()) return;
+    const g = cv.getContext("2d"),
+      W = cv.width,
+      H = cv.height,
+      cols = good ? ["#7fe0a0", "#f0bb45", "#ffe9a0", "#ffffff"] : ["#e08a8a", "#f0bb45"],
+      P = [];
+    for (let i = 0; i < 34; i++) {
+      const a = Math.random() * Math.PI * 2,
+        v = 1.6 + Math.random() * 3.2;
+      P.push({ x: W / 2 + Math.cos(a) * 24, y: H / 2 + Math.sin(a) * 24, vx: Math.cos(a) * v, vy: Math.sin(a) * v - 1, r: 1.2 + Math.random() * 2.2, c: cols[i % cols.length] });
+    }
+    const t0 = performance.now(),
+      frame = t => {
+        const k = (t - t0) / 900;
+        g.clearRect(0, 0, W, H);
+        if (k >= 1 || !cv.isConnected) return;
+        P.forEach(q => {
+          q.x += q.vx;
+          q.y += q.vy;
+          q.vy += 0.09;
+          q.vx *= 0.985;
+          g.globalAlpha = Math.max(0, 1 - k);
+          g.fillStyle = q.c;
+          g.beginPath();
+          g.arc(q.x, q.y, q.r * (1 - k * 0.5), 0, Math.PI * 2);
+          g.fill();
+        });
+        requestAnimationFrame(frame);
+      };
+    requestAnimationFrame(frame);
+  }
+  // the end state: every bar at its new value, the chips on, the OVR and the total (a tap, reduced motion, or the end)
+  function growFinishV193O(quiet) {
+    const card = GROW_V193O.card,
+      D = GROW_V193O.data;
+    if (!card || !D) return;
+    const was = GROW_V193O.done;
+    growClearV193O();
+    GROW_V193O.done = !0;
+    if (quiet) card.classList.add("g93-static");
+    card.querySelectorAll(".g93-row").forEach((row, i) => {
+      const r = D.rows[i];
+      row.classList.add("go", "landed");
+      quiet && row.classList.remove("cross");
+      const v = row.querySelector(".g93-v");
+      v && (v.textContent = String(r.to));
+    });
+    growOvrV193O(card, D, !0);
+    card.classList.add("g93-done");
+    try {
+      D.R.seen || ((D.R.seen = !0), saveGame());
+    } catch (_) {}
+    return was;
+  }
+  function growSkipV193O() {
+    if (GROW_V193O.done) return;
+    GROW_V193O.skips++;
+    growFinishV193O(!0);
+    buzzV193O("tap");
+  }
+  window.growSkipV193O = growSkipV193O;
+
+  /* ===== v193 O EVERY POINT LANDS — the skill sheet's +1 is felt =====
+   * The one more satisfying patch. Every +1 bought on the skill sheet (`window.alloc`, the button and the hold-to-repeat)
+   * pops the number and ticks; a +1 that raises the OVR pops the OVR in green and buzzes a success; a +1 that crosses a
+   * mark — the soft cap, a grade tier (80 / 140 / 200), the 250 lap — glows the row gold with the mark named (LEVEL UP ·
+   * HIGH TIER, SOFT CAP REACHED, LAP ×2) and buzzes a reward. Presentation only: the price, the points and the stat are
+   * `alloc`'s. Kill switch TU "v193Opop" 0. */
+  function allocFeelV193O(k, v0, v1, o0, o1) {
+    if (!TU("v193Opop", 1) || !onV193O()) return;
+    cssGrowV193O();
+    const p = state.player,
+      uv = byId("uv-" + k),
+      row = (uv && uv.closest(".up-attr")) || (byId("bar-" + k) && byId("bar-" + k).parentElement),
+      sc = drSoftCap(p, k),
+      lap = barScaleV164E() || 250,
+      pop = (el, cls) => el && (el.classList.remove(cls), void el.offsetWidth, el.classList.add(cls));
+    pop(uv, "uv-pop-v193o");
+    let mark = "";
+    if (ovrGradeClass(v0) !== ovrGradeClass(v1)) mark = "LEVEL UP · " + (v1 >= 200 ? "ELITE" : v1 >= 140 ? "HIGH" : "MID") + " TIER";
+    else if (Math.floor(v1 / lap) > Math.floor(v0 / lap)) mark = "LAP ×" + (Math.floor(v1 / lap) + 1);
+    else if (v0 < sc && v1 >= sc) mark = "SOFT CAP REACHED";
+    if (mark && row) {
+      pop(row, "lvl-up-v193o");
+      row.querySelectorAll(".lvl-tag-v193o").forEach(x => x.remove());
+      getComputedStyle(row).position === "static" && (row.style.position = "relative");
+      row.insertAdjacentHTML("beforeend", `<span class="lvl-tag-v193o">${mark}</span>`);
+      const tag = row.lastElementChild;
+      setTimeout(() => tag && tag.remove(), 1500);
+      buzzV193O("reward");
+    } else if (o1 > o0) {
+      pop(byId("liveOvr"), "ovr-pop-v193o");
+      buzzV193O("success");
+    } else buzzV193O("tick");
+    o1 > o0 && mark && pop(byId("liveOvr"), "ovr-pop-v193o");
+    GROW_V193O.feels = (GROW_V193O.feels || 0) + 1;
+    GROW_V193O.lastFeel = { k, v0, v1, o0, o1, mark };
+  }
+  const allocV193O = window.alloc;
+  if (typeof allocV193O === "function")
+    window.alloc = function (k, d) {
+      const p = state && state.player;
+      let v0 = 0,
+        o0 = 0;
+      try {
+        v0 = wholeNum(p.attrs[k]);
+        o0 = playerOvr(p);
+      } catch (_) {}
+      const r = allocV193O.apply(this, arguments);
+      try {
+        const v1 = wholeNum(p.attrs[k]);
+        d > 0 && v1 > v0 && allocFeelV193O(k, v0, v1, o0, playerOvr(p));
+      } catch (_) {}
+      return r;
+    };
+
+  const renderV193O = render;
+  render = function () {
+    const r = renderV193O.apply(this, arguments);
+    try {
+      vibrationMigrateV193O();
+      growCardV193O();
+    } catch (x) {
+      console.warn("[v193 O render]", x);
+    }
+    return r;
+  };
+  window.__V193O = {
+    data: p => growDataV193O(p || (state && state.player)),
+    rec: p => {
+      const q = p || (state && state.player);
+      return q && q.growV193O;
+    },
+    record: base => growRecordV193O(state.player, base),
+    card: () => growCardV193O(),
+    busy: () => growBusyV193O(),
+    skip: () => growSkipV193O(),
+    finish: () => growFinishV193O(!0),
+    state: () => ({ started: GROW_V193O.started, done: GROW_V193O.done, plays: GROW_V193O.plays, skips: GROW_V193O.skips, feels: GROW_V193O.feels || 0, lastFeel: GROW_V193O.lastFeel || null }),
+    buzz: k => buzzV193O(k),
+    vibrationOn: () => vibrationOnV193O(),
+    toggleVibration: () => vibrationToggleV193O()
+  };
 })();
