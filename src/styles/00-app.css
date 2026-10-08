@@ -26,6 +26,17 @@
 .gear-list-v147{overflow-y:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch}
 .gear-list-v147 .gear-row{display:block;padding:7px 9px;margin-bottom:5px}.gear-row.r-rare{border-color:#5aa0dc80}.gear-row.sel{box-shadow:0 0 0 1.5px var(--gold) inset}
 .gr-main-v147{display:flex;align-items:center;gap:9px}.gr-main-v147 .gr-info{cursor:pointer}.gr-main-v147 .gm-list-v147{margin-top:3px}
+/* v193 A THE GEAR GROWS, AND SELLS — the level tag, the sell price, the sticky heading bar and its chips, the folded totals */
+.gear-bar-v193{position:sticky;top:0;z-index:5;background:var(--turf);padding:2px 0 3px;margin:0 0 2px}html.one-v170 .gear-bar-v193{top:44px}
+.gear-bar-v193 .gear-h-v147{display:flex;flex-wrap:wrap;align-items:center;gap:4px 8px;margin:4px 0 3px}.gear-bar-v193 .gear-h-v147 span{flex:1 1 auto}
+.gear-chips-v193{display:flex;gap:5px;overflow-x:auto;scrollbar-width:none;-webkit-overflow-scrolling:touch;padding:1px 0 3px}.gear-chips-v193::-webkit-scrollbar{display:none}
+.gear-chip-v193{flex:0 0 auto;font:700 11px Oswald,sans-serif;letter-spacing:.8px;padding:4px 9px;border-radius:9px;border:1px solid var(--line);background:#ffffff0a;color:var(--chalk-dim);cursor:pointer;white-space:nowrap;line-height:1.2}
+.gear-chip-v193.on{border-color:var(--gold);color:var(--gold);background:#f0bb4522}.gear-chip-v193.sell{border-color:#57e07a60;color:#bff5cc;background:#57e07a14;font-size:10.5px;margin-left:auto}
+.gr-lv-v193{color:#ffe3a0;font-weight:600}.gr-price-v193{color:var(--chalk-dim);opacity:.8;font-size:11px}
+.gc-lv-v193{font-size:11px;color:var(--chalk-dim);margin:5px 0 2px;line-height:1.35}.gc-lv-v193::before{content:"⬆ ";color:#ffe3a0}
+.gear-sum-v147.fold-v193{cursor:pointer}.gear-sum-v147.fold-v193 .gm-list-v147{max-height:22px;overflow:hidden}.gear-sum-v147[onclick]{cursor:pointer}
+.gs-more-v193{float:right;font:600 10px Barlow Condensed,sans-serif;letter-spacing:.3px;color:var(--chalk-dim)}
+.gear-empty-v193 .small{color:var(--chalk-dim)}
 .gear-cmp-v147{margin-top:6px;padding:6px 8px;border-radius:10px;background:#0009;border:1px solid var(--line)}
 .gc-row-v147{display:flex;justify-content:space-between;gap:8px;font:500 12px Barlow Condensed,system-ui,sans-serif;padding:1px 0;color:var(--chalk)}.gc-row-v147 b{font-weight:700;font-size:11px}
 .gc-row-v147.up b{color:#57e07a}.gc-row-v147.dn b{color:#ff8a80}.gc-row-v147.eq b{color:var(--chalk-dim)}.gc-row-v147.off{opacity:.5}

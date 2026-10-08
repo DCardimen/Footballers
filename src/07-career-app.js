@@ -10695,10 +10695,12 @@
     it.mods = mods;
     it.tierV147 = tier | 0;
     it.modsV147 = 1;
+    gearLevelEnsureV193(it); /* v193 A: the level it is received at rides the tier */
     return it;
   }
   function gearEnsureV147(it) {
     if (it && !it.modsV147) gearRollV147(it, it.tierV147 != null ? it.tierV147 : 0);
+    gearLevelEnsureV193(it); /* v193 A: an old piece gets its level once, from its tier */
     return it;
   }
   /* the equipped totals, capped per modifier; memoised on the three equipped objects */
@@ -10713,7 +10715,7 @@
       const it = eq[s.key];
       if (!it) return;
       gearEnsureV147(it);
-      (it.mods || []).forEach(m => (raw[m.k] = (raw[m.k] || 0) + (+m.v || 0)));
+      (it.mods || []).forEach(m => (raw[m.k] = (raw[m.k] || 0) + gearModValV193(it, m))); /* v193 A: × the level */
     });
     gearCatV147().forEach(d => {
       if (raw[d.k]) t[d.k] = Math.min(raw[d.k], gearCapV147(d));
@@ -10763,10 +10765,12 @@
     const out = {};
     if (!it) return out;
     gearEnsureV147(it);
-    const b = GEAR_EFFECTS.find(n => n.key === it.eff);
-    b && (out["b_" + it.eff] = { v: +it.val || 0, t: b.fmt(it.val), base: 1 });
+    const b = GEAR_EFFECTS.find(n => n.key === it.eff),
+      bv = gearBaseValV193(it); /* v193 A: × the level */
+    b && (out["b_" + it.eff] = { v: bv, t: b.fmt(bv), base: 1 });
     (it.mods || []).forEach(m => {
-      out[m.k] = { v: +m.v || 0, t: gearTxtV147(m.k, m.v) };
+      const v = gearModValV193(it, m);
+      out[m.k] = { v, t: gearTxtV147(m.k, v) };
     });
     return out;
   }
@@ -10774,7 +10778,7 @@
     gearEnsureV147(it);
     const m = it.mods || [];
     if (!m.length) return `<div class="gm-none-v147">no modifiers</div>`;
-    return `<div class="gm-list-v147">${m.map(x => `<span class="gm-v147${gearLiveV147(x.k, pos) ? "" : " off"}">${escHtml(gearTxtV147(x.k, x.v))}</span>`).join("")}</div>`;
+    return `<div class="gm-list-v147">${m.map(x => `<span class="gm-v147${gearLiveV147(x.k, pos) ? "" : " off"}">${escHtml(gearTxtV147(x.k, gearModValV193(it, x)))}</span>`).join("")}</div>`;
   }
   function gearSumV147(pos) {
     const eq = state.equipped || {},
@@ -10793,7 +10797,8 @@
         `<span class="gm-v147${gearLiveV147(c.k, pos) ? "" : " off"}${cap ? " cap" : ""}" title="${escHtml(c.hook)}">${escHtml(gearTxtV147(c.k, v))}${cap ? " · CAP" : ""}</span>`
       );
     });
-    return `<div class="gear-sum-v147"><div class="gs-h-v147">TOTAL GEAR BONUSES${TU("v147C", 1) ? "" : " · OFF"}</div>${parts.length ? `<div class="gm-list-v147">${parts.join("")}</div>` : `<div class="gm-none-v147">Nothing equipped — tap a piece below to compare it, then EQUIP.</div>`}</div>`;
+    const fold = parts.length > 1 && !_gearSumOpenV193; /* v193 A: one line until tapped, so the list keeps its room */
+    return `<div class="gear-sum-v147${fold ? " fold-v193" : ""}"${parts.length > 1 ? ` onclick="gearSumToggleV193()"` : ""}><div class="gs-h-v147">TOTAL GEAR BONUSES${TU("v147C", 1) ? "" : " · OFF"}${parts.length > 1 ? `<span class="gs-more-v193">${parts.length} lines · ${fold ? "tap to expand ▾" : "tap to fold ▴"}</span>` : ""}</div>${parts.length ? `<div class="gm-list-v147">${parts.join("")}</div>` : `<div class="gm-none-v147">Nothing equipped — tap a piece below to compare it, then EQUIP.</div>`}</div>`;
   }
   /* the compare view: the picked piece against whatever is in its slot now */
   function gearCompareV147(it, pos) {
@@ -10814,7 +10819,8 @@
       })
       .join("");
     return `<div class="gear-cmp-v147"><div class="gc-h-v147">${same ? "EQUIPPED" : cur ? `vs <span style="color:${(RARITIES.find(i => i.key === cur.rarity) || {}).color}">${escHtml(cur.name)}</span>` : "slot is empty"}</div>${rows || '<div class="gm-none-v147">no effects</div>'}
-    <div class="gc-btns-v147">${same ? `<button class="mr-buy" onclick="unequipGearV147('${it.slot}')">UNEQUIP</button>` : `<button class="mr-buy" onclick="equipGear('${it.id}')">EQUIP</button><button class="gr-scrap" onclick="scrapGear('${it.id}')">♻️ SCRAP</button>`}</div></div>`;
+    ${gearLevelLineV193(it)}
+    <div class="gc-btns-v147">${same ? `<button class="mr-buy" onclick="unequipGearV147('${it.slot}')">UNEQUIP</button>` : `<button class="mr-buy" onclick="equipGear('${it.id}')">EQUIP</button><button class="gr-scrap gr-sell-v193" onclick="sellGearV193('${it.id}')">💰 SELL · +${gearSellPriceV193(it)} PP</button>`}</div></div>`;
   }
   function gearPickV147(id) {
     _gearSelV147 = _gearSelV147 === id ? null : id;
@@ -10860,6 +10866,257 @@
     });
     return n;
   }
+  /* ===== v193 A THE GEAR GROWS, AND SELLS =====
+   * Every piece has a LEVEL. It is received at `lvl0V193` = gearLvlBaseV193 (1) + its tier (`tierV147`, the
+   * league level it dropped at, 0–8) × gearLvlPerTierV193 (5), and EVERY SEASON END adds gearLvlPerSeasonV193
+   * (5) to every piece in the bag and on the body (`gearSeasonV193`, called once from the settle inside
+   * `simSeason`; an equipped copy is matched to its inventory twin by id so both agree, and the v147 totals
+   * memo is dropped). The level is a flat % on every bonus the piece carries: `gearLvlMultV193` =
+   * 1 + lvl × gearLvlPctV193 (1%), capped at gearLvlMultCapV193 (2.5), applied in BOTH reads — `gearFx` (the
+   * base effect's `val`) and `gearTotalsV147` (each rolled mod, before the per-key cap; an integer mod stays
+   * an integer). A pre-v193 piece gets its level once, lazily, from its tier (`gearLevelEnsureV193`, called
+   * from `gearEnsureV147` / `gearRollV147`).
+   *
+   * SCRAP became SELL: `sellGearV193(id)` pays [1,3,8,20,50][rarity] × (1 + lvl0 × gearSellPerLvlV193 (8%)),
+   * by the level the piece was RECEIVED at (never the grown one — growing a piece is not a money machine),
+   * through `bankPPV136(n, "scrap")` as before; a rare+ piece asks first (`askV150`), a common sells on the
+   * tap, an equipped piece is refused, `scrapGear` is the alias. "SELL ALL COMMONS" sits in the heading bar
+   * when gearSellAllMinV193 (3) or more commons are unequipped.
+   *
+   * The locker: a sticky heading bar (`.gear-bar-v193`, inside the GEAR tab — its class carries
+   * `gear-h-v147` so src/22's sectioner files it there) with a chip row ALL · QB · RB · WR/TE · OL · DL/LB ·
+   * DB · EQUIPPABLE (`GEAR_CHIPS_V193`, `gearFilterV193(k)`); a position chip keeps a piece that has a
+   * modifier live for it (`gearLiveV147` for production lines, the position's heaviest gearKeyAttrsV193 (6)
+   * weights for attributes, misc and base effects are everyone's — a piece with no modifiers passes); the
+   * player's own position is the first chip opened (`gearFilterKeyV193`); the empty state names what the chip
+   * hides. The totals card folds to one line until tapped (`gearSumToggleV193`) and src/25's `fit()` gives the
+   * list a 260px floor before it falls back to 110, so the inventory is a real scroll box, not a slit.
+   * `TU("v193A", 0)`: no level effects and the old flat scrap price (levels still accrue, harmlessly).
+   * `window.__V193A`; `v193Acheck.mjs`. */
+  var _gearFilterV193 = null /* null = not chosen yet → the player's own position */,
+    _gearSumOpenV193 = !1;
+  const GEAR_CHIPS_V193 = [
+    { k: "all", name: "ALL" },
+    { k: "QB", name: "QB", pos: ["QB"] },
+    { k: "RB", name: "RB", pos: ["RB"] },
+    { k: "WRTE", name: "WR/TE", pos: ["WR", "TE"] },
+    { k: "OL", name: "OL", pos: ["OL"] },
+    { k: "DLLB", name: "DL/LB", pos: ["DL", "LB"] },
+    { k: "DB", name: "DB", pos: ["CB", "S"] },
+    { k: "eq", name: "EQUIPPABLE" }
+  ];
+  function gearLvlOnV193() {
+    return !!TU("v193A", 1);
+  }
+  /* the level a piece is received at, from its tier; an old piece gets it once, lazily */
+  function gearLevelEnsureV193(it) {
+    if (!it) return it;
+    if (it.lvl0V193 == null) {
+      const tier = Math.max(0, Math.min(8, it.tierV147 != null ? it.tierV147 | 0 : 0));
+      it.lvl0V193 = Math.max(1, Math.round(TU("gearLvlBaseV193", 1) + tier * TU("gearLvlPerTierV193", 5)));
+    }
+    if (it.lvlV193 == null) it.lvlV193 = it.lvl0V193;
+    return it;
+  }
+  function gearLvlV193(it) {
+    return it ? gearLevelEnsureV193(it).lvlV193 | 0 : 0;
+  }
+  function gearLvlMultV193(it) {
+    if (!it || !gearLvlOnV193()) return 1;
+    return Math.min(TU("gearLvlMultCapV193", 2.5), 1 + gearLvlV193(it) * TU("gearLvlPctV193", 0.01));
+  }
+  function gearLvlPctV193(it) {
+    return Math.round((gearLvlMultV193(it) - 1) * 100);
+  }
+  /* one rolled modifier's value on this piece, at its level (an integer modifier stays an integer) */
+  function gearModValV193(it, m) {
+    const v = (+m.v || 0) * gearLvlMultV193(it),
+      d = gearDefV147(m.k);
+    return d && d.int ? Math.round(v) : v;
+  }
+  /* the base effect's value at the level */
+  function gearBaseValV193(it) {
+    return (+it.val || 0) * gearLvlMultV193(it);
+  }
+  function gearSellPriceV193(it) {
+    if (!it) return 0;
+    const base = [1, 3, 8, 20, 50][Math.max(0, rarityIndex(it))] || 1;
+    if (!gearLvlOnV193()) return base;
+    gearLevelEnsureV193(it);
+    return Math.max(1, Math.round(base * (1 + it.lvl0V193 * TU("gearSellPerLvlV193", 0.08))));
+  }
+  /* the season's growth: every piece in the bag and on the body, once; an equipped copy follows its twin */
+  function gearSeasonV193() {
+    if (!state) return 0;
+    const per = TU("gearLvlPerSeasonV193", 5) | 0,
+      done = new Set(),
+      inv = state.inventory || [],
+      eq = state.equipped || {};
+    let n = 0;
+    inv.forEach(it => {
+      if (!it || done.has(it)) return;
+      gearLevelEnsureV193(it);
+      it.lvlV193 += per;
+      done.add(it);
+      n++;
+    });
+    GEAR_SLOTS.forEach(s => {
+      const it = eq[s.key];
+      if (!it || done.has(it)) return;
+      gearLevelEnsureV193(it);
+      const twin = inv.find(x => x && x.id === it.id);
+      if (twin) {
+        it.lvl0V193 = twin.lvl0V193;
+        it.lvlV193 = twin.lvlV193;
+      } else it.lvlV193 += per;
+      done.add(it);
+      n++;
+    });
+    _gtV147 = null; /* the totals memo keys on the objects, which did not change identity */
+    n && per && typeof document < "u" && byId("toast") && showToast("🎒 Gear +" + per + " levels");
+    return n;
+  }
+  function gearLevelLineV193(it) {
+    if (!it) return "";
+    gearLevelEnsureV193(it);
+    return `<div class="gc-lv-v193">Level ${gearLvlV193(it)} (received at ${it.lvl0V193}) · +${gearLvlPctV193(it)}% to every bonus · +${TU("gearLvlPerSeasonV193", 5) | 0} every season · sells for ${gearSellPriceV193(it)} PP</div>`;
+  }
+  function gearEquippedV193(it) {
+    const eq = (state && state.equipped) || {};
+    return !!(it && eq[it.slot] && eq[it.slot].id === it.id);
+  }
+  /* the sale itself — no questions asked; the price is by the level the piece was received at */
+  function gearSellDoV193(id) {
+    const inv = (state && state.inventory) || [],
+      t = inv.findIndex(i => i && i.id === id);
+    if (t < 0) return 0;
+    const a = inv[t];
+    if (gearEquippedV193(a)) {
+      showToast("Unequip it first.");
+      return 0;
+    }
+    const n = gearSellPriceV193(a);
+    inv.splice(t, 1);
+    _gearSelV147 === id && (_gearSelV147 = null);
+    bankPPV136(n, "scrap");
+    showToast("💰 Sold " + a.name + " for +" + n + " PP" + (bankingV136() ? " (banked)" : ""));
+    saveGame();
+    screenLocker();
+    return n;
+  }
+  /* the tap: a common sells at once, a rare+ piece asks first (ribDialog through askV150) */
+  function sellGearV193(id) {
+    const a = ((state && state.inventory) || []).find(i => i && i.id === id);
+    if (!a) return Promise.resolve(0);
+    if (gearEquippedV193(a)) {
+      showToast("Unequip it first.");
+      return Promise.resolve(0);
+    }
+    if (rarityIndex(a) < 1 || !TU("gearSellAskV193", 1)) return Promise.resolve(gearSellDoV193(id));
+    const n = gearSellPriceV193(a),
+      r = RARITIES[rarityIndex(a)] || RARITIES[0];
+    return askV150(`Sell ${a.name} (${r.name}, Lv ${gearLvlV193(a)}) for +${n} PP? It is gone for good.`, {
+      title: "Sell gear",
+      ok: "Sell · +" + n + " PP",
+      danger: !0
+    }).then(y => (y ? gearSellDoV193(id) : 0));
+  }
+  function gearCommonsV193() {
+    return ((state && state.inventory) || []).filter(it => it && it.rarity === "common" && !gearEquippedV193(it));
+  }
+  function sellCommonsV193() {
+    const L = gearCommonsV193();
+    if (!L.length) return Promise.resolve(0);
+    const total = L.reduce((R, it) => R + gearSellPriceV193(it), 0);
+    return askV150(`Sell all ${L.length} unequipped Common pieces for +${total} PP? They are gone for good.`, {
+      title: "Sell all commons",
+      ok: "Sell · +" + total + " PP",
+      danger: !0
+    }).then(y => {
+      if (!y) return 0;
+      const ids = new Set(L.map(it => it.id));
+      state.inventory = (state.inventory || []).filter(it => !(it && ids.has(it.id)));
+      _gearSelV147 && ids.has(_gearSelV147) && (_gearSelV147 = null);
+      bankPPV136(total, "scrap");
+      showToast("💰 Sold " + L.length + " commons for +" + total + " PP" + (bankingV136() ? " (banked)" : ""));
+      saveGame();
+      screenLocker();
+      return total;
+    });
+  }
+  /* the chips: which one a position opens on, and whether a piece passes one */
+  function gearPosKeyV193(pos) {
+    const c = pos && GEAR_CHIPS_V193.find(x => x.pos && x.pos.indexOf(pos) >= 0);
+    return c ? c.k : "all";
+  }
+  function gearFilterKeyV193(pos) {
+    return _gearFilterV193 || gearPosKeyV193(pos);
+  }
+  function gearKeyAttrsV193(pos) {
+    const P = POSITIONS[pos];
+    if (!P || !P.w) return null;
+    return Object.keys(P.w)
+      .sort((a, b) => (P.w[b] || 0) - (P.w[a] || 0))
+      .slice(0, TU("gearKeyAttrsV193", 6) | 0);
+  }
+  /* is one modifier live for a position: production by its lines (v147), an attribute by the position's
+   * heaviest weights, everything else (injury, PP, trust…) for everyone */
+  function gearModLiveV193(k, pos) {
+    const c = gearDefV147(k);
+    if (!c) return !0;
+    if (c.kind === "attr") {
+      const K = gearKeyAttrsV193(pos);
+      return !K || K.indexOf(c.stat) >= 0;
+    }
+    return gearLiveV147(k, pos);
+  }
+  function gearLiveForV193(it, poss) {
+    gearEnsureV147(it);
+    const m = it.mods || [];
+    if (!m.length) return !0; /* only its base effect, which is everyone's */
+    return poss.some(pos => m.some(x => gearModLiveV193(x.k, pos)));
+  }
+  function gearChipPassV193(it, k, eq) {
+    if (!it || !k || k === "all") return !0;
+    if (k === "eq") return !(eq && eq[it.slot] && eq[it.slot].id === it.id);
+    const C = GEAR_CHIPS_V193.find(c => c.k === k);
+    return !C || !C.pos ? !0 : gearLiveForV193(it, C.pos);
+  }
+  function gearEmptyTxtV193(k, hidden) {
+    const C = GEAR_CHIPS_V193.find(c => c.k === k) || GEAR_CHIPS_V193[0];
+    return k === "eq"
+      ? `Everything is equipped or empty — ${hidden} piece${hidden === 1 ? "" : "s"} hidden. Tap ALL to see them.`
+      : `No piece has a bonus for ${C.name} — ${hidden} piece${hidden === 1 ? "" : "s"} hidden. Tap ALL to see them.`;
+  }
+  function gearFilterV193(k) {
+    _gearFilterV193 = k ? String(k) : null;
+    screenLocker();
+  }
+  function gearSumToggleV193() {
+    _gearSumOpenV193 = !_gearSumOpenV193;
+    screenLocker();
+  }
+  window.__V193A = {
+    ensure: gearLevelEnsureV193,
+    mult: gearLvlMultV193,
+    lvl: gearLvlV193,
+    pct: gearLvlPctV193,
+    price: gearSellPriceV193,
+    sell: id => gearSellDoV193(id),
+    ask: id => sellGearV193(id),
+    commons: () => gearCommonsV193(),
+    sellCommons: () => sellCommonsV193(),
+    season: () => gearSeasonV193(),
+    filter: k => gearFilterV193(k),
+    current: () => _gearFilterV193,
+    posKey: gearPosKeyV193,
+    chips: () => GEAR_CHIPS_V193.map(c => c.k),
+    pass: (it, k) => gearChipPassV193(it, k, (state && state.equipped) || {}),
+    keyAttrs: gearKeyAttrsV193,
+    fx: k => gearFx(k),
+    modVal: gearModValV193,
+    sumToggle: () => gearSumToggleV193()
+  };
   function screenLocker() {
     gearMigrateV147();
     const _gl = document.querySelector(".gear-list-v147"),
@@ -10870,9 +11127,15 @@
       a = n => RARITIES.find(i => i.key === n) || RARITIES[0],
       s = n => {
         const b = GEAR_EFFECTS.find(i => i.key === n.eff);
-        return b ? b.fmt(n.val) : "";
+        return b ? b.fmt(gearBaseValV193(n)) : ""; /* v193 A: × the level */
       };
     _gearSelV147 && !e.some(n => n.id === _gearSelV147) && (_gearSelV147 = null);
+    /* v193 A: the chip row filters the list; the player's own position is the first chip opened */
+    const fk = gearFilterKeyV193(pos),
+      shown = e.filter(n => n && gearChipPassV193(n, fk, t)),
+      hidden = e.length - shown.length,
+      commons = gearCommonsV193(),
+      commonsPP = commons.reduce((R, it) => R + gearSellPriceV193(it), 0);
     ((byId("screen").innerHTML = `
     <div class="eyebrow">Drops at every career end · rarer = more modifiers</div>
     <div class="eq-row eq-row-v147">
@@ -10886,11 +11149,16 @@
       }).join("")}
     </div>
     ${gearSumV147(pos)}
-    <div class="h2 gear-h-v147">Inventory <span>(${e.length}/40) · tap to compare</span></div>
+    <div class="gear-bar-v193 gear-h-v147-bar">
+      <div class="h2 gear-h-v147">Inventory <span>(${e.length}/40${hidden ? ` · ${shown.length} shown` : ""}) · tap to compare</span>${
+        commons.length >= TU("gearSellAllMinV193", 3) ? `<button class="gear-chip-v193 sell" onclick="sellCommonsV193()">💰 SELL ALL COMMONS · +${commonsPP} PP</button>` : ""
+      }</div>
+      <div class="gear-chips-v193">${GEAR_CHIPS_V193.map(c => `<button class="gear-chip-v193${c.k === fk ? " on" : ""}" data-chip="${c.k}" onclick="gearFilterV193('${c.k}')">${c.name}</button>`).join("")}</div>
+    </div>
     <div class="gear-list-v147">
     ${
-      e.length
-        ? [...e]
+      shown.length
+        ? [...shown]
             .sort((n, i) => rarityIndex(i) - rarityIndex(n))
             .map(n => {
               const i = a(n.rarity),
@@ -10901,7 +11169,7 @@
         <span class="gr-ic">${n.icon}</span>
         <div class="gr-info" onclick="gearPickV147('${n.id}')">
           <div class="gr-name" style="color:${i.color}">${escHtml(n.name)} ${r ? '<span style="color:#57e07a">✓ EQUIPPED</span>' : ""}</div>
-          <div class="gr-eff"><b style="color:${i.color}">${i.name}</b> · ${s(n)}</div>
+          <div class="gr-eff"><b style="color:${i.color}">${i.name}</b> · ${s(n)} · <span class="gr-lv-v193">Lv ${gearLvlV193(n)} · +${gearLvlPctV193(n)}%</span> · <span class="gr-price-v193">💰 ${gearSellPriceV193(n)} PP</span></div>
           ${gearModsHtmlV147(n, pos)}
         </div>
         ${r ? "" : `<button class="mr-buy" onclick="equipGear('${n.id}')">EQUIP</button>`}
@@ -10910,7 +11178,9 @@
       </div>`;
             })
             .join("")
-        : '<div class="card tight"><div class="small center">No gear yet — finish a career for your first drop.</div></div>'
+        : e.length
+          ? `<div class="card tight gear-empty-v193"><div class="small center">${escHtml(gearEmptyTxtV193(fk, hidden))}</div></div>`
+          : '<div class="card tight"><div class="small center">No gear yet — finish a career for your first drop.</div></div>'
     }
     </div>
     ${cosStyleBlockV151B()}
@@ -13628,6 +13898,7 @@
         "compound"
       ) /* v134 Apex: Compound Interest */,
       (e.lastGains = T),
+      gearSeasonV193() /* v193 A: every piece in the bag grows +5 levels a season */,
       (e.points += $e),
       e.seasonsAtLevel++,
       e.totalSeasons++,
@@ -20805,7 +21076,7 @@
     return (
       GEAR_SLOTS.forEach(a => {
         const s = state.equipped[a.key];
-        s && s.eff === e && (t += s.val);
+        s && s.eff === e && (t += gearBaseValV193(s)); /* v193 A: × the level */
       }),
       t
     );
@@ -20832,20 +21103,9 @@
     const t = (state.inventory || []).find(a => a.id === e);
     t && (state.equipped || (state.equipped = {}), (state.equipped[t.slot] = t), saveGame(), screenLocker());
   }
+  /* v193 A: SCRAP became SELL (the price rides the level the piece was received at); the old name is the alias */
   function scrapGear(e) {
-    const t = (state.inventory || []).findIndex(i => i.id === e);
-    if (t < 0) return;
-    const a = state.inventory[t];
-    if (state.equipped && state.equipped[a.slot] && state.equipped[a.slot].id === e) {
-      showToast("Unequip it first.");
-      return;
-    }
-    const n = [1, 3, 8, 20, 50][rarityIndex(a)];
-    (state.inventory.splice(t, 1),
-      bankPPV136(n, "scrap"),
-      showToast("♻️ Scrapped for +" + n + " PP" + (bankingV136() ? " (banked)" : "")),
-      saveGame(),
-      screenLocker());
+    return sellGearV193(e);
   }
   const SEASON_MODS = [
     {
@@ -27712,7 +27972,11 @@
   window.screenDynasty = screenDynasty;
   window.bigMoment = bigMoment;
   window.equipGear = equipGear;
-  window.scrapGear = scrapGear;
+  window.sellGearV193 = sellGearV193;
+  window.scrapGear = window.sellGearV193; /* v193 A: the alias */
+  window.gearFilterV193 = gearFilterV193;
+  window.sellCommonsV193 = sellCommonsV193;
+  window.gearSumToggleV193 = gearSumToggleV193;
   window.screenHof = screenHof;
   window.screenLocker = screenLocker;
   bootV140();
@@ -39055,7 +39319,7 @@
     title: "🏆 Titles",
     season: "📅 UFF seasons",
     nemesis: "😈 Nemesis wins",
-    scrap: "♻️ Scrapped gear",
+    scrap: "💰 Sold gear",
     objective: "📋 Season objectives",
     daily: "📆 Daily bonus",
     flipV178: "🃏 Card flips",

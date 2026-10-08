@@ -38,6 +38,7 @@
     '.hubv75-sec.on[data-sec="nodes"] > div:not(.btn-row)', ".hof-list,.lb-list,.leaders-list,.standings-list",
     ".hubv75-sec.on > .card", "#screen > .mt", "#screen > .card", ".hubv75-sec.on > *"];
   var FILL_MIN = 110;
+  var FILL_MIN_V193 = { ".gear-list-v147": 260 };   // v193 A: the gear list is a real scroll box first, a slit only as a last resort
   var root = document.documentElement;
   function S() { try { return window.S || (window.__GRIDIRON_AUDIT__ && window.__GRIDIRON_AUDIT__.getState()) || null } catch (e) { return null } }
   function view() { var s = S(); return (s && s.view) || "" }
@@ -178,15 +179,20 @@
       });
     }
     var over = sc.scrollHeight - sc.clientHeight;
-    for (var i = 0; i < FILL.length && over > 2; i++) {
-      var els = [].slice.call(sc.querySelectorAll(FILL[i])).filter(function (el) {
-        return el.getClientRects().length && !el.classList.contains("hubv75-tabs") && !el.querySelector(".hubv75-tabs") && !el.closest(".dock");
-      }).sort(function (a, b) { return b.offsetHeight - a.offsetHeight });
-      for (var j = 0; j < els.length && over > 2; j++) {
-        var el = els[j], h = el.getBoundingClientRect().height, want = Math.max(FILL_MIN, Math.floor(h - over - 1));
-        if (want >= h - 1) continue;
-        el.style.maxHeight = want + "px"; el.style.overflowY = "auto"; el.classList.add("fill-v146");
-        over = sc.scrollHeight - sc.clientHeight;
+    /* v193 A: a list with its own floor (the gear list, 260px) keeps it on the first pass; only when the
+     * screen still does not fit does a second pass squeeze it down to FILL_MIN like everything else */
+    for (var pass = 0; pass < 2 && over > 2; pass++) {
+      for (var i = 0; i < FILL.length && over > 2; i++) {
+        var min = pass ? FILL_MIN : (FILL_MIN_V193[FILL[i]] || FILL_MIN);
+        var els = [].slice.call(sc.querySelectorAll(FILL[i])).filter(function (el) {
+          return el.getClientRects().length && !el.classList.contains("hubv75-tabs") && !el.querySelector(".hubv75-tabs") && !el.closest(".dock");
+        }).sort(function (a, b) { return b.offsetHeight - a.offsetHeight });
+        for (var j = 0; j < els.length && over > 2; j++) {
+          var el = els[j], h = el.getBoundingClientRect().height, want = Math.max(min, Math.floor(h - over - 1));
+          if (want >= h - 1) continue;
+          el.style.maxHeight = want + "px"; el.style.overflowY = "auto"; el.classList.add("fill-v146");
+          over = sc.scrollHeight - sc.clientHeight;
+        }
       }
     }
   }
