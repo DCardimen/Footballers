@@ -153,3 +153,9 @@ html.shell-v146 .prestige-chip img.coin-v147{width:14px!important;height:14px!im
 .qb-b-v193l{position:absolute;top:2px;right:4px;font-size:10px!important}
 .qb-p-v193l em{font:500 10.5px 'Barlow Condensed',sans-serif;opacity:.85}
 .qb-h-v193l{margin-bottom:5px!important}
+/* v193 I EVERY SHEET, EVERY PHONE — a thumb's tap targets on a touch screen (scripts/v193Mcheck.mjs, emulated phones):
+   the locker's gear filter chips and SELL ALL COMMONS were 24 px tall, the season card's PRESTIGE THIS SEASON toggle 17 px */
+@media (pointer:coarse){
+  .gear-chip-v193{min-height:36px;display:inline-flex;align-items:center}
+  .season-gain-v193d .sg-head{min-height:36px}
+}

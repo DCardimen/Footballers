@@ -1109,8 +1109,50 @@ function skinMaskV151D(src) {
     for (let yy = Math.max(0, y - 1); yy <= Math.min(47, y + 1); yy++) for (let xx = Math.max(0, x - 1); xx <= Math.min(47, x + 1); xx++) { const j = yy * 48 + xx; f += sk[j]; w += warm[j]; }
     if ((f > 0 && f >= w * .5) || (hi[i] && f > 0)) { mask[i] = 1; n++; lsum += L[i]; }
   }
+  // v193 I: the skin's EDGES on every sheet (`skinGrowV193I`) — the highlights the vote drops
+  if (hi193 && TU("skinGrowV193I", 1)) skinGrowV193I(d, 48, 48, mask, (i, l) => { n++; L[i] = l; lsum += l; });
   const out = { mask, n, lmean: n ? lsum / n : 0, L };
   SKIN_MASKS_V151D.set(src, out); return out;
+}
+/* v193 I: the skin's EDGES. The v22 moments, the baked atlas, the celebration bodies and the v91 cells' boxed-down
+ * edges carry skin highlights (hue 31-46, sat .3-.75) inside the recolour's gold band, beside an arm or a face; a mask
+ * built on the core skin drops them and they come out in p2. A gold-band pixel under hue 46 and sat .75 that touches
+ * the skin and has at least as much skin around it as SATURATED kit gold (sat .75+ or hue 46+: the pants, the stripe)
+ * is skin — grown a ring at a time (TU skinGrowPassV193I), so a pants highlight with kit on every side never is.
+ * `d` is the RGBA of a w x h cell; `mask` (a Uint8Array) grows in place; `onAdd(i, lightness)` for each pixel taken. */
+function skinGrowV193I(d, w, h, mask, onAdd, seedMin) {
+  const N = w * h, band = new Uint8Array(N), lA = new Float32Array(N), gHue = TU("skinGrowHueV193I", 46), gSat = TU("skinGrowSatV193I", .75);
+  for (let i = 0; i < N; i++) {
+    if (d[i * 4 + 3] < 20) continue;
+    const r = d[i * 4], g = d[i * 4 + 1], b = d[i * 4 + 2], mx = Math.max(r, g, b), mn = Math.min(r, g, b), l = (mx + mn) / 2, sat = mx ? (mx - mn) / mx : 0;
+    if (mx === mn || !(l > 60 && sat > .3)) continue;
+    const hue = mx === r ? (60 * ((g - b) / (mx - mn)) + 360) % 360 : mx === g ? 60 * ((b - r) / (mx - mn)) + 120 : 60 * ((r - g) / (mx - mn)) + 240;
+    if (hue < 33 || hue > 62) continue;                                        // ribRecolor's gold band: what it paints p2
+    band[i] = hue < gHue && sat < gSat && g >= r * .47 ? 2 : 1; lA[i] = l;     // 2: maybe a skin highlight; 1: saturated kit gold
+  }
+  // the seeds: only a REAL patch of skin grows (an arm, a face — TU skinGrowSeedV193I pixels or more, 8-connected). A
+  // speck the mask took in a pants shadow (the v22 gold's dark folds read as skin) never seeds, or it floods the pants.
+  const seed = new Uint8Array(N), comp = [], minSeed = seedMin != null ? seedMin : TU("skinGrowSeedV193I", 8), seen = new Uint8Array(N);
+  for (let s = 0; s < N; s++) {
+    if (!mask[s] || seen[s]) continue;
+    comp.length = 0; comp.push(s); seen[s] = 1;
+    for (let q = 0; q < comp.length; q++) { const c = comp[q], cy = (c / w) | 0, cx = c % w;
+      for (let yy = Math.max(0, cy - 1); yy <= Math.min(h - 1, cy + 1); yy++) for (let xx = Math.max(0, cx - 1); xx <= Math.min(w - 1, cx + 1); xx++) { const j = yy * w + xx; if (mask[j] && !seen[j]) { seen[j] = 1; comp.push(j); } } }
+    if (comp.length >= minSeed) for (const c of comp) seed[c] = 1;
+  }
+  let added = 0;
+  for (let p = 0, P = TU("skinGrowPassV193I", 4); p < P; p++) {
+    const add = [];
+    for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+      const i = y * w + x; if (mask[i] || band[i] !== 2) continue;
+      let m = 0, k = 0;
+      for (let yy = Math.max(0, y - 1); yy <= Math.min(h - 1, y + 1); yy++) for (let xx = Math.max(0, x - 1); xx <= Math.min(w - 1, x + 1); xx++) { const j = yy * w + xx; if (j === i) continue; if (seed[j]) m++; else if (band[j] === 1) k++; }
+      if (m > 0 && m >= k) add.push(i);
+    }
+    if (!add.length) break;
+    for (const i of add) { mask[i] = 1; seed[i] = 1; added++; if (onAdd) onAdd(i, lA[i]); }
+  }
+  return added;
 }
 // the grey luminance cell the tone multiplies: the drawn shading kept, the colour thrown away
 function skinCellV151D(srcName, cell0, sk) {
@@ -1178,6 +1220,31 @@ V193C.kitCell = (src, p1, p2, deco) => {
 };
 V193C.mask = c => skinMaskV151D(c);
 V193C.recolor = (c, p1, p2) => ribRecolor(c, p1, p2);
+/* ===== v193 I EVERY SHEET, EVERY PHONE =====
+ * (renderer) v193 C was tuned and checked on a dozen main-sheet cells. `window.__V193I.register(p1, p2, deco)` runs the
+ * real `ribRegisterTeam` against a throwaway texture store and hands back every texture it built — the field sheets in
+ * every facing, the QB's throws / drops / exchanges, the catch sequences, the get-ups and celebrations, the baked v22
+ * moments — each with the drawn cell it came from, so scripts/v193Icheck.mjs can count skin painted in the kit's second
+ * colour on ALL of them. The sideline backups draw these same textures; the age scale (v144 A) is a sprite scale, not a
+ * cell. Nothing here runs unless a check calls it. */
+window.__V193I = window.__V193I || {};
+window.__V193I.register = (p1, p2, deco) => {
+  const store = {}, team = "v193iprobe";
+  const scene = { markers: [], textures: { exists: (k) => !!store[k], remove: (k) => { delete store[k]; }, addCanvas: (k, cv) => { store[k] = cv; } } };
+  const teams0 = RIB.teams[team], cols0 = RIB.teamCols[team];
+  try { ribRegisterTeam(scene, team, p1, p2, deco || null); }
+  finally {
+    const at = RIB.regScenes.indexOf(scene); if (at >= 0) RIB.regScenes.splice(at, 1);
+    if (teams0 === undefined) delete RIB.teams[team]; if (cols0 === undefined) delete RIB.teamCols[team];
+    if (RIB.teamDeco) delete RIB.teamDeco[team];
+  }
+  const pre = "spr_" + team + "_";
+  return Object.keys(store).filter((k) => k.indexOf(pre) === 0).map((k) => {
+    const pose = k.slice(pre.length), src = (RIB.numSrcV176 || {})[pose];
+    const sheet = ribCellV91(src) ? "v91" : ribCellV22(src) ? "v22" : ribCell(src) ? "base" : "?";
+    return { key: pose, src, sheet, cv: store[k], raw: ribCellV91(src) || ribCellV22(src) || ribCell(src) };
+  });
+};
 // v45 REFEREE ZEBRA: paint vertical black bars across the torso band of a
 // recolored (white) official so the crew reads as the classic striped shirt
 // from broadcast distance. Only light, opaque pixels in the chest rows are
@@ -2061,7 +2128,9 @@ function ribRebindSideV159A(scene) {
  * scope), so the renderer hands them over: `kit(k)` is the [primary, secondary] a kit key ("you", "off") was last
  * registered with — after the cosmetics' uniform / team palette (v151 B, v159 A) — and `recolor` is ribRecolor itself.
  * Looks only: nothing here reads or writes a sim value or draws Math.random. */
-window.__V161A_FIELD = { kit: (k) => (RIB.teamCols[k] ? RIB.teamCols[k].slice() : null), recolor: (c, p1, p2) => ribRecolor(c, p1, p2), tones: SKIN_TONES_V151D };
+window.__V161A_FIELD = { kit: (k) => (RIB.teamCols[k] ? RIB.teamCols[k].slice() : null), recolor: (c, p1, p2) => ribRecolor(c, p1, p2), tones: SKIN_TONES_V151D,
+  // v193 I: the bodies grow the generator's skin mask the way the field grows its own (off: TU v193C or skinGrowV193I 0)
+  skinGrow: (d, w, h, mask) => (TU("v193C", 1) && TU("skinGrowV193I", 1) ? skinGrowV193I(d, w, h, mask, null, TU("skinGrowSeedBodyV193I", 1)) : 0) };
 window.__V162A = { bakes: 0, skips: 0, cheers: 0, key: () => { const sc = window.__gridironScene; return sc ? sc._fieldKeyV162A || null : null; } };
 window.__V159A_FIELD = { regs: 0, clones: 0, lastMs: 0, cloneMs: 0, cloned: 0, key: null, kit: false, side: 0, base: () => RIB.baseOffV159A && RIB.baseOffV159A.slice(), teams: () => Object.assign({}, RIB.teamCols) };
 // the atlas decodes the moment the page loads — long before any game starts

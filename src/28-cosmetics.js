@@ -7123,6 +7123,20 @@
     return live;
   }
 
+  /* ===== v193 I EVERY SHEET, EVERY PHONE =====
+   * The generator's skin mask (cel_*_skin_*x.png) is the CORE skin; the lit edges of an arm or a face sit in ribRecolor's
+   * gold band outside it, so a kit whose second colour is skin-like wore them as p2 (scripts/v193Icheck.mjs: 4 of 36 v161 A
+   * frames at 1x over the limit). `skinLocalV193I` cuts the frame's piece of the mask (1 = the generator's) and grows it with the field's own
+   * rule (`__V161A_FIELD.skinGrow`, 05 `skinGrowV193I`; 2 = grown), and the tone paints both — the tone's reference
+   * lightness stays the generator's. Off: TU v193C 0 or skinGrowV193I 0 (the field's switch returns 0 pixels grown). */
+  function skinLocalV193I(sk, sw, r, w, h, src, F) {
+    var lm = new Uint8Array(w * h), j;
+    for (j = 0; j < w * h; j++) if (sk[(r[1] + ((j / w) | 0)) * sw + r[0] + (j % w)]) lm[j] = 1;
+    try {
+      if (F && F.skinGrow) { var g = lm.slice(); if (F.skinGrow(src, w, h, g)) for (j = 0; j < w * h; j++) if (g[j] && !lm[j]) lm[j] = 2; }
+    } catch (e) {}
+    return lm;
+  }
   /* ---- his kit on a frame: ribRecolor (the field's own), his skin tone on the skin mask, the equipped helmet in the
    *      frame's helmet ellipse ---- */
   function kitV161A(kitKey, tone) {
@@ -7140,11 +7154,11 @@
     var src = x.getImageData(0, 0, w, h).data, F = window.__V161A_FIELD, out = F && F.recolor ? F.recolor(cv, kit.p1, kit.p2) : cv;
     var ox = out.getContext("2d"), img = ox.getImageData(0, 0, w, h), d = img.data, sk = DATA_V161A.skin[scale], sw = DATA_V161A.sw[scale];
     // skin: v151 D's grey luminance, times his tone
-    if (sk) { var ls = 0, ln = 0, j, i4, L;
-      for (j = 0; j < w * h; j++) { if (!sk[(r[1] + ((j / w) | 0)) * sw + r[0] + (j % w)]) continue; i4 = j * 4; if (src[i4 + 3] < 20) continue;
+    if (sk) { var ls = 0, ln = 0, j, i4, L, lm = skinLocalV193I(sk, sw, r, w, h, src, F);
+      for (j = 0; j < w * h; j++) { if (lm[j] !== 1) continue; i4 = j * 4; if (src[i4 + 3] < 20) continue;
         ls += (Math.max(src[i4], src[i4 + 1], src[i4 + 2]) + Math.min(src[i4], src[i4 + 1], src[i4 + 2])) / 2; ln++; }
       var ref = Math.max(30, ln ? ls / ln : 120), tn = rgb(kit.tone);
-      for (j = 0; j < w * h; j++) { if (!sk[(r[1] + ((j / w) | 0)) * sw + r[0] + (j % w)]) continue; i4 = j * 4; if (src[i4 + 3] < 20) continue;
+      for (j = 0; j < w * h; j++) { if (!lm[j]) continue; i4 = j * 4; if (src[i4 + 3] < 20) continue;
         L = (Math.max(src[i4], src[i4 + 1], src[i4 + 2]) + Math.min(src[i4], src[i4 + 1], src[i4 + 2])) / 2;
         var v = Math.max(40, Math.min(255, 214 * Math.pow(L / ref, 0.8)));
         d[i4] = Math.min(255, tn[0] * v / 255); d[i4 + 1] = Math.min(255, tn[1] * v / 255); d[i4 + 2] = Math.min(255, tn[2] * v / 255); } }
@@ -8116,11 +8130,11 @@
     if (k === "ball" || !kit) return cv;
     var src = x.getImageData(0, 0, w, h).data, F = window.__V161A_FIELD, out = F && F.recolor ? F.recolor(cv, kit.p1, kit.p2) : cv;
     var ox = out.getContext("2d"), img = ox.getImageData(0, 0, w, h), d = img.data, sk = DATA_V177I.skin[scale], sw = DATA_V177I.sw[scale], j, i4, L;
-    if (sk) { var ls = 0, ln = 0;
-      for (j = 0; j < w * h; j++) { if (!sk[(r[1] + ((j / w) | 0)) * sw + r[0] + (j % w)]) continue; i4 = j * 4; if (src[i4 + 3] < 20) continue;
+    if (sk) { var ls = 0, ln = 0, lm = skinLocalV193I(sk, sw, r, w, h, src, F);
+      for (j = 0; j < w * h; j++) { if (lm[j] !== 1) continue; i4 = j * 4; if (src[i4 + 3] < 20) continue;
         ls += (Math.max(src[i4], src[i4 + 1], src[i4 + 2]) + Math.min(src[i4], src[i4 + 1], src[i4 + 2])) / 2; ln++; }
       var ref = Math.max(30, ln ? ls / ln : 120), tn = rgb(kit.tone);
-      for (j = 0; j < w * h; j++) { if (!sk[(r[1] + ((j / w) | 0)) * sw + r[0] + (j % w)]) continue; i4 = j * 4; if (src[i4 + 3] < 20) continue;
+      for (j = 0; j < w * h; j++) { if (!lm[j]) continue; i4 = j * 4; if (src[i4 + 3] < 20) continue;
         L = (Math.max(src[i4], src[i4 + 1], src[i4 + 2]) + Math.min(src[i4], src[i4 + 1], src[i4 + 2])) / 2;
         var v = Math.max(40, Math.min(255, 214 * Math.pow(L / ref, 0.8)));
         d[i4] = Math.min(255, tn[0] * v / 255); d[i4 + 1] = Math.min(255, tn[1] * v / 255); d[i4 + 2] = Math.min(255, tn[2] * v / 255); } }
