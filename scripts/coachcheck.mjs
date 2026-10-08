@@ -274,7 +274,12 @@ const step = async (page, t, wait = 900) => {
   await expect('pregame', 'the pregame wizard'); await dismiss(page)
   // v146 D: page 5 is the plan BOARD — he picks the plan, nothing spins — and the coach's PLAN stop
   // talks over the board and ends on the projection strip (the numbers the pick is priced in)
-  for (let p = 0; p < 4; p++) { const n = await step(page, p === 3 ? 'THE GAME PLAN' : 'NEXT', 700); if (!n) break }
+  // v193 B: the YOUR TEAM page sits after page 3, so walk the wizard's NEXT until the plan page is the one showing
+  for (let p = 0; p < 7; p++) {
+    const on = await page.evaluate(() => { const P = window.__V136_PAGES ? window.__V136_PAGES.active() : null, i = window.__V112_D && window.__V112_D.page(); return !!(P && P[i] === 'v112Page5') })
+    if (on) break
+    await page.evaluate(() => window.__v112NextD && window.__v112NextD()); await page.waitForTimeout(700)
+  }
   const plan = await expect('plan', 'the weekly-plan board, on the fifth page')
   ok(await page.evaluate(() => !!document.querySelector('#v112Page5 #v146Plan') && !document.getElementById('growthV42')), '  …and what he talks over is the plan board inside the wizard, not a wheel')
   await page.evaluate(() => { const C = window.__RIB_COACH, S = C.stops.find((x) => x.id === C.stop), last = (S ? S.lines : 1) - 1; let n = 0; while (C.isOpen && C.line < last && n++ < 6) C.next() }); await page.waitForTimeout(700)

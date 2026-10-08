@@ -170,15 +170,21 @@ window.TU = function (k, d) { var t = window.RIB_TUNE; return t[k] !== undefined
       if (featured.isMe && root.__getGridironState) {
         const _st = root.__getGridironState(), _pl = _st && _st.player, _at = (_pl && _pl.attrs) || {};
         const _me = A[featured.actorId], _cap = 40;
-        _me.spd *= 0.82 + 0.44 * Math.min(1, ((_at.speed||18)*0.65 + (_at.acceleration||_at.quickness||18)*0.35) / _cap);
-        _me._accRating = 99*Math.min(1,(_at.acceleration||_at.quickness||18)/_cap);            // start/recovery rate
-        _me._agiRating = 99*Math.min(1,(_at.agility||18)/_cap);                                // cut speed retention + braking
-        _me._burstRating = 99*Math.min(1,(_at.burst||_at.acceleration||18)/_cap);               // first 250ms drive
-        _me._agi = Math.min(1, (_at.agility||18) / _cap);
-        _me._pwr = Math.min(1, ((_at.strength||18)*0.6 + (_at.tackling||_at.blocking||18)*0.4) / _cap); // fight through contact
-        _me._blkSkill = Math.max(_me._blkSkill||0, Math.min(1, (_at.blocking||14) / _cap));            // escort blocking IQ
+        const _n = (v, d) => Number(v) || d;   // v193 C: a missing or non-numeric attribute reads as its default, never NaN
+        if (!_me) throw new Error("featured actor " + featured.actorId + " is not on the field");
+        _me.spd *= 0.82 + 0.44 * Math.min(1, (_n(_at.speed, 18)*0.65 + _n(_at.acceleration, _n(_at.quickness, 18))*0.35) / _cap);
+        _me._accRating = 99*Math.min(1, _n(_at.acceleration, _n(_at.quickness, 18))/_cap);            // start/recovery rate
+        _me._agiRating = 99*Math.min(1, _n(_at.agility, 18)/_cap);                                // cut speed retention + braking
+        _me._burstRating = 99*Math.min(1, _n(_at.burst, _n(_at.acceleration, 18))/_cap);               // first 250ms drive
+        _me._agi = Math.min(1, _n(_at.agility, 18) / _cap);
+        _me._pwr = Math.min(1, (_n(_at.strength, 18)*0.6 + _n(_at.tackling, _n(_at.blocking, 18))*0.4) / _cap); // fight through contact
+        _me._blkSkill = Math.max(_me._blkSkill||0, Math.min(1, _n(_at.blocking, 14) / _cap));            // escort blocking IQ
       }
-    } catch (e) {}
+    } catch (e) {
+      /* v193 C: the you-player's speed/agility were dropped silently — count it, and say so once per message */
+      try { const F = root.__FieldSim; if (F) F.featuredErrsV193C = (F.featuredErrsV193C || 0) + 1;
+        if (root.__V193C && root.__V193C.warn) root.__V193C.warn("featured attrs", e); else console.warn("[v193 C] featured attrs", e); } catch (_) {}
+    }
     // the user's marker id when they play DEFENSE on this snap (contact assignment)
     const userDefId = (!usOff && payload.playerPos && !OFFPOS.includes(payload.playerPos) && featured.isMe && payload.involved) ? featured.actorId : null;   // v87: only when the book credited you
 
@@ -1292,7 +1298,7 @@ window.TU = function (k, d) { var t = window.RIB_TUNE; return t[k] !== undefined
     const _holdV151=(()=>{ const H=new Set(); if(!ballFrames||!ballFrames.length) return H; const bt={}; ballFrames.forEach(b=>{bt[Math.round(b.t)]=b;});
       actors.forEach(a=>{ for(const f of a.frames){ const b=bt[Math.round(f.t)]; if(b&&(b.h||0)<3&&Math.hypot(b.x-f.x,b.y-f.y)<TU("choreoHoldPxV151D",14)){H.add(a.id);break;} } }); return H; })();
     const _deTPv22=(fr,spd,side,id)=>{ if(!fr||fr.length<2)return fr; const MAX=(!_holdV151.has(id)&&TU("paceV151D",1))?Math.min(TU("choreoMaxStep",22),Math.max(TU("choreoDefMinStepV151D",5),(spd||130)*TU("choreoDefPaceV151D",1.45)*TICK/1000)):TU("choreoMaxStep",22); const out=[fr[0]]; let px=fr[0].x, py=fr[0].y; for(let k=1;k<fr.length;k++){ const dx=fr[k].x-px, dy=fr[k].y-py, d=Math.hypot(dx,dy); if(d>MAX){ px+=dx/d*MAX; py+=dy/d*MAX; } else { px=fr[k].x; py=fr[k].y; } out.push(Object.assign({},fr[k],{x:px,y:py})); } return out; };
-    return { duration:t, actors:actors.map(a=>({id:a.id,side:a.side,label:a.label,sp:Math.round(a.spd||SPEED[a.label]||130),nm:a._player&&a._player.name||null,skin:a._player&&Number.isFinite(a._player.skinTone)?a._player.skinTone:null,frames:_deTPv22(a.frames,a.spd,a.side,a.id)})),   // v151 D: sp rides the script
+    return { duration:t, actors:actors.map(a=>({id:a.id,side:a.side,label:a.label,sp:Math.round(a.spd||SPEED[a.label]||130),nm:a._player&&a._player.name||null,skin:a._player&&(Number.isFinite(a._player.skinTone)||/^#[0-9a-f]{6}$/i.test(a._player.skinTone))?a._player.skinTone:null,frames:_deTPv22(a.frames,a.spd,a.side,a.id)})),   // v151 D: sp rides the script
              ball:ballFrames, events, meta:{concept,targetId,losX,endX,dir,scoreDir,scored,
                featured, involved, targetRoute: targetRoute||null,
                coveragePlan:{shell,bracketTargetId,bracketHelperId,manAssignments,
@@ -5836,7 +5842,7 @@ window.__visionRadiusV96 = visionRadiusV96;
     if (_tke && _tke.youIn) { const _yu = S.all.find(a=>a.player&&a.player.you); out.assist = _yu ? _yu.player : null; }
     out.flags = flagCand;   // v30: what an official COULD have flagged — the game layer rolls the call
     out.log = { duration: t, events, ball: ballFrames,
-      actors: S.all.map(a=>({id:a.id, side:a.side, label:a.lb, sp:Math.round(a.spd), you:!!(a.player&&a.player.you), nm:a.player&&a.player.name||null, skin:a.player&&Number.isFinite(a.player.skinTone)?a.player.skinTone:null,   /* v151 D: who he is, for his skin tone (render-only) */ gas:Math.round(a.gas!==undefined?a.gas:(a.gas0!==undefined?a.gas0:100)), frames:a.frames})) };
+      actors: S.all.map(a=>({id:a.id, side:a.side, label:a.lb, sp:Math.round(a.spd), you:!!(a.player&&a.player.you), nm:a.player&&a.player.name||null, skin:a.player&&(Number.isFinite(a.player.skinTone)||/^#[0-9a-f]{6}$/i.test(a.player.skinTone))?a.player.skinTone:null,   /* v151 D: who he is, for his skin tone (render-only) */ gas:Math.round(a.gas!==undefined?a.gas:(a.gas0!==undefined?a.gas0:100)), frames:a.frames})) };
     /* Only a play the offence CARRIED to a spot: an incompletion's ball legitimately lands
      * yards downfield on a zero-yard play, and a pick's ball changes hands and comes back
      * the other way, so neither one's ball track means what `yards` means. */

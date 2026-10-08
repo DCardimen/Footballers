@@ -126,9 +126,9 @@ const goLive = (page) => M(page, async () => { const S = window.S, t = S.player,
   const wantHalf = Math.round((1 + 0.25 * w.half.share - 0.15 * (1 - w.half.share)) * 100) / 100
   ok(w.all.mult === 1.25 && w.all.share === 1 && w.none.mult === 0.85 && w.none.share === 0 && w.half.mult === wantHalf, 'every game watched ×1.25, none ×0.85, a share in between interpolates', { all: w.all.mult, none: w.none.mult, half: w.half.mult, want: wantHalf })
   ok(w.titleOnly.watched === 2 && w.titleOnly.games === w.none.games + 2, 'the championship weighs two games in the watched share', w.titleOnly)
-  ok(Math.abs(w.xp.title - w.xp.title1 * 2) <= 1 && w.xp.gain > w.xp.gain1 && w.xp.parts.some((q) => /×2/.test(q)) && w.xp.parts.some((q) => /Watched live ×1.25/.test(q)), 'the season\'s Legacy XP: the championship pays double (×2 in the part\'s name) and the watched share is a labelled part', w.xp)
+  ok(Math.abs(w.xp.title - w.xp.title1 * 2) <= 1 && w.xp.gain > w.xp.gain1 && w.xp.parts.some((q) => /×2/.test(q)) && w.xp.parts.some((q) => /Watched live ×1\.3(?!\d)/.test(q) /* v193 N: ×1.25 prints ×1.3 */), 'the season\'s Legacy XP: the championship pays double (×2 in the part\'s name) and the watched share is a labelled part', w.xp)
   ok(w.cutNone > 1.29 && w.cutNone < 1.31 && w.cutAll === 1, 'the cut roll is ×1.3 for a season simmed from the sofa, ×1 for one watched', { none: w.cutNone, all: w.cutAll })
-  ok(new RegExp(Math.round(w.half.share * 100) + '% watched').test(w.badge) && w.badge.includes('×' + w.half.mult.toFixed(2)), 'the report card\'s badge prints the share and the multiplier', w.badge)
+  ok(new RegExp(Math.round(w.half.share * 100) + '% watched').test(w.badge) && w.badge.includes('×' + (Math.round(w.half.mult * 10) / 10).toFixed(1)) /* v193 N: one decimal */, 'the report card\'s badge prints the share and the multiplier', w.badge)
   ok(w.off.mult === 1 && w.offMult === 1, 'TU v164Cwatch 0: every multiplier is 1', { off: w.off.mult, title: w.offMult })
   await c.close()
 }

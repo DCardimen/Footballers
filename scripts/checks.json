@@ -18,6 +18,7 @@
     "v110check",
     "v146Bcheck",
     "v147Ccheck",
+    "v193Acheck",
     "scrollcheck",
     "freshcheck",
     "v142check",
@@ -30,7 +31,15 @@
     "v156Acheck",
     "v164Echeck",
     "formcheck",
-    "accelcheck"
+    "accelcheck",
+    "v193Echeck",
+    "v193Ccheck",
+    "v193Dcheck",
+    "v193Bcheck",
+    "v193Jcheck",
+    "v193Pcheck",
+    "v193Icheck",
+    "v193Ocheck"
    ]
   },
   "docs": {
@@ -135,6 +144,7 @@
    "files": [],
    "checks": [
     "v147Ccheck",
+    "v193Acheck",
     "bootviewcheck",
     "v85check",
     "creditcheck",
@@ -262,7 +272,8 @@
   "plan": {
    "desc": "v146 D — the weekly plan board, projection / variance, form swing, the live game inputs",
    "anchors": [
-    "v146 D"
+    "v146 D",
+    "v193 B"
    ],
    "files": [],
    "checks": [
@@ -279,7 +290,8 @@
     "simcheck",
     "bootviewcheck",
     "walk",
-    "matchupcheck"
+    "matchupcheck",
+    "v193Bcheck"
    ],
    "variants": [
     "`POS=QB,DL,S` for `v146Dcheck` (default RB,WR,LB)"
@@ -300,7 +312,9 @@
     "gatecheck",
     "menu-integration-check",
     "vaultcheck",
-    "walk"
+    "walk",
+    "v193Ccheck",
+    "v193Mcheck"
    ],
    "look": [
     "`node scripts/v146Eshot.mjs`"
@@ -339,14 +353,17 @@
     "bootviewcheck",
     "walk",
     "shot",
-    "v148check"
+    "v148check",
+    "v193Ccheck",
+    "v193Icheck"
    ]
   },
   "statinfo": {
    "desc": "v142 — the ⓘ beside a stat, the stat cards, adding an attribute",
    "anchors": [
     "v164 E",
-    "v142"
+    "v142",
+    "v193 N"
    ],
    "files": [],
    "checks": [
@@ -356,7 +373,8 @@
     "walk",
     "shot",
     "scrollcheck",
-    "capcheck"
+    "capcheck",
+    "v193Ncheck"
    ]
   },
   "sim-keys": {
@@ -440,7 +458,8 @@
    "desc": "v137 — the Prestige Vault: hoard, spend, door, payout, sprites; v153 C — the payday (the reward sequence)",
    "anchors": [
     "v137",
-    "v153 C"
+    "v153 C",
+    "v193 K"
    ],
    "files": [
     "public/rib-vault*",
@@ -458,7 +477,8 @@
     "v136check",
     "freshcheck",
     "v156Acheck",
-    "v173check"
+    "v173check",
+    "v193Kcheck"
    ],
    "steps": [
     "`python3 scripts/build-vault-art.py --proof` (if a cell moved — then LOOK at `art/vault-proof/`)",
@@ -522,7 +542,8 @@
     "v136check",
     "v134check",
     "v85check",
-    "origincheck"
+    "origincheck",
+    "v193Dcheck"
    ]
   },
   "summary": {
@@ -541,7 +562,8 @@
    "anchors": [
     "v136 A",
     "v112 D",
-    "v126"
+    "v126",
+    "v193 B"
    ],
    "files": [],
    "checks": [
@@ -556,7 +578,8 @@
     "namecheck",
     "splashcheck",
     "shot",
-    "matchupcheck"
+    "matchupcheck",
+    "v193Bcheck"
    ],
    "variants": [
     "`WHEEL=1` for `v112Dcheck`"
@@ -605,7 +628,9 @@
     "v132 A YEAR",
     "v133 THE BOY",
     "GROW_V132",
-    "growDraw"
+    "growDraw",
+    "v193 O THE SEASON'S GROWTH",
+    "growCardV193O"
    ],
    "files": [
     "public/grow/**",
@@ -615,7 +640,8 @@
     "growcheck",
     "coachcheck",
     "declarecheck",
-    "walk"
+    "walk",
+    "v193Ocheck"
    ],
    "steps": [
     "`python3 scripts/build-grow-art.py` (if the figure's art changed)"
@@ -831,7 +857,8 @@
    "checks": [
     "v85check",
     "bodycheck",
-    "wheelcheck"
+    "wheelcheck",
+    "v193Ncheck"
    ]
   },
   "between-plays": {
@@ -871,7 +898,9 @@
     "rankcheck",
     "v88check",
     "declarecheck",
-    "v85check"
+    "v85check",
+    "v193Echeck",
+    "v193Pcheck"
    ]
   },
   "badges": {
@@ -926,7 +955,9 @@
     "renderpathcheck",
     "bobcheck",
     "v159Acheck",
-    "numsewcheck"
+    "numsewcheck",
+    "v193Icheck",
+    "v193Qcheck"
    ]
   },
   "lights": {
@@ -1257,7 +1288,8 @@
     "walk",
     "shot",
     "v153Fcheck",
-    "v156Acheck"
+    "v156Acheck",
+    "v193Echeck"
    ]
   },
   "emblems": {
@@ -1341,7 +1373,9 @@
    "files": [],
    "checks": [
     "declarecheck",
-    "v150Acheck"
+    "v150Acheck",
+    "v193Dcheck",
+    "v193Pcheck"
    ]
   },
   "modes": {
@@ -1549,7 +1583,8 @@
     "v177 K",
     "v177 F",
     "v177 G",
-    "v177 H"
+    "v177 H",
+    "v193 Q"
    ],
    "files": [
     "src/28-cosmetics.js",
@@ -1585,7 +1620,8 @@
     "v159Acheck",
     "palettecheck",
     "numsewcheck",
-    "v177FGHcheck"
+    "v177FGHcheck",
+    "v193Qcheck"
    ]
   },
   "audio": {
@@ -1593,7 +1629,9 @@
    "anchors": [
     "v151 E",
     "RIB_MUSIC",
-    "soundCardV151E"
+    "soundCardV151E",
+    "v193 O HAPTICS",
+    "ribHaptic"
    ],
    "files": [
     "src/30-music.js",
@@ -1610,7 +1648,8 @@
     "coachcheck",
     "vaultcheck",
     "layoutcheck",
-    "walk"
+    "walk",
+    "v193Ocheck"
    ]
   },
   "legacy": {
@@ -1619,7 +1658,8 @@
     "v152 A",
     "RIB_LEGACY",
     "v153 F",
-    "v157 C"
+    "v157 C",
+    "v193 K"
    ],
    "files": [
     "src/31-legacy.js",
@@ -1638,7 +1678,8 @@
     "v153Fcheck",
     "v153Echeck",
     "v156Acheck",
-    "v159Bcheck"
+    "v159Bcheck",
+    "v193Kcheck"
    ]
   },
   "v153b": {
@@ -1677,7 +1718,8 @@
     "v151Bcheck",
     "v152Acheck",
     "v150Acheck",
-    "layoutcheck"
+    "layoutcheck",
+    "v193Mcheck"
    ]
   },
   "v156b": {
@@ -1864,7 +1906,9 @@
     "v178check",
     "v192Acheck",
     "v192Bcheck",
-    "v192Ccheck"
+    "v192Ccheck",
+    "v193Echeck",
+    "v193Jcheck"
    ]
   }
  },
@@ -4967,6 +5011,18 @@
    "pureNode": false,
    "flaky": []
   },
+  "v193Echeck": {
+   "file": "scripts/v193Echeck.mjs",
+   "desc": "v193 E — the game-day percent (perfFlat) is gone: perfPct 0 with the old nodes maxed, the accessor / rollGamePerf / mr carry no term, each repurposed node's new fx reaches treeFx, the paycheck reads payMultV179 through treeFx, an old Conditioning piece migrates to Growth; SPEND NOW on the tree (the cheapest affordable nodes, or the cheapest and how far away), the hub counts the affordable upgrades, Water Boys (coachStart, v193Esink); the chaos card's live WHAT IT COSTS / WHAT IT PAYS, the projection and the chaos growth bump (v193Echaos); HOW THE SCOUTS DECIDE from the hub, the Recruiting Board and the potential card; top 1% rolls ≥ 99 (v193Erank). Fits 360×780. No page errors.",
+   "areas": [
+    "season"
+   ],
+   "runtimeSec": 45,
+   "slow": false,
+   "needsServer": true,
+   "pureNode": false,
+   "flaky": []
+  },
   "v192Ccheck": {
    "file": "scripts/v192Ccheck.mjs",
    "desc": "v192 — every personality pole has a real upside and downside and the page shows every effect; Poise (cool under pressure) grows slowly, narrows the game-to-game swing and lifts a bad game's floor in the quick sim and the watched game alike, the mean barely moving.",
@@ -4974,6 +5030,169 @@
     "season"
    ],
    "runtimeSec": 90,
+   "slow": false,
+   "needsServer": true,
+   "pureNode": false,
+   "flaky": []
+  },
+  "v193Acheck": {
+   "file": "scripts/v193Acheck.mjs",
+   "desc": "v193 A — gear levels: a drop is received at 1 + tier×5, an old piece gets its level from its tier, the level is a flat +1%/level on gearFx AND gearV147 (integers stay integers, kill switch, ×2.5 cap), a season settle adds 5 to the bag and the equipped copy and drops the totals memo, SELL pays by the level received (not the grown one) through the bank, refuses equipped, asks for rare+, SELL ALL COMMONS; the locker's chip row defaults to the player's position and filters, the bar is sticky in the GEAR tab, the compare view shows the level line and SELL · +N PP, no page scroll at 400x860; screenshots v193A_locker.png / v193A_compare.png / v193A_shell.png.",
+   "areas": [
+    "smoke",
+    "gear"
+   ],
+   "runtimeSec": 60,
+   "slow": false,
+   "needsServer": true,
+   "pureNode": false,
+   "flaky": []
+  },
+  "v193Ccheck": {
+   "file": "scripts/v193Ccheck.mjs",
+   "desc": "v193 C — the bugs the pass found: no skin pixel of a kit cell reads as the kit's second colour (the floor of 1, the widened highlight window, the deco before the restore), the down bar says KICKOFF / PAT / 2-PT TRY / & GOAL, endLive with no player, warnOnce, the engine's featured-player block, the bottom nav hidden on tier/club and lit per view, tier saved on entry, rank's Back, the fresh save's Prestige Tree button, a won career sealed to win, the skin chooser",
+   "areas": [
+    "field",
+    "kits",
+    "live",
+    "shell",
+    "career"
+   ],
+   "runtimeSec": 60,
+   "slow": false,
+   "needsServer": true,
+   "pureNode": false,
+   "flaky": []
+  },
+  "v193Dcheck": {
+   "file": "scripts/v193Dcheck.mjs",
+   "desc": "v193 D — the career-end ledger (a cut, an arrival): every row adds / multiplies to the total, the total is what the settle paid and the PP Earned box, the bank by source with the flat cap, the HoF Path row, the count-up; the season screen's PRESTIGE THIS SEASON card (+N so far, the sources, the breakdown button, collapsible); the breakdown's HoF / rates / arrival rows; the respec refunds the price paid.",
+   "areas": [
+    "pp-bank",
+    "declare",
+    "smoke"
+   ],
+   "runtimeSec": 40,
+   "slow": false,
+   "needsServer": true,
+   "pureNode": false,
+   "flaky": []
+  },
+  "v193Bcheck": {
+   "file": "scripts/v193Bcheck.mjs",
+   "desc": "v193 B — every plan tile is shaded by its click odds and prints them (BEST ODDS badged), the scout's default gives way to the greenest plan within the perf gap, ROLL THE PLAN reveals the held band and locks the pick (the strip, the box score and the projected score move), PROJECTED US–THEM on pages 3 and 5, YOUR TEAM lists the 22 men with what the prestige gives each; \"recover\" is read as a rest plan; v193B 0 restores the old wizard.",
+   "areas": [
+    "plan",
+    "pregame",
+    "smoke"
+   ],
+   "runtimeSec": 110,
+   "slow": false,
+   "needsServer": true,
+   "pureNode": false,
+   "flaky": []
+  },
+  "v193Jcheck": {
+   "file": "scripts/v193Jcheck.mjs",
+   "desc": "v193 J — the seven nodes v193 E redrew (perfFlat) are paid back once at boot at today's prices; levels to 0; other nodes kept; no second refund; kill switch v193J",
+   "areas": [
+    "smoke",
+    "prestige-pacing"
+   ],
+   "runtimeSec": 30,
+   "slow": false,
+   "needsServer": true,
+   "pureNode": false,
+   "flaky": []
+  },
+  "v193Pcheck": {
+   "file": "scripts/v193Pcheck.mjs",
+   "desc": "v193 E top-1% floor end to end — a real Varsity season puts a strong RB in the national top 1%; the floor under his declare is 99–99.5 (the old curve under 99); the hub declare advances him on a 98.5 roll; 300 declares from that moment ≥ 97% reach College",
+   "areas": [
+    "rank",
+    "declare",
+    "smoke"
+   ],
+   "runtimeSec": 40,
+   "slow": false,
+   "needsServer": true,
+   "pureNode": false,
+   "flaky": []
+  },
+  "v193Icheck": {
+   "file": "scripts/v193Icheck.mjs",
+   "desc": "v193 I — every sheet: on EVERY player cell the game recolours (everything ribRegisterTeam builds: the v91 poses in every facing, the QB sheets, the catch sequences, the field celebrations, the v22 moments, the baked atlas; the v161 A / v177 I celebration bodies at 1x and 2x; the loading chase / growth screen's boy), in kits whose second colour is a skin-like orange and brown, no cell has more than 2 drawn-skin pixels (by the mask, and by a looser warm mid-saturation read) painted the kit's p2; the skin grow pass is what closes it (TU skinGrowV193I 0 leaks again); the sideline backups and the age scale are not separate cells",
+   "areas": [
+    "kits",
+    "field"
+   ],
+   "runtimeSec": 20,
+   "slow": false,
+   "needsServer": true,
+   "pureNode": false,
+   "flaky": []
+  },
+  "v193Mcheck": {
+   "loadSensitive": true,
+   "file": "scripts/v193Mcheck.mjs",
+   "desc": "v193 I — every phone (Chromium mobile emulation; WebKit not covered): at 390x844 @3x (iOS UA) and 360x740 @2x (Android UA) the Locker GEAR tab with 30 pieces, the tree's QUICK BUY / SPEND NOW, the season's PRESTIGE THIS SEASON card, the career-end receipt and the pregame YOUR TEAM page and plan board have no horizontal overflow, 36 px tap targets and 10.5 px text; a real touch swipe scrolls the gear list with the chip bar sticky, the chip rows scroll sideways without turning the section (TU v193I 0 turns it), a tap on a chip filters",
+   "areas": [
+    "shell",
+    "thumb"
+   ],
+   "runtimeSec": 180,
+   "slow": true,
+   "needsServer": true,
+   "pureNode": false,
+   "flaky": []
+  },
+  "v193Ocheck": {
+   "file": "scripts/v193Ocheck.mjs",
+   "desc": "v193 O — the season's growth, felt: the season-start snapshot and the season-end record (whole numbers); the report's WHAT CHANGED card under the grade lists every moved attribute old → new, biggest gain first, the bars animate (overshoot, settle) to the new values, the OVR and the total line land, the pot / XP pour wait (busy), the medal card under it; tap skips; reduced motion draws the end state; ribHaptic: no-op under webdriver, ?haptics=1 vibrates on the bars, a node buy, a medal claim, the plan roll; the 40 ms limit; Settings › SOUND › Vibration off/on; the skill sheet's +1 pop and LEVEL UP tier tag.",
+   "areas": [
+    "grow",
+    "audio",
+    "smoke"
+   ],
+   "runtimeSec": 45,
+   "slow": false,
+   "needsServer": true,
+   "pureNode": false,
+   "flaky": []
+  },
+  "v193Kcheck": {
+   "file": "scripts/v193Kcheck.mjs",
+   "desc": "v193 K — the Legacy book shows each medal's reward (ribbon, title, tap-detail; waiting / to-come kinds) and YOUR MEDAL REWARDS (every claim with its effect line, the running totals); the page curls in 3D (rotateY on the leaf, strips, 450 ms) and lands, a drag completes past half; reduced motion cross-fades with no rotateY; the vault's hoard and door are centred at 360/430, no banner words, the cleaned room.webp loads with no lettering.",
+   "areas": [
+    "legacy",
+    "vault"
+   ],
+   "runtimeSec": 135,
+   "slow": false,
+   "needsServer": true,
+   "pureNode": false,
+   "flaky": []
+  },
+  "v193Ncheck": {
+   "file": "scripts/v193Ncheck.mjs",
+   "desc": "v193 N — personality gives a stat: each perf pole (Win-Now / Process → Grit, Coasts → Awareness, Me-First / Team-First → Vision) moves ONE attribute by a whole number in the game accessor (_raw) and the sheet (effAttrsV85), never every stat; the page says \"▲ +2 Grit\"; an old save's fx is recomputed; kill switch v193N 0 = the old all-stats perfFlat. Stats are whole: a fractional player (47.38, 12.5, 99.999 …, fractional gear) played into a real season, every stat screen visited (season, YOUR GAME, every pregame page, the report, the growth screen, hub, skill sheet, Recruiting Board, leaders, profile, locker + compare, training board) — no number with 2+ decimals, no decimal on an attribute / OVR line. REPORT=1 lists hits. No page errors.",
+   "areas": [
+    "season"
+   ],
+   "runtimeSec": 100,
+   "slow": false,
+   "needsServer": true,
+   "pureNode": false,
+   "flaky": []
+  },
+  "v193Qcheck": {
+   "file": "scripts/v193Qcheck.mjs",
+   "desc": "v193 Q — his skin, his number, his kit: the creation screen's ninth swatch opens a depth / undertone picker held to plausible skin (hue 15-40, sat 25-60%, L 18-85%); a preset and a custom hex survive a reload, cleanSaveV150 / checkSaveV150 whitelist them, the line hands the tone down; the custom hex on the live field's you-marker (skin layer tint), the field build, the profile card's face and the growth screen's own figure (no kit colour on his face); the profile, TROPHIES and leaderboard cards draw his number (markup cards are painted), the menu's number before a position; EVERY uniform x a light and a dark palette and every helmet through the Locker's painter: crisp, whole, the field texture off the skin and the print, skin only on the mask, patterns visible and off the dome, the number printed and readable; contact sheet scripts/_v193Q_uniforms.png (SKIP_LIVE=1 skips the live field)",
+   "areas": [
+    "kits",
+    "cosmetics"
+   ],
+   "runtimeSec": 100,
    "slow": false,
    "needsServer": true,
    "pureNode": false,

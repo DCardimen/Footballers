@@ -645,7 +645,10 @@ wall, behind the hoard, where it costs nothing and stops occluding the pile it s
   artwork. `clean_banners()` paints the lettering out with the panel's own cloth (per-column
   30th percentile; a blur leaves a bright bar where the text was and an edge-row
   interpolation smears the crown down the panel — both were tried and looked at) and the
-  renderer draws all eight words itself in Oswald.
+  renderer draws all eight words itself in Oswald. **v193 K:** the banners are plain now (the
+  owner: "remove text from the vault asset") — the renderer draws no words, and the fill is a
+  harmonic inpaint (only the glyph pixels relax to the cloth around them, boxes drawn tight so
+  the gold piping stays, a faint seeded grain) instead of the percentile that left streaks.
 - **The room is an upscale.** The empty-vault cell is 506×512 and has to fill a phone, so it
   is Lanczos-upscaled 2.6× with a restrained unsharp. It is a dark, hazy, softly lit room —
   the one subject that survives one — and every crisp element over it (the ceiling lights,

@@ -1060,6 +1060,7 @@ function ribRecolor(src, p1hex, p2hex) {
  * Kill switch `TU("skinV151D", 0)`: no layer, and the old recolour. `window.__V151D_SKIN`. */
 const SKIN_TONES_V151D = ["#f3d2b3", "#e8bc97", "#d6a37c", "#bf8a62", "#a4704b", "#86573a", "#6a432c", "#4f3121"];
 function skinToneV151D(p) {
+  if (p && typeof p.skinTone === "string" && skinHexV193Q(p.skinTone)) return skinHexV193Q(p.skinTone);   // v193 Q: his custom tone
   if (p && Number.isFinite(p.skinTone)) return Math.max(0, Math.min(SKIN_TONES_V151D.length - 1, Math.round(p.skinTone)));
   const s = String(p && typeof p === "object" ? (p.name || p.id || "") : (p == null ? "" : p));
   let h = 2166136261; for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); }
@@ -1076,7 +1077,7 @@ function skinToneForV151D(actor, marker, idx) {
       const st = window.__getGridironState && window.__getGridironState(), pl = st && st.player;
       if (pl) return skinToneV151D({ skinTone: pl.skinTone, name: pl.name || "you" });
     }
-    if (actor && Number.isFinite(actor.skin)) return skinToneV151D({ skinTone: actor.skin });
+    if (actor && (Number.isFinite(actor.skin) || skinHexV193Q(actor.skin))) return skinToneV151D({ skinTone: actor.skin });   // v193 Q: the engine carries a custom hex too
     if (actor && actor.nm) return skinToneV151D({ name: actor.nm });
   } catch (e) {}
   return skinToneV151D("slot" + idx + ":" + (actor && actor.side || ""));
@@ -1086,7 +1087,11 @@ function skinMaskV151D(src) {
   const hit = SKIN_MASKS_V151D.get(src); if (hit) return hit;
   let d;
   try { d = src.getContext("2d").getImageData(0, 0, 48, 48).data; } catch (e) { return null; }
-  const N = 48 * 48, warm = new Uint8Array(N), sk = new Uint8Array(N), L = new Float32Array(N);
+  const N = 48 * 48, warm = new Uint8Array(N), sk = new Uint8Array(N), hi = new Uint8Array(N), L = new Float32Array(N);
+  // v193 C: the skin's HIGHLIGHTS. The drawn skin is a saturated orange (hue 26-32, sat .9+); its lit edges and
+  // the face's lighter pixels sit at hue 31-46 and sat .3-.6, inside the recolour's gold band — the gold trim is
+  // sat .65 and up. A highlight that touches core skin is skin, whatever the neighbour vote says.
+  const hi193 = TU("v193C", 1), hiHue193 = TU("skinHiHueV193C", 46), hiSat193 = TU("skinHiSatV193C", .6);
   for (let i = 0; i < N; i++) {
     const r = d[i * 4], g = d[i * 4 + 1], b = d[i * 4 + 2], al = d[i * 4 + 3];
     if (al <= 24) continue;
@@ -1096,16 +1101,59 @@ function skinMaskV151D(src) {
     if (hue < 8 || hue >= 46) continue;
     warm[i] = 1; L[i] = l;
     if (hue < TU("skinHueV151D", 31) || (hue < 34 && l < 58)) sk[i] = 1;
+    else if (hi193 && hue < hiHue193 && sat < hiSat193) hi[i] = 1;
   }
   const mask = new Uint8Array(N); let n = 0, lsum = 0;
   for (let y = 0; y < 48; y++) for (let x = 0; x < 48; x++) {
     const i = y * 48 + x; if (!warm[i]) continue;
     let f = 0, w = 0;
     for (let yy = Math.max(0, y - 1); yy <= Math.min(47, y + 1); yy++) for (let xx = Math.max(0, x - 1); xx <= Math.min(47, x + 1); xx++) { const j = yy * 48 + xx; f += sk[j]; w += warm[j]; }
-    if (f > 0 && f >= w * .5) { mask[i] = 1; n++; lsum += L[i]; }
+    if ((f > 0 && f >= w * .5) || (hi[i] && f > 0)) { mask[i] = 1; n++; lsum += L[i]; }
   }
+  // v193 I: the skin's EDGES on every sheet (`skinGrowV193I`) — the highlights the vote drops
+  if (hi193 && TU("skinGrowV193I", 1)) skinGrowV193I(d, 48, 48, mask, (i, l) => { n++; L[i] = l; lsum += l; });
   const out = { mask, n, lmean: n ? lsum / n : 0, L };
   SKIN_MASKS_V151D.set(src, out); return out;
+}
+/* v193 I: the skin's EDGES. The v22 moments, the baked atlas, the celebration bodies and the v91 cells' boxed-down
+ * edges carry skin highlights (hue 31-46, sat .3-.75) inside the recolour's gold band, beside an arm or a face; a mask
+ * built on the core skin drops them and they come out in p2. A gold-band pixel under hue 46 and sat .75 that touches
+ * the skin and has at least as much skin around it as SATURATED kit gold (sat .75+ or hue 46+: the pants, the stripe)
+ * is skin — grown a ring at a time (TU skinGrowPassV193I), so a pants highlight with kit on every side never is.
+ * `d` is the RGBA of a w x h cell; `mask` (a Uint8Array) grows in place; `onAdd(i, lightness)` for each pixel taken. */
+function skinGrowV193I(d, w, h, mask, onAdd, seedMin) {
+  const N = w * h, band = new Uint8Array(N), lA = new Float32Array(N), gHue = TU("skinGrowHueV193I", 46), gSat = TU("skinGrowSatV193I", .75);
+  for (let i = 0; i < N; i++) {
+    if (d[i * 4 + 3] < 20) continue;
+    const r = d[i * 4], g = d[i * 4 + 1], b = d[i * 4 + 2], mx = Math.max(r, g, b), mn = Math.min(r, g, b), l = (mx + mn) / 2, sat = mx ? (mx - mn) / mx : 0;
+    if (mx === mn || !(l > 60 && sat > .3)) continue;
+    const hue = mx === r ? (60 * ((g - b) / (mx - mn)) + 360) % 360 : mx === g ? 60 * ((b - r) / (mx - mn)) + 120 : 60 * ((r - g) / (mx - mn)) + 240;
+    if (hue < 33 || hue > 62) continue;                                        // ribRecolor's gold band: what it paints p2
+    band[i] = hue < gHue && sat < gSat && g >= r * .47 ? 2 : 1; lA[i] = l;     // 2: maybe a skin highlight; 1: saturated kit gold
+  }
+  // the seeds: only a REAL patch of skin grows (an arm, a face — TU skinGrowSeedV193I pixels or more, 8-connected). A
+  // speck the mask took in a pants shadow (the v22 gold's dark folds read as skin) never seeds, or it floods the pants.
+  const seed = new Uint8Array(N), comp = [], minSeed = seedMin != null ? seedMin : TU("skinGrowSeedV193I", 8), seen = new Uint8Array(N);
+  for (let s = 0; s < N; s++) {
+    if (!mask[s] || seen[s]) continue;
+    comp.length = 0; comp.push(s); seen[s] = 1;
+    for (let q = 0; q < comp.length; q++) { const c = comp[q], cy = (c / w) | 0, cx = c % w;
+      for (let yy = Math.max(0, cy - 1); yy <= Math.min(h - 1, cy + 1); yy++) for (let xx = Math.max(0, cx - 1); xx <= Math.min(w - 1, cx + 1); xx++) { const j = yy * w + xx; if (mask[j] && !seen[j]) { seen[j] = 1; comp.push(j); } } }
+    if (comp.length >= minSeed) for (const c of comp) seed[c] = 1;
+  }
+  let added = 0;
+  for (let p = 0, P = TU("skinGrowPassV193I", 4); p < P; p++) {
+    const add = [];
+    for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+      const i = y * w + x; if (mask[i] || band[i] !== 2) continue;
+      let m = 0, k = 0;
+      for (let yy = Math.max(0, y - 1); yy <= Math.min(h - 1, y + 1); yy++) for (let xx = Math.max(0, x - 1); xx <= Math.min(w - 1, x + 1); xx++) { const j = yy * w + xx; if (j === i) continue; if (seed[j]) m++; else if (band[j] === 1) k++; }
+      if (m > 0 && m >= k) add.push(i);
+    }
+    if (!add.length) break;
+    for (const i of add) { mask[i] = 1; seed[i] = 1; added++; if (onAdd) onAdd(i, lA[i]); }
+  }
+  return added;
 }
 // the grey luminance cell the tone multiplies: the drawn shading kept, the colour thrown away
 function skinCellV151D(srcName, cell0, sk) {
@@ -1125,6 +1173,79 @@ function skinRegisterV151D(scene, srcName, cell0, sk) {
   const V = window.__V151D_SKIN = window.__V151D_SKIN || { cells: 0, px: 0, restored: 0, layers: 0, frames: 0, tones: {} };
   return key;
 }
+/* ===== v193 C THE BUGS THE PASS FOUND =====
+ * (renderer) A read-only audit's defects, fixed minimally:
+ *   - THE SKIN IN THE KIT'S SECOND COLOUR. Three edge paths painted skin in p2: a cell whose mask found
+ *     fewer than six pixels got no restore at all (`skinMinPxV151D` now floors at 1 — whatever was found
+ *     comes back); the skin's warm highlights (hue 31-46, sat under .6, touching core skin) sat inside
+ *     ribRecolor's gold band and lost the neighbour vote (`skinMaskV151D` keeps them now); and the
+ *     cosmetics deco ran AFTER the restore, so `classify`'s class-2 band overpainted restored skin
+ *     (`kitCellV193C`: deco first, the restore last). The sideline backups draw the same registered
+ *     textures, so they ride along.
+ *   - SILENT CATCHES. The per-frame camera block, the QB vision cone and the coverage overlay swallowed
+ *     every throw — a frozen camera with nothing in the console. `warnOnceV193C(tag, e)` counts each
+ *     distinct message and warns once (`window.__V193C.errs`); the engine's featured-player block (04)
+ *     reports through the same helper.
+ *   - `detailedAction` did not know the catch sequence, so its cells were numbered without a band.
+ * Kill switch TU("v193C", 0): the old mask and the old restore order. `window.__V193C`;
+ * scripts/v193Ccheck.mjs. */
+const V193C = window.__V193C = window.__V193C || { errs: {}, n: 0 };
+function warnOnceV193C(tag, e) {
+  try {
+    const msg = tag + ": " + (e && e.message ? e.message : String(e));
+    V193C.n++;
+    if (!V193C.errs[msg]) { V193C.errs[msg] = 1; console.warn("[v193 C] " + msg, e); } else V193C.errs[msg]++;
+  } catch (_) {}
+}
+V193C.warn = warnOnceV193C;
+// one kit cell: the recolour, the cosmetic deco, then the skin back from the drawn cell — in that order
+function kitCellV193C(cell0, srcName, p1, p2, deco, band) {
+  let cv = ribRecolor(cell0, p1, p2);
+  const on = TU("v193C", 1);
+  const sk151 = TU("skinV151D", 1) ? skinMaskV151D(cell0) : null;
+  const has = !!(sk151 && sk151.n >= TU("skinMinPxV151D", on ? 1 : 6));
+  const restore = () => {
+    const c2 = cv.getContext("2d"), a = c2.getImageData(0, 0, 48, 48), b = cell0.getContext("2d").getImageData(0, 0, 48, 48);
+    for (let i = 0; i < 48 * 48; i++) if (sk151.mask[i]) { a.data[i * 4] = b.data[i * 4]; a.data[i * 4 + 1] = b.data[i * 4 + 1]; a.data[i * 4 + 2] = b.data[i * 4 + 2]; a.data[i * 4 + 3] = b.data[i * 4 + 3]; }
+    c2.putImageData(a, 0, 0);
+  };
+  const paint = () => { if (deco) { try { cv = deco(cv, srcName, band, cell0) || cv; } catch (e) { on && warnOnceV193C("deco " + srcName, e); } } };   // v151 B: a cosmetic deco reads the pose's own collar/waist and the raw art
+  let restored = false;
+  if (!on) { if (has) { try { restore(); restored = true; } catch (e) {} } paint(); }
+  else { paint(); if (has) { try { restore(); restored = true; } catch (e) { warnOnceV193C("skin restore " + srcName, e); } } }
+  return { cv, sk151: restored ? sk151 : null };
+}
+V193C.kitCell = (src, p1, p2, deco) => {
+  const c = typeof src === "string" ? (ribCellV91(src) || ribCellV22(src) || ribCell(src)) : src;
+  return c ? kitCellV193C(c, typeof src === "string" ? src : "idle_dn", p1, p2, deco || null, null) : null;
+};
+V193C.mask = c => skinMaskV151D(c);
+V193C.recolor = (c, p1, p2) => ribRecolor(c, p1, p2);
+/* ===== v193 I EVERY SHEET, EVERY PHONE =====
+ * (renderer) v193 C was tuned and checked on a dozen main-sheet cells. `window.__V193I.register(p1, p2, deco)` runs the
+ * real `ribRegisterTeam` against a throwaway texture store and hands back every texture it built — the field sheets in
+ * every facing, the QB's throws / drops / exchanges, the catch sequences, the get-ups and celebrations, the baked v22
+ * moments — each with the drawn cell it came from, so scripts/v193Icheck.mjs can count skin painted in the kit's second
+ * colour on ALL of them. The sideline backups draw these same textures; the age scale (v144 A) is a sprite scale, not a
+ * cell. Nothing here runs unless a check calls it. */
+window.__V193I = window.__V193I || {};
+window.__V193I.register = (p1, p2, deco) => {
+  const store = {}, team = "v193iprobe";
+  const scene = { markers: [], textures: { exists: (k) => !!store[k], remove: (k) => { delete store[k]; }, addCanvas: (k, cv) => { store[k] = cv; } } };
+  const teams0 = RIB.teams[team], cols0 = RIB.teamCols[team];
+  try { ribRegisterTeam(scene, team, p1, p2, deco || null); }
+  finally {
+    const at = RIB.regScenes.indexOf(scene); if (at >= 0) RIB.regScenes.splice(at, 1);
+    if (teams0 === undefined) delete RIB.teams[team]; if (cols0 === undefined) delete RIB.teamCols[team];
+    if (RIB.teamDeco) delete RIB.teamDeco[team];
+  }
+  const pre = "spr_" + team + "_";
+  return Object.keys(store).filter((k) => k.indexOf(pre) === 0).map((k) => {
+    const pose = k.slice(pre.length), src = (RIB.numSrcV176 || {})[pose];
+    const sheet = ribCellV91(src) ? "v91" : ribCellV22(src) ? "v22" : ribCell(src) ? "base" : "?";
+    return { key: pose, src, sheet, cv: store[k], raw: ribCellV91(src) || ribCellV22(src) || ribCell(src) };
+  });
+};
 // v45 REFEREE ZEBRA: paint vertical black bars across the torso band of a
 // recolored (white) official so the crew reads as the classic striped shirt
 // from broadcast distance. Only light, opaque pixels in the chest rows are
@@ -1727,19 +1848,15 @@ function ribRegisterTeam(scene, team, p1, p2, deco) {
     const cell0 = ribCellV91(srcName) || ribCellV22(srcName) || ribCell(srcName); if (!cell0) return;   // v91 > v22 > baked, by name
     RIB.numBandTex[key] = numBandV104(srcName, cell0);   // v104: where this pose wears its number
     (RIB.numSrcV176 || (RIB.numSrcV176 = {}))[key.replace(/^spr_[^_]+_/, "")] = srcName;   // v176: which drawn cell this pose is
-    let cv = ribRecolor(cell0, p1, p2);
     // v151 D: the kit never touches skin — the skin pixels come back from the drawn cell, and the
-    // texture remembers which grey skin cell its layer wears
-    const sk151 = TU("skinV151D", 1) ? skinMaskV151D(cell0) : null;
+    // texture remembers which grey skin cell its layer wears. v193 C: the cell is built by
+    // kitCellV193C (the recolour, the deco, then the skin), so a deco can no longer paint over it.
+    const built = kitCellV193C(cell0, srcName, p1, p2, deco, RIB.numBandTex[key]), cv = built.cv, sk151 = built.sk151;
     (RIB.skinOfTexV151D || (RIB.skinOfTexV151D = {}))[key] = null;
-    if (sk151 && sk151.n >= TU("skinMinPxV151D", 6)) {
-      try { const c2 = cv.getContext("2d"), a = c2.getImageData(0, 0, 48, 48), b = cell0.getContext("2d").getImageData(0, 0, 48, 48);
-        for (let i = 0; i < 48 * 48; i++) if (sk151.mask[i]) { a.data[i * 4] = b.data[i * 4]; a.data[i * 4 + 1] = b.data[i * 4 + 1]; a.data[i * 4 + 2] = b.data[i * 4 + 2]; a.data[i * 4 + 3] = b.data[i * 4 + 3]; }
-        c2.putImageData(a, 0, 0);
-        RIB.skinOfTexV151D[key] = skinRegisterV151D(scene, srcName, cell0, sk151);
+    if (sk151) {
+      try { RIB.skinOfTexV151D[key] = skinRegisterV151D(scene, srcName, cell0, sk151);
         const V = window.__V151D_SKIN; V.cells++; V.px += sk151.n; } catch (e) {}
     }
-    if (deco) { try { cv = deco(cv, srcName, RIB.numBandTex[key], cell0) || cv; } catch (e) {} }   // v151 B: a cosmetic deco reads the pose's own collar/waist and the raw art
     try { scene.textures.remove(key); } catch (e) {}
     scene.textures.addCanvas(key, cv);
   };
@@ -2012,7 +2129,9 @@ function ribRebindSideV159A(scene) {
  * scope), so the renderer hands them over: `kit(k)` is the [primary, secondary] a kit key ("you", "off") was last
  * registered with — after the cosmetics' uniform / team palette (v151 B, v159 A) — and `recolor` is ribRecolor itself.
  * Looks only: nothing here reads or writes a sim value or draws Math.random. */
-window.__V161A_FIELD = { kit: (k) => (RIB.teamCols[k] ? RIB.teamCols[k].slice() : null), recolor: (c, p1, p2) => ribRecolor(c, p1, p2), tones: SKIN_TONES_V151D };
+window.__V161A_FIELD = { kit: (k) => (RIB.teamCols[k] ? RIB.teamCols[k].slice() : null), recolor: (c, p1, p2) => ribRecolor(c, p1, p2), tones: SKIN_TONES_V151D,
+  // v193 I: the bodies grow the generator's skin mask the way the field grows its own (off: TU v193C or skinGrowV193I 0)
+  skinGrow: (d, w, h, mask) => (TU("v193C", 1) && TU("skinGrowV193I", 1) ? skinGrowV193I(d, w, h, mask, null, TU("skinGrowSeedBodyV193I", 1)) : 0) };
 window.__V162A = { bakes: 0, skips: 0, cheers: 0, key: () => { const sc = window.__gridironScene; return sc ? sc._fieldKeyV162A || null : null; } };
 window.__V159A_FIELD = { regs: 0, clones: 0, lastMs: 0, cloneMs: 0, cloned: 0, key: null, kit: false, side: 0, base: () => RIB.baseOffV159A && RIB.baseOffV159A.slice(), teams: () => Object.assign({}, RIB.teamCols) };
 // the atlas decodes the moment the page loads — long before any game starts
@@ -2885,7 +3004,7 @@ class Ot extends mt.Scene {
         this.camSpringV109(cam, pre147.x, pre147.y, this.camZoomFitV112(pre147.z), delta, this.screenPanBackKV175() * (FC ? TU("flagCamStiffK", 2.2) : (1 + cut * TU("camCutStiffK", 1.6)) * MD.stiff) * this.camStiffRateV147(r147, fol147 && !air147), pre147);
         if (P._camCut && P._camCut.t <= delta) this.v109E().cam.cuts++;
       }
-    } catch (e) {}
+    } catch (e) { warnOnceV193C("camera", e); }   /* v193 C: a frozen camera says why, once */
     // interpolate actors (skip during the glide-in so formations flow between plays)
     const fi = T / 33, i0 = Math.min(Math.floor(fi), 1e9), frac = fi - Math.floor(fi);
     const gliding = P.t < (P.delay || 0);
@@ -3253,8 +3372,8 @@ class Ot extends mt.Scene {
           this.lookG.lineStyle(2, col, 0.8).strokeCircle(x2, y2, 10 * (PJ(rm.sx, rm.sy).s || 1) + 6);
         }
       }
-    } catch (_e) {}
-    try { this.drawCoverV192F(P); } catch (_e) {}   // v192 F: zones, man lines, the open man's sparkle
+    } catch (_e) { warnOnceV193C("vision cone", _e); }   /* v193 C */
+    try { this.drawCoverV192F(P); } catch (_e) { warnOnceV193C("cover overlay", _e); }   // v192 F: zones, man lines, the open man's sparkle; v193 C: warned once
     // pending TD: celebrate the exact frame the carrier crosses the plane (sim space)
     if (P.pendTD) {
       const cm = this.markers[P.pendTD.idx];
@@ -5997,6 +6116,9 @@ class Ot extends mt.Scene {
     /* ===== v151 B HIS TOUCHDOWN, HIS WAY — the equipped celebration plays over the stadium's own, on HIS score only ===== */
     try { const P = this.play, cm = P && P.carrierId != null ? this.markers[P.carrierId] : null, C = window.RIB_COSMETICS;
       if (cm && cm.team === "you" && C && C.celebrate) { const cp0 = PJ(x, y); C.celebrate(this, cp0.x, cp0.y, cm); } } catch (e) {}
+    /* ===== v193 O HAPTICS — HIS touchdown (the featured you-marker carried it in) lands as a reward buzz ===== */
+    try { const P = this.play, F = P && P.script && P.script.meta && P.script.meta.featured;
+      if (F && F.isMe && P.carrierId != null && F.index === P.carrierId && window.ribHaptic) window.ribHaptic("reward"); } catch (e) {}
     { const P = this.play, pay = P && P.payload || {};   // v95: the badge is the TOUCHDOWN text, anchored on the crossing
       BADGE_V95.show("touchdown", { sub: pay.event === "run" || pay.event === "pass" ? badgeYdsV95(pay.yards).replace("+", "") : "", x, y, scene: this, token: "td:" + (P ? P.__ballTokenV1514 : Date.now()) }); }
     const cp = PJ(x, y); x = cp.x; y = cp.y;
@@ -6014,6 +6136,8 @@ class Ot extends mt.Scene {
       ribSyncYouKitV96(this, d.kitSide);
       try { const V = window.__V105_2 = window.__V105_2 || {}; V.you = { side: d.team, kitSide: d.kitSide }; } catch (e) {}
       this.setTeam(d, "you");
+      // v193 Q: the man the game calls HIM wears his own skin — the sim's actor names a roster man (his name's tone), not his choice
+      if (TU("v193Q", 1)) { try { d.skinTone = skinToneForV151D({ you: true }, d, -1); } catch (e) {} }
       /* ===== v70 PLUMBOB — the you-marker is a crystal over the head, not an aura =====
        * v18 stacked four gold effects on the GROUND under your player: a pulsing glow
        * disc, a bright pulsing ring, four spinning arc segments, and a bobbing chevron.
@@ -6382,7 +6506,7 @@ class Ot extends mt.Scene {
     if (!key || !this.textures.exists(key) || m.body.visible === false) { if (sk.visible) sk.setVisible(false); return; }
     if (sk.texture.key !== key) sk.setTexture(key);
     if (!sk.visible) sk.setVisible(true);
-    const b = m.body, tone = SKIN_TONES_V151D[m.skinTone != null ? m.skinTone : 3] || SKIN_TONES_V151D[3];
+    const b = m.body, tone = skinHexV193Q(m.skinTone != null ? m.skinTone : 3) || SKIN_TONES_V151D[3];   // v193 Q: an index or his custom hex
     const tv = parseInt(tone.slice(1), 16), lt = b.isTinted ? b.tintTopLeft : 0xffffff;
     const mulc = (s2) => Math.round(((tv >> s2) & 255) * ((lt >> s2) & 255) / 255);
     const tint = (mulc(16) << 16) | (mulc(8) << 8) | mulc(0);
@@ -6836,7 +6960,7 @@ class Ot extends mt.Scene {
     // side, any state), while linemen keep their numbers even in the pre-snap stance.
     const ribSideProfile = m.dirKey === "sd";
     const ribRearFacing = m.dirKey === "up" || m.dirKey === "ur";
-    const detailedAction = /^(juke|stiff|hurdle|catch\d|divecatch|pancake|getup)/.test(st);
+    const detailedAction = /^(juke|stiff|hurdle|catch\d|catchseq|divecatch|pancake|getup)/.test(st);   /* v193 C: the catch sequence hides the number through the reach, as catch\d does */
     const ribStance = st === "stance" || st === "stance2" || st === "stance3";   // v107
     const numberAllowed = st !== "down" && st !== "dive" && (!ribStance || m.isLine) && st.indexOf("tackle") !== 0 && !detailedAction && !ribSideProfile;
     m.label.setVisible(numberAllowed);
@@ -8948,7 +9072,7 @@ class Ot extends mt.Scene {
       else if (A && A.nm) { const parts = String(A.nm).trim().split(/\s+/); name = parts[parts.length - 1]; }
     } catch (e) {}
     const kit = m ? (you ? "you" : (m.kit || m.team || "off")) : (idx >= 11 ? "def" : "off");
-    return { idx, you, kit, name: name.toUpperCase().slice(0, 14), tone: m && Number.isFinite(m.skinTone) ? m.skinTone : null };
+    return { idx, you, kit, name: name.toUpperCase().slice(0, 14), tone: m && (Number.isFinite(m.skinTone) || skinHexV193Q(m.skinTone)) ? m.skinTone : null };   // v193 Q: a custom hex rides too
   }
   // the team's colours (ints, brightened for a dark kit so a burst still shows against the night)
   partyColsV177C(kit, extra) {
@@ -11441,6 +11565,77 @@ class Dt {
     rebindOnSwapV163A(this.game);   // v163 A: and a texture swapped under a sprite is rebound before it is drawn
   }
 }
+/* ===== v193 Q HIS SKIN, HIS NUMBER, HIS KIT =====
+ * (the field) The creation screen's ninth swatch is a CUSTOM tone: `player.skinTone` is a preset index (0-7, v193 C)
+ * or a hex string ("#a4704b", a picker held to plausible skin: hue 15-40, saturation 25-60%, lightness 18-85%).
+ * `skinHexV193Q(v)` is the ONE resolver here: an index -> SKIN_TONES_V151D[i], a valid hex -> itself (lower-case),
+ * anything else -> null. `skinToneV151D` hands a custom hex through (so the you-marker's `m.skinTone` may be a hex),
+ * `skinSyncV151D` tints with the resolved hex, and the jumbotron party's hero carries it to src/28's celebration
+ * body. Published as `window.__V193Q.skinHex` for src/28 and src/07 (05 and 28 share no code). Kill switch
+ * TU("v193Q", 0): a hex reads as "no choice" (the name's tone), as before. Looks only. */
+function skinHexV193Q(v) {
+  if (typeof v === "string") { const t = v.trim(); return /^#[0-9a-f]{6}$/i.test(t) && TU("v193Q", 1) ? t.toLowerCase() : null; }
+  if (typeof v === "number" && Number.isFinite(v)) return SKIN_TONES_V151D[Math.max(0, Math.min(SKIN_TONES_V151D.length - 1, Math.round(v)))];
+  return null;
+}
+/* THE LOCKER'S PREVIEW IS THE FIELD'S MAN. src/28 drew every uniform / helmet preview off the loading chase's cell
+ * recolour (03 `cell`), which is not what the field wears: it skips every pixel darker than L 38 (the jersey's folds stay
+ * navy), sends the skin's warm highlights to the kit's second colour, keeps the art's orange placeholder for skin, and
+ * prints no number. `fieldPreviewV193Q(cell, p1, p2, deco, tone, num, spec)` builds one drawn cell exactly as
+ * `ribRegisterTeam` does (`kitCellV193C`: the recolour, the deco, the skin restored), then lays the v151 D skin layer on
+ * it in his tone and the v176 print on the chest (the same placement, `placeV176`, and the same ink rule as `inkV176`,
+ * read off this canvas), with no scene. Returns { cv, mask (the skin), skinPx, numPx, num (the print's pixels) }. */
+function fieldPreviewV193Q(srcName, p1, p2, deco, tone, num, spec) {
+  const cell0 = ribCellV91(srcName) || ribCellV22(srcName) || ribCell(srcName); if (!cell0) return null;
+  const built = kitCellV193C(cell0, srcName, p1, p2, deco || null, numBandV104(srcName, cell0));
+  const N = 48, cv = document.createElement("canvas"); cv.width = N; cv.height = N;
+  const x = cv.getContext("2d"); x.imageSmoothingEnabled = false; x.drawImage(built.cv, 0, 0);
+  const img = x.getImageData(0, 0, N, N), d = img.data, sk = built.sk151, out = { cv, mask: sk ? sk.mask : null, skinPx: 0, numPx: 0, num: null, tone: null };
+  // the skin layer: v151 D's grey luminance cell times his tone (the preview's light is white)
+  if (sk && TU("skinV151D", 1)) {
+    const hx = skinHexV193Q(tone != null ? tone : 3) || SKIN_TONES_V151D[3], tv = hexRgbV176(hx), g = skinCellV151D(srcName, cell0, sk).getContext("2d").getImageData(0, 0, N, N).data;
+    for (let i = 0; i < N * N; i++) { if (!sk.mask[i]) continue; const v = g[i * 4]; d[i * 4] = Math.round(tv[0] * v / 255); d[i * 4 + 1] = Math.round(tv[1] * v / 255); d[i * 4 + 2] = Math.round(tv[2] * v / 255); d[i * 4 + 3] = 255; out.skinPx++; }
+    out.tone = hx;
+  }
+  // the print: v176's placement on this cell, its ink off these pixels (or the number font's spec)
+  const str = String(num == null ? "" : num).replace(/[^0-9]/g, "").slice(0, 2), F = facingV176(srcName);
+  if (str && F && TU("v176sew", 1)) {
+    try {
+      const P = placeV176(srcName, F, false, str, spec && spec.narrow), TC = P ? torsoClassV176(srcName, cell0) : null;
+      if (P && TC) {
+        const J = [[], [], []], S2 = [[], [], []], med = (a) => { a.sort((p, q) => p - q); return a.length ? a[a.length >> 1] : 0; };
+        for (let i = 0; i < N * N; i++) { const k = TC.cls[i] === 1 ? J : TC.cls[i] === 2 ? S2 : null; if (k && d[i * 4 + 3] > 200) { k[0].push(d[i * 4]); k[1].push(d[i * 4 + 1]); k[2].push(d[i * 4 + 2]); } }
+        if (J[0].length) {
+          const j = J.map(med), alt = S2[0].length ? S2.map(med) : null, nom = hexRgbV176(p1), nom2 = hexRgbV176(p2), Ln = lumRgbV176(nom), La = lumRgbV176(nom2);
+          let fill, trim;
+          if (Ln > TU("sewLightV176", 160)) { fill = alt && Ln - La > TU("sewInkGapV176", 80) ? alt : nom.map((v) => Math.round(v * 0.18)); trim = null; }
+          else { fill = [255, 255, 255]; trim = alt && 255 - La > TU("sewTrimGapV176", 45) && Math.abs(La - Ln) > 30 ? alt : j.map((v) => Math.round(v * 0.5)); }
+          if (spec) { fill = hexRgbV176(spec.fill); trim = hexRgbV176(spec.trim); }
+          const T = P.T, lo = TU("sewShadeLoV176", 0.62), hi = TU("sewShadeHiV176", 1.1), mask = new Uint8Array(N * N);
+          const set = (px, py, c) => { if (py < T.y0 || T.at(px, py) !== 1) return; const i = py * N + px, f = Math.max(lo, Math.min(hi, T.lumAt(px, py) / T.med));
+            d[i * 4] = Math.min(255, c[0] * f); d[i * 4 + 1] = Math.min(255, c[1] * f); d[i * 4 + 2] = Math.min(255, c[2] * f); d[i * 4 + 3] = 255; if (!mask[i]) { mask[i] = 1; out.numPx++; } };
+          const fillPx = [], isFill = new Set();
+          for (const p of P.Lo.parts) for (let gy = 0; gy < p.g.length; gy++) { const row = p.g[gy]; for (let gx = 0; gx < row.length; gx++) if (row[gx] === "#") { const fx = P.x0 + p.x + gx, fy = P.y0 + gy; fillPx.push(fx, fy); isFill.add(fy * N + fx); } }
+          if (P.trim && trim) {   // round the OUTSIDE of the numerals only (a 0's counter stays shirt), as v176 does
+            const bx0 = P.x0 - 2, by0 = P.y0 - 2, bw = P.Lo.w + 4, bh = P.Lo.h + 4, outside = new Uint8Array(bw * bh), q = [0];
+            outside[0] = 1;
+            while (q.length) { const jj = q.pop(), qx = jj % bw, qy = (jj / bw) | 0;
+              for (const [ddx, ddy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) { const nx = qx + ddx, ny = qy + ddy; if (nx < 0 || ny < 0 || nx >= bw || ny >= bh) continue; const nj = ny * bw + nx; if (outside[nj] || isFill.has((by0 + ny) * N + bx0 + nx)) continue; outside[nj] = 1; q.push(nj); } }
+            for (let k = 0; k < fillPx.length; k += 2) for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) { const tx = fillPx[k] + dx, ty = fillPx[k + 1] + dy; if (!isFill.has(ty * N + tx) && outside[(ty - by0) * bw + (tx - bx0)]) set(tx, ty, trim); }
+          }
+          for (let k = 0; k < fillPx.length; k += 2) set(fillPx[k], fillPx[k + 1], fill);
+          out.num = mask;
+        }
+      }
+    } catch (e) {}
+  }
+  x.putImageData(img, 0, 0);
+  return out;
+}
+window.__V193Q = Object.assign(window.__V193Q || {}, { skinHex: skinHexV193Q, tones: SKIN_TONES_V151D, fieldPreview: fieldPreviewV193Q,
+  // the texture ribRegisterTeam registers for this cell and kit (the check's reference: the preview must equal it off the skin and the print)
+  fieldTex: (srcName, p1, p2, deco) => { const c = ribCellV91(srcName) || ribCellV22(srcName) || ribCell(srcName); return c ? kitCellV193C(c, srcName, p1, p2, deco || null, numBandV104(srcName, c)).cv : null; } });
+
 window.PhaserFieldBridge = Dt;
 window.__pickFeaturedIndex = pickFeaturedIndex;
 

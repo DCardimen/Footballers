@@ -212,7 +212,8 @@
    * skip from an earlier page commits the same held roll unseen. `TU("wheelOnPageV135",0)`
    * restores the overlay before the wizard. */
   let heldV135=null;
-  const keyV135=(pl,plans)=>(pl.name||"")+"|"+((pl.weekResults||[]).filter(w=>w&&w.played).length)+"|"+(pl.currentWeek|0)+"|"+plans.map(p=>p.id).join(",");
+  const weekKeyV193H=pl=>(pl.name||"")+"|"+((pl.weekResults||[]).filter(w=>w&&w.played).length)+"|"+(pl.currentWeek|0);   // v193 H: the week part of the held roll's key
+  const keyV135=(pl,plans)=>weekKeyV193H(pl)+"|"+plans.map(p=>p.id).join(",");
   function wheelCfgV135(pl,d){
     const g=G(),LBL=(g&&g.LBL)||{};
     const {all,opts,cut,idx,win,band,out,stats,jive,odds,nudge,why,JF,P}=d;
@@ -240,7 +241,8 @@
     if(heldV135&&heldV135.key===key)return heldV135;
     // v146 D: choice mode holds the week's DICE with the default pick; the pick itself is the player's
     const ch=choiceV146(),dice=ch?{nz:Math.random(),rr:Math.random(),am:Math.random()}:null;
-    const d=ch?decidePlan(pl,plans,defaultPickV146(pl,plans),dice):decidePlan(pl,plans); if(!d)return null;
+    oddsPickV193=null;   // v193 B: a new week, a new read of the odds
+    const d=ch?decidePlan(pl,plans,defaultPickV146(pl,plans,dice),dice):decidePlan(pl,plans); if(!d)return null;
     heldV135={key,d,pl,plans,dice,applied:false,rolledAt:Date.now()};
     return heldV135;
   }
@@ -255,19 +257,81 @@
    * round the board re-prices the odds without re-rolling them, and the result is only revealed at
    * kickoff (`rollSayV146`, `week.planRollV146`). */
   function choiceV146(){return !(window.TU?window.TU("planWheelV146",0):0)}
-  function defaultPickV146(pl,plans){const has=id=>id&&plans.some(p=>p.id===id);
-    if(has(pl&&pl.planPickV146))return pl.planPickV146;const sp=plans.find(p=>p.scout);return sp?sp.id:(plans[0]&&plans[0].id)}
+  /* ===== v193 B THE PLAN SHOWS ITS ODDS (the roll) =====
+   * The scout's suggestion was the default pick whatever its odds of clicking — a plan the dice gave one chance in
+   * five was still the one lit on the board. With the week's dice in hand (`holdPlanV135` draws them before the
+   * default is chosen now), `defaultPickV146` reads every plan's click odds (`decidePlan` with those dice) and, when
+   * the scout's plan is not green (`planGreenV193`) and another is, lights the greenest plan whose perf (the plan's
+   * own + the matchup modifier, `__V146.facts`) is within `planGreenGapV193` of the scout's — the card says why
+   * (`oddsPickV193`). A remembered pick wins only when green or picked this week (v193 H). `revealPlanV193` shows the held outcome early (page 5's ROLL THE
+   * PLAN): from then on the pick is LOCKED (`heldV135.revealedV193`; `pickPlanV146` refuses with a toast), `bandForV146`
+   * answers with the FIXED band for that plan (`fixed`, `amtG` / `amtR`) so the projection and the score follow, and
+   * `rollSayV146` writes the week's roll at kickoff without the toast — it was already seen. Kill switch `v193B`. */
+  let oddsPickV193=null;   // this week: {scout, scoutG, pick, pickG, modified, scoutPerf, pickPerf}
+  const v193On=()=>!!(window.TU?window.TU("v193B",1):1);
+  function oddsDefaultV193(pl,plans,sp,dice){
+    const G=window.TU?window.TU("planGreenV193",.4):.4,GAP=window.TU?window.TU("planGreenGapV193",3):3;
+    const perfOf=id=>{try{const f=window.__V146&&window.__V146.facts?window.__V146.facts(null,id):null;return f?(f.perf||0)+(f.match||0):0}catch(e){return 0}};
+    const gOf=id=>{const d=decidePlan(pl,plans,id,dice);return d?d.odds.g:0};
+    const gS=gOf(sp.id),pS=perfOf(sp.id);
+    oddsPickV193={scout:sp.id,scoutG:gS,scoutPerf:pS,pick:sp.id,pickG:gS,pickPerf:pS,modified:false,green:G,gap:GAP};
+    if(gS>=G)return sp.id;
+    let best=null;
+    plans.forEach(p=>{if(p.id===sp.id)return;const g=gOf(p.id);if(g<G)return;const pf=perfOf(p.id);if(pS-pf>GAP)return;if(!best||g>best.g)best={id:p.id,g,perf:pf}});
+    if(!best&&v193HOn()){   // v193 H: nothing green within the gap — a plan whose clicks beat the scout's by planBetterByV193H still takes the board
+      const BY=window.TU?window.TU("planBetterByV193H",.10):.10;oddsPickV193.by=BY;
+      plans.forEach(p=>{if(p.id===sp.id)return;const g=gOf(p.id);if(g<gS+BY-1e-9)return;const pf=perfOf(p.id);if(pS-pf>GAP)return;if(!best||g>best.g)best={id:p.id,g,perf:pf,rule:"better"}})}
+    if(!best)return sp.id;
+    Object.assign(oddsPickV193,{pick:best.id,pickG:best.g,pickPerf:best.perf,modified:true,rule:best.rule||"green"});
+    return best.id}
+  /* ===== v193 H THE ODDS DECIDE THE DEFAULT, THE SCORE SAYS HOW SURE (the roll) =====
+   * v193 B let a remembered pick (`pl.planPickV146`) win before the odds were read, so after the first week the odds
+   * never decided anything again: last week's plan stayed lit at 18% clicks. Now the remembered pick wins only when it
+   * is itself green with this week's dice, or when he picked it THIS week (`pl.planPickWeekV193H`, the week part of the
+   * held roll's key, `weekKeyV193H`, written by `pickPlanV146`) — re-opening the wizard the same week keeps his pick.
+   * Otherwise `oddsDefaultV193` runs, and when no green plan sits within `planGreenGapV193` perf of the scout's it
+   * still moves off the scout's plan to the plan with the highest click odds that beats it by `planBetterByV193H`
+   * (.10) inside the gap (`oddsPickV193.rule` "green" / "better"; the card's "Scout says X · odds say Y" covers both).
+   * A simmed week (no dice) keeps the remembered pick, as v146 D did. Kill switch `TU("v193H", 1)`. */
+  const v193HOn=()=>!!(window.TU?window.TU("v193H",1):1);
+  function rememberedV193H(pl,plans,sp,dice){const id=pl.planPickV146,G=window.TU?window.TU("planGreenV193",.4):.4;
+    const d=decidePlan(pl,plans,id,dice),g=d?d.odds.g:0,week=pl.planPickWeekV193H===weekKeyV193H(pl);
+    const keep=week||g>=G;
+    if(keep)oddsPickV193={scout:sp?sp.id:null,scoutG:null,pick:id,pickG:g,modified:false,remembered:week?"week":"green",green:G};
+    return keep?{id,g}:{id,g,dropped:true}}
+  function toastV193(msg){try{const t=document.getElementById("toast");if(!t)return;t.textContent=msg;t.classList.add("show");clearTimeout(toastV193._t);toastV193._t=setTimeout(()=>t.classList.remove("show"),2600)}catch(e){}}
+  function revealedV193(){const h=heldV135;if(!h||!h.revealedV193||!h.d||h.d.win.id!==h.revealedV193)return null;const d=h.d,LBL=(d.g&&d.g.LBL)||{};
+    return{id:d.win.id,name:d.win.name,icon:d.win.icon,band:d.band,sign:d.out.sign,amt:d.out.amt,stats:d.stats.slice(),
+      lines:d.stats.length&&d.band!=="neutral"?d.stats.map(k=>(d.out.sign>0?"+":"−")+d.out.amt+" "+(LBL[k]||k)).join(" · "):"no swing this game",
+      say:d.band==="green"?"IT CLICKS":d.band==="neutral"?"IT'LL DO":"IT BACKFIRES",story:d.out.story,odds:d.odds}}
+  function revealPlanV193(){const h=heldV135;if(!h||!h.dice||h.applied||!v193On())return null;
+    if(!h.revealedV193){h.revealedV193=h.d.win.id;h.revealedAtV193=Date.now();
+      try{const b=h.d&&h.d.band;window.ribHaptic&&window.ribHaptic(b==="green"?"success":b==="neutral"?"warning":"error")}catch(e){}}   // v193 O HAPTICS: it clicks / it'll do / it backfires
+    return revealedV193()}
+  function defaultPickV146(pl,plans,dice){const has=id=>id&&plans.some(p=>p.id===id);const sp=plans.find(p=>p.scout);
+    const odds=!!(dice&&sp&&v193On()&&choiceV146());let dropped=null;
+    if(has(pl&&pl.planPickV146)){
+      if(!(odds&&v193HOn()))return pl.planPickV146;   // v146 D / v193 B: the remembered pick wins (a simmed week, or v193H 0)
+      try{const M=rememberedV193H(pl,plans,sp,dice);if(!M.dropped)return M.id;dropped=M}catch(e){return pl.planPickV146}}   // v193 H: only a green or this week's pick
+    if(odds){try{const id=oddsDefaultV193(pl,plans,sp,dice);if(dropped&&oddsPickV193)oddsPickV193.dropped={id:dropped.id,g:dropped.g};return id}catch(e){}}   // v193 B: the odds modify the scout's suggestion
+    return sp?sp.id:(plans[0]&&plans[0].id)}
   function pickPlanV146(id){const h=heldV135;if(!h||h.applied||!h.dice||!h.plans.some(p=>p.id===id))return null;
-    const d=decidePlan(h.pl,h.plans,id,h.dice);if(!d)return null;h.d=d;h.pl.planPickV146=id;
+    if(h.revealedV193){if(id!==h.revealedV193)toastV193("🎲 The plan is rolled — it stands");return null}   // v193 B: a revealed roll locks the pick
+    const d=decidePlan(h.pl,h.plans,id,h.dice);if(!d)return null;h.d=d;h.pl.planPickV146=id;h.pl.planPickWeekV193H=weekKeyV193H(h.pl);/* v193 H: the week he picked it */
     try{window.__pregamePickV146&&window.__pregamePickV146(id)}catch(e){}return d}
   // the stats a click (3) and a backfire (2) move, in the order decidePlan walks the position's pool
   function seqStatsV146(pl,idx,n){const g=G(),pool=(g&&g.POOLS&&(g.POOLS[pl.pos]||g.POOLS.LB))||[],out=[];
     for(let i=0;i<pool.length&&out.length<n;i++){const k=pool[(i*2+idx)%pool.length];if(k&&out.indexOf(k)<0)out.push(k)}return out}
   function bandForV146(id){const h=heldV135;if(!h||!h.dice)return null;const d=decidePlan(h.pl,h.plans,id,h.dice);if(!d)return null;
-    return{id,g:d.odds.g,n:d.odds.n,r:d.odds.r,statsG:seqStatsV146(h.pl,d.idx,3),statsR:seqStatsV146(h.pl,d.idx,2),jive:d.jive,why:d.why,scout:!!d.win.scout}}
+    const b={id,g:d.odds.g,n:d.odds.n,r:d.odds.r,statsG:seqStatsV146(h.pl,d.idx,3),statsR:seqStatsV146(h.pl,d.idx,2),jive:d.jive,why:d.why,scout:!!d.win.scout,oddsG:d.odds.g,oddsN:d.odds.n,oddsR:d.odds.r};
+    if(h.revealedV193===id&&h.d&&h.d.win.id===id){   // v193 B: revealed — the band is known, the odds are history
+      const bd=h.d.band;b.fixed=true;b.band=bd;b.g=bd==="green"?1:0;b.n=bd==="neutral"?1:0;b.r=bd==="red"?1:0;
+      if(bd==="green"){b.statsG=h.d.stats.slice();b.amtG=h.d.out.amt}if(bd==="red"){b.statsR=h.d.stats.slice();b.amtR=h.d.out.amt}}
+    return b}
   function rollSayV146(h){const d=h.d,pl=h.pl,LBL=(d.g&&d.g.LBL)||{},w=(pl.weekResults||[]).find(x=>x&&!x.played);
     const lines=d.stats.length&&d.band!=="neutral"?d.stats.map(k=>(d.out.sign>0?"+":"−")+d.out.amt+" "+(LBL[k]||k)).join(" · "):"no swing this game";
-    if(w)w.planRollV146={id:d.win.id,name:d.win.name,icon:d.win.icon,band:d.band,lines};
+    if(w)w.planRollV146={id:d.win.id,name:d.win.name,icon:d.win.icon,band:d.band,lines,revealedV193:!!h.revealedV193};
+    if(h.revealedV193)return;   // v193 B: he saw it on page 5 — no second toast
     const t=document.getElementById("toast");if(t){t.textContent=`${d.win.icon||"📋"} ${d.win.name}: ${d.band==="green"?"IT CLICKS":d.band==="neutral"?"IT'LL DO":"IT BACKFIRES"} — ${lines}`;t.classList.add("show");clearTimeout(rollSayV146._t);rollSayV146._t=setTimeout(()=>t.classList.remove("show"),3200)}}
   const wizardUpV135=()=>{const ch=window.chooseGamePlanV11;return !!(ch&&ch.__pregameV1514)&&!window.__silentSimV85&&!!(window.TU?window.TU("wheelOnPageV135",1):1)};
   function rollPlan(panel){
@@ -314,5 +378,7 @@
   try{new MutationObserver(sweep).observe(document.body,{childList:true,subtree:true})}catch(e){}
   setInterval(sweep,400);
   window.__PREGAME_V51={readPlans,boldOf,appetite,rollPlan,decidePlan,silentPlan,hold:()=>heldV135,cfg:()=>heldV135?wheelCfgV135(heldV135.pl,heldV135.d):null,apply:applyHeldV135,commit:commitHeldV135,wizardUp:wizardUpV135,
-    choice:choiceV146,pick:pickPlanV146,band:bandForV146,defaultPick:defaultPickV146};
+    choice:choiceV146,pick:pickPlanV146,band:bandForV146,defaultPick:defaultPickV146,
+    reveal:revealPlanV193,revealed:revealedV193,oddsPick:()=>oddsPickV193,   // v193 B
+    weekKey:weekKeyV193H,on193H:v193HOn};   // v193 H
 })();

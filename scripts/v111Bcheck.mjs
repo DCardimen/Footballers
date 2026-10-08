@@ -165,7 +165,7 @@ ok(Math.abs(num(V.cost, 'wear') - Math.round(fc.load)) < 1, 'WEAR on screen is f
 ok(Math.abs(num(V.cost, 'injury') - Math.round(fc.injPct)) < 1, 'INJURY on screen is forecast.injPct', `${num(V.cost, 'injury')}% vs ${Math.round(fc.injPct)}%`)
 ok(Math.abs(num(V.cost, 'games out') - Math.round(fc.gamesMissed * 10) / 10) < .06, 'GAMES OUT on screen is forecast.gamesMissed', `${num(V.cost, 'games out')} vs ${(Math.round(fc.gamesMissed * 10) / 10).toFixed(1)}`)
 ok(Math.abs(num(V.buy, 'snap') - Math.round(us.share * 100)) < 1, 'TEAM SNAPS on screen is usage.share', `${num(V.buy, 'snap')}% vs ${Math.round(us.share * 100)}%`)
-ok(Math.abs(num(V.buy, 'touch') - Math.round(us.touchMul * 100) / 100) < .011, 'TOUCH SHARE on screen is usage.touchMul', `${num(V.buy, 'touch')} vs ${us.touchMul}`)
+ok(Math.abs(num(V.buy, 'touch') - Math.round(us.touchMul * 10) / 10) < .011, 'TOUCH SHARE on screen is usage.touchMul (v193 N: one decimal)', `${num(V.buy, 'touch')} vs ${us.touchMul}`)
 
 // 4. why this week is expensive
 const parts = Array.isArray(fc.parts) ? fc.parts : []
@@ -199,7 +199,7 @@ const modelFocus = await page.evaluate(p => window.__V111_UI.focusFor(p), V.pos)
 await goPage(1)                                   // v112 D: the focus is page 2's decision
 const VF = await readUI()
 ok(VF.focus.length === 3 && VF.focus.every(f => f.vis), 'exactly three focus cards, all of them on screen', VF.focus.map(f => f.name).join(' | '))
-ok(VF.focus.every(f => /×1\.\d\d/.test(f.mul || '')), 'each shows the stat and the multiplier', VF.focus.map(f => f.mul).join(' | '))
+ok(VF.focus.every(f => /×\d\.\d(?!\d)/.test(f.mul || '')), 'each shows the stat and the multiplier (v193 N: one decimal)', VF.focus.map(f => f.mul).join(' | '))
 const want = POS_STATS[V.pos] || []
 // v171 C: a card whose drill went sideways this week (`off`) trains a stat the position barely uses — the card's own stat is `baseStat`
 ok(!want.length || modelFocus.every(f => want.indexOf(f.off ? f.baseStat : f.stat) >= 0), `they are ${V.pos}-appropriate (a sideways drill named as such)`, modelFocus.map(f => (f.off ? f.baseStat + '→' : '') + f.stat).join('/') + ' vs ' + want.join('/'))
@@ -236,9 +236,9 @@ const swap = await page.evaluate(() => {
   window.__v111PickUsageV111('heavy')
   return out
 })
-ok(/77%/.test(swap.buy) && /1\.44/.test(swap.buy) && /Bell Cow/.test(swap.buy), "A's usage() reaches WHAT IT BUYS", swap.buy)
+ok(/77%/.test(swap.buy) && /1\.4(?!\d)/.test(swap.buy) /* v193 N: ×1.44 prints ×1.4 */ && /Bell Cow/.test(swap.buy), "A's usage() reaches WHAT IT BUYS", swap.buy)
 ok(/\+41/.test(swap.cost) && /29%/.test(swap.cost) && /0\.7/.test(swap.cost) && /-5\.5/.test(swap.cost), "A's forecast() reaches WHAT IT COSTS", swap.cost)
-ok(/Model part ×1\.23/.test(swap.chips) && /fatigue after 64/.test(swap.chips), "and its parts are the chips", swap.chips)
+ok(/Model part ×1\.2(?!\d)/.test(swap.chips) /* v193 N: ×1.23 prints ×1.2 */ && /fatigue after 64/.test(swap.chips), "and its parts are the chips", swap.chips)
 
 // 6. nothing was lost
 await goPage(2)                                   // v112 D: the coordinator is page 3

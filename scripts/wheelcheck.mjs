@@ -428,7 +428,7 @@ await click('PLAY WEEK 1 LIVE')
 // wheel is its FIFTH page, mounted into the page. Walk there.
 for (let i = 0; i < 40 && !(await page.evaluate(() => !!document.getElementById('pregameV1513'))); i++) await page.waitForTimeout(250)
 ok(await page.evaluate(() => !!document.getElementById('pregameV1513') && !document.getElementById('growthV42')), 'PLAY WEEK opens the pregame wizard with no wheel spun over the season screen (v135)')
-await page.evaluate(() => window.__V112_D.go(4))
+await page.evaluate(() => window.__V112_D.go('v112Page5'))   // v193 B: by id — the YOUR TEAM page sits before it
 
 let pre = null
 for (let i = 0; i < 40; i++) {

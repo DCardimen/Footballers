@@ -47,12 +47,12 @@ const B = await M(() => {
   S.tree = { lkLine: 101 }; const line = V.locker(men)
   S.tree = {}; const p0 = window.__TEAMPAIR_V76(S.player, { seed: 55 })
   S.tree = { lkAll: 220 }; const p1 = window.__TEAMPAIR_V76(S.player, { seed: 55 }), tot = V.lockerTotal()
-  const nodes = ['lkSkill', 'lkLine', 'lkFront', 'lkBack', 'lkCaptain', 'lkAll'].map(k => N[k] && N[k].branch === 'locker' && N[k].max >= 999 && N[k].mult === 1.04)
+  const nodes = ['lkSkill', 'lkLine', 'lkFront', 'lkBack', 'lkCaptain', 'lkAll'].map(k => N[k] && N[k].branch === 'locker' && N[k].max >= 999 && N[k].mult === (k === 'lkAll' ? 1.03 : 1.04))   /* v193 E: Team Dinners is the cheap sink (10 PP ×1.03) */
   S.tree = { lkLine: 100 }; const c100 = X.nodeCost(N.lkLine)
   S.tree = {}
   return { skill, cap, line, p0: p0.us, p1: p1.us, opp: [p0.opp, p1.opp], tot, nodes, c0: X.nodeCost(N.lkLine), c100 }
 })
-ok(B.nodes.every(Boolean) && B.nodes.length === 6, 'six FOREVER Locker Room nodes at ×1.04 a level', B.nodes)
+ok(B.nodes.every(Boolean) && B.nodes.length === 6, 'six FOREVER Locker Room nodes at ×1.04 a level (Team Dinners ×1.03 since v193 E)', B.nodes)
 ok(B.skill[1] === 0 && B.skill.slice(0, 5).reduce((a, b) => a + b, 0) === 9 && B.skill[0] === 3 && B.skill[4] === 2, 'Huddle Mates hands +1s round the QB/WR/TE (never the you-player)', B.skill)
 ok(B.cap[7] > 0 && B.cap[1] === 0 && Math.max(...B.cap) <= 10, 'the Captain\'s Table lifts the weakest first', B.cap)
 ok(B.line[5] === 51 && B.line[6] === 50, 'Trench Brothers ×101: the two linemen +51 / +50', B.line)

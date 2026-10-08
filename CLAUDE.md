@@ -118,3 +118,4 @@ node scripts/<name>check.mjs                       # one check by hand against :
 | `docs/AUDIT.md` | the engineering audit: wrapper stacks, dead code, risks, roadmap |
 | `docs/MONETIZATION.md` / `docs/APP-STORE.md` / `docs/COMMERCIAL.md` | the store module / shipping to the stores / the plan |
 | `docs/PRESTIGE-VAULT.md` / `docs/LEADERBOARDS.md` / `docs/SEASONS.md` | the vault's physics and money / the online boards / seasons, the Career Pass, the career boards |
+| `docs/QUALITY-PASS-v193.md` | the v193 quality pass: the ten points, the balance patch, what is next |

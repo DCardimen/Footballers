@@ -124,6 +124,9 @@
   const JERSEY = { QB: [1, 19], RB: [20, 49], WR: [10, 19], TE: [80, 89], OL: [50, 79], DL: [90, 99], LB: [40, 59], CB: [20, 39], S: [20, 39] };
   const hashOf = (text) => { let h = 7; for (const ch of String(text || '')) h = (h * 31 + ch.charCodeAt(0)) >>> 0; return h; };
   const jerseyFor = (name, pos) => {   // stable per name: the game rolls a fresh number per game, the menu should not
+    // v193: the number on his chest (src/28's v157 C — the field's slot number for his position) when there is one,
+    // so the menu card, the ticker, the profile and the field all show the same number
+    try { if (pos && window.__V157C && window.__V157C.jersey) { const g = window.__V157C.jersey(pos); if (g != null) return g } } catch (e) {}
     const r = JERSEY[pos] || [1, 99];
     return r[0] + (hashOf(name) % (r[1] - r[0] + 1));
   };

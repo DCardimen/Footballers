@@ -241,7 +241,7 @@ const exact = await page.evaluate(() => {
     cells,
     want: [sg(D.load), Math.round(D.injPct) + '%', (Number(D.gamesMissed) || 0).toFixed(1), sg(D.statCut || 0)],
     drvMul: drv.map(d => d.k + ' ' + d.mul).join(' '),
-    wantDrv: 'DURABILITY ×' + D.durMul.toFixed(2) + ' OPPONENT ×' + D.oppMul.toFixed(2) + ' STAKES ×' + D.stakes.toFixed(2),
+    wantDrv: 'DURABILITY ×' + (Math.round(D.durMul * 10) / 10).toFixed(1) + ' OPPONENT ×' + (Math.round(D.oppMul * 10) / 10).toFixed(1) + ' STAKES ×' + (Math.round(D.stakes * 10) / 10).toFixed(1), // v193 N: one decimal
   }
 })
 console.log('exact:', JSON.stringify(exact))
@@ -291,7 +291,7 @@ const model = await page.evaluate(() => {
 console.log('model:', JSON.stringify(model))
 ok(model.cells.join('|') === '+18|19%|0.4|−4', "the drawn numbers are the MODEL's forecast", model.cells.join(' '))
 ok(/HEAVY ROTATION/.test(model.kick), "the model's own involvement label is used", model.kick)
-ok(model.drv.join(' ') === 'DURABILITY ×1.11 OPPONENT ×1.44 STAKES ×1.60', "the model's parts[] resolve onto the three drivers however it labels them", model.drv.join(' '))
+ok(model.drv.join(' ') === 'DURABILITY ×1.1 OPPONENT ×1.4 STAKES ×1.6', "the model's parts[] resolve onto the three drivers however it labels them (v193 N: ×1.11 / ×1.44 / ×1.60 print one decimal)", model.drv.join(' '))
 // the model ships in this build, so the transition the card can actually be caught making is the
 // other one: take the model AWAY and the local estimate must still carry the section
 ok(model.fb.stub && !model.fb.api && !model.fb.err, 'with no model at all the card falls back to its own estimate', `api=${model.fb.api} stub=${model.fb.stub} err=${model.fb.err || 'none'}`)

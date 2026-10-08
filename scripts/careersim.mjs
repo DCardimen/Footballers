@@ -148,7 +148,7 @@ function installDriver () {
     const progs = Object.keys(A.TRAINING || { balanced: 1 }), training = casual ? progs[Math.floor(Math.random() * progs.length)] : o.training || 'balanced'
     const t0 = Date.now(), rec = { seasons: [], level: 0, maxLevel: 0, title: false, end: null, views: [], steps: 0, ms: 0, pos: null, uffSeasons: 0, skips: null }
     const trail = (v) => { if (rec.views[rec.views.length - 1] !== v) rec.views.push(v); if (rec.views.length > 400) rec.views.splice(0, 100) }
-    const dump = (why) => { const s = S(), p = s.player; rec.end = why; rec.stuck = { view: s.view, level: p && p.level, weeks: p && p.weekResults ? p.weekResults.map((w) => (w.played ? 'P' : '.') + (w.playoff ? 'p' : '')).join('') : null, lastSim: (window.__V147A && window.__V147A.lastSim) || (window.__V164B && window.__V164B.lastSim) || null, offers: !!(p && p.offersV146B), cutOut: !!(p && p.cutOutV146B), pending: p && p.pendingEvent, screen: ((document.getElementById('screen') || {}).innerText || '').replace(/\s+/g, ' ').slice(0, 160) }; return rec }
+    const dump = (why) => { const s = S(), p = s.player; rec.end = why; rec.totalSeasons = p ? p.totalSeasons : rec.seasons.length; rec.games = rec.seasons.reduce((a, c) => a + c.games, 0); rec.pp = s.pp; rec.stuck = { view: s.view, level: p && p.level, weeks: p && p.weekResults ? p.weekResults.map((w) => (w.played ? 'P' : '.') + (w.playoff ? 'p' : '')).join('') : null, lastSim: (window.__V147A && window.__V147A.lastSim) || (window.__V164B && window.__V164B.lastSim) || null, offers: !!(p && p.offersV146B), cutOut: !!(p && p.cutOutV146B), pending: p && p.pendingEvent, screen: ((document.getElementById('screen') || {}).innerText || '').replace(/\s+/g, ' ').slice(0, 160) }; return rec }
     // the account's menu → a new player
     if (S().player) { if (!S().player._settled) return dump('a live player was still on the account') ; window.prestigeReset() }
     rec.skips = (() => { try { const k = window.__V156B.skips(); return { allowed: k.allowed, medals: k.medals } } catch (e) { return null } })()
@@ -224,7 +224,15 @@ function installDriver () {
         const i = window.__V147A.pickEvent(p, ev)
         rec.events = (rec.events || 0) + 1
         if (i < 0) { p.pendingEvent = null; window.go('sim') } else window.chooseEvent(i)
-        await sleep(10); continue
+        await sleep(10)
+        // v193: an answer the game refuses (a lock, a requirement) left the sim on the event until the watchdog — try the
+        // others in order, then let the week go on without it
+        if (S().view === 'event' && P() && P().pendingEvent === ev.id) {
+          const n = (ev.options || ev.choices || []).length
+          for (let k = 0; k < n && S().view === 'event' && P().pendingEvent === ev.id; k++) { if (k === i) continue; try { window.chooseEvent(k) } catch (e) {} await sleep(10) }
+          if (S().view === 'event' && P().pendingEvent === ev.id) { P().pendingEvent = null; window.go('sim'); rec.eventsSkipped = (rec.eventsSkipped || 0) + 1 }
+        }
+        continue
       }
       if (v === 'sim') { window.go('sim'); await sleep(10); continue }
       if (v === 'result') {
