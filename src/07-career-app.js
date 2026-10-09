@@ -5387,7 +5387,7 @@
       tile = x => {
         const can = pp >= x.cost,
           b = br(x);
-        return `<button type="button" class="sn-row-v193e qb-tile-v193l${can ? "" : " off"}" data-key="${x.key}" style="--qb-c:${b.color}" onclick="quickBuyV193L('${x.key}')" title="${escHtml(b.name)}"${can ? "" : ' aria-disabled="true"'}><span class="qb-n-v193l"><i>${x.icon}</i> ${escHtml(x.name)}</span><b class="qb-p-v193l">${ppFmtV146(x.cost)} PP${can ? "" : `<em> · ${ppFmtV146(x.cost - pp)} away</em>`}</b></button>`;
+        return `<button type="button" class="sn-row-v193e qb-tile-v193l${can ? "" : " off"}" data-key="${x.key}" style="--qb-c:${b.color}" onclick="quickBuyV193L('${x.key}')" title="${escHtml(b.name)}"${can ? "" : ' aria-disabled="true"'}><span class="qb-n-v193l"><i>${nodeArtV193Y(x.n, x.branch, 16) /* v193 Y */}</i> ${escHtml(x.name)}</span><b class="qb-p-v193l">${ppFmtV146(x.cost)} PP${can ? "" : `<em> · ${ppFmtV146(x.cost - pp)} away</em>`}</b></button>`;
       };
     return `<div class="card tight spend-v193e qb-v193l" id="spendNowV193E">
   <div class="qb-h-v193l"><div class="l sn-k-v193e">⚡ QUICK BUY <small>${n} affordable · tap to open the vault</small></div><div class="qb-nav-v193l"><button type="button" class="qb-arr-v193l" onclick="quickPageV193L(-1)" ${quickPageIxV193L ? "" : "disabled"} aria-label="Cheaper upgrades">◀</button><span>${quickPageIxV193L + 1}/${pages.length}</span><button type="button" class="qb-arr-v193l" onclick="quickPageV193L(1)" ${quickPageIxV193L < pages.length - 1 ? "" : "disabled"} aria-label="Pricier upgrades">▶</button></div></div>
@@ -5539,14 +5539,14 @@
       br = x => TREE[x.branch] || { icon: "", name: x.branch, color: "var(--gold)" },
       row = x =>
         /* one chip a node, in a row that scrolls sideways: the tree stays inside its scroll budget (scrollcheck) */
-        `<div class="sn-row-v193e"><span class="sn-name-v193e">${x.icon} ${escHtml(x.name)}<small style="color:${br(x).color}">${br(x).icon} ${escHtml(br(x).name)}</small></span><button class="buy" onclick="vaultBuy('${x.key}')">${ppFmtV146(x.cost)} PP</button></div>`,
+        `<div class="sn-row-v193e"><span class="sn-name-v193e">${nodeArtV193Y(x.n, x.branch, 16) /* v193 Y */} ${escHtml(x.name)}<small style="color:${br(x).color}">${branchArtV193Y(x.branch, 12)} ${escHtml(br(x).name)}</small></span><button class="buy" onclick="vaultBuy('${x.key}')">${ppFmtV146(x.cost)} PP</button></div>`,
       p = state && state.player,
       lv = p ? p.level | 0 : 0,
       pays = careerPayAtV193E(lv);
     if (!can.length) {
       const c = all[0];
       /* one line: the cheapest node, how far, what a career pays — the tree is a long list already (scrollcheck) */
-      return `<div class="card tight spend-v193e sn-one-v193e" id="spendNowV193E"><span class="sn-k-v193e">🌳 NEXT UP</span><span class="sn-away-v193e">${c.icon} <b>${escHtml(c.name)}</b> <span style="color:${br(c).color}">${br(c).icon}</span> ${ppFmtV146(c.cost)} PP · <b>${ppFmtV146(c.cost - pp)} PP away</b> — a ${LEVELS[lv].name} career pays ~${ppFmtV146(pays)}${lv < 8 ? `, one that reaches ${LEVELS[lv + 1].name} ~${ppFmtV146(careerPayAtV193E(lv + 1))}` : ""}.</span></div>`;
+      return `<div class="card tight spend-v193e sn-one-v193e" id="spendNowV193E"><span class="sn-k-v193e">🌳 NEXT UP</span><span class="sn-away-v193e">${nodeArtV193Y(c.n, c.branch, 16) /* v193 Y */} <b>${escHtml(c.name)}</b> <span style="color:${br(c).color}">${branchArtV193Y(c.branch, 14)}</span> ${ppFmtV146(c.cost)} PP · <b>${ppFmtV146(c.cost - pp)} PP away</b> — a ${LEVELS[lv].name} career pays ~${ppFmtV146(pays)}${lv < 8 ? `, one that reaches ${LEVELS[lv + 1].name} ~${ppFmtV146(careerPayAtV193E(lv + 1))}` : ""}.</span></div>`;
     }
     return `<div class="card tight spend-v193e" id="spendNowV193E"><div class="sn-chips-v193e"><div class="l sn-k-v193e">🌳 SPEND NOW <small>${yes.length} affordable${yes.length > can.length ? ` <br>the ${can.length} cheapest` : ""}</small></div>${can.map(row).join("")}</div></div>`;
   }
@@ -26590,7 +26590,7 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
       c.length
         ? `<div class="card tight end-legacy-v150" style="border-color:var(--gold)">
       <div class="l" style="font-size:11px;color:var(--gold);letter-spacing:2px;margin-bottom:8px">🌳 YOU CAN NOW AFFORD</div>
-      ${c.map(h => `<div style="display:flex;justify-content:space-between;align-items:center;padding:4px 0;font-family:'Barlow Condensed';font-size:14px"><span>${h.icon} ${h.name}</span><span style="color:var(--gold);font-family:'Oswald'">${nodeCost(h)} PP</span></div>`).join("")}
+      ${c.map(h => `<div style="display:flex;justify-content:space-between;align-items:center;padding:4px 0;font-family:'Barlow Condensed';font-size:14px"><span>${nodeArtV193Y(h, null, 18) /* v193 Y */} ${h.name}</span><span style="color:var(--gold);font-family:'Oswald'">${nodeCost(h)} PP</span></div>`).join("")}
     </div>`
         : ""
     }
@@ -26850,6 +26850,31 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
     } catch (e) {}
     return branch.icon;
   }
+  /* ===== v193 Y THE EMOJI BECOME ART (07's share: the tree's nodes, QUICK BUY, SPEND NOW, the career end) =====
+   * every node's emoji is drawn by the one renderer (src/24-bottom-nav.js `ribArtV193Y`): its concept from
+   * `NODE_ART_V193Y` (or a keyword in the node's name / description), in the branch's own metal — the same tint as
+   * the branch tab (v193 V). Before 24 has loaded (the boot's first draw) and under `TU("v193Y", 0)` it is the emoji. */
+  function nodeArtV193Y(node, branchKey, size) {
+    try {
+      if (node && TU("v193Y", 1) && typeof window.ribArtV193Y === "function") {
+        const bk = branchKey || node.branch || (TREE_NODES[node.key] || {}).branch,
+          br = TREE[bk];
+        return window.ribArtV193Y(node.icon, { size: size || 34, tint: br && br.color, hint: (node.name || "") + " " + (node.desc || ""), cls: "ra-node-v193y" });
+      }
+    } catch (e) {}
+    return node ? node.icon : "";
+  }
+  /* a branch's own glyph, small (the SPEND NOW chips name the branch) */
+  function branchArtV193Y(key, size) {
+    const br = TREE[key];
+    try {
+      if (br && TU("v193Y", 1) && typeof window.ribArtV193Y === "function") {
+        const g = window.__V193V && window.__V193V.alias["branch:" + key];
+        if (g) return window.ribArtV193Y(g, { size: size || 14, tint: br.color, emoji: br.icon });
+      }
+    } catch (e) {}
+    return br ? br.icon : "";
+  }
   function screenPrestige() {
     const e = Object.values(state.tree || {}).reduce((n, i) => n + i, 0);
     byId("screen").innerHTML = `
@@ -26913,7 +26938,7 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
                   : `🔒 Needs ${HONOR_ICON_V130} ${honorReqV130(a.req)} HONORS — you have ${honorsV130()}`) /* v156 A */
               : a.req.node && (d = `🔒 Needs ${TREE_NODES[a.req.node].name} Lv ${a.req.lvl}`)),
           `<div class="shop-item" style="${i ? "" : "opacity:.55"};border-color:${s > 0 ? t.color : "var(--line)"}">
-      <div class="ic">${a.icon}</div>
+      <div class="ic">${nodeArtV193Y(a, e) /* v193 Y */}</div>
       <div class="si"><div class="st">${a.name} <span class="lvl" style="color:${t.color}">Lv ${s}/${a.max}</span></div>
         <div class="sd">${a.desc}</div>
         ${d ? `<div class="sd" style="color:var(--blood)">${d}</div>` : ""}
