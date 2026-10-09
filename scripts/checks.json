@@ -371,7 +371,8 @@
     "shot",
     "v148check",
     "v193Ccheck",
-    "v193Icheck"
+    "v193Icheck",
+    "v193AIcheck"
    ]
   },
   "statinfo": {
@@ -1482,7 +1483,8 @@
     "vaultcheck",
     "v156Ccheck",
     "v158Bcheck",
-    "v159Bcheck"
+    "v159Bcheck",
+    "v193AIcheck"
    ]
   },
   "pwa": {
@@ -1614,7 +1616,8 @@
     "v177 F",
     "v177 G",
     "v177 H",
-    "v193 Q"
+    "v193 Q",
+    "v193 AI"
    ],
    "files": [
     "src/28-cosmetics.js",
@@ -1622,7 +1625,8 @@
     "scripts/build-celebration-sheets.py",
     "public/celebrations/cel_v161a.json",
     "scripts/build-celebration-moves.py",
-    "public/celebrations/cel_v177i.json"
+    "public/celebrations/cel_v177i.json",
+    "src/35-mascots.js"
    ],
    "checks": [
     "v177IJKcheck",
@@ -1652,7 +1656,8 @@
     "numsewcheck",
     "v177FGHcheck",
     "v193Qcheck",
-    "v193Ycheck"
+    "v193Ycheck",
+    "v193AIcheck"
    ]
   },
   "audio": {
@@ -5374,6 +5379,21 @@
    "needsServer": true,
    "pureNode": false,
    "flaky": []
+  },
+  "v193AIcheck": {
+   "file": "scripts/v193AIcheck.mjs",
+   "desc": "v193 AI — the mascots dance: all 90 crests map to one of 16 costume archetypes (each used) and every team name the game builds resolves to a mascot whose costume is its name's animal or figure; every sheet builds every pose; store OFF \"Team Mascots\" is a member look listed \"🔒 Membership\" in the Locker's MASCOTS row (its tile dancing), never owned / granted / equipped, no RIB_MONETIZE call, no mascot in the broadcast; TU mascotPreviewV193AI 1 puts one on each bench (its crest's costume), idle-bouncing, a touchdown starts the scorer's team's mascot on the cheer cycle at celebrateFrameMs, HIS v161 A backflip is mirrored (tuck, spin), the opponent's score moves the other bench, a too-small mascot is culled; the season hero shows his mascot; Interstellar bubbles; TU v193AI 0 removes them everywhere; store ON with a membership owned and drawn, F2P locked; the per-frame cost; no page errors",
+   "areas": [
+    "cosmetics",
+    "field",
+    "monetize"
+   ],
+   "runtimeSec": 150,
+   "slow": false,
+   "needsServer": true,
+   "pureNode": false,
+   "flaky": [],
+   "loadSensitive": true
   }
  }
 }
