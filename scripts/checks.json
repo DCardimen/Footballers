@@ -189,7 +189,8 @@
     "sidelinecheck",
     "v144check",
     "v148check",
-    "v193AGcheck"
+    "v193AGcheck",
+    "v194Ccheck"
    ],
    "variants": [
     "`READ_POS=WR MODES=0,1,4,5` for `v147Dcheck`"
@@ -968,7 +969,8 @@
     "v86check",
     "screenpancheck",
     "jumboPartycheck",
-    "v192Echeck"
+    "v192Echeck",
+    "v194Ccheck"
    ],
    "steps": [
     "`node scripts/build-badge-art.mjs` (if a badge changed)"
@@ -1031,7 +1033,8 @@
     "postgamecheck",
     "v112Bcheck",
     "menu-integration-check",
-    "screenpancheck"
+    "screenpancheck",
+    "v194Ccheck"
    ],
    "steps": [
     "`scripts/build-stadium-art.*` (if the stadium art changed)"
@@ -1939,7 +1942,8 @@
     "screenpancheck",
     "v147Dcheck",
     "creditcheck",
-    "v100check"
+    "v100check",
+    "v194Ccheck"
    ]
   },
   "prestige-pacing": {
@@ -5502,6 +5506,21 @@
    "pureNode": false,
    "flaky": [],
    "loadSensitive": true
+  },
+  "v194Ccheck": {
+   "file": "scripts/v194Ccheck.mjs",
+   "desc": "v194 C — the far masts stand on the stadium's roof (lamp banks clear of the skyline, poles on the canopy, bloom and beam behind the stands, fixed field spots, still frame to frame); a kick framed while the men jog in from the 20 never dives into the foreground band at either goal line, and plays from the 20 to the end line keep the zoom continuous; the board's celebrating body wears the field's kit (palette, uniform pattern, helmet) for our team and him, the opponent only his own; each with its kill switch.",
+   "areas": [
+    "broadcast",
+    "lights",
+    "camera",
+    "jumbo"
+   ],
+   "runtimeSec": 120,
+   "slow": false,
+   "needsServer": true,
+   "pureNode": false,
+   "flaky": []
   }
  }
 }
