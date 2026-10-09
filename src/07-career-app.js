@@ -19788,7 +19788,8 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
             down: typeof down !== "undefined" ? down : 1,
             toGo: typeof toGo !== "undefined" ? toGo : 10,
             formation: formationV164P(play, "run", typeof down !== "undefined" ? down : 1, typeof toGo !== "undefined" ? toGo : 10, typeof pos !== "undefined" ? pos : 50) /* v164 P */,
-            dcV165D: dcSnapV165D /* v165 D: the defense's call */
+            dcV165D: dcSnapV165D /* v165 D: the defense's call */,
+            clockV194A: clockCtxV194A(!!w) /* v194 A: the clock tells the carrier whether to get out of bounds */
           })
         );
       /* v101: the call names the gap. v103: and the sticks, so a back can strain for them */ let base;
@@ -19897,7 +19898,8 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
           routes: (ctx.play && ctx.play.routes) || null,
           play: (ctx.play && ctx.play.id) || null,
           formation: formationV164P(ctx.play, "pass", typeof down !== "undefined" ? down : 1, typeof toGo !== "undefined" ? toGo : 10, typeof pos !== "undefined" ? pos : 50) /* v164 P */,
-          dcV165D: dcSnapV165D /* v165 D: the defense's call */
+          dcV165D: dcSnapV165D /* v165 D: the defense's call */,
+          clockV194A: clockCtxV194A(!!w) /* v194 A */
         }); /* v101: the call names the routes */
       if (__r) {
         if (__r.complete && __r.yards > 0) {
@@ -20217,6 +20219,25 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
           extra || {}
         )
       );
+    }
+    /* ===== v194 A OUT OF BOUNDS — the game side =====
+     * The sim decides who goes out (the carrier's step-out, the tackler's push-out — the v194 A banner in 04); the
+     * game hands it the clock so the decision can read it, books the row's `oob` from the sim's own dead ball (the
+     * v109 side roll only fills in for a play the sim did not resolve), names nobody for an untouched step-out, and
+     * says it in the play-by-play ("out of bounds" / "pushed out of bounds by …"). Kill switch `TU("v194A", 0)`
+     * restores the v109 roll. `window.__V109_D.oob` counts as before. */
+    function clockCtxV194A(offUs) {
+      try {
+        const late = quarter >= 4 ? clock <= TU("oobLateQ4SecV194A", 300) : quarter === 2 && clock <= TU("oobLateQ2SecV194A", 120),
+          m = offUs ? h - p : p - h;
+        return { late: !!late, trailing: !!late && m < 0, leading: !!late && quarter >= 4 && m > 0 };
+      } catch (e) {
+        return null;
+      }
+    }
+    function oobTxtV194A(X, you) {
+      const a = X && X.tackler && !(you && pe(X.tackler)) ? nm(X.tackler) : null;
+      return a ? `, pushed out of bounds by ${a}` : X && X.tackler ? ", pushed out of bounds" : ", out of bounds";
     }
     /* the tail of the FieldSim queue is THIS play's log only if the queue grew since the resolver was called */
     const qLenV109 = () => {
@@ -21509,6 +21530,10 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
                   ? `💨 Nothing open — you see the lane and SCRAMBLE for ${de}!`
                   : `${nm(qb2)} sees the lane and SCRAMBLES for ${de}.`
                 : `${nm(qb2)} tucks it and scrambles for ${de}.`;
+            if (TU("v194A", 1) && !_e && simOobV109(_q0)) {   // v194 A: a scramble the sim ran out of bounds stops the clock and says so
+              oobSim = oob = !0;
+              ue += X.tackler ? ` Pushed out of bounds by ${pe(X.tackler) && !usDrive && ce ? "YOU" : nm(X.tackler)}.` : " He gets out of bounds.";
+            }
             if (!usDrive && ce && !_e && (pe(X.tackler) || pe(X.assist))) {
               P.tackle += tkCreditV180(X);
               me = !0;
@@ -21546,7 +21571,7 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
               V109.oob.passN++;
               oobSim && V109.oob.passSim++;
               const _ps = clamp99(TU("oobPassSim", 0.047), 0, 0.99);
-              oob = oobSim || _r < Math.max(0, (TU("oobPassRate", 0.18) - _ps) / (1 - _ps));
+              oob = oobSim || (!(TU("v194A", 1) && simTailV109(_q0)) && _r < Math.max(0, (TU("oobPassRate", 0.18) - _ps) / (1 - _ps)));   // v194 A: a resolved play is out only if the sim put it out
             } /* v109: one roll either way; p' keeps the aggregate at the target */
             {
               const _sd = simSideV109(_q0, usDrive);
@@ -21569,11 +21594,12 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
               me = usDrive && (t === "QB" ? pe(X.qb) && Math.random() < 0.92 : pe(X.rec));
               usDrive && pe(X.rec) && P.rec_c++;
               {
-                const _tk = tkTxtV109(X, !usDrive && ce),
+                const _oob194 = !!(TU("v194A", 1) && oobSim),   // v194 A: the sim put him out — say so
+                  _tk = _oob194 ? oobTxtV194A(X, !usDrive && ce) : tkTxtV109(X, !usDrive && ce),
                   _dr = dirV109 ? " " + dirV109 : ""; /* v109: where he caught it and who put him down */
                 ue = usDrive
                   ? me
-                    ? J2("recv", de, X.breakaway)
+                    ? J2("recv", de, X.breakaway) + (_oob194 ? (X.tackler ? " You're pushed out of bounds." : " You step out of bounds.") : "")
                     : `${nm(X.qb)} finds ${nm(X.rec)}${_dr} for ${de}${X.breakaway ? " — big gain!" : ""}${_tk}.`
                   : `${nm(X.qb)} completes to ${nm(X.rec)}${_dr} for ${de}${_tk}.`;
               }
@@ -21581,7 +21607,7 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
               if (!usDrive && ce && (pe(X.tackler) || pe(X.assist))) {
                 P.tackle += tkCreditV180(X);
                 me = !0;
-                ue += (pe(X.tackler) ? " 🔨 You bring him down." : " 🤝 You're in on the stop.") + tkNoteV180(X);
+                ue += (pe(X.tackler) ? (TU("v194A", 1) && oobSim ? " 🔨 You drive him out of bounds." : " 🔨 You bring him down.") : " 🤝 You're in on the stop.") + tkNoteV180(X);
               }
             }
           } else if (X.intercepted) {
@@ -21796,14 +21822,14 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
             V109.oob.runN++;
             oobSim && V109.oob.runSim++;
             const _ps = clamp99(TU("oobRunSim", 0), 0, 0.99);
-            oob = oobSim || _r < Math.max(0, (TU("oobRunRate", 0.12) - _ps) / (1 - _ps));
+            oob = oobSim || (!(TU("v194A", 1) && simTailV109(_q0)) && _r < Math.max(0, (TU("oobRunRate", 0.12) - _ps) / (1 - _ps)));   // v194 A: a resolved run is out only if the sim put it out
           } /* v109 */
           {
             const _sd = simSideV109(_q0, usDrive);
             dirV109 = runDirV109(_sd, playV101, concept);
             tkV109 = X.tackler ? nm(X.tackler) : null;
             asV109 = X.assist ? nm(X.assist) : null;
-            if (!X.tackler && !X.fumble && pos + de < 100) {
+            if (!X.tackler && !X.fumble && pos + de < 100 && !(TU("v194A", 1) && oobSim)) {   // v194 A: an untouched step-out has no tackler to guess
               const _pool = Dk.def.filter(z => !z.you);
               if (_pool.length) {
                 tkGuessV109 = !0;
@@ -21824,16 +21850,16 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
             me = usDrive && pe(X.carrier);
             me && t === "RB" && P.carries++;
             {
-              const _tk = tkTxtV109(
-                X,
-                !usDrive && ce
-              ); /* v109: the direction and the tackler — the you-player keeps his J2 line */
+              const _oob194 = !!(TU("v194A", 1) && oobSim),   // v194 A: the sim put him out — say so
+                _tk = _oob194
+                  ? oobTxtV194A(X, !usDrive && ce)
+                  : tkTxtV109(X, !usDrive && ce); /* v109: the direction and the tackler — the you-player keeps his J2 line */
               ue = usDrive
                 ? me
-                  ? J2("run", de, X.breakaway)
+                  ? J2("run", de, X.breakaway) + (_oob194 ? (X.tackler ? " You're pushed out of bounds." : " You get out of bounds.") : "")
                   : X.breakaway
                     ? `${nm(X.carrier)} breaks free ${dirV109} for ${de}${_tk}!`
-                    : de <= 1
+                    : de <= 1 && !_oob194
                       ? `${nm(X.carrier)} is stuffed ${dirV109}${_tk}.`
                       : `${nm(X.carrier)} rushes ${dirV109} for ${de}${_tk}.`
                 : `${nm(X.carrier)} rushes ${dirV109} for ${de}${_tk}.`;
@@ -21903,7 +21929,9 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
                     (me = !0),
                     (ue = (_asst
                       ? "🤝 You rally to the ball — in on the gang tackle."
-                      : "🔨 You read it and make the tackle.") + tkNoteV180(X)));
+                      : TU("v194A", 1) && oobSim
+                        ? "🔨 You string it out and drive him out of bounds." /* v194 A: a push-out names its pusher */
+                        : "🔨 You read it and make the tackle.") + tkNoteV180(X)));
               }
             }
           }
@@ -22095,7 +22123,9 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
       }
       const stops = ne === "incomplete" || oob;
       if (!stops) {
-        let runoff = milk ? 39 : hurry ? (ne === "run" ? 16 : 11) : 24 + randInt(-3, 4);
+        /* v194 A: the hidden clock roll is gone (a play stops the clock only when the sim put it out), so fewer plays
+         * stop it — the in-bounds runoff gives that back (`runoffV194A`), keeping the plays a game where they were */
+        let runoff = milk ? 39 : hurry ? (ne === "run" ? 16 : 11) : (TU("v194A", 1) ? TU("runoffV194A", 21) : 24) + randInt(-3, 4);
         // late-half timeout: the trailing team burns one to stop the clock and save time
         const late = quarter >= 4 ? clock <= 180 : quarter === 2 && clock <= 120,
           trailing = margin < 0 ? T0 : margin > 0 ? other(T0) : null;

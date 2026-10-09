@@ -1923,6 +1923,14 @@ const EX_V108 = {   // v118: five cells each — the turn, the ball out low, at 
   toss:     { st: "toss",     cyc: "toss_up",     n: 5, rel: 3, ms: () => TU("tossFrameMs", 80) },      // the turn, the wind at the hip, the ball out, THE RELEASE (cell 3), the hand empty
 };
 const TOSS_CALL_V108 = /toss|sweep|pitch|reverse|pin and pull|outside zone/i;   // the playbook's sweep family: a CALL, read before the event
+/* ===== v194 A THE MESH (the picture) =====
+ * FieldSim now stages the handoff as a meeting (the v194 A banner in 04): its `handoff` event says `mesh:true` when the
+ * quarterback and the back are touching at the exchange, and `pitch:true` for the called toss family. The broadcast takes
+ * the sim's word over its own guesses: a meshed handoff is the hand cycle (never the pitch), the ball is PLACED from hand
+ * to belly — flat (`arc` 0), in `meshHandMsV194A`, and with no motion ribbon, because nothing flew; a pitch is the toss.
+ * Kill switch `TU("v194A", 0)` / `TU("meshV194A", 0)` (the old guesses). `v194Acheck`. */
+function meshV194A(e) { return !!(e && e.mesh && TU("v194A", 1) && TU("meshV194A", 1)); }
+function pitchV194A(e) { return !!(e && e.pitch && TU("v194A", 1) && TU("meshV194A", 1)); }
 function v108Hook() {
   const V7 = (window.__V107 = window.__V107 || { throws: [] });
   const V8 = (window.__V108 = window.__V108 || { handoffs: [], tosses: [], ballDoubled: 0, ballMissing: 0 });
@@ -3576,7 +3584,7 @@ class Ot extends mt.Scene {
         const spdV105 = P._pbx != null ? Math.hypot(ballX - P._pbx, ballY - P._pby) / dtV105 * 1000 : 0;
         const owner = flight ? (P._thrower != null ? P._thrower : 8) : holder && holder !== centerV105 ? P.ballHolderId : null;
         const hot = owner != null && this.hotV105(P, owner);
-        const why = handV105 ? (handV105.kind === "snap" ? "snap" : "hand") : flight && mode !== "kick" ? "flight" : mode === "kick" ? "kick" : loose ? "loose" : (hot && holder && spdV105 > TU("trailCarrySpd", 90)) ? "carry" : null;
+        const why = handV105 ? (handV105.kind === "snap" ? "snap" : handV105.mesh ? null : "hand")   /* v194 A: a meshed handoff leaves no ribbon — nothing flew */ : flight && mode !== "kick" ? "flight" : mode === "kick" ? "kick" : loose ? "loose" : (hot && holder && spdV105 > TU("trailCarrySpd", 90)) ? "carry" : null;
         this.trailV105(P, ballX, ballY, bpp.s, ballDepth, dtV105, why, hot);
       } catch (er) {}
       if (!Number.isFinite(this.ballSpr.x) || !Number.isFinite(this.ballSpr.y)) {
@@ -4652,7 +4660,7 @@ class Ot extends mt.Scene {
     const bk = (S.actors && S.actors[9] && S.actors[9].frames) || null;
     const bf = bk ? bk[Math.max(0, Math.min(bk.length - 1, Math.round(nx.t / 33)))] : (this.markers[9] || null);
     const sdx = m && bf ? Math.round(PJ(bf.x, bf.y).x - PJ(m.sx, m.sy).x) : null;
-    const left = sdx != null && sdx < TU("exchangeSideMinPx", -3), toss = this.tossCallV108(P) || !!(P._meshV118 && P._meshV118.far);
+    const left = sdx != null && sdx < TU("exchangeSideMinPx", -3), toss = meshV194A(nx) ? false : pitchV194A(nx) || this.tossCallV108(P) || !!(P._meshV118 && P._meshV118.far);   // v194 A: the sim's own word first
     const E = EX_V108[left ? "handoffL" : toss ? "toss" : "handoff"], fm = E.ms(), lead = fm * E.rel;
     if (T < nx.t - lead) return;
     plan.i++;   // decided once, on the frame the reach is due — not re-tested every frame after it
@@ -5984,7 +5992,7 @@ class Ot extends mt.Scene {
             : tstyle === "forward" ? TU("fallFwdMs", 260) : e.sack ? TU("sackWrapMsV146", 220) : TU("wrapBeatMsV146", 110)
         } : null;
         try { const R = window.__V146R = window.__V146R || { downs: 0, far: 0, maxD: 0, stick: 0, together: 0, sacks: 0, samples: [] };
-          if (m) { R.downs++; if (e.sack) R.sacks++;
+          if (m && !(e.oob && e.stepOut)) { R.downs++; if (e.sack) R.sacks++;   // v194 A: an untouched step-out is no down — nobody is meant to be on him
             const dd = tk ? Math.hypot(tk.sx - m.sx, tk.sy - m.sy) : 999; R.maxD = Math.max(R.maxD, Math.round(dd * 10) / 10);
             if (dd > TU("contactPxV146", 9) + 3) { R.far++; if (R.samples.length < 10) R.samples.push({ d: Math.round(dd), sack: !!e.sack, why: e.v146 && e.v146.why, fs: !!P.script.meta.fieldSim }); }
             if (F146) F146.stick ? R.stick++ : R.together++; } } catch (er) {}
@@ -6000,7 +6008,9 @@ class Ot extends mt.Scene {
           } else if (e.strain) this.popText(e.x, e.y - 46, "DROVE FOR IT", "#f0bb45", 12);
         }
         if (e.horseCollar) this.popText(e.x, e.y - 58, "HORSE COLLAR?", "#e0484f", 12);
-        const ajOob = !!(e.oob && m && this.ajOnV193() && this.ajPushOutV193(P, e, m, tk));   // v193 AJ THE PUSH: a push-out stays on its feet
+        // v194 A: an untouched STEP-OUT (`e.stepOut`, no tackler) is no shove — he runs over the paint on his feet (the sim's frames carry him)
+        const stepOutV194A = !!(e.oob && e.stepOut && TU("v194A", 1));
+        const ajOob = stepOutV194A || !!(e.oob && m && this.ajOnV193() && this.ajPushOutV193(P, e, m, tk));   // v193 AJ THE PUSH: a push-out stays on its feet
         if (slide && tk && !ajOob) {
           // he gives himself up: a low forward slide, and the man over him pulls up
           m.forceState = "dive"; m._launchT0 = m.tms; m._launchUntil = m.tms + TU("slideMs", 260); m._launchH = 3; m._lean = 0;
@@ -6124,7 +6134,7 @@ class Ot extends mt.Scene {
           REDUCED_MOTION || this.cameras.main.shake(Math.round(160 + wgt * 140), 0.008 + wgt * 0.011);
         } else if (e.style === "low") this.popText(e.x, e.y - 30, "SHOESTRING!", "#8fe7ff", 12);
         if (e.sack) BADGE_V95.show("sack", { sub: badgeYdsV95(pay.yards), x: e.x, y: e.y, scene: this, token: "sack:" + P.__ballTokenV1514 });   // v95
-        else if (e.oob) this.popText(e.x, e.y - 26, "PUSHED OUT OF BOUNDS", "#8fe7ff", 13);
+        else if (e.oob) this.popText(e.x, e.y - 26, e.stepOut && TU("v194A", 1) ? "OUT OF BOUNDS" : "PUSHED OUT OF BOUNDS", "#8fe7ff", 13);   // v194 A: a step-out is not a push
         else if (e.gang) this.popText(e.x, e.y - 40, e.handsOn >= 2 ? "GANG TACKLE ×" + (e.handsOn + 1) : "GANG TACKLE", "#93a0b1", 12);
         /* v164 G: the big play's dance — a sack or a loss for the tackler; a long run or catch for the carrier (and the passer) */
         try { const ydG = Number(pay.yards ?? 0), tkG = this.markers[this.actorIdx(e.tackler)];
@@ -6912,7 +6922,7 @@ class Ot extends mt.Scene {
     // open a hand: the ball leaves the spot it is drawn at NOW and chases the holder's hand
     if (!this.ballSpr || !P) return;
     const x0 = this.ballSpr.x, y0 = this.ballSpr.y;
-    let ms = TU("handoffMs", 170), arc = TU("handoffArc", 3), toss = false;
+    let ms = TU("handoffMs", 170), arc = TU("handoffArc", 3), toss = false, mesh = false;
     if (kind === "snap") { ms = TU("snapZapMs", 150); arc = TU("snapArc", 2); }
     else if (kind === "handoff") {
       const qb = this.markers[8], rb = this.markers[P.ballHolderId];
@@ -6921,12 +6931,15 @@ class Ot extends mt.Scene {
       // reverse). Everything else is a hand: the sim does not stage a mesh (the QB drifts while the
       // back is already on his path, so the two are a few yards apart at the exchange), so the hand
       // is a quick, low flick that closes whatever gap there is, timed by the distance.
-      const called = this.tossCallV108(P) || !!(P._meshV118 && P._meshV118.far);   // v108: one regex, read by the lookahead too; v118: or a back out of reach after the mesh step
+      const hEv = ((P.script && P.script.events) || []).find(e => e && e.type === "handoff" && Math.abs(e.t - (P.t - (P.delay || 0))) < 400) || ((P.script && P.script.events) || []).find(e => e && e.type === "handoff");
+      mesh = meshV194A(hEv);
+      const called = mesh ? false : pitchV194A(hEv) || this.tossCallV108(P) || !!(P._meshV118 && P._meshV118.far);   // v108: one regex, read by the lookahead too; v118: or a back out of reach after the mesh step; v194 A: the sim's mesh is a hand, its pitch a toss
       this._lastHandD = d;
       if (called) { toss = true; ms = TU("tossMs", 320) + d * TU("tossMsPerPx", 2.2); arc = TU("tossArc", 15); }
+      else if (mesh) { ms = TU("meshHandMsV194A", 90); arc = 0; }   // v194 A THE MESH: the two men are touching — the ball is PLACED, flat, in a blink
       else { ms = TU("handoffMs", 170) + d * TU("handoffMsPerPx", 0.6); arc = TU("handoffArc", 3); }
     }
-    P._hand = { kind, x0, y0, t0: P.t, ms, arc, toss, d: kind === "handoff" ? +(this._lastHandD || 0).toFixed(1) : 0 };
+    P._hand = { kind, x0, y0, t0: P.t, ms, arc, toss, mesh, d: kind === "handoff" ? +(this._lastHandD || 0).toFixed(1) : 0 };
     P._trailV105 = [];
     // v108: the quarterback's own body through the exchange. The lookahead has normally had him
     // reaching for two frames already — this catches a script that gave no warning, and books the
@@ -6949,7 +6962,7 @@ class Ot extends mt.Scene {
     if (k >= 1) { P._hand = null; return null; }
     // a snap zaps (out fast, settles); a hand and a toss travel evenly and lift on an arc
     const e = H.kind === "snap" ? 1 - Math.pow(1 - k, 2.2) : k < 0.5 ? 2 * k * k : 1 - Math.pow(-2 * k + 2, 2) / 2;
-    return { x: H.x0 + (x - H.x0) * e, y: H.y0 + (y - H.y0) * e - Math.sin(k * Math.PI) * H.arc * s, k, kind: H.kind, toss: H.toss };
+    return { x: H.x0 + (x - H.x0) * e, y: H.y0 + (y - H.y0) * e - Math.sin(k * Math.PI) * H.arc * s, k, kind: H.kind, toss: H.toss, mesh: !!H.mesh };
   }
   trailV105(P, x, y, s, depth, dtms, why, hot) {
     // the ribbon: the ball's last quarter second, tapered to the tail; a helix when it spirals;

@@ -224,7 +224,8 @@
     "v177 A",
     "v177 B",
     "v193 AJ",
-    "v194 D"
+    "v194 D",
+    "v194 A"
    ],
    "files": [],
    "checks": [
@@ -244,7 +245,8 @@
     "v153Acheck",
     "scrumcheck",
     "v193AJcheck",
-    "v194Dcheck"
+    "v194Dcheck",
+    "v194Acheck"
    ]
   },
   "cuts": {
@@ -5521,6 +5523,21 @@
    "needsServer": true,
    "pureNode": false,
    "flaky": []
+  },
+  "v194Acheck": {
+   "file": "scripts/v194Acheck.mjs",
+   "desc": "v194 A — out of bounds + the mesh: runs (the pitches) and catches end over the sideline far more often than OFF, every out-of-bounds end is a real crossing in the carrier's frames, an untouched step-out names no tackler and a push-out names the gripping man, the game stops the clock and says \"out of bounds\", scoring roughly neutral; every handoff that is not a pitch is a meeting (QB and back within contact range, the ball at hand height and in reach), and the broadcast draws it as a flat hand with no ribbon",
+   "areas": [
+    "contact",
+    "tackle",
+    "sim"
+   ],
+   "runtimeSec": 240,
+   "slow": false,
+   "needsServer": true,
+   "pureNode": false,
+   "flaky": [],
+   "loadSensitive": true
   }
  }
 }

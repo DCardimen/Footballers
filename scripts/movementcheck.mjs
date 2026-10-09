@@ -75,8 +75,15 @@ function addLogMetrics(m, log) {
       if (Math.abs(e.y - TOP) > 1e-6 && Math.abs(e.y - BOTTOM) > 1e-6) m.oobSpotErrors++;
     }
   }
+  // v194 A: a man who went out of bounds carries over the paint after the whistle — the carrier (and a push-out's pusher)
+  // runs off up to `oobRunOutPxV194A` (16) past the line. Those frames are the picture of going out, not an escape.
+  const tkO = log.events.filter(e => e.type === "tackle").pop();
+  const outIds = tkO && tkO.oob && tkO.plane === "sideline" ? [tkO.carrier, tkO.pushOut ? tkO.tackler : null] : [];
   for (const actor of log.actors) for (const f of actor.frames) {
-    if (f.y < TOP - 1e-6 || f.y > BOTTOM + 1e-6) m.outsideFrames++;
+    if (f.y < TOP - 1e-6 || f.y > BOTTOM + 1e-6) {
+      if (outIds.includes(actor.id) && f.t >= tkO.t - 1e-6 && f.y > TOP - 20 && f.y < BOTTOM + 20) continue;
+      m.outsideFrames++;
+    }
   }
 }
 
