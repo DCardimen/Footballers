@@ -402,7 +402,8 @@
     "v193Ncheck",
     "v193Zcheck",
     "v193ABcheck",
-    "v193AEcheck"
+    "v193AEcheck",
+    "v194Echeck"
    ]
   },
   "sim-keys": {
@@ -1353,7 +1354,8 @@
    "anchors": [
     "v113",
     "v124",
-    "v64"
+    "v64",
+    "v194 E"
    ],
    "files": [
     "public/rib_skill*"
@@ -1369,7 +1371,8 @@
     "growthcheck",
     "walk",
     "shot",
-    "v153Bcheck"
+    "v153Bcheck",
+    "v194Echeck"
    ]
   },
   "rivalry": {
@@ -5449,6 +5452,19 @@
    "pureNode": false,
    "flaky": [],
    "loadSensitive": true
+  },
+  "v194Echeck": {
+   "file": "scripts/v194Echeck.mjs",
+   "desc": "v194 E — the build sets the ceiling: the frame's fit at the position moves every stat's max (soft cap + growth ceiling), monotone, key stats hardest (×0.87…×1.22); the position screen previews the maxes per position live, the skill sheet tags each row and toasts a stat reaching its max, 'Ceiling raised!' when a max rises; old saves keep every attribute.",
+   "areas": [
+    "upgrade",
+    "position"
+   ],
+   "runtimeSec": 45,
+   "slow": false,
+   "needsServer": true,
+   "pureNode": false,
+   "flaky": []
   }
  }
 }
