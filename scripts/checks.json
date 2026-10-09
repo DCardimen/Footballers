@@ -1301,7 +1301,8 @@
    "anchors": [
     "v130",
     "v156 A",
-    "MEDALS ARE THE KEY"
+    "MEDALS ARE THE KEY",
+    "v193 AD"
    ],
    "files": [],
    "checks": [
@@ -1311,7 +1312,8 @@
     "shot",
     "v153Fcheck",
     "v156Acheck",
-    "v193Echeck"
+    "v193Echeck",
+    "v193ADcheck"
    ]
   },
   "emblems": {
@@ -1932,7 +1934,8 @@
     "v192Bcheck",
     "v192Ccheck",
     "v193Echeck",
-    "v193Jcheck"
+    "v193Jcheck",
+    "v193ADcheck"
    ]
   }
  },
@@ -5311,6 +5314,19 @@
    "pureNode": false,
    "flaky": [],
    "loadSensitive": true
+  },
+  "v193ADcheck": {
+   "file": "scripts/v193ADcheck.mjs",
+   "desc": "v193 AD — the legends: 24 Prestige Paths (the old five first), all ten categories covered twice, every card lists each effect with its real number and a trade-off, every icon drawn by v193 Y; the old five audited on the readers (Grinder +20% and Phenom −8% / Magnate −4% growth on a seeded season, Prodigy opens a v128 lock, Ironman −21% injury / +2 seasons / a season-ender costs 4 games, Phenom +10 start, Prodigy +5% odds, each branch 25% cheaper); each new legend's main effect sampled on vs off (game rating, swing, start, fatigue, wheel and plan odds, the GM's second look, the deck and gear rarity, the focus tilt, the paycheck, Legacy XP, team OVR, key-attribute growth); a fresh save has nothing unlocked and every card greyed with \"Play 3 seasons — 0/3\" and a bar, choosePath refuses a locked legend, a real finishSeasonGames counts the season and unlocks The Natural with the NEW LEGEND UNLOCKED pop-up and ribHaptic(success), 12 medals open Phenom + Grinder, the switch cost holds; an old save past the 12-medal gate keeps the old five and its path, its Hall counts; v193AD 0 = the old five and gate; 360 / 1280 px no overflow.",
+   "areas": [
+    "honors",
+    "prestige-pacing"
+   ],
+   "runtimeSec": 75,
+   "slow": false,
+   "needsServer": true,
+   "pureNode": false,
+   "flaky": []
   }
  }
 }
