@@ -4454,6 +4454,7 @@ class Ot extends mt.Scene {
     try { this.coverEventV192F(e, P); } catch (er) {}   // v192 F: the coverage the sim played, for the picture
     try { this.sideReact(e); } catch (er) {}   // v79: so does the bench
     try { this.ajGapProbeV193(e); } catch (er) {}   // v193 AJ: how far apart they are DRAWN on the contact frame
+    if (/^(stagger|bounce|brokenTackle|beaten|gripBreak|escapeV153A|breakFreeV177B)$/.test(e.type)) { const rk = this.markers[this.actorIdx(e.who || e.by)]; if (rk && rk._ajReach) rk._ajReach.until = rk.tms + TU("ajReachLetGoMsV193", 90); }   // v193 AJ: off him, he lets go
 
     switch (e.type) {
       /* ===== v109 THE RECEIVER FINDS THE BALL ===== */
@@ -6909,6 +6910,7 @@ class Ot extends mt.Scene {
       const cm = R.cm;
       if (w > 0 && cm && cm.root && cm !== m && cm.sx != null) {
         const gx = x - cm.sx, gy = y - cm.sy, g = Math.hypot(gx, gy);
+        if (g > TU("ajReachMaxPxV193", 24) && age > R.ms && R.until == null) R.until = m.tms;   // the sim has them apart again: let go
         if (g > .01) {
           const tgt = this.ajCellToSimV193(cm, TU("ajReachCellV193", 16), gx / g, gy / g);
           if (g > tgt) { const k = (g - tgt) * w; x -= gx / g * k; y -= gy / g * k; R.k = k; }
@@ -6941,10 +6943,12 @@ class Ot extends mt.Scene {
         P._ajSeen[i] = 1;
         if (tk.forceState && tk.forceState !== "grab") continue;   // a man already on the ground, or mid-move, does not lunge
         this.ajLungeV193(tk, cm, e, Math.max(33, lead));
-      } else if (e.type === "wrapIn" && e.t - T <= lungeMs) {
+      } else if (/^(wrapIn|tackleHit|grab|tackle|stagger|bounce|brokenTackle|stiffarm|hurdle)$/.test(e.type) && !e.oob && e.t - T <= lungeMs) {
+        // every contact the sim resolves is closed to an arm's length by the frame it lands — a lunge already did it; a
+        // support man, a second wrap, a man with no commit of his own is walked in here
         P._ajSeen[i] = 1;
-        const sm = this.markers[this.actorIdx(e.who)], cm = this.markers[this.actorIdx(e.carrier)];
-        if (sm && cm && sm !== cm && !sm._ajAnc) sm._ajReach = { cm, t0: sm.tms, ms: Math.max(33, e.t - T), until: sm.tms + Math.max(33, e.t - T) + TU("ajReachHoldMsV193", 380), fade: 140 };
+        const sm = this.markers[this.actorIdx(e.type === "tackle" ? e.tackler : e.who)], cm = this.markers[this.actorIdx(e.carrier)];
+        if (sm && cm && sm !== cm && !sm._ajAnc && !(sm._ajReach && sm._ajReach.cm === cm && sm._ajReach.until == null)) sm._ajReach = { cm, t0: sm.tms, ms: Math.max(33, e.t - T), until: null, fade: 140 };
       }
     }
     // a man held down by a drawn fall has to be back on his own legs before the sim needs him again
@@ -6993,7 +6997,7 @@ class Ot extends mt.Scene {
     const H = this.hookAJV193(); H.lunges++;
     const a = PJ(tk.sx, tk.sy), b = PJ(cm.sx, cm.sy); if (Math.hypot(b.x - a.x, b.y - a.y) > 1) this.faceMarker(tk, b.x - a.x, b.y - a.y);
     tk._ajCadK = 1;
-    tk._ajReach = { cm, t0: tk.tms, ms, until: tk.tms + ms + TU("ajReachHoldMsV193", 380), fade: 140 };
+    tk._ajReach = { cm, t0: tk.tms, ms, until: null, fade: 140 };   // held until the outcome lets him go (a bounce, a stagger, a truck) or the whistle
     tk._ajLungeAt = tk.tms + ms;
     const after = TU("ajLungeAfterMsV193", 110), D = ms + after, hDecl = e.aim === "low" ? 2.5 : e.aim === "high" ? 9 : 5.5;
     // the airborne part ENDS just after the contact; a low dive leaves the ground late and skims
@@ -7399,7 +7403,9 @@ class Ot extends mt.Scene {
     const acc = m._ajVPrev != null ? (v - m._ajVPrev) / dt : 0; m._ajVPrev = v;
     m._ajAcc = (m._ajAcc || 0) * .8 + acc * .2;
     let tgt = 0;
-    if (v > .02) { const S = this.ajScrXV193(m, vx / v, vy / v), sf = Math.min(1.2, v / Math.max(.05, (m._ajSp || 140) / 1000));
+    const hh = m._hist, h0 = hh && hh.length >= 2 ? hh[hh.length - 2] : null, h1 = hh && hh.length ? hh[hh.length - 1] : null;
+    const sdx = h0 && h1 ? h1.x - h0.x : 0, sdy = h0 && h1 ? h1.y - h0.y : 0, sd = Math.hypot(sdx, sdy);
+    if (v > .02 && sd > .05) { const S = { sgn: Math.sign(sdx) || 1, k: Math.abs(sdx) / sd }, sf = Math.min(1.2, v / Math.max(.05, (m._ajSp || 140) / 1000));
       tgt = S.sgn * S.k * (TU("ajLeanSpdV193", .1) * sf + TU("ajLeanAccV193", .16) * Math.max(-.6, Math.min(1, m._ajAcc / TU("ajAccRefV193", .0006)))); }
     m._ajLean = (m._ajLean || 0) + (tgt - (m._ajLean || 0)) * Math.min(1, dt / 90);
     return st;

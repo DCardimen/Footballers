@@ -134,10 +134,12 @@ if (live) {
     sc.placeMarker = function (...a) { const t0 = performance.now(), r = pm(...a); const k = window.TU('v193AJ', 1) ? 'on' : 'off'; T[k].ms += performance.now() - t0; T[k].n++; return r }
   })
   const runFor = async (ms) => { const t0 = Date.now(); while (Date.now() - t0 < ms) { await page.evaluate(() => { const b = [...document.querySelectorAll('button')].find(q => /^(CONTINUE|NEXT PLAY|NEXT)$/i.test((q.innerText || '').trim()) && q.offsetParent); if (b) b.click() }); await page.waitForTimeout(300) } }
-  const LIVE = Number(process.env.LIVE_MS || 60000)
-  await runFor(LIVE)
-  await page.evaluate(() => { window.RIB_TUNE = Object.assign(window.RIB_TUNE || {}, { v193AJ: 0 }) })
-  await runFor(LIVE * .8)
+  // ON and OFF interleaved in short slices, so the load on the box is the same for both
+  const LIVE = Number(process.env.LIVE_MS || 120000), SLICE = 8000
+  for (let k = 0; k * SLICE < LIVE; k++) {
+    await page.evaluate((off) => { window.RIB_TUNE = Object.assign(window.RIB_TUNE || {}); if (off) window.RIB_TUNE.v193AJ = 0; else delete window.RIB_TUNE.v193AJ }, k % 2 === 1)
+    await runFor(SLICE)
+  }
   await page.evaluate(() => { delete window.RIB_TUNE.v193AJ })
   const LV = await page.evaluate(() => {
     const H = window.__V193AJ || {}, gaps = (H.reach && H.reach.gaps) || []
@@ -150,7 +152,7 @@ if (live) {
       msOn: T.on.n ? T.on.ms / T.on.n : 0, msOff: T.off.n ? T.off.ms / T.off.n : 0 }
   })
   console.log('live:', JSON.stringify(LV))
-  ok(LV.n1 >= 15 && LV.n0 >= 10, 'sampled contact frames with the switch on and off', `${LV.n1} on, ${LV.n0} off (age scale ${LV.age})`)
+  ok(LV.n1 >= 12 && LV.n0 >= 12, 'sampled contact frames with the switch on and off', `${LV.n1} on, ${LV.n0} off (age scale ${LV.age})`)
   ok(LV.p90on != null && LV.p90on <= 1.15 && LV.p90on < LV.p90off, 'the contact gap: drawn within an arm\'s length on the frame it resolves, and closer than OFF', `body widths p50 ${LV.p50on} / p90 ${LV.p90on} ON vs p50 ${LV.p50off} / p90 ${LV.p90off} OFF; the sim's own gap is unchanged (p50 ${LV.simP50on} vs ${LV.simP50off} field px)`)
   const slide = LV.stride && LV.stride.slideN ? LV.stride.slide / LV.stride.slideN : 1
   ok(slide < .15 && LV.band >= 8 / 84 && LV.band <= 8 / 30, 'the run cycle\'s stride matches the ground covered', `mean foot slide ${(slide * 100).toFixed(1)}% of a stride over ${LV.stride && LV.stride.n} steps; ${LV.band && LV.band.toFixed(3)} frames a sprite px (band ${(8 / 84).toFixed(3)}..${(8 / 30).toFixed(3)})`)
