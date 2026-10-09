@@ -1867,10 +1867,11 @@
     cands.forEach((c) => {
       const w = laneW(scene, G, m, c.u, c.bank), q = projV194B(scene, G, m, c.u, w);
       if (!inViewV194B(q, wv, 1.15)) return;
-      if (wv && wv.width > 0 && q.y - 62 * q.sc * SCALE - bubW < wv.y) return;   // no room for what he says
+      if (wv && wv.width > 0 && q.y - 62 * q.sc * SCALE - bubW * TUv("mascotBubbleRoomV194B", 0.4) < wv.y) return;   // some room for what he says (the bubble is held inside the shot)
       seen.push({ c, w, q });
     });
     const maxK = seen.reduce((a, e) => Math.max(a, e.q.k), 0.01);
+    V194.cands = { n: cands.length, seen: seen.length, ez: seen.filter((e) => e.c.ez).length };
     seen.forEach(({ c, w, q }) => {
       const tall = 62 * q.sc * SCALE;
       // the size on screen first (a far end zone is a speck), then the end zone's pull: "near the endzone most times"
