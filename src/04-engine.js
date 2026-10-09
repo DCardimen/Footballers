@@ -1985,9 +1985,9 @@ window.__visionRadiusV96 = visionRadiusV96;
         const af=Math.max(.2,Math.min(.8,ballFlight.apexF!=null?ballFlight.apexF:TU("arcApexFrac",.55)));
         let hf=f<af?Math.sin(Math.PI/2*f/af):Math.sin(Math.PI/2*(1-f)/(1-af));
         /* v193 AJ PHYSICS: under gravity the height is a parabola in TIME — the two halves meet at the apex with zero slope
-         * (`ajBallApexFV193`: .5 is the vacuum parabola; drag puts the top a touch early in time and late in distance, which the
-         * decelerating ground track above already draws) */
-        if (TU("v193AJphys", 1)) { const a2 = cl(TU("ajBallApexFV193", .5), .3, .7), u = f < a2 ? (a2 - f) / a2 : (f - a2) / (1 - a2); hf = Math.max(0, 1 - u * u); }
+         * (`ajBallApexFV193`, default v109's `arcApexFrac` .55: the apex past halfway because drag bleeds the ball's speed — .5 is
+         * the vacuum parabola) */
+        if (TU("v193AJphys", 1)) { const a2 = cl(TU("ajBallApexFV193", TU("arcApexFrac", .55)), .3, .7), u = f < a2 ? (a2 - f) / a2 : (f - a2) / (1 - a2); hf = Math.max(0, 1 - u * u); }
         ball={ lx: ballFlight.x0+(ballFlight.x1-ballFlight.x0)*q, y: ballFlight.y0+(ballFlight.y1-ballFlight.y0)*q,
                h: hf*ballFlight.arc };
         if(f>=1){ const cb=ballFlight.done; ballFlight=null; cb&&cb(); } }

@@ -7007,7 +7007,7 @@ class Ot extends mt.Scene {
     this.ajClipV193(tk, "lunge", D, function (k) {
       const ext = k > TU("ajExtendAtV193", .4);
       if (k < TU("ajLoadAtV193", .18)) return { st: "plant", sy: .92, sx: 1.05 };   // the load: the last step planted, hips down
-      return ext && flat ? { st: "dive", face: ["sd", fx > 0], rot: fx * (.12 + .18 * k), sx: 1.06, sy: .96 } : { st: "divex", sx: ext ? 1.06 : .96, sy: ext ? .96 : 1.02 };
+      return ext && flat ? { st: "dive", face: ["sd", fx > 0], rot: fx * (.12 + .18 * k), sx: 1.06, sy: .96 } : { st: "divex", sx: ext ? 1.06 : .96, sy: ext ? .96 : 1 };
     }, { keep: /^grab$/ });
   }
   /* ===== v193 AJ THE WHIFF SLIDE =====
@@ -7043,6 +7043,7 @@ class Ot extends mt.Scene {
     const C = this.ajClipV193(m, o.kind, air + slideMs + down, function (k, mm, CC) {
       const age = k * CC.ms;
       if (age < air) return flat ? { st: "dive", face: ["sd", fx > 0], rot: fx * .22, sx: 1.05, sy: .95 } : { st: "divex", sx: 1.05, sy: .95 };
+      if (CC.fs === "dive") { CC.fs = "downAJ"; mm.forceState = "downAJ"; }   // on the grass: our own state from here (nothing else's timer stands him up)
       if (!land) { land = { x: mm.sx, y: mm.sy, t: mm.tms }; this.puffFx(mm.sx, mm.sy + 2, 3, 0x8a7a55, .5); this.skidFx(mm.sx, mm.sy);
         try { this.addWearV86(mm.sx, mm.sy, 6, .08); } catch (er) {}
         this.ajDirtV193(mm.sx, mm.sy, { kind: "slide", dx: ux, dy: uy, len: slide });
@@ -7050,7 +7051,7 @@ class Ot extends mt.Scene {
       if (age < air + slideMs) { if (mm.tms - lastPuff > 60) { lastPuff = mm.tms; this.puffFx(mm.sx, mm.sy + 3, 1, 0x8a7a55, .38); }
         return { st: "tackle4", flip: fx < 0, ground: true, oy: 1 }; }
       return { st: "down", flip: fx < 0, ground: true };
-    }, { fs: o.fs || "diveAJ", grounded: function (mm, CC) { return mm.tms - CC.t0 > air; },
+    }, { fs: o.fs || "dive", grounded: function (mm, CC) { return mm.tms - CC.t0 > air; },
       end: function (mm) { if (rec && land) { rec.slidPx = +Math.hypot(mm.sx - land.x, mm.sy - land.y).toFixed(1); rec.groundMs = Math.round(mm.tms - land.t); }
         mm._whiffed = false; mm.forceState = "getupSeq"; mm.seqT = mm.tms; mm._groundT = 0; return "getup0"; } });
     if (C && rec) C.recW = rec;

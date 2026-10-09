@@ -154,7 +154,7 @@ await page.evaluate(() => {
     let pre = null
     if (e && e.type === 'tackle' && P) {
       const m = sc.markers[P.carrierId >= 0 ? P.carrierId : sc.actorIdx(e.carrier)], tk = sc.markers[sc.actorIdx(e.tackler)]
-      if (m && tk) pre = { m, tk, d: Math.hypot(tk.sx - m.sx, tk.sy - m.sy), stick: !!(e.hitStick || (e.flyWho && e.flyWho === e.carrier && e.flyVz > 0)), slide: P.carrierId === 8 && P.scrambling && !e.sack }
+      if (m && tk) pre = { m, tk, d: Math.hypot(tk.sx - m.sx, tk.sy - m.sy), stick: !!(e.hitStick || (e.flyWho && e.flyWho === e.carrier && e.flyVz > 0)), slide: (P.carrierId === 8 && P.scrambling && !e.sack) || !!(e.oob && window.TU('v193AJ', 1)) }   // v193 AJ: a push-out stays on its feet
     }
     const r = o(e, P)
     if (pre) {
