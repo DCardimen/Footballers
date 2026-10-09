@@ -61,7 +61,9 @@ const towersY = samples.map(s => s.t.map(t => t.y).join(',')), losSeen = new Set
 console.log('towers y over time:', [...new Set(towersY)].join(' | '), ' LOS seen:', [...losSeen].join(','), ' bowl bottoms:', [...botSeen].join(','))
 ok(samples[0].t.length === 4 && new Set(towersY).size === 1, 'the four masts keep one row across every snap', `rows=${[...new Set(towersY)].length} snaps=${losSeen.size}`)
 const S0 = samples[0]
-ok(S0.t.every(t => t.y <= (S0.bowl.bot + 8) && t.y >= S0.bowl.top), 'the fixed row is still inside the bowl band, so the stand hides the feet', `y=${S0.t[0].y} band=${S0.bowl.top}..${S0.bowl.bot}`)
+// v194 C: with the far stands up the masts stand ON the roof, above the bowl's top (v194Ccheck measures them on the skyline)
+const roofRow194 = await page.evaluate(() => !!(window.__V194C && window.__V194C.lights && window.__V194C.lights.on))
+ok(S0.t.every(t => t.y <= (S0.bowl.bot + 8) && (roofRow194 ? t.y < S0.bowl.top : t.y >= S0.bowl.top)), roofRow194 ? 'the masts stand on the roof above the bowl (v194 C) — no foot shows on the grass' : 'the fixed row is still inside the bowl band, so the stand hides the feet', `y=${S0.t[0].y} band=${S0.bowl.top}..${S0.bowl.bot}`)
 const swayers = S0.t.map((t, i) => ({ i, sway: t.sway, xs: new Set(samples.map(s => s.t[i] && s.t[i].x)) }))
 ok(swayers.filter(w => w.sway > 0).length === 2 && swayers.filter(w => !w.sway).length === 2, 'two masts sway and two stand still', JSON.stringify(swayers.map(w => [w.i, w.sway])))
 ok(swayers.filter(w => w.sway > 0).every(w => w.xs.size > 1 && Math.max(...w.xs) - Math.min(...w.xs) <= 8), 'the swaying masts drift a few pixels and no more', JSON.stringify(swayers.filter(w => w.sway).map(w => [...w.xs])))
