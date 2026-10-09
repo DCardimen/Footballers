@@ -7481,6 +7481,38 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
           max: 5,
           fx: { flipRareV186: 0.3 }
         },
+        /* v193 AB: the new cards' own nodes, priced like Card Shark / Marked Cards (the fx keys are read per level with the
+         * Apex's ×1.5 taken back out, so these descs are exact) */
+        {
+          key: "hotHands",
+          name: "Hot Hands",
+          icon: "🔥",
+          desc: "HOT STREAK cards roll +3% at both ends of their boost and +1 game at both ends of how long it lasts, per level, and one stat holds +3% more of them stacked. Lv 5: 20–65% for 6–15 games, stacking to 75%.",
+          cost: 2e3,
+          mult: 3,
+          max: 5,
+          fx: { hotPctV193AB: 3, hotGamesV193AB: 1 }
+        },
+        {
+          key: "spillCoach",
+          name: "Spill Coach",
+          icon: "🔁",
+          desc: "SPILLOVER cards roll +5% at both ends of their share, per level (Lv 5: 30–75% of every point). From Lv 3 you choose which KEY stat each one feeds.",
+          cost: 2e3,
+          mult: 3,
+          max: 5,
+          fx: { spillPctV193AB: 5 }
+        },
+        {
+          key: "doubleShift",
+          name: "Double Shift",
+          icon: "💵",
+          desc: "The 2× POINTS card turns up ×1.5 as often per level (Lv 4: about 1 card in 10 instead of 1 in 50). At Lv 4 it also doubles the first 2 games of next season.",
+          cost: 3e3,
+          mult: 3,
+          max: 4,
+          fx: { dblShiftV193AB: 1 }
+        },
         {
           key: "inevitable",
           name: "Inevitable",
@@ -9749,7 +9781,7 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
     key: "focusReps",
     name: "Focused Reps",
     icon: "🎯",
-    desc: "The Extra reps and +1 Permanent cards lean harder on your position's KEY stats, per level (at Lv 0 they spread across every stat the position uses).",
+    desc: "The HOT STREAK card's stat leans harder on your position's KEY stats, per level (at Lv 0 it spreads across every stat the position uses).",
     cost: 6,
     mult: 1.7,
     max: 5,
@@ -13293,6 +13325,9 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
       W.lingering = W.lingering
         .map(b => Object.assign({}, b, { games: (b.games | 0) - 1 }))
         .filter(b => (b.games | 0) > 0);
+    try {
+      wk && hotDecayV193AB(pl, wk); /* v193 AB: a Hot Streak counts a played game down (a sat-out week never gets here) */
+    } catch (_) {}
   }
   /* ===== v111 THE FOCUS — three ways to spend a Saturday =====
    * Three position-appropriate picks, one stat each, 1.2x for that game only. Rows are
@@ -13516,6 +13551,9 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
       try {
         intensityV171(pl).buffs.forEach(b => out.push(b)); /* v171 D: how hard he plays this one */
       } catch (_) {}
+    try {
+      hotBuffsV193AB(pl).forEach(b => out.push(b)); /* v193 AB: the Hot Streak cards — a percent of the stat, every game path */
+    } catch (_) {}
     return out;
   }
   /* everything the attribute sheet and the engine should see this game */
@@ -14010,7 +14048,7 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
   };
   function rollGamePerf(e, t = 0, a) {
     a = a || {};
-    const s = playerPower(e) /* v193 E: the game-day percent is gone */,
+    const s = playerPower(e) /* v193 E: the game-day percent is gone */ + hotPerfLiftV193AB(e) /* v193 AB: the Hot Streak's OVR */,
       n = LEVELS[e.level],
       i = n.need - 6 + chaosOppBoost(e.level) + seasonModFx("peerShift"),
       r = 1 + nodeLvl("clutch") * 0.02,
@@ -14501,7 +14539,8 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
     e.level >= 8 && earnStardustV186(e, U, ke) /* v186 E: the Interstellar's own currency */;
     const ge = 4 + e.level * 3,
       _p178 = seasonPayV178(e, P, ie, Y, B) /* v178 A: the games paid their own points; this is what is left */,
-      $e =
+      $e = ptsEarnV193AB(
+        e,
         (_p178
           ? _p178.pts
           : Math.round(
@@ -14509,7 +14548,8 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
             )) /* v164 C: the season's points ride the watched share */ +
         Math.floor(treeFx("pointsFlat") + gearFx("pointsFlat") + seasonModFx("pointsFlat") + gearV147("points")) +
         Math.floor(treeFx("wisdomPtsV190")) /* v190 F: Eternal Wisdom, its own uncapped term (was pointsFlat, capped at 3) */ +
-        repsV146(),
+        repsV146()
+      ) /* v193 AB: a 2× POINTS season counts its own points double too */,
       de = prodStats(e.pos, U, e.level),
       ne = Object.values(state.tree || {}).reduce((R, O) => R + O, 0),
       ue = 30 + effectivePrestige(state.prestige) * 0.65 + Math.sqrt(ne) * 0.75,
@@ -14573,6 +14613,7 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
       e.seasonsAtLevel++,
       e.totalSeasons++,
       delete e.focusTiltV193Z /* v193 Z: the focus roll's price tilt lives one season — every settle path runs through here */,
+      abSeasonEndV193AB(e) /* v193 AB: the Spillover and 2× POINTS are this season's */,
       e.seasonsSinceStart++,
       e.age++,
       (e.awards = (e.awards || []).concat(Te)),
@@ -16270,6 +16311,7 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
     </div>
 
     ${seasonModBanner(e)}
+    ${cardChipsV193AB(e) /* v193 AB: the held cards — a Hot Streak, a Spillover, 2× POINTS */}
     ${fr(e)}
     ${e.nemesis && Math.random() < 0.4 ? nemesisBanner(e) : ""}
     ${
@@ -22918,6 +22960,7 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
     ${combineYearV139(e) ? combineBoardV139(e) : ""}
     ${hero168 /* v168: the season opens on its hero */}
     ${seasonModBanner(e)}
+    ${cardChipsV193AB(e) /* v193 AB: the held cards — a Hot Streak, a Spillover, 2× POINTS */}
     <div class="sub${hero168 ? " sx-old-v168" : ""}">${d ? "All games played — finish the season to see your results." : `Record: <b style="color:var(--good)">${c}-${u}</b>`}${p && p.startsWith('<div class="threshold') ? p : ""}</div>
     ${p && !p.startsWith('<div class="threshold') ? p : ""}
     <div class="sched-list mt" style="margin-top:14px">
@@ -26162,6 +26205,7 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
       </div>
     </div>
     ${(focusCssV193Z(), focusLineV193Z(e)) /* v193 Z: this season's focus-roll tilts */}
+    ${spillLineV193AB(e) /* v193 AB: the Spillover cards held this season */}
     ${(() => {
       const st = clamp99(Math.round(e.stars || 1), 1, 5),
         bp = Math.round((TU("drStarBase", 0.6) + (st - 1) * TU("drStarStep", 0.0625)) * 100),
@@ -26450,7 +26494,8 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
         (allocSpent[pick] = (allocSpent[pick] || 0) + 1),
         (allocCosts[pick] = allocCosts[pick] || []).push(mc),
         (allocCarryV193Z[pick] = allocCarryV193Z[pick] || []).push(ch[pick].carry0),
-        focusPayV193Z(e, pick, ch[pick]));
+        focusPayV193Z(e, pick, ch[pick]),
+        (allocSpillV193AB[pick] = allocSpillV193AB[pick] || []).push(spillPayV193AB(e, mc)) /* v193 AB: the held Spillovers take their share */);
     }
     screenUpgrade();
   }
@@ -26468,7 +26513,8 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
   }
   let allocSpent = {},
     allocCosts = {},
-    allocCarryV193Z = {}; /* v193 Z: each bought level's carry before it, so a minus puts the remainder back exactly */
+    allocCarryV193Z = {} /* v193 Z: each bought level's carry before it, so a minus puts the remainder back exactly */,
+    allocSpillV193AB = {}; /* v193 AB: what each bought level spilled, so a minus takes exactly that back */
   function alloc(e, t) {
     const a = state.player;
     if (t > 0) {
@@ -26487,12 +26533,14 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
         (allocSpent[e] = (allocSpent[e] || 0) + 1),
         (allocCosts[e] = allocCosts[e] || []).push(c),
         (allocCarryV193Z[e] = allocCarryV193Z[e] || []).push(ch.carry0),
-        focusPayV193Z(a, e, ch));
+        focusPayV193Z(a, e, ch),
+        (allocSpillV193AB[e] = allocSpillV193AB[e] || []).push(spillPayV193AB(a, c)) /* v193 AB: the held Spillovers take their share */);
     } else {
       if ((allocSpent[e] || 0) <= 0) return;
       ((a.attrs[e] = Math.round(a.attrs[e]) - 1),
         (a.points += allocCosts[e] && allocCosts[e].length ? allocCosts[e].pop() : 1),
         focusUnpayV193Z(a, e, allocCarryV193Z[e] && allocCarryV193Z[e].length ? allocCarryV193Z[e].pop() : null),
+        spillUnpayV193AB(a, allocSpillV193AB[e] && allocSpillV193AB[e].length ? allocSpillV193AB[e].pop() : null) /* v193 AB: exactly what it spilled */,
         allocSpent[e]--);
     }
     byId("uv-" + e).textContent = Math.round(a.attrs[e]);
@@ -26544,8 +26592,10 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
                 wholeNum(sc - (e.attrs[a] || 0)) +
                 " more");
       /* v193 Z: a tilted row — the chip, and the readout states the tilted price */
-      const tl = byId("tilt-" + a);
-      tl && ((tl.innerHTML = focusChipV193Z(e, a)), tl.parentElement && tl.parentElement.classList.toggle("tilt-v193z", !!ch.tilt));
+      const tl = byId("tilt-" + a),
+        sp193 = spillChipV193AB(e, a); /* v193 AB: a Spillover's target shows its pending share */
+      tl && ((tl.innerHTML = focusChipV193Z(e, a) + sp193), tl.parentElement && tl.parentElement.classList.toggle("tilt-v193z", !!ch.tilt || !!sp193));
+      sp193 && v && (v.textContent = Math.round(e.attrs[a] || 0)); /* a spilled point lands on a row you did not tap */
       cp &&
         ch.tilt &&
         (e.attrs[a] || 0) < attrCap() &&
@@ -26564,7 +26614,7 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
     });
   }
   function doneUpgrade() {
-    ((allocSpent = {}), (allocCosts = {}), (allocCarryV193Z = {}), saveGame(), showToast("Player upgraded!"), goView("hub"));
+    ((allocSpent = {}), (allocCosts = {}), (allocCarryV193Z = {}), (allocSpillV193AB = {}), saveGame(), showToast("Player upgraded!"), goView("hub"));
   }
   /* ===== v67 SOFT-CAP LEGIBILITY — the price of a point, stated where the choice is
    * made. v21 gave every stat a soft cap and a rising price above it (2, then 3, then
@@ -30437,7 +30487,7 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
       ((t.roleBattle103 -= 100),
       t.breakthroughs103++,
       (t.coachTrust = clamp99((t.coachTrust || 50) + 10, 0, 100)),
-      (t.points = (t.points || 0) + 1),
+      (t.points = (t.points || 0) + ptsEarnV193AB(t, 1)) /* v193 AB */,
       (t.snapShare = clamp99((t.snapShare || 0.1) + 0.12, 0.06, 0.98)),
       (l = !0),
       pushStory(
@@ -38407,6 +38457,485 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
   function flipPctMultV186() {
     return 1 + treeFx("flipPctV186");
   }
+  /* ===== v193 AB THE CARDS PAY IN PLAY =====
+   * The owner: "Don't modify the coach trust via the card flip. Coach trust must be earned. Instead, replace it with a
+   * temporary stat boost … +5 to 10% to a random stat, for 1 to 10 games … I like the idea of holding your upgrades if you
+   * choose a '10% of stats go to Acceleration for every point you spend' … replace the % stats in the flip card … a rare
+   * 2× upgrade points this season only (1/50 cards) … range from 5 percent to 50 percent at the base … 1 game to 10 games.
+   * Modifiable in prestige of course." With the switch on, NO card touches coach trust, and the deck deals:
+   *   HOT STREAK (`hot:<rar>:<attr>:<pct>:<games>`) — +pct% to ONE attribute (a weighted draw over the position's stats,
+   *     v192 A's `flipStatWeightsV192A`, so Focused Reps leans it) for `games` games. The rarity carries the size: on the
+   *     base `hotPctMinV193AB`–`hotPctMaxV193AB` (5–50%) a common rolls 5–12, uncommon 10–20, rare 18–32, epic 30–42,
+   *     legendary 40–50 (`abBandV193AB`); the games the same way on `hotGamesMinV193AB`–`hotGamesMaxV193AB` (1–10). Held
+   *     on the player as `player.hotV193AB = [{attr, pct, gamesLeft, games, rar}]`; `ownBuffsV111` hands each attribute's
+   *     total (capped at `hotStackCapV193AB` 60%, + Hot Hands) to every game path as a v193 X percent buff (points off the
+   *     attribute today) — the watched game's `_raw`, the quick sim (`__aiSeasonGame` → simGameV2), the projections, the
+   *     sheet (`effAttrsV85`) — and the core `rollGamePerf` reads the OVR it adds (`hotPerfLiftV193AB`). `decayWearV111`
+   *     (a game is spent; a sat-out week never gets there) counts it down, once per week.
+   *   SPILLOVER (`spill:<rar>:<attr>:<pct>`) — "for the rest of this season every skill point you spend also puts pct% of a
+   *     point into <attr>" (one of the position's four KEY stats; `spillPctMinV193AB`–`spillPctMaxV193AB` 5–50%, skewed
+   *     by rarity the same way). HELD in `player.spillV193AB = {season, career, list, units, landed}`: each point spent on
+   *     the sheet (`alloc`, the hold-to-spend through `window.alloc`, both auto buttons) adds points × pct UNITS to the
+   *     attribute; the attribute holds floor(units / 100) whole points of it (`landed`), the rest is the pending fraction —
+   *     integer units, so 10 points at 20% are exactly +2 and a minus takes back exactly what it gave. Dead when the season
+   *     settles (core `simSeason`, where v193 Z drops its tilt; the read also checks the season number).
+   *   2× POINTS (`dbl`) — every upgrade point earned this season counts double: ONE helper (`ptsEarnV193AB`) on the
+   *     three places a season pays points — the week's paycheck (`payWeekV178`'s raw, before the bank), the season's own
+   *     points (`$e` in `simSeason`) and a depth-chart breakthrough. The Upgrade Point cards' season-end bonus is a share of
+   *     the (already doubled) paychecks, so it is never doubled twice. Its odds are its own draw on every slot BEFORE the
+   *     rarity draw: `doublePtsOddsV193AB` (0.02).
+   * THE PRESTIGE MENU (the Apex, next to Lucky Draw / Card Shark / Marked Cards; `treeFx` keys read per level with the
+   * Apex's ×1.5 taken back out, so the desc's numbers are exact): HOT HANDS `hotHands` (+3% both ends of the percent, +1
+   * game both ends, +3% on the stack cap a level; Lv 5: 20–65% for 6–15 games, stacking to 75%), SPILL COACH `spillCoach`
+   * (+5% both ends a level, Lv 5: 30–75%; from Lv 3 you aim it at any of the key stats — a picker under the card and on
+   * the skill sheet), DOUBLE SHIFT `doubleShift` (the 2× card ×1.5 as likely a level, Lv 4: ~1 in 10; at Lv 4 it also
+   * doubles the first `dblShiftNextGamesV193AB` (2) games of next season).
+   * An old card (`trust`, `reps`, `attr` — a deck dealt before, the v178 deck, a direct call) is re-dealt as the new one
+   * of its rarity, seeded. Kill switch `TU("v193AB", 1)` → 0: the old deck, the old cards, no boost, spill or doubling.
+   * `window.__V193AB`; `v193ABcheck.mjs`. */
+  function abOnV193AB() {
+    return !!TU("v193AB", 1);
+  }
+  function abRarsV193AB() {
+    return ["common", "uncommon", "rare", "epic", "legendary"];
+  }
+  function abColV193AB(rar) {
+    return { common: "#c8d0da", uncommon: "#6bbf59", rare: "#5ab0ff", epic: "#b07cff", legendary: "#f2c94c", jackpot: "#ff7ad9" }[rar] || "#c8d0da";
+  }
+  /* each rarity's slice of the base range — on 5–50: common 5–12, uncommon 10–20, rare 18–32, epic 30–42, legendary 40–50 */
+  function abBandV193AB(rar) {
+    const B = { common: [0, 7], uncommon: [5, 15], rare: [13, 27], epic: [25, 37], legendary: [35, 45] }[rar] || [0, 7];
+    return [B[0] / 45, B[1] / 45];
+  }
+  /* an Apex node's number per level, the branch's ×1.5 taken back out (the node's desc states the real totals) */
+  function abNodeFxV193AB(k) {
+    try {
+      return treeFx(k) / (branchFxV186("apex") || 1);
+    } catch (_) {
+      return 0;
+    }
+  }
+  function abRangeV193AB(lo, hi, rar, add) {
+    const b = abBandV193AB(rar),
+      a = Math.max(1, Math.round(lo + (hi - lo) * b[0] + add)),
+      z = Math.max(a, Math.round(lo + (hi - lo) * b[1] + add));
+    return [a, z];
+  }
+  function hotRangeV193AB(rar) {
+    return {
+      pct: abRangeV193AB(TU("hotPctMinV193AB", 5), TU("hotPctMaxV193AB", 50), rar, abNodeFxV193AB("hotPctV193AB")),
+      games: abRangeV193AB(TU("hotGamesMinV193AB", 1), TU("hotGamesMaxV193AB", 10), rar, abNodeFxV193AB("hotGamesV193AB"))
+    };
+  }
+  function spillRangeV193AB(rar) {
+    return abRangeV193AB(TU("spillPctMinV193AB", 5), TU("spillPctMaxV193AB", 50), rar, abNodeFxV193AB("spillPctV193AB"));
+  }
+  /* the most one attribute holds of its stacked boosts (Hot Hands lifts it with the range) */
+  function hotCapV193AB() {
+    return TU("hotStackCapV193AB", 60) + abNodeFxV193AB("hotPctV193AB");
+  }
+  function dblOddsV193AB() {
+    return Math.min(1, TU("doublePtsOddsV193AB", 0.02) * Math.pow(TU("dblShiftStepV193AB", 1.5), abNodeFxV193AB("dblShiftV193AB")));
+  }
+  function dblCarryGamesV193AB() {
+    const n = TREE_NODES.doubleShift;
+    return n && nodeLvl("doubleShift") >= n.max ? TU("dblShiftNextGamesV193AB", 2) : 0;
+  }
+  function abRollV193AB(rng, r) {
+    return r[0] + Math.min(r[1] - r[0], Math.floor(rng() * (r[1] - r[0] + 1)));
+  }
+  function abNameV193AB(k) {
+    return (ATTR_INFO[k] && ATTR_INFO[k].name) || k;
+  }
+  /* the Hot Streak's stat: v192 A's weighted draw over the position's stats (Focused Reps leans it to the key ones) */
+  function hotAttrV193AB(e, rng) {
+    let ws = [];
+    try {
+      ws = flipStatWeightsV192A(e);
+    } catch (_) {}
+    if (!ws.length) return keyAttrsV178(e)[0] || "speed";
+    let r = rng() * ws.reduce((a, c) => a + c[1], 0);
+    for (const [k, v] of ws) if ((r -= v) <= 0) return k;
+    return ws[ws.length - 1][0];
+  }
+  /* the Spillover's stats: the position's four KEY stats */
+  function spillKeysV193AB(e) {
+    const W = (e && POSITIONS[e.pos] && POSITIONS[e.pos].w) || {},
+      ks = Object.keys(W)
+        .filter(k => W[k] > 0 && e.attrs && e.attrs[k] != null)
+        .sort((a, b) => W[b] - W[a])
+        .slice(0, 4);
+    return ks.length ? ks : ["speed"];
+  }
+  function abParseV193AB(id) {
+    const s = String(id == null ? "" : id);
+    if (s === "dbl") return { kind: "dbl", rar: "jackpot" };
+    const p = s.split(":");
+    if (p[0] === "hot" && p.length === 5) return { kind: "hot", rar: p[1], attr: p[2], pct: +p[3] || 0, games: +p[4] || 0 };
+    if (p[0] === "spill" && p.length === 4) return { kind: "spill", rar: p[1], attr: p[2], pct: +p[3] || 0 };
+    return null;
+  }
+  function abLegacyV193AB(id) {
+    return id === "trust" || id === "reps" || id === "attr";
+  }
+  function abMakeV193AB(e, rng, kind, rar) {
+    if (kind === "hot") {
+      const R = hotRangeV193AB(rar),
+        k = hotAttrV193AB(e, rng);
+      return "hot:" + rar + ":" + k + ":" + abRollV193AB(rng, R.pct) + ":" + abRollV193AB(rng, R.games);
+    }
+    const ks = spillKeysV193AB(e),
+      k = ks[Math.min(ks.length - 1, Math.floor(rng() * ks.length))];
+    return "spill:" + rar + ":" + k + ":" + abRollV193AB(rng, spillRangeV193AB(rar));
+  }
+  /* the deck: a 2× POINTS draw on each slot, then v186's rarity, then a card of it (the % cards, a Hot Streak, a Spillover) */
+  function abDeckV193AB(e, rng, size) {
+    const O = flipRarOddsV186(),
+      order = ["legendary", "epic", "rare", "uncommon", "common"],
+      dbl = dblOddsV193AB();
+    return Array.from({ length: Math.max(3, size | 0) }, () => {
+      if (rng() < dbl) return "dbl";
+      let r = rng(),
+        rar = "common";
+      for (const k of order)
+        if ((r -= O[k]) < 0) {
+          rar = k;
+          break;
+        }
+      const pool = FLIPS_V186.filter(c => c.rar === rar && !abLegacyV193AB(c.id))
+          .map(c => c.id)
+          .concat(["hot", "spill"]),
+        id = pool[Math.min(pool.length - 1, Math.floor(rng() * pool.length))];
+      return id === "hot" || id === "spill" ? abMakeV193AB(e, rng, id, rar) : id;
+    });
+  }
+  /* an old card: the trust card is a Hot Streak (uncommon), Extra reps a common Spillover, +1 Permanent a legendary one */
+  function abLegacyMapV193AB(e, id, rng) {
+    if (id === "trust") return abMakeV193AB(e, rng, "hot", "uncommon");
+    if (id === "reps") return abMakeV193AB(e, rng, "spill", "common");
+    if (id === "attr") return abMakeV193AB(e, rng, "spill", "legendary");
+    return id;
+  }
+  function abLegacyRngV193AB(e, w, id, slot) {
+    return seededRng(e.seasonSeed || 0, e.level || 0, e.totalSeasons || 0, (w && w.week) || 0, (w && w.opp) || "", String(id), slot | 0, "legacyV193AB");
+  }
+  /* a deck dealt before (a save mid-reel) keeps its picks; an unpicked old card is re-dealt for its slot, seeded */
+  function abMigrateV193AB(e, w) {
+    const F = w && w.payV178 && w.payV178.flip;
+    if (!abOnV193AB() || !e || !F || !Array.isArray(F.deck) || !F.deck.some(abLegacyV193AB)) return;
+    F.deck = F.deck.map((id, j) => (abLegacyV193AB(id) && !(F.picked || []).some(p => p.i === j) ? abLegacyMapV193AB(e, id, abLegacyRngV193AB(e, w, id, j)) : id));
+  }
+  function abRarV193AB(id) {
+    const c = abParseV193AB(id);
+    if (c) return c.rar;
+    const f = FLIPS_V186.find(x => x.id === id);
+    return f ? f.rar : "common";
+  }
+  /* the card's face: the numbers it rolled, whole */
+  function abFaceV193AB(id) {
+    const c = abParseV193AB(id);
+    if (!c) return null;
+    if (c.kind === "dbl") return { id, kind: "dbl", rar: "jackpot", col: abColV193AB("jackpot"), icon: "💵", name: "2× POINTS · this season" };
+    if (c.kind === "hot")
+      return { id, kind: "hot", rar: c.rar, col: abColV193AB(c.rar), icon: "🔥", name: "+" + Math.round(c.pct) + "% " + abNameV193AB(c.attr) + " · " + c.games + (c.games === 1 ? " game" : " games") };
+    return { id, kind: "spill", rar: c.rar, col: abColV193AB(c.rar), icon: "🔁", name: Math.round(c.pct) + "% → " + abNameV193AB(c.attr) };
+  }
+  /* ---- the Spillover, held ---- */
+  function spillRecV193AB(e, make) {
+    if (!abOnV193AB() || !e) return null;
+    let R = e.spillV193AB;
+    const live = R && Array.isArray(R.list) && R.season === (e.totalSeasons | 0) && (R.career == null || !state || state.careers == null || R.career === state.careers);
+    if (!live) {
+      if (!make) return null;
+      R = e.spillV193AB = { season: e.totalSeasons | 0, career: state && state.careers != null ? state.careers : null, list: [], units: {}, landed: {} };
+    }
+    R.units = R.units || {};
+    R.landed = R.landed || {};
+    return R;
+  }
+  function spillAimOkV193AB() {
+    return nodeLvl("spillCoach") >= TU("spillAimLvlV193AB", 3);
+  }
+  /* units are points × percent; the attribute holds floor(units / 100) whole points of them (never past the cap) */
+  function spillMoveV193AB(e, R, k, du) {
+    R.units[k] = Math.max(0, (R.units[k] || 0) + du);
+    const want = Math.floor(R.units[k] / 100),
+      have = R.landed[k] || 0,
+      cur = Number(e.attrs[k]) || 0;
+    let d = want - have;
+    if (d > 0) d = Math.min(d, Math.max(0, Math.floor(attrCap() - cur)));
+    if (d < 0) d = Math.max(d, -have);
+    if (d) {
+      e.attrs[k] = cur + d;
+      R.landed[k] = have + d;
+    }
+  }
+  /* c points were just spent: every held Spillover adds c × its percent to its stat; returns what to take back on a minus */
+  function spillPayV193AB(e, c) {
+    const R = spillRecV193AB(e);
+    if (!R || !R.list.length || !(c > 0)) return null;
+    const rec = {};
+    R.list.forEach(s => {
+      const u = Math.round(c * (Number(s.pct) || 0));
+      s && s.attr && u > 0 && (rec[s.attr] = (rec[s.attr] || 0) + u);
+    });
+    for (const k in rec) spillMoveV193AB(e, R, k, rec[k]);
+    return rec;
+  }
+  function spillUnpayV193AB(e, rec) {
+    const R = rec ? spillRecV193AB(e) : null;
+    if (!R) return;
+    for (const k in rec) spillMoveV193AB(e, R, k, -rec[k]);
+  }
+  function spillAimV193AB(e, i, k) {
+    const R = spillRecV193AB(e);
+    if (!R || !R.list[i] || !spillAimOkV193AB() || spillKeysV193AB(e).indexOf(k) < 0) return false;
+    R.list[i].attr = k;
+    return true;
+  }
+  /* ---- 2× POINTS ---- */
+  function dblGamesPaidV193AB(e) {
+    return ((e && e.weekResults) || []).filter(w => w && w.payV178 && !w.payV178.skipped).length;
+  }
+  function dblActiveV193AB(e) {
+    if (!abOnV193AB() || !e || !e.dblPtsV193AB) return false;
+    const D = e.dblPtsV193AB,
+      s = e.totalSeasons | 0;
+    if (D.career != null && state && state.careers != null && D.career !== state.careers) return false;
+    if (D.season === s) return true;
+    return D.season === s - 1 && (D.next | 0) > 0 && dblGamesPaidV193AB(e) < (D.next | 0);
+  }
+  /* THE one helper every in-season point award goes through */
+  function ptsEarnV193AB(e, n) {
+    return dblActiveV193AB(e) ? n * 2 : n;
+  }
+  /* ---- the Hot Streak, in play ---- */
+  function hotListV193AB(pl) {
+    return abOnV193AB() && pl && Array.isArray(pl.hotV193AB) ? pl.hotV193AB.filter(b => b && b.attr && (b.gamesLeft | 0) > 0) : [];
+  }
+  function hotTotalsV193AB(pl, list) {
+    const T = {},
+      cap = hotCapV193AB();
+    (list || hotListV193AB(pl)).forEach(b => {
+      b && b.attr && (b.gamesLeft | 0) > 0 && (T[b.attr] = Math.min(cap, (T[b.attr] || 0) + (Number(b.pct) || 0)));
+    });
+    return T;
+  }
+  /* the attributes' totals as v193 X percent buffs — `ownBuffsV111` hands them to every game path */
+  function hotBuffsV193AB(pl) {
+    if (!abOnV193AB() || !pl || !pl.attrs) return [];
+    const T = hotTotalsV193AB(pl);
+    return Object.keys(T)
+      .filter(k => T[k] > 0 && pl.attrs[k] != null)
+      .map(k => ({ stat: k, amt: rollPtsV193X(pl, k, T[k]), pct: Math.round(T[k]), v193AB: "hot" }));
+  }
+  /* the OVR the boosts add, for rollGamePerf (a game already spent reads the boosts it was played with) */
+  function hotPerfLiftV193AB(e) {
+    if (!abOnV193AB() || !TU("hotPerfV193AB", 1) || !e || !e.attrs || !e.pos) return 0;
+    let list = null;
+    try {
+      const wk = curWeekV111(e);
+      list = wk && wk._hotV193AB ? wk._hotV193AB : null;
+    } catch (_) {}
+    const T = hotTotalsV193AB(e, list),
+      ks = Object.keys(T);
+    if (!ks.length) return 0;
+    const A = Object.assign({}, e.attrs);
+    ks.forEach(k => A[k] != null && (A[k] += rollPtsV193X(e, k, T[k])));
+    return Math.max(0, calcOvr(A, e.pos, e.body) - calcOvr(e.attrs, e.pos, e.body));
+  }
+  /* a game is spent (decayWearV111, once a week): every boost counts one down */
+  function hotDecayV193AB(pl, wk) {
+    if (!pl || !wk || !Array.isArray(pl.hotV193AB) || !pl.hotV193AB.length) return;
+    const L = hotListV193AB(pl);
+    L.length && (wk._hotV193AB = L.map(b => Object.assign({}, b)));
+    pl.hotV193AB = L.map(b => Object.assign({}, b, { gamesLeft: (b.gamesLeft | 0) - 1 })).filter(b => b.gamesLeft > 0);
+  }
+  /* ---- a card lands ---- */
+  function abApplyV193AB(e, id, w) {
+    const c = abParseV193AB(id);
+    if (!c || !e) return null;
+    if (c.kind === "hot") {
+      e.hotV193AB = Array.isArray(e.hotV193AB) ? e.hotV193AB : [];
+      e.hotV193AB.push({ attr: c.attr, pct: c.pct, gamesLeft: c.games, games: c.games, rar: c.rar });
+      applyFlipV178.abV193AB = { kind: "hot" };
+      return "+" + Math.round(c.pct) + "% " + abNameV193AB(c.attr) + " · " + c.games + (c.games === 1 ? " game" : " games");
+    }
+    if (c.kind === "spill") {
+      const R = spillRecV193AB(e, true);
+      R.list.push({ attr: c.attr, pct: c.pct, rar: c.rar });
+      applyFlipV178.abV193AB = { kind: "spill", idx: R.list.length - 1 };
+      return Math.round(c.pct) + "% → " + abNameV193AB(c.attr) + " · this season";
+    }
+    const next = dblCarryGamesV193AB();
+    e.dblPtsV193AB = { season: e.totalSeasons | 0, career: state && state.careers != null ? state.careers : null, next };
+    applyFlipV178.abV193AB = { kind: "dbl" };
+    return "2× POINTS · this season" + (next ? " + " + next + " games" : "");
+  }
+  /* the season settles (core simSeason, after the season's own points are paid): the Spillover and 2× POINTS are spent */
+  function abSeasonEndV193AB(e) {
+    if (!e) return;
+    delete e.spillV193AB;
+    const D = e.dblPtsV193AB;
+    if (D && !(D.season === (e.totalSeasons | 0) - 1 && (D.next | 0) > 0)) delete e.dblPtsV193AB;
+  }
+  /* ---- the screens ---- */
+  function abCssV193AB() {
+    if (typeof document > "u" || document.getElementById("abCssV193AB")) return "";
+    const st = document.createElement("style");
+    st.id = "abCssV193AB";
+    st.textContent = [
+      ".ab-chips-v193ab{display:flex;flex-wrap:wrap;gap:5px;margin:6px 0 8px}",
+      ".ab-chip-v193ab{display:inline-flex;align-items:center;gap:3px;max-width:100%;padding:2px 8px;border-radius:10px;font:600 12px 'Barlow Condensed',sans-serif;line-height:1.3;white-space:normal;border:1px solid rgba(255,255,255,.18);background:rgba(255,255,255,.05);color:var(--chalk)}",
+      ".ab-chip-v193ab.hot{border-color:rgba(255,157,74,.55);background:rgba(255,120,40,.12);color:#ffc08a}",
+      ".ab-chip-v193ab.spill{border-color:rgba(90,176,255,.5);background:rgba(90,176,255,.1);color:#a9d4ff}",
+      ".ab-chip-v193ab.dbl{border-color:rgba(255,122,217,.6);background:rgba(255,122,217,.12);color:#ffb3ec}",
+      ".up-spill-v193ab{margin:0 0 8px;padding:6px 10px;border-radius:10px;border:1px solid rgba(90,176,255,.4);background:rgba(90,176,255,.08);font:500 13px 'Barlow Condensed',sans-serif;color:var(--chalk-dim);line-height:1.4}",
+      ".up-spill-v193ab b{color:#a9d4ff}.up-spill-v193ab select{font:600 12px 'Barlow Condensed',sans-serif;background:#0d121c;color:var(--chalk);border:1px solid rgba(90,176,255,.5);border-radius:6px;max-width:130px}",
+      ".up-spillchip-v193ab{flex:none;display:inline-block;padding:1px 6px;border-radius:9px;font:700 10.5px Oswald,sans-serif;letter-spacing:.4px;white-space:nowrap;color:#a9d4ff;border:1px solid rgba(90,176,255,.45);background:rgba(90,176,255,.12)}",
+      ".ab-aim-v193ab{display:flex;flex-wrap:wrap;align-items:center;gap:5px;margin-top:6px;font:600 12px 'Barlow Condensed',sans-serif;color:var(--chalk-dim)}",
+      ".ab-aim-v193ab button{padding:3px 8px;border-radius:8px;border:1px solid rgba(90,176,255,.45);background:rgba(90,176,255,.08);color:var(--chalk);font:600 12px 'Barlow Condensed',sans-serif;cursor:pointer}",
+      ".ab-aim-v193ab button.on{background:rgba(90,176,255,.35);border-color:#a9d4ff;color:#fff}"
+    ].join("");
+    (document.head || document.documentElement).appendChild(st);
+    return "";
+  }
+  /* the chips on the hub and the season screen: "🔥 +22% Speed · 4 games", "🔁 20% → Acceleration", "💵 2× POINTS" */
+  function cardChipsV193AB(e) {
+    if (!abOnV193AB() || !e) return "";
+    const out = [];
+    try {
+      const cap = hotCapV193AB(),
+        T = hotTotalsV193AB(e);
+      hotListV193AB(e).forEach(b => {
+        const g = b.gamesLeft | 0;
+        out.push(`<span class="ab-chip-v193ab hot">🔥 +${Math.round(b.pct)}% ${escHtml(abNameV193AB(b.attr))} · ${g} game${g === 1 ? "" : "s"}${T[b.attr] >= cap ? ` <small>(stack capped at ${Math.round(cap)}%)</small>` : ""}</span>`);
+      });
+      const R = spillRecV193AB(e);
+      R &&
+        R.list.forEach(s => out.push(`<span class="ab-chip-v193ab spill">🔁 ${Math.round(s.pct)}% of every point → ${escHtml(abNameV193AB(s.attr))} · this season</span>`));
+      if (dblActiveV193AB(e)) {
+        const D = e.dblPtsV193AB,
+          carry = D.season !== (e.totalSeasons | 0);
+        out.push(`<span class="ab-chip-v193ab dbl">💵 2× POINTS · ${carry ? "the first " + (D.next | 0) + " games" : "this season"}</span>`);
+      }
+    } catch (_) {
+      return "";
+    }
+    if (!out.length) return "";
+    abCssV193AB();
+    return `<div class="ab-chips-v193ab" id="abChipsV193AB">${out.join("")}</div>`;
+  }
+  /* the pregame sheet's rows */
+  function abPregameRowsV193AB(pl) {
+    if (!abOnV193AB() || !pl) return [];
+    const rows = [];
+    try {
+      const T = hotTotalsV193AB(pl);
+      hotListV193AB(pl).forEach(b => {
+        const g = b.gamesLeft | 0;
+        rows.push({ l: "🔥 Hot streak", v: "+" + Math.round(b.pct) + "% " + abNameV193AB(b.attr) + " (+" + rollPtsV193X(pl, b.attr, Math.min(b.pct, T[b.attr] || b.pct)) + ") · " + g + " game" + (g === 1 ? "" : "s"), good: true });
+      });
+      dblActiveV193AB(pl) && rows.push({ l: "💵 Upgrade points", v: "2× this game", good: true });
+    } catch (_) {}
+    return rows;
+  }
+  /* the skill sheet's header line: "🔁 20% of every point → Acceleration (this season)" (from Spill Coach Lv 3: a picker) */
+  function spillLineV193AB(e) {
+    const R = spillRecV193AB(e);
+    if (!R || !R.list.length) return "";
+    abCssV193AB();
+    const aim = spillAimOkV193AB(),
+      ks = spillKeysV193AB(e);
+    return (
+      `<div class="up-spill-v193ab" id="spillLineV193AB">` +
+      R.list
+        .map(
+          (s, i) =>
+            `🔁 <b>${Math.round(s.pct)}%</b> of every point you spend → ${
+              aim
+                ? `<select aria-label="Spillover stat" onchange="window.__V193AB.aim(${i},this.value)">${ks.map(k => `<option value="${k}"${k === s.attr ? " selected" : ""}>${escHtml(abNameV193AB(k))}</option>`).join("")}</select>`
+                : `<b>${escHtml(abNameV193AB(s.attr))}</b>`
+            } (this season)`
+        )
+        .join("<br>") +
+      `</div>`
+    );
+  }
+  /* a target row's chip: the pending share of its next spilled point */
+  function spillChipV193AB(e, k) {
+    const R = spillRecV193AB(e);
+    if (!R || !R.list.some(s => s.attr === k) && !R.units[k]) return "";
+    const pend = Math.round((R.units[k] || 0) - (R.landed[k] || 0) * 100),
+      got = R.landed[k] || 0;
+    return `<span class="up-spillchip-v193ab" id="spillChipV193AB-${k}" title="Spillover: the share of your next free point">🔁 ${got ? "+" + got + " · " : ""}${Math.max(0, pend)}% to the next +1</span>`;
+  }
+  /* the reel: the Spillover's stat picker (Spill Coach Lv 3+), under the cards */
+  function spillAimHtmlV193AB(e, F) {
+    if (!abOnV193AB() || !F || !spillAimOkV193AB()) return "";
+    const R = spillRecV193AB(e);
+    if (!R) return "";
+    const ks = spillKeysV193AB(e);
+    return (F.picked || [])
+      .filter(p => p.ab && p.ab.kind === "spill" && R.list[p.ab.idx])
+      .map(
+        p =>
+          `<div class="ab-aim-v193ab" data-idx="${p.ab.idx}">🔁 Spill into:${ks
+            .map(k => `<button type="button" class="${R.list[p.ab.idx].attr === k ? "on" : ""}" onclick="event.stopPropagation();window.__V193AB.aimCard(${p.ab.idx},'${k}',${p.i})">${escHtml(abNameV193AB(k))}</button>`)
+            .join("")}</div>`
+      )
+      .join("");
+  }
+  function abAimCardV193AB(idx, k, i) {
+    const e = state && state.player;
+    if (!spillAimV193AB(e, idx, k)) return false;
+    try {
+      const R = spillRecV193AB(e),
+        s = R.list[idx],
+        say = Math.round(s.pct) + "% → " + abNameV193AB(s.attr) + " · this season",
+        el = document.querySelector(`#rvFlipV178 .rvc-v178[data-i="${i}"] .b`);
+      el && (el.innerHTML = `<i>🔁</i>${escHtml(say)}<small>${escHtml(String(s.rar || "").toUpperCase())}</small>`);
+      const w = e.weekResults && e.currentWeek != null ? e.weekResults[e.currentWeek] : null,
+        F = (w && w.payV178 && w.payV178.flip) || (V178.cardWeek && V178.cardWeek.payV178 && V178.cardWeek.payV178.flip),
+        pk = F && F.picked.find(p => p.i === i);
+      pk && (pk.say = say);
+      const box = document.getElementById("rvAimV193AB");
+      box && F && (box.innerHTML = spillAimHtmlV193AB(e, F));
+      buzzV193O("select");
+    } catch (_) {}
+    return true;
+  }
+  window.__V193AB = {
+    on: abOnV193AB,
+    deck: (w, n) => deckV178(state.player, w || {}, n || 3),
+    face: abFaceV193AB,
+    parse: abParseV193AB,
+    rar: abRarV193AB,
+    band: abBandV193AB,
+    hotRange: hotRangeV193AB,
+    spillRange: spillRangeV193AB,
+    hotCap: hotCapV193AB,
+    dblOdds: dblOddsV193AB,
+    hot: pl => hotListV193AB(pl || (state && state.player)),
+    buffs: pl => hotBuffsV193AB(pl || (state && state.player)),
+    lift: pl => hotPerfLiftV193AB(pl || (state && state.player)),
+    spill: pl => spillRecV193AB(pl || (state && state.player)),
+    keys: pl => spillKeysV193AB(pl || (state && state.player)),
+    aim: (i, k) => {
+      const ok = spillAimV193AB(state && state.player, i, k);
+      try {
+        ok && typeof document < "u" && document.getElementById("ptsLeft") && refreshAllocButtons(); /* the skill sheet is up */
+      } catch (_) {}
+      return ok;
+    },
+    aimCard: abAimCardV193AB,
+    dbl: pl => dblActiveV193AB(pl || (state && state.player)),
+    earn: (n, pl) => ptsEarnV193AB(pl || (state && state.player), n),
+    chips: pl => cardChipsV193AB(pl || (state && state.player)),
+    line: pl => spillLineV193AB(pl || (state && state.player)),
+    pregame: pl => abPregameRowsV193AB(pl || (state && state.player)),
+    seasonEnd: pl => abSeasonEndV193AB(pl || (state && state.player))
+  };
   const FLIPS_V178 = [
     { id: "pt1", w: 38, rar: "common", col: "#c8d0da", icon: "🪙", name: "+10% Upgrade Points" } /* v179 N: % of the week (min +1) */,
     { id: "pt2", w: 16, rar: "uncommon", col: "#6bbf59", icon: "💰", name: "+20% Upgrade Points" } /* min +2 */,
@@ -38437,6 +38966,7 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
   function deckV178(e, w, size) {
     const rng = seededRng(e.seasonSeed || 0, e.level || 0, e.totalSeasons || 0, w.week || 0, w.opp || "", w.playoff ? "p" : "r", "flipV178"),
       tot = FLIPS_V178.reduce((s, c) => s + c.w, 0);
+    if (flipOnV186() && abOnV193AB()) return abDeckV193AB(e, rng, size); /* v193 AB: Hot Streak, Spillover, 2× POINTS — no trust card */
     if (flipOnV186()) {
       const O = flipRarOddsV186(),
         order = ["legendary", "epic", "rare", "uncommon", "common"];
@@ -38453,11 +38983,13 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
       totL = FLIPS_V178.reduce((s, c) => s + wOf(c), 0);
     return Array.from({ length: Math.max(3, size | 0) }, () => {
       let r = rng() * (luck === 1 ? tot : totL);
-      for (const c of FLIPS_V178) if ((r -= luck === 1 ? c.w : wOf(c)) <= 0) return c.id;
+      for (const c of FLIPS_V178) if ((r -= luck === 1 ? c.w : wOf(c)) <= 0) return abOnV193AB() && abLegacyV193AB(c.id) ? abLegacyMapV193AB(e, c.id, rng) /* v193 AB: never the trust card */ : c.id;
       return "pt1";
     });
   }
   function flipCardV178(id) {
+    const ab = abOnV193AB() ? abFaceV193AB(id) : null; /* v193 AB: the new cards' faces say what they rolled */
+    if (ab) return ab;
     if (flipOnV186()) {
       const c6 = FLIPS_V186.find(x => x.id === id);
       if (c6) {
@@ -38483,6 +39015,16 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
     return c;
   }
   function applyFlipV178(e, id, w) {
+    applyFlipV178.abV193AB = null;
+    if (abOnV193AB()) {
+      /* v193 AB: no card touches coach trust — an old card is re-dealt as the new one of its rarity; the new ones land here */
+      if (abLegacyV193AB(id)) id = abLegacyMapV193AB(e, id, abLegacyRngV193AB(e, w, id, 100 + ((w && w.payV178 && w.payV178.flip && w.payV178.flip.picked.length) || 0)));
+      const ab = abApplyV193AB(e, id, w);
+      if (ab != null) {
+        applyFlipV178.pts = 0;
+        return ab;
+      }
+    }
     const keys = keyAttrsV178(e);
     let say = flipCardV178(id).name;
     if (flipOnV186()) {
@@ -38558,9 +39100,11 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
     const P = w && w.payV178,
       F = P && P.flip;
     if (!F || F.picked.length >= F.n || F.picked.some(p => p.i === i) || !F.deck[i]) return false;
+    abMigrateV193AB(e, w); /* v193 AB: an old card left in a saved deck is re-dealt first */
     applyFlipV178.pts = 0;
-    const say = applyFlipV178(e, F.deck[i], w);
-    F.picked.push({ i, id: F.deck[i], say, pts: applyFlipV178.pts }); /* v179 N: what a points card paid */
+    const say = applyFlipV178(e, F.deck[i], w),
+      ab = applyFlipV178.abV193AB;
+    F.picked.push(Object.assign({ i, id: F.deck[i], say, pts: applyFlipV178.pts }, ab ? { ab } : {})); /* v179 N: what a points card paid; v193 AB: which held card */
     return true;
   }
   function autoFlipV178(e, w) {
@@ -38721,7 +39265,8 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
       ordPts = orders ? hits * TU("orderPtsV178", 0.2) * worth + (orders.length && hits === orders.length ? TU("sweepPtsV178", 0.4) * worth : 0) : 0,
       pace = paceV178(e, w, stat),
       milePts = pace && pace.hit.length ? pace.hit.length * TU("milePtsV178", 0.75) * worth : 0,
-      raw = (pot.raw + ordPts + milePts) * wmul * heat.mult * (1 + treeFx("payMultV179")) * TU("betaPayV182", 1) /* v179 G: Golden Paycheck (the medal is inside treeFx); v193 E: Eternal Form and Glass Cannon too; v182: the beta paycheck dial */,
+      dbl193 = ptsEarnV193AB(e, 1) /* v193 AB: the 2× POINTS card — 2 while it holds */,
+      raw = ptsEarnV193AB(e, (pot.raw + ordPts + milePts) * wmul * heat.mult * (1 + treeFx("payMultV179")) * TU("betaPayV182", 1)) /* v179 G: Golden Paycheck (the medal is inside treeFx); v193 E: Eternal Form and Glass Cannon too; v182: the beta paycheck dial; v193 AB: ×2 on a 2× POINTS season */,
       bank0 = e.payBankV178 || 0,
       bank = bank0 + raw,
       whole = Math.floor(bank + 1e-9);
@@ -38744,6 +39289,7 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
       pace,
       milePts,
       raw,
+      dblV193AB: dbl193,
       whole,
       bank0,
       bank: e.payBankV178,
@@ -39046,7 +39592,8 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
     // 1 — the paycheck: the big number, the next-point bar that overflows once a point, the parts as chips
     const tags =
       (P.watched ? `<span class="rv-tag rv-stamp" style="color:var(--cyan)">×${P.wmul} WATCHED</span>` : "") +
-      (P.heat.tier ? `<span class="rv-tag rv-stamp" style="color:#ff9d4a"><span class="rv-flame">🔥</span> ${pctV178(P.heat.mult)}</span>` : "");
+      (P.heat.tier ? `<span class="rv-tag rv-stamp" style="color:#ff9d4a"><span class="rv-flame">🔥</span> ${pctV178(P.heat.mult)}</span>` : "") +
+      (P.dblV193AB > 1 ? `<span class="rv-tag rv-stamp" style="color:#ff7ad9">2× POINTS</span>` : ""); /* v193 AB */
     const chips = P.pot.items
       .map(i => `${escHtml(i.label)} <b>${fracV178(i.v)}</b>`)
       .concat(P.ordPts ? [`Orders ${P.hits}/${(P.orders || []).length} <b>${fracV178(P.ordPts)}</b>`] : [])
@@ -39061,6 +39608,7 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
     );
     // 2 — the cards, right under the paycheck: the slot machine is played while the rest lands
     if (P.flip) {
+      abMigrateV193AB(e, w); /* v193 AB */
       const F = P.flip,
         left = F.n - F.picked.length;
       rows.push(
@@ -39070,7 +39618,7 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
               pk = F.picked.find(p => p.i === i);
             return `<div class="rvc-v178${pk ? " flipped" : ""}" data-i="${i}" style="--rc:${c.col}" onclick="event.stopPropagation();window.__V178.pick(${i})"><div class="rv-in"><div class="f">?</div><div class="b"><i>${c.icon}</i>${escHtml(pk ? pk.say : c.name)}<small>${c.rar.toUpperCase()}</small></div></div></div>`;
           })
-          .join("")}</div></div>`
+          .join("")}</div><div id="rvAimV193AB">${spillAimHtmlV193AB(e, F) /* v193 AB: Spill Coach Lv 3 aims the Spillover */}</div></div>`
       );
     }
     // 3 — the orders: each one slides in, then its verdict is stamped
@@ -39401,12 +39949,17 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
       const b = el.querySelector(".b");
       b && (b.innerHTML = `<i>${c.icon}</i>${escHtml(pk.say)}<small>${c.rar.toUpperCase()}</small>`);
     }
-    playSfx(c.rar === "legendary" || c.rar === "epic" ? "big" : "good");
-    buzzV193O(c.rar === "legendary" || c.rar === "epic" ? "reward" : "select"); /* v193 O (was the save's haptic()) */
+    const big193 = c.rar === "legendary" || c.rar === "epic" || c.rar === "jackpot"; /* v193 AB: 2× POINTS is the jackpot */
+    playSfx(big193 ? "big" : "good");
+    buzzV193O(big193 ? "reward" : "select"); /* v193 O (was the save's haptic()) */
+    try {
+      const box = pk.ab && pk.ab.kind === "spill" ? document.getElementById("rvAimV193AB") : null;
+      box && (box.innerHTML = spillAimHtmlV193AB(e, F)); /* v193 AB: aim the Spillover (Spill Coach Lv 3) */
+    } catch (_) {}
     // v178 J: the rarity lands — the row glows the card's colour, a rare+ card throws confetti, an epic+ shakes it
     const row = document.getElementById("rvFlipV178");
     if (row) {
-      const big = c.rar === "legendary" || c.rar === "epic";
+      const big = big193;
       setTimeout(() => {
         glowV178(row, c.col, big);
         (big || c.rar === "rare") && confettiV178(row, big ? 40 : 18);
@@ -42402,6 +42955,14 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
     ["flipTrustCapV186", "Coach trust card stops at", 0, 100, 1, 70, "post"],
     ["flipRepsV182", "Reps card (attribute points)", 0, 5, 0.5, 0.5, "post"],
     ["flipAttrV182", "Permanent card (+attribute)", 0, 10, 1, 1, "post"],
+    ["hotPctMinV193AB", "Hot Streak: smallest boost %", 1, 50, 1, 5, "post"],
+    ["hotPctMaxV193AB", "Hot Streak: biggest boost %", 5, 100, 1, 50, "post"],
+    ["hotGamesMinV193AB", "Hot Streak: fewest games", 1, 10, 1, 1, "post"],
+    ["hotGamesMaxV193AB", "Hot Streak: most games", 1, 20, 1, 10, "post"],
+    ["hotStackCapV193AB", "Hot Streak: most one stat stacks (%)", 10, 200, 5, 60, "post"],
+    ["spillPctMinV193AB", "Spillover: smallest share %", 1, 50, 1, 5, "post"],
+    ["spillPctMaxV193AB", "Spillover: biggest share %", 5, 100, 1, 50, "post"],
+    ["doublePtsOddsV193AB", "2× POINTS card odds (1 in 50)", 0, 0.2, 0.005, 0.02, "post"],
     ["chaosBoostBaseV185", "Chaos: opponents' lift at the first point", 0, 60, 1, 22, "chaos"],
     ["chaosBoostPerV185", "Chaos: opponents' lift per point", 0, 5, 0.05, 1.05, "chaos"],
     ["chaosPPBaseV185", "Chaos: PP × at the first point", 1, 20, 0.5, 6, "chaos"],

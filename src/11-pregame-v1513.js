@@ -104,6 +104,7 @@ function continuePregame(){const q=pending;document.getElementById('pregameV1513
 function pregameTempStats(pl,wk){
   const out=[]; if(!pl) return out;
   (pl._tempStatBuffsV25||[]).forEach(b=>{const a=b.max?10:b.amt;out.push({l:(a<0?'Setback':'Boost')+' (this game)',v:window.__V193X?window.__V193X.buff(b):(a>0?'+'+a+' ':a+' ')+((window.__statLabelV25&&window.__statLabelV25(b.stat))||b.stat),good:a>=0});});   // v193 X: a percent, the points in brackets
+  try{(window.__V193AB?window.__V193AB.pregame(pl):[]).forEach(r=>out.push(r));}catch(e){}   // v193 AB: the Hot Streak cards (and a 2x POINTS game)
   if(pl.momentum103!=null&&Math.abs(pl.momentum103-50)>=3) out.push({l:'Momentum',v:Math.round(pl.momentum103)+'/100',good:pl.momentum103>=50});
   if(pl.composure103!=null&&Math.abs(pl.composure103-50)>=3) out.push({l:'Composure',v:Math.round(pl.composure103)+'/100',good:pl.composure103>=50});
   if(pl.coachTrust!=null&&Math.abs(pl.coachTrust-50)>=4) out.push({l:'Coach Trust',v:Math.round(pl.coachTrust)+'/100',good:pl.coachTrust>=50});
