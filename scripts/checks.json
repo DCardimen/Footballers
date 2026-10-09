@@ -5509,7 +5509,7 @@
   },
   "v194Ccheck": {
    "file": "scripts/v194Ccheck.mjs",
-   "desc": "v194 C — the far masts stand on the stadium's roof (lamp banks clear of the skyline, poles on the canopy, bloom and beam behind the stands, fixed field spots, still frame to frame); a kick framed while the men jog in from the 20 never dives into the foreground band at either goal line, and plays from the 20 to the end line keep the zoom continuous; the board's celebrating body wears the field's kit (palette, uniform pattern, helmet) for our team and him, the opponent only his own; each with its kill switch.",
+   "desc": "v194 C — the far masts stand on the stadium's roof (lamp banks clear of the skyline, poles on the canopy), drawn with their bloom and beam behind the stands, seated once per side and held snap after snap (stepping down only when the line goes behind every one seen), on fixed field spots; a kick framed while the men jog in from the 20 never dives into the foreground band at either goal line, and plays from the 20 to the end line keep the zoom continuous; the board's celebrating body wears the field's kit (palette, uniform pattern, helmet) for our team and him, the opponent only his own; each with its kill switch.",
    "areas": [
     "broadcast",
     "lights",

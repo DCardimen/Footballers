@@ -94,7 +94,7 @@ const L = await page.evaluate(() => { const V = window.__V92, sc = window.__grid
              behindTheFarEnd: sc.onTurfV103({ x: 300, y: 40, right: 420, bottom: 240 }),
              wideRightAtTheNearEnd: sc.onTurfV103({ x: 1120, y: 1500, right: 1700, bottom: 2200 }),
              theNearEndGrass: sc.onTurfV103({ x: 700, y: 1500, right: 1300, bottom: 2200 }) },
-    NSTOP: 340, NSH: 1340,
+    NSTOP: 340, NSH: 1340, roof: !!(window.__V194C && window.__V194C.lights && window.__V194C.lights.on), bowlTop: V.bowl ? V.bowl.top : null,
     footUp: window.TU('lightFootUp', 40), drop: window.TU('lightDropV112', 44) } })
 // v112: the far four still stand on ONE fixed row — that is what v98 was protecting and what v99's
 // key light reads — but the row is v98's less `lightDropV112`, because the rig was asked to sit
@@ -103,7 +103,10 @@ const L = await page.evaluate(() => { const V = window.__V92, sc = window.__grid
 /* v164 A: the masts stand on the FIELD now — the far four on one row just behind the end line, projected with the
  * bowl (so the row moves with the line of scrimmage, inside the band v98/v112 kept it in: never above the old fixed
  * row and never below the bowl's foot). With TU v164Alights 0 the row is the old literal one. */
-{ const wantRow = L.NSTOP - L.footUp + L.drop
+/* v194 C: with the far stands up the masts stand ON the roof (above the bowl's top, each pole on the canopy under it, held
+ * for the side) — no longer one row inside the bowl band; v194Ccheck measures them there. */
+if (L.roof) ok(L.far.length === 4 && L.far.every(t => t.y < L.bowlTop), 'the far four stand on the roof, above the bowl (v194 C)', JSON.stringify(L.far.map(t => [t.x, t.y])) + ' bowl top ' + L.bowlTop)
+else { const wantRow = L.NSTOP - L.footUp + L.drop
   ok(L.far.length === 4 && new Set(L.far.map(t => t.y)).size === 1 && (L.far[0].y === wantRow || (L.far[0].y >= L.NSTOP - L.footUp && L.far[0].y <= wantRow + 2)),
     'the far four stand on one row just behind the end line (v164 A: the field\'s row, inside the band v98 / v112 planted them in)',
     JSON.stringify(L.far.map(t => [t.x, t.y])) + ' band ' + (L.NSTOP - L.footUp) + '..' + (wantRow + 2)) }
