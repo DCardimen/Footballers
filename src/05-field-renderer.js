@@ -10405,6 +10405,8 @@ class Ot extends mt.Scene {
     // the ball spotlight rides across the band as the play moves
     S._lt += dt;
     if (S._lt > .12) { S._lt = 0; this.sideRelight(); }
+    /* v193 AI THE MASCOTS DANCE (renderer): each bench's mascot (src/35-mascots.js) — a no-op unless they are his */
+    try { if (window.RIB_MASCOTS) window.RIB_MASCOTS.frame(this, delta, { FW, PLAY_L, PLAY_W, VDIR, MIDY: (F_TOP + F_BOT) / 2 }); } catch (e) {}
   }
   clearSideline() {
     const S = this.side; if (!S) return;
