@@ -118,15 +118,20 @@ const F = await p.evaluate(() => {
   s.tree = {}
   // the deck's rarities over many weeks
   const RAR = { pt1: 'common', pp1: 'common', reps: 'common', pt2: 'uncommon', pp2: 'uncommon', trust: 'uncommon', pt3: 'rare', pp3: 'rare', gear: 'epic', attr: 'legendary' }
-  const cnt = { common: 0, uncommon: 0, rare: 0, epic: 0, legendary: 0 }; let N = 0
-  for (let wk = 0; wk < 2000; wk++) for (const id of V.deck({ week: wk, opp: 'X' + wk }, 50)) { cnt[RAR[id] || 'common']++; N++ }
+  const cnt = { common: 0, uncommon: 0, rare: 0, epic: 0, legendary: 0, jackpot: 0 }; let N = 0
+  const rarOf = (id) => (window.__V193AB ? window.__V193AB.rar(id) : RAR[id]) || 'common'   // v193 AB: the Hot Streak / Spillover ids carry their rarity; 2× POINTS is its own draw ("jackpot")
+  for (let wk = 0; wk < 2000; wk++) for (const id of V.deck({ week: wk, opp: 'X' + wk }, 50)) { cnt[rarOf(id)]++; N++ }
   const share = Object.fromEntries(Object.entries(cnt).map(([k, v]) => [k, +(v / N).toFixed(4)]))
   // the cards: percentages, not points — and the coach card
   pl.flipUpPctV186 = 0; pl.flipPPPctV186 = 0; const pts0 = pl.points || 0, pp0 = s.pp || 0, bank0 = s.ppBankV136 || 0
   window.__V179.applyFlip('pt1', {}); window.__V179.applyFlip('pt3', {}); window.__V179.applyFlip('pp1', {}); window.__V179.applyFlip('pp3', {})
   const mid = { up: pl.flipUpPctV186, pp: pl.flipPPPctV186, pts: (pl.points || 0) - pts0, ppNow: (s.pp || 0) - pp0 + (s.ppBankV136 || 0) - bank0 }
+  // v193 AB: no card touches coach trust — the old coach card is re-dealt as a Hot Streak; v193AB 0 is the v186 card
+  pl.coachTrust = 50; window.__V179.applyFlip('trust', {}); const t0 = pl.coachTrust
+  window.RIB_TUNE.v193AB = 0
   pl.coachTrust = 50; window.__V179.applyFlip('trust', {}); const t1 = pl.coachTrust
   pl.coachTrust = 70; window.__V179.applyFlip('trust', {}); const t2 = pl.coachTrust
+  delete window.RIB_TUNE.v193AB
   // the season's end: 12% of a 100-point season's paycheck
   pl.weekResults = [{ played: true, payV178: { whole: 60 } }, { played: true, payV178: { whole: 40 } }]
   const p1 = pl.points || 0; const upBonus = V.upSettle(pl); const upGot = (pl.points || 0) - p1, upAfter = pl.flipUpPctV186
@@ -135,11 +140,11 @@ const F = await p.evaluate(() => {
   // Card Shark ×(1 + 0.1 × level × the Apex's 1.5); Marked Cards make the top three likelier
   s.tree = { cardShark: 2, markedCards: 2 }; const mult = V.mult(), odds = V.odds(); s.tree = {}
   pl.flipUpPctV186 = 0; s.tree = { cardShark: 2 }; window.__V179.applyFlip('pt1', {}); const shark = pl.flipUpPctV186; s.tree = {}
-  return { share, N, mid, t1, t2, upBonus, upGot, upAfter, ppBonus, ppGot, mult, odds, shark }
+  return { share, N, mid, t0, t1, t2, upBonus, upGot, upAfter, ppBonus, ppGot, mult, odds, shark }
 })
 ok(F.share.common > 0.7 && F.share.uncommon > 0.17 && F.share.uncommon < 0.23 && F.share.rare > 0.04 && F.share.rare < 0.06 && F.share.epic > 0.0035 && F.share.epic < 0.0065 && F.share.legendary > 0.0004 && F.share.legendary < 0.0018, 'the deck: ~74% common, 20% uncommon, rare 1 in 20, epic 1 in 200, legendary 1 in 1,000', { N: F.N, share: F.share })
 ok(F.mid.up === 12 && F.mid.pp === 6 && F.mid.pts === 0 && F.mid.ppNow === 0, 'Upgrade Point and Prestige cards pay nothing mid-season — they add a percentage (+2% +10% / +1% +5%)', F.mid)
-ok(F.t1 === 51 && F.t2 === 70, 'the coach card is +1 trust, and nothing at 70+', { from50: F.t1, from70: F.t2 })
+ok(F.t0 === 50 && F.t1 === 51 && F.t2 === 70, 'the coach card: none since v193 AB (trust stays 50); with v193AB 0 it is +1 trust, and nothing at 70+', { now: F.t0, from50: F.t1, from70: F.t2 })
 ok(F.upBonus === 12 && F.upGot === 12 && F.upAfter === 0, 'the season ends: +12% of its 100-point paycheck = +12 points, and the percentage resets', { bonus: F.upBonus, got: F.upGot })
 ok(F.ppBonus === 60 && F.ppGot === 60, 'the career ends: +6% of a 1,000 PP payout = +60 PP', { bonus: F.ppBonus, got: F.ppGot })
 ok(Math.abs(F.mult - 1.3) < 1e-9 && Math.abs(F.shark - 2.6) < 1e-6 && Math.abs(F.odds.rare - 0.05 * 1.9) < 1e-9 && Math.abs(F.odds.legendary - 0.001 * 1.9) < 1e-9, 'Card Shark (Apex) +10% a level to every percentage; Marked Cards +30% a level to the top three (×1.5 on the Apex)', { mult: F.mult, shark: F.shark, odds: F.odds })

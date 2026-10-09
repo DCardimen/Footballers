@@ -118,7 +118,7 @@ const F = await M(async () => {
   const w1 = wk(); window.__V178.pay(w1, { live: false }); const n1 = w1.payV178.flip ? w1.payV178.flip.n : null, raw1 = w1.payV178.raw
   delete window.RIB_TUNE.extraCardV192A
   out.picks = [n0, n1]; out.payRatio = raw0 ? +(raw1 / raw0).toFixed(3) : null
-  const rare = () => { let r = 0, t = 0; for (let k = 0; k < 3000; k++) { const d = window.__V178.deck({ week: k, opp: 'L' + k }); for (const id of d) { t++; if (/^(pt3|pp3|gear|attr)$/.test(id)) r++ } } return r / t } // v186 F: the rare, epic and legendary cards
+  const rare = () => { let r = 0, t = 0; for (let k = 0; k < 3000; k++) { const d = window.__V178.deck({ week: k, opp: 'L' + k }); for (const id of d) { t++; const rar = window.__V193AB ? window.__V193AB.rar(id) : (/^(pt3|pp3)$/.test(id) ? 'rare' : /^(gear|attr)$/.test(id) ? 'epic' : 'common'); if (/^(rare|epic|legendary)$/.test(rar)) r++ } } return r / t } // v186 F: the rare, epic and legendary cards (v193 AB: Hot Streak / Spillover of those rarities too)
   const r0 = rare(); claim({ id: 'luckyDeck', major: true, fx: { flipLuckV179: 1 } }); const r1 = rare()
   out.rare = [+(r0.toFixed(3)), +(r1.toFixed(3))]
   // PP now; a look
