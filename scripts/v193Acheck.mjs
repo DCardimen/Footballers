@@ -52,7 +52,7 @@ const mk = await page.evaluate(() => {
   const V = window.__V147C, A = window.__GRIDIRON_AUDIT__, S = window.S
   const p = A.newPlayer(S, 'RB'); p.pos = 'RB'; p.level = 3; S.player = p
   const a = V.make(2), b = V.roll({ id: 'lv_t0', rarity: 'common', slot: 'cleats' }, 0), c = V.roll({ id: 'lv_t8', rarity: 'mythic', slot: 'chain' }, 8)
-  const old = { id: 'old1', slot: 'gloves', rarity: 'epic', eff: 'ppMult', val: .1, icon: '🧤', modsV147: 1, tierV147: 4, mods: [{ k: 'a_speed', v: 10 }] }
+  const old = { id: 'old1', slot: 'gloves', rarity: 'epic', eff: 'ppMult', val: .1, icon: '🧤', modsV147: 1, tierV147: 4, attrPctV193X: 1 /* v193 X: +10% Speed */, mods: [{ k: 'a_speed', v: 10 }] }
   window.__V193A.ensure(old)
   const pre = { id: 'old2', slot: 'gloves', rarity: 'rare', eff: 'ppMult', val: .1, icon: '🧤' }   // a pre-v147 piece: the roll gives it the tier 0 level
   window.__V147C.ensure(pre)
@@ -66,14 +66,14 @@ ok(mk.pre[0] === 1 && mk.pre[1] === 1, 'a pre-v147 piece gets the tier-0 level w
 // ---- 2. the multiplier reaches both reads; the kill switch; the cap ----
 const mult = await page.evaluate(() => {
   const V = window.__V147C, G = window.__V193A, S = window.S
-  const piece = () => ({ id: 'mx1', slot: 'chain', rarity: 'epic', name: 'Phantom Chain', eff: 'power', val: 4, icon: '📿', modsV147: 1, tierV147: 4, mods: [{ k: 'a_speed', v: 10 }, { k: 'p_rushYds', v: .1 }] })
+  const piece = () => ({ id: 'mx1', slot: 'chain', rarity: 'epic', name: 'Phantom Chain', eff: 'power', val: 4, icon: '📿', modsV147: 1, tierV147: 4, attrPctV193X: 1 /* v193 X: +10% Speed */, mods: [{ k: 'a_speed', v: 10 }, { k: 'p_rushYds', v: .1 }] })
   const A = piece(); S.inventory = [A]; S.equipped = { chain: A }
   const on = { m: G.mult(A), fx: G.fx('power'), sp: V.get('a_speed'), ry: V.get('p_rushYds'), price: G.price(A), pct: G.pct(A) }
   window.RIB_TUNE = window.RIB_TUNE || {}; window.RIB_TUNE.v193A = 0
   const B = piece(); S.equipped = { chain: B }   // a new object: the v147 memo keys on identity
   const off = { m: G.mult(B), fx: G.fx('power'), sp: V.get('a_speed'), ry: V.get('p_rushYds'), price: G.price(B) }
   delete window.RIB_TUNE.v193A
-  const C = piece(); C.lvlV193 = 400; C.lvl0V193 = 21; S.equipped = { chain: C }
+  const C = piece(); C.mods[0].v = 12; C.lvlV193 = 400; C.lvl0V193 = 21; S.equipped = { chain: C }   // v193 X: 12% × 2.5 = 30% → the 25% cap
   const cap = { m: G.mult(C), sp: V.get('a_speed') }
   S.equipped = {}
   return { on, off, cap }
@@ -83,12 +83,12 @@ ok(near(mult.on.fx, 4.84), 'gearFx reads the base effect × the level (4 → 4.8
 ok(mult.on.sp === 12, 'gearV147 reads an integer modifier × the level, rounded (10 → 12)', mult.on.sp)
 ok(near(mult.on.ry, .121), 'gearV147 reads a % modifier × the level (.1 → .121)', mult.on.ry)
 ok(mult.off.m === 1 && mult.off.fx === 4 && mult.off.sp === 10 && near(mult.off.ry, .1) && mult.off.price === 8, 'TU("v193A", 0): raw numbers and the flat price', JSON.stringify(mult.off))
-ok(near(mult.cap.m, 2.5) && mult.cap.sp === 20, 'the multiplier is capped at ×2.5 (then the per-key cap)', JSON.stringify(mult.cap))
+ok(near(mult.cap.m, 2.5) && mult.cap.sp === 25, 'the multiplier is capped at ×2.5 (then the per-key cap — v193 X: 25% on an attribute)', JSON.stringify(mult.cap))
 
 // ---- 3. the season settle: the bag and the equipped copy ----
 const season = await page.evaluate(() => {
   const V = window.__V147C, G = window.__V193A, S = window.S
-  const A = { id: 'sa', slot: 'chain', rarity: 'epic', name: 'Phantom Chain', eff: 'power', val: 4, icon: '📿', modsV147: 1, tierV147: 4, mods: [{ k: 'a_speed', v: 10 }] }
+  const A = { id: 'sa', slot: 'chain', rarity: 'epic', name: 'Phantom Chain', eff: 'power', val: 4, icon: '📿', modsV147: 1, tierV147: 4, attrPctV193X: 1 /* v193 X: +10% Speed */, mods: [{ k: 'a_speed', v: 10 }] }
   const B = { id: 'sb', slot: 'cleats', rarity: 'common', name: 'Worn Cleats', eff: 'growth', val: .03, icon: '👟', modsV147: 1, tierV147: 0, mods: [] }
   const L = { id: 'loose', slot: 'gloves', rarity: 'rare', name: 'Custom Gloves', eff: 'ppMult', val: .05, icon: '🧤', modsV147: 1, tierV147: 2, mods: [] }
   S.inventory = [A, B]; S.equipped = { chain: JSON.parse(JSON.stringify(A)), gloves: L }   // the chain is a reload-style copy; the gloves have no twin

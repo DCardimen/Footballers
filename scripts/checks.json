@@ -39,7 +39,9 @@
     "v193Jcheck",
     "v193Pcheck",
     "v193Icheck",
-    "v193Ocheck"
+    "v193Ocheck",
+    "v193Vcheck",
+    "v193Xcheck"
    ]
   },
   "docs": {
@@ -139,7 +141,8 @@
   "gear": {
    "desc": "v147 C — gear rolled modifiers, catalogue, migration, locker",
    "anchors": [
-    "v147 C"
+    "v147 C",
+    "v193 X"
    ],
    "files": [],
    "checks": [
@@ -153,7 +156,9 @@
     "v146Echeck",
     "v146Dcheck",
     "walk",
-    "menu-integration-check"
+    "menu-integration-check",
+    "v193Xcheck",
+    "v192Acheck"
    ]
   },
   "camera": {
@@ -273,7 +278,8 @@
    "desc": "v146 D — the weekly plan board, projection / variance, form swing, the live game inputs",
    "anchors": [
     "v146 D",
-    "v193 B"
+    "v193 B",
+    "v193 X"
    ],
    "files": [],
    "checks": [
@@ -291,7 +297,8 @@
     "bootviewcheck",
     "walk",
     "matchupcheck",
-    "v193Bcheck"
+    "v193Bcheck",
+    "v193Xcheck"
    ],
    "variants": [
     "`POS=QB,DL,S` for `v146Dcheck` (default RB,WR,LB)"
@@ -314,7 +321,8 @@
     "vaultcheck",
     "walk",
     "v193Ccheck",
-    "v193Mcheck"
+    "v193Mcheck",
+    "v193Vcheck"
    ],
    "look": [
     "`node scripts/v146Eshot.mjs`"
@@ -588,7 +596,8 @@
   "wheel": {
    "desc": "v135 — the game-plan wheel, the held roll, the fifth pregame page",
    "anchors": [
-    "v135"
+    "v135",
+    "v193 X"
    ],
    "files": [],
    "checks": [
@@ -598,7 +607,8 @@
     "v111Bcheck",
     "v85check",
     "walk",
-    "scrollcheck"
+    "scrollcheck",
+    "v193Xcheck"
    ]
   },
   "goals": {
@@ -839,13 +849,15 @@
    "desc": "injuries and availability",
    "anchors": [
     "v54",
-    "materializeInjuryV18"
+    "materializeInjuryV18",
+    "v193 W"
    ],
    "files": [],
    "checks": [
     "injurycheck",
     "availabilitycheck",
-    "v153Bcheck"
+    "v153Bcheck",
+    "v193Wcheck"
    ]
   },
   "ovr": {
@@ -1149,7 +1161,8 @@
     "v109C1check",
     "v109C2check",
     "v109Dcheck",
-    "v109Echeck"
+    "v109Echeck",
+    "v193Wcheck"
    ],
    "steps": [
     "run `scoreneutralcheck` FIRST and keep the before row; compare several seeds against the OFF spread"
@@ -4955,7 +4968,8 @@
    "file": "scripts/v192Acheck.mjs",
    "desc": "v192 — flat prestige (milestones, challenges, orders, titles, Daily Drive, bounties) pays a tenth and the flat bank is capped at half the career's pay; the medal windfall 10%; practice reps and the reps card halved; the fate roll is a percent that can pass the cap; the Extra Card is a 1.2M Impossible node; flip stats spread, Focused Reps leans them.",
    "areas": [
-    "season"
+    "season",
+    "gear"
    ],
    "runtimeSec": 60,
    "slow": false,
@@ -5193,6 +5207,50 @@
     "cosmetics"
    ],
    "runtimeSec": 100,
+   "slow": false,
+   "needsServer": true,
+   "pureNode": false,
+   "flaky": []
+  },
+  "v193Wcheck": {
+   "file": "scripts/v193Wcheck.mjs",
+   "desc": "v193 W — the live HUD has no 🐢 slider; at 4× a forced big play drops the play clock to 1× (Subtle) for under 1.5 s of wall time and returns to 4×, never stacking into a freeze; Off does nothing, Subtle leaves 1× alone, Dramatic slows 1× to ½×, a second moment never extends a window; the post-game PLAY-BY-PLAY RECAP is folded by default (YOUR GAME tiles and the reel stay up), opens on a tap and is remembered (the Quick Play card's fold reads it); a knock taken into a watched game that became an injury opens the pop-up after the card (never over it) naming the snap; a simmed week's injury opens it once with HOW LONG matching the real layoff, the heal opens 'cleared to play', two injuries in a quick-simmed run show in order, nothing over the Quick Play card; Settings › LIVE GAME's Big-play slow motion row (Subtle default, Off stored); no page errors.",
+   "areas": [
+    "injury",
+    "live",
+    "feel",
+    "postgame"
+   ],
+   "runtimeSec": 210,
+   "slow": false,
+   "needsServer": true,
+   "pureNode": false,
+   "flaky": [],
+   "loadSensitive": true
+  },
+  "v193Vcheck": {
+   "file": "scripts/v193Vcheck.mjs",
+   "desc": "v193 V — icons in the menu's style: at 390x844 @3x every bottom-nav tab shows a loaded icon element (the menu tiles' football / dumbbell / coin / gear art, a drawn SVG calendar for SEASON), 20-28 px, no emoji text, labels kept, 36 px targets, the lit tab's gold glow; the section bar and its spray carry the tab's icon (hub, season, tree, locker, profile); every tree branch tab a drawn icon in its own colour, names kept, not clipped; a failed image gives its emoji back; TU v193V 0 = the emoji everywhere; the bar fits 360 px; at 900 px every section tab strip (hub, season, settings, tree, locker, profile) shows icons",
+   "areas": [
+    "shell",
+    "smoke"
+   ],
+   "runtimeSec": 65,
+   "slow": false,
+   "needsServer": true,
+   "pureNode": false,
+   "flaky": []
+  },
+  "v193Xcheck": {
+   "file": "scripts/v193Xcheck.mjs",
+   "desc": "v193 X — rolls and items in percent: at Pee Wee / College / UFF attribute levels the old flat roll vs the new percent (equal at College within 15%, fewer points below, more above, the same share of the attribute); the growth wheel, the plan roll (silentPlan), the story wheel, the +1 Permanent and Extra reps flips and the fate roll hand out whole percents through the real functions and compose into points off the attribute; the projection prices the percent; gear a_* modifiers roll as percents of the tier's typical attribute, an old piece migrates once, the level multiplier rides on top, the per-attribute cap is 25%, effAttrsV85 carries the points; v193X 0 restores every flat number; no decimals on the locker, the hub chips or the roll lines.",
+   "areas": [
+    "gear",
+    "plan",
+    "wheel",
+    "smoke"
+   ],
+   "runtimeSec": 45,
    "slow": false,
    "needsServer": true,
    "pureNode": false,

@@ -1,4 +1,4 @@
-// Dev check: the post-game card (v13 `pgOverlayV13`, reordered in v53).
+// Dev check: the post-game card (v13 `pgOverlayV13`, reordered in v53; v193 W folds the recap — opened to read).
 //   - SEASON TOTALS leads the card: what a player wants after a whistle is where
 //     the year stands, with the single-game box as detail underneath
 //   - the season line states how many games it covers and the record
@@ -92,7 +92,10 @@ async function playLiveWeek(n) {
 const readCard = () => page.evaluate(() => {
   const el = document.getElementById('pgOverlayV13'); if (!el) return null
   const panel = el.querySelector('.decision-panel')
-  const labels = [...panel.children].map(c => (c.innerText || '').replace(/\s+/g, ' ').trim())
+  // v193 W: the recap (season totals, the grade, this game) is one folded section — open it to read it
+  const fold = panel.querySelector('.recap-v193w'), folded = !!fold && !fold.classList.contains('open')
+  if (folded) fold.querySelector('.recap-head-v193w').click()
+  const labels = [...panel.children].flatMap(c => c.classList.contains('recap-v193w') ? [...c.querySelector('.recap-body-v193w').children] : [c]).map(c => (c.innerText || '').replace(/\s+/g, ' ').trim())
   const idx = re => labels.findIndex(t => re.test(t))
   const season = labels.find(t => /SEASON TOTALS/.test(t)) || ''
   const m = season.match(/through (\d+) game s? ?·? ?(\d+)–(\d+)/) || season.match(/through (\d+) games? · (\d+)–(\d+)/)
@@ -102,7 +105,7 @@ const readCard = () => page.evaluate(() => {
     iSeason: idx(/SEASON TOTALS/), iGrade: idx(/GAME GRADE/), iThis: idx(/^THIS GAME/),
     games: m ? +m[1] : null, w: m ? +m[2] : null, l: m ? +m[3] : null,
     win: /WIN/.test(title), us: sc ? +sc[1] : null, them: sc ? +sc[2] : null,
-    seasonLabel: season.slice(0, 70),
+    seasonLabel: season.slice(0, 70), fold: !!fold, folded,
   }
 })
 
@@ -112,6 +115,7 @@ let c1 = await readCard()
 console.log('card 1:', JSON.stringify(c1))
 if (!c1) { console.log('VERDICT: FAIL (no card)'); await b.close(); process.exit(1) }
 await page.screenshot({ path: 'scripts/_postgame.png' })
+ok(c1.fold && c1.folded, 'v193 W: the recap is folded by default (opened here to read it)')
 ok(c1.iSeason >= 0, 'the card carries a SEASON TOTALS block')
 ok(c1.iSeason < c1.iThis, 'SEASON TOTALS leads the single-game box', `season@${c1.iSeason} thisGame@${c1.iThis}`)
 ok(c1.iSeason < c1.iGrade, 'SEASON TOTALS leads the game grade', `season@${c1.iSeason} grade@${c1.iGrade}`)

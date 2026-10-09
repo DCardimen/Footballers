@@ -2858,7 +2858,13 @@ class Ot extends mt.Scene {
     // when the catch, the juke, the truck is going to land and eases the clock down INTO it
     // rather than reacting a frame after it has happened.
     const antic = this.slomoV102(P, delta);
-    const spd = Math.max(slowFloorV164F(), window.__getGridironLiveSpeed?.() ?? 1) * TU("basePlayRate", 0.7) * Math.min(cineScale, antic);   // v164 F: the slow dial goes below ½×
+    const chosenV193W = Math.max(slowFloorV164F(), window.__getGridironLiveSpeed?.() ?? 1);   // v164 F: the slow dial goes below ½×
+    let relV193W = chosenV193W * Math.min(cineScale, antic);
+    /* v193 W: the big play's automatic slow motion is a CEILING on the rate, never a factor on it — the slower of
+     * the two wins, so it can never stack with the v37 / v102 / badge slow-mo into a freeze (hitStop stays its own) */
+    try { const bsV193W = this.bigSlowRateV193W(P, chosenV193W, delta); if (bsV193W != null) relV193W = Math.min(relV193W, bsV193W);
+      const BW = window.__V193W_SLOW; if (BW) { BW.applied = relV193W; if (BW.rec) { BW.samples.push({ at: Math.round(performance.now()), r: +relV193W.toFixed(3), w: +(bsV193W == null ? chosenV193W : bsV193W).toFixed(3), ch: chosenV193W }); if (BW.samples.length > 900) BW.samples.shift(); } } } catch (e) {}
+    const spd = relV193W * TU("basePlayRate", 0.7);
     P.t += delta * spd;
     const S = P.script, T = Math.min(Math.max(0, P.t - (P.delay || 0)), S.duration);
     // broadcast-style follow camera: track the ball with look-ahead, wider on big plays
@@ -4319,6 +4325,96 @@ class Ot extends mt.Scene {
       const rad = (TU("slomoRingR", 14) + 3 * Math.sin(performance.now() / 120)) * (m.root.scale || 1);
       r.lineStyle(2, 0xf0bb45, 0.7 * depth); r.strokeEllipse(m.root.x, m.root.y + 22 * (m.root.scale || 1), rad * 2, rad * 0.9);
     }
+  }
+  /* ===== v193 W BIG-PLAY SLOW MOTION (automatic at speed) =====
+   * The owner: "Remove the turtle slide bar. I wanted that to be automatic during fast play to emphasize big plays.
+   * Move that to the menu." The v164 F 🐢 dial (a constant 0.25×–1× rate on the live HUD) is gone; its amount is
+   * Settings › LIVE GAME › "Big-play slow motion" (`state.settings.bigSlowV193W`: off · subtle · dramatic, default
+   * subtle). On a big play — a touchdown, a turnover, a sack, a big hit, a 20+ yard gain — the play clock drops to
+   * the setting's rate for a beat of WALL time and eases back to the speed he chose:
+   *   subtle    1×   for `bigSlowMsSubtleV193W` 900 ms, only at 2× and up (1× and ½× play exactly as before)
+   *   dramatic  ½×   for `bigSlowMsDramaticV193W` 1200 ms, at 1× and up (the setting says so)
+   * The moment is SEEN COMING (v102's idea): the script is known before it plays, so `bigSlowPlanV193W` reads the
+   * payload once a play (scored / turnover / sack / hit stick / 20+ yards) and the event that makes it (the catch,
+   * the pick, the strip, the sack, the first move of a long run, the crossing) and opens the window
+   * `bigSlowLeadMsV193W` (200 ms of wall time) before it lands. A badge of the same kinds (`BADGE_V95.show`) opens
+   * it too, for the moments the plan cannot see. One window a play (`bigSlowPerPlayV193W`), never extended.
+   * The window is a CEILING on the rate (`update`: min of it and the v37/v102 rate), so it never stacks into a
+   * freeze; hitStop is untouched. The camera keeps the chosen speed's rate (`camRateV147`) — its constants do not
+   * jump mid-pan. Kill switch `TU("v193Wslow", 0)`: no automatic slow motion, the 🐢 dial is back on the HUD.
+   * `window.__V193W_SLOW` (`fired`, `last`, `rate`, `samples` while `rec`); `v193Wcheck`. ===== */
+  bigSlowModeV193W() {
+    if (!TU("v193Wslow", 1)) return "off";
+    let m = "subtle";
+    try { const st = window.__getGridironState && window.__getGridironState(); const v = st && st.settings && st.settings.bigSlowV193W; if (v === "off" || v === "subtle" || v === "dramatic") m = v; } catch (e) {}
+    return m;
+  }
+  bigSlowV193W(kind, o) {
+    o = o || {};
+    const B = window.__V193W_SLOW = window.__V193W_SLOW || { fired: 0, skipped: 0, last: null, rate: 1, rateAt: 0, rec: false, samples: [], log: [] };
+    const mode = this.bigSlowModeV193W();
+    if (mode === "off") { B.skipped++; return false; }
+    const dram = mode === "dramatic";
+    const chosen = Math.max(slowFloorV164F(), Number(window.__getGridironLiveSpeed ? window.__getGridironLiveSpeed() : 1) || 1);
+    const target = dram ? TU("bigSlowRateDramaticV193W", 0.5) : TU("bigSlowRateSubtleV193W", 1);
+    if (chosen <= target + 1e-6 || (!dram && chosen <= 1)) { B.skipped++; return false; }   // 1× (subtle) and ½× are untouched
+    const P = this.play;
+    if (!o.force && (!P || P.done)) { B.skipped++; return false; }
+    const now = performance.now(), W0 = this._bigSlowV193W;
+    if (W0 && now < W0.until) { B.skipped++; return false; }   // one at a time — never extended
+    if (!o.force && P && (P._bigSlowNV193W || 0) >= TU("bigSlowPerPlayV193W", 1)) { B.skipped++; return false; }
+    if (P) P._bigSlowNV193W = (P._bigSlowNV193W || 0) + 1;
+    const ms = dram ? TU("bigSlowMsDramaticV193W", 1200) : TU("bigSlowMsSubtleV193W", 900);
+    // the window belongs to THIS play: one opened at the whistle never slows the next snap (a forced one is the check's)
+    this._bigSlowV193W = { kind: String(kind || ""), at: now, until: now + ms, target, chosen, mode, inMs: TU("bigSlowInMsV193W", 140), outMs: TU("bigSlowOutMsV193W", 280), play: o.force ? null : P };
+    B.fired++; B.last = Object.assign({}, this._bigSlowV193W, { play: undefined }); B.log.push(B.last); if (B.log.length > 40) B.log.shift();
+    return true;
+  }
+  // the rate the window allows this frame (in units of 1×), or null when no window is open
+  bigSlowRateV193W(P, chosen, delta) {
+    const B = window.__V193W_SLOW = window.__V193W_SLOW || { fired: 0, skipped: 0, last: null, rate: 1, rateAt: 0, rec: false, samples: [], log: [] };
+    try { this.bigSlowWatchV193W(P, chosen); } catch (e) {}
+    const W = this._bigSlowV193W, now = performance.now();
+    let r = null;
+    if (W && (now >= W.until || (W.play && W.play !== P))) this._bigSlowV193W = null;
+    else if (W) {
+      const t = now - W.at, left = W.until - now, ease = (q) => { q = Math.max(0, Math.min(1, q)); return q * q * (3 - 2 * q); };
+      const k = t < W.inMs ? ease(t / W.inMs) : left < W.outMs ? ease(left / W.outMs) : 1;
+      const tgt = Math.min(chosen, W.target);
+      r = chosen + (tgt - chosen) * k;
+    }
+    B.rate = r == null ? chosen : Math.min(chosen, r); B.rateAt = now;
+    return r;
+  }
+  // THE PLAN, once a play: is it big, and which scripted event is the moment
+  bigSlowPlanV193W(P) {
+    const S = P && P.script, ev = (S && S.events) || [], pay = (P && P.payload) || {};
+    if (!ev.length || pay.penalty) return null;
+    const yd = Number(pay.yards ?? 0), d = String(pay.desc || "").toUpperCase(), live = pay.event === "run" || pay.event === "pass";
+    const first = (f) => ev.find((e) => e && f(e));
+    let kind = null, at = null;
+    const pick = first((e) => e.type === "pick"), fum = first((e) => e.type === "fumble");
+    const sackE = first((e) => e.type === "tackle" && e.sack), stick = first((e) => e.type === "tackle" && e.hitStick);
+    const catchE = first((e) => e.type === "catch"), tdE = first((e) => e.type === "td");
+    const moveE = first((e) => /^(brokenTackle|stiffarm|hurdle|truck|gripBreak)$/.test(e.type) || (e.type === "cut" && /juke|spin|stutter|hesi|hurdle|truck/i.test(String(e.kind || ""))));
+    if (pick) { kind = "turnover"; at = pick; }
+    else if (fum && /FUMBLE/.test(d)) { kind = "turnover"; at = fum; }
+    else if (sackE) { kind = "sack"; at = sackE; }
+    else if (pay.scored && live) { kind = "touchdown"; at = pay.event === "pass" && catchE && yd >= TU("bigSlowYdsV193W", 20) ? catchE : tdE || catchE; }
+    else if (live && yd >= TU("bigSlowYdsV193W", 20)) { kind = "bigplay"; at = pay.event === "pass" ? catchE || moveE : moveE || first((e) => e.type === "tackle"); }
+    else if (stick) { kind = "bighit"; at = stick; }
+    if (!kind || !at || !Number.isFinite(Number(at.t))) return null;
+    return { kind, t: Number(at.t), type: at.type, fired: false };
+  }
+  bigSlowWatchV193W(P, chosen) {
+    if (!P || !P.script || P.done) return;
+    if (P._bsPlanV193W === undefined || P._bsPlanV193W && P._bsPlanV193W.script !== P.script) {
+      const pl = this.bigSlowPlanV193W(P); P._bsPlanV193W = pl ? Object.assign(pl, { script: P.script }) : null;
+    }
+    const pl = P._bsPlanV193W; if (!pl || pl.fired) return;
+    const T = Math.max(0, P.t - (P.delay || 0));
+    // the lead is wall time: at the chosen rate the play clock covers chosen × basePlayRate ms of script a wall ms
+    if (T >= pl.t - TU("bigSlowLeadMsV193W", 200) * chosen * TU("basePlayRate", 0.7)) { pl.fired = true; this.bigSlowV193W(pl.kind); }
   }
   slowMoment(P, scale=TU("cinematicScale",0.5), realMs=TU("cinematicMs",1000)) {
     if(!P)return;
@@ -11129,6 +11225,8 @@ const BADGE_PROMO_V95 = {
   "intercepted>turnover": "INTERCEPTION", "fumble>turnover": "DEFENSE RECOVERS", "sack>turnover": "STRIP SACK", "bigplay>breakaway": "",
   "touchdown>gamechanger": "", "turnover>gamechanger": "", "fieldgoal>gamechanger": "",
 };
+/* v193 W: the badges that are a big play — they open the automatic slow motion when the plan did not */
+const BIG_SLOW_KINDS_V193W = { touchdown: 1, gamechanger: 1, turnover: 1, intercepted: 1, fumble: 1, sack: 1, bighit: 1, breakaway: 1, bigplay: 1 };
 /* v164 F: the slow dial's floor (the renderer's clock never runs slower than this fraction of 1x) and the colour a
  * jumbotron message wears per kind */
 function slowFloorV164F() { return TU("v164Fslow", 1) ? Math.max(0.1, Math.min(0.5, TU("slowMinV164F", 0.25))) : 0.5; }
@@ -11189,6 +11287,8 @@ const BADGE_V95 = (() => {
     if (token && seen[token]) return false;                                            // this moment already fired
     if (!opts.force && seen[kind] && now - seen[kind] < TU("badgeRepeatMs", 2500)) return false;   // no stutter
     if (token) seen[token] = now; seen[kind] = now;
+    /* v193 W: a big moment the plan did not see coming still gets its beat of slow motion (one a play) */
+    try { const scW = opts.scene || window.__gridironScene; if (BIG_SLOW_KINDS_V193W[kind] && scW && scW.bigSlowV193W) scW.bigSlowV193W(kind); } catch (e) {}
     const item = { kind, cfg, prio: cfg.prio, tier: cfg.tier, sub: opts.sub || "", hold: opts.hold || cfg.hold, at: now,
       x: opts.x, y: opts.y, scene: opts.scene || window.__gridironScene || null };
     log.push({ kind, sub: item.sub, at: now, tier: cfg.tier }); if (log.length > 80) log.shift();

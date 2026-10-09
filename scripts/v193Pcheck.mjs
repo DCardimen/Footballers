@@ -32,7 +32,7 @@ const A = await page.evaluate(async () => {
   window.pickPos('RB'); await sleep(20)   // the position screen's own pick, as careersim does
   const p = S.player
   p.level = 4; p.seasonsAtLevel = 1; p.totalSeasons = 6; p.age = 16; p.traits = []
-  for (const k in p.attrs) p.attrs[k] = Math.max(p.attrs[k], 120)
+  for (const k in p.attrs) p.attrs[k] = Math.max(p.attrs[k], 200)   // strong enough that a random season (injuries, events, the plan roll) never drops him out of the top 1%
   window.go('hub'); await sleep(10)
   const views = []
   for (let step = 0; step < 400; step++) {
