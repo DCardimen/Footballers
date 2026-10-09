@@ -81,13 +81,15 @@ const B = await M(() => {
   // the story wheel's buffs
   const sw = []; for (let i = 0; i < 20; i++) sw.push(...window.__mkTempBuffsV25(p, i % 3 ? 1 : -1, i / 20, (i * 7 % 10) / 10))
   r.story = sw.map((b) => ({ ok: b.pct === X.pct(b.flatV193X) && b.amt === X.pts(p, b.stat, b.pct), t: X.buff(b) }))
-  // the flips: +1 Permanent and Extra reps
+  // the flips: +1 Permanent and Extra reps (retired by v193 AB — their percent mechanics live on behind its switch)
+  window.RIB_TUNE.v193AB = 0
   for (const k in p.attrs) p.attrs[k] = 150
   const before = Object.assign({}, p.attrs); window.__V179.applyFlip('attr', { week: 3, opp: 'Q' })
   const up = Object.keys(p.attrs).filter((k) => p.attrs[k] !== before[k]).map((k) => ({ k, d: p.attrs[k] - before[k], want: X.pts({ attrs: before }, k, X.pct(1)) }))
   r.flipAttr = up
   p.practiceV178 = {}; window.__V179.applyFlip('reps', { week: 4, opp: 'Q' }); const bank = Object.values(p.practiceV178)
   r.flipReps = { bank, want: 0.25 * X.perPoint() * 150 / 100 }
+  delete window.RIB_TUNE.v193AB
   // the fate roll: re-based on the calibration, whole
   for (const k in p.attrs) p.attrs[k] = 40
   window.__GRIDIRON_AUDIT__.startSeasonGames(); S.view = 'season'
@@ -173,8 +175,10 @@ const K = await M(() => {
   for (const k in p.attrs) p.attrs[k] = 40
   window.__GRIDIRON_AUDIT__.startSeasonGames(); S.view = 'season'
   r.fate = window.__fateAttrFor('explosive')
+  window.RIB_TUNE.v193AB = 0   // v193 AB: the old "+1 Permanent" card, behind its switch
   const before = Object.assign({}, p.attrs); window.__V179.applyFlip('attr', { week: 3, opp: 'Q' })
   r.flipAttr = Object.keys(p.attrs).map((k) => p.attrs[k] - before[k]).filter((d) => d)
+  delete window.RIB_TUNE.v193AB
   delete window.RIB_TUNE.v193X
   r.composeOn = G.compose(p)
   return r

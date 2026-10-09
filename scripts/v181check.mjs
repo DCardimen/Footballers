@@ -101,17 +101,18 @@ const E = await page.evaluate(async () => {
   const panel1 = (document.getElementById('betaEtaV182') || {}).textContent || ''
   window.__V181.set('istPotV179', 3000, 0); const e2 = window.__V182.eta(false)
   window.__V181.set('flipTrustV186', 5, 0) // v186 F: the coach card is +1 (a dial), the Prestige card a percent paid at career end
-  const t0 = p.coachTrust; window.__V178 && window.__V179.applyFlip('trust', {}); const t1 = p.coachTrust
+  const tAB0 = p.coachTrust; window.__V179.applyFlip('trust', {}); const tAB = p.coachTrust - tAB0   // v193 AB: no card moves trust
+  window.RIB_TUNE.v193AB = 0; const t0 = p.coachTrust; window.__V178 && window.__V179.applyFlip('trust', {}); const t1 = p.coachTrust; delete window.RIB_TUNE.v193AB   // the old coach card (v193AB 0) follows its dial
   const pp0 = S.pp || 0, bank0 = S.ppBankV136 || 0; p.flipPPPctV186 = 0; window.__V179.applyFlip('pp1', {}); const ppGot = (S.pp || 0) - pp0 + ((S.ppBankV136 || 0) - bank0), ppPct = p.flipPPPctV186
   const html = window.__V178.reel ? '' : ''
   window.__V181.reset()
-  return { panel0: panel0.slice(0, 600), changed: panel0 !== panel1, e0, e1, e2, trust: t1 - t0, ppGot, ppPct }
+  return { panel0: panel0.slice(0, 600), changed: panel0 !== panel1, e0, e1, e2, trust: t1 - t0, tAB, ppGot, ppPct }
 })
 console.log('E:', JSON.stringify(E).slice(0, 600))
 ok(/Reach the UFF/.test(E.panel0) && /Interstellar title/.test(E.panel0), 'the beta card shows the estimated time to the UFF, the Interstellar League and its title', E.panel0)
 ok(E.e1.uff < E.e0.uff && E.e1.ist < E.e0.ist && E.changed, 'cheaper prices shorten the estimate, and the panel redraws as the dial moves', { before: Math.round(E.e0.uff), after: Math.round(E.e1.uff) })
 ok(E.e2.ist > E.e1.ist && Math.abs(E.e2.uff - E.e1.uff) < 0.01, 'a higher Interstellar bar moves only the Interstellar times', { ist: [Math.round(E.e1.ist), Math.round(E.e2.ist)] })
-ok(E.trust === 5 && E.ppGot === 0 && E.ppPct === 1, 'the coach card follows its dial (+5); a Prestige card pays nothing now, +1% at career end (v186 F)', { trust: E.trust, pp: E.ppGot, pct: E.ppPct })
+ok(E.trust === 5 && E.tAB === 0 && E.ppGot === 0 && E.ppPct === 1, 'the coach card follows its dial (+5) with v193AB 0 — and since v193 AB no card moves trust; a Prestige card pays nothing now, +1% at career end (v186 F)', { trust: E.trust, v193AB: E.tAB, pp: E.ppGot, pct: E.ppPct })
 
 // 5. v183: the Interstellar League is a league of legends (team base 400), its dial, and the estimate's title gap follows it
 const I = await page.evaluate(() => {

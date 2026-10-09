@@ -386,7 +386,8 @@
     "scrollcheck",
     "capcheck",
     "v193Ncheck",
-    "v193Zcheck"
+    "v193Zcheck",
+    "v193ABcheck"
    ]
   },
   "sim-keys": {
@@ -635,7 +636,8 @@
     "v85check",
     "declarecheck",
     "walk",
-    "v156Acheck"
+    "v156Acheck",
+    "v193ABcheck"
    ]
   },
   "grow": {
@@ -5287,6 +5289,19 @@
     "smoke"
    ],
    "runtimeSec": 40,
+   "slow": false,
+   "needsServer": true,
+   "pureNode": false,
+   "flaky": []
+  },
+  "v193ABcheck": {
+   "file": "scripts/v193ABcheck.mjs",
+   "desc": "v193 AB — the cards pay in play: 2,000 seeded cards never move coach trust (the old trust card is re-dealt as a Hot Streak); HOT STREAK lands in 5–50% / 1–10 games by rarity (common 5–12 … legendary 40–50), rides v111's own buff list into the quick sim and the watched game's _raw (a seeded stat delta), rollGamePerf's OVR, counts down once per played game (not a sat-out week), stacks to 60%, expires; SPILLOVER puts exactly +2 on its stat for 10 points at 20% over 50 taps, refunds exactly, spills through the auto button and hold-to-spend, the sheet header and pending chip, gone at the season end; 2× POINTS ~2% of 5,000 slots, doubles the week's paycheck and the season's points exactly once, ends with the season; Hot Hands / Spill Coach / Double Shift (Apex) change the numbers as described; the reel faces, the reward buzz, the chips, the pregame rows; a Quick Play week, sim the rest and the playoffs each deal, apply and log one card a game (the best-rarity auto-pick, 🃏 Cards this season on the season screen and the result); no decimals, no overflow at 360 px; v193AB 0 restores the old deck.",
+   "areas": [
+    "goals",
+    "statinfo"
+   ],
+   "runtimeSec": 150,
    "slow": false,
    "needsServer": true,
    "pureNode": false,
