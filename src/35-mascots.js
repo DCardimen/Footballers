@@ -21,7 +21,8 @@
  *                 .pose(name, t)` — the same segment, lift, squash and the backflip's spin — and v177 I's ten bodies get a
  *                 mascot routine of the same length. Otherwise the mascot idle-bounces, and the bench's excitement
  *                 (v78 `side.excite`) turns that into waving.
- *   WHERE         the live broadcast: one mascot on each team's sideline (v78's banks: "off" = your team, "def" the
+ *   WHERE         (v194 B: only the HOME team's now — see `v194 B THE MASCOT COMES ALIVE`; TU v194B 0 is this:)
+ *                 the live broadcast: one mascot on each team's sideline (v78's banks: "off" = your team, "def" the
  *                 opponent), just outside the painted line a few yards behind the ball, projected with `crowdProject`,
  *                 lit by the bench's shade, scaled with the players (and the v144 A age scale). One call from 05's
  *                 `updateSideline` (`RIB_MASCOTS.frame`). Off the field: the season hero's crest card (`.sx-hero-v168`)
@@ -839,7 +840,35 @@
     phone: { legs: [14, 2, 14, 2], arms: [24, -20, 46, -158], tilt: 10, w: 0, s: 1, ball: "E" },
     saber: { legs: [26, -6, 26, -6], arms: [150, 30, 150, 30], w: 0, s: 0, saber: 1 },
     plank: { legs: [4, 2, 4, 2], arms: [160, 10, 160, 10], w: 0, s: 0 },
-    plank2: { legs: [8, 18, 4, 2], arms: [160, 10, 146, 20], w: 0, s: 0 }
+    plank2: { legs: [8, 18, 4, 2], arms: [160, 10, 146, 20], w: 0, s: 0 },
+    /* v194 B THE MASCOT COMES ALIVE: the run cycle, the cartwheel's star, the jump, the tears, the temper, the sign, the
+     * merch throw, the steering wheel, the kick, the slump, the nail-biting, the swagger, the air bump, the point */
+    run0: { legs: [56, -40, 4, 10], arms: [64, 70, 14, -44], lean: 9, tilt: 5, w: 0, s: 0 },
+    run1: { legs: [26, -18, 18, -6], arms: [36, 40, 36, 40], lean: 9, w: 0, s: 0 },
+    run2: { legs: [4, 10, 56, -40], arms: [14, -44, 64, 70], lean: 9, tilt: -5, w: 0, s: 0 },
+    run3: { legs: [18, -6, 26, -18], arms: [40, 30, 40, 30], lean: 9, w: 0, s: 0 },
+    star: { legs: [40, 40, 40, 40], arms: [132, 0, 132, 0], w: 0, s: 0 },
+    jump: { legs: [74, -24, 74, -24], arms: [160, 8, 160, 8], tilt: -4, w: 0, s: 0 },
+    cry0: { legs: [12, 2, 12, 2], arms: [150, 101, 150, 101], tilt: 9, w: 0, s: 0 },
+    cry1: { legs: [16, 0, 9, 4], arms: [146, 106, 152, 98], lean: 3, tilt: -9, w: 0, s: 0 },
+    mad0: { legs: [8, 4, 64, -28], arms: [152, 36, 152, 36], lean: -5, tilt: -7, w: 0, s: 0 },
+    mad1: { legs: [12, 3, 12, 3], arms: [118, 78, 118, 78], lean: 5, tilt: 7, w: 0, s: 0 },
+    sign0: { legs: [12, 2, 12, 2], arms: [158, 14, 158, 14], w: 0, s: 0 },
+    sign1: { legs: [15, 0, 10, 4], arms: [154, 18, 162, 10], lean: 2, tilt: 4, w: 0, s: 0 },
+    throw0: { legs: [22, -2, 34, -10], arms: [44, -30, 176, 62], lean: -12, tilt: -8, w: 0, s: 1 },
+    throw1: { legs: [32, -8, 16, 0], arms: [30, -24, 128, -14], lean: 11, tilt: 7, w: 0, s: 1 },
+    steer0: { legs: [14, 0, 14, 0], arms: [60, -110, 60, -110], wheel: 0, w: 0, s: 0 },
+    steer1: { legs: [16, -2, 12, 2], arms: [76, -122, 46, -96], wheel: 32, lean: 6, tilt: 6, w: 0, s: 0 },
+    steer2: { legs: [12, 2, 16, -2], arms: [46, -96, 76, -122], wheel: -32, lean: -6, tilt: -6, w: 0, s: 0 },
+    kick: { legs: [6, 4, 102, 74], arms: [74, -50, 112, 40], lean: -14, tilt: -10, w: 0, s: 0 },
+    slump0: { legs: [14, 2, 14, 2], arms: [4, 2, 4, 2], tilt: 16, tl: 0.92, w: 0, s: 0 },
+    slump1: { legs: [15, 1, 13, 3], arms: [7, 0, 2, 4], lean: 2, tilt: 11, tl: 0.92, w: 0, s: 0 },
+    nails0: { legs: [10, 4, 12, 2], arms: [24, -20, -30, 226], tilt: -4, w: 0, s: 0 },
+    nails1: { legs: [12, 2, 10, 4], arms: [26, -24, -26, 222], lean: -1, tilt: 3, w: 0, s: 0 },
+    hips0: { legs: [16, 0, 24, -6], arms: [50, -82, 50, -82], lean: -3, tilt: -8, w: 0, s: 1 },
+    hips1: { legs: [24, -6, 16, 0], arms: [50, -82, 50, -82], lean: 3, tilt: 8, w: 0, s: 1 },
+    bump: { legs: [34, -36, 34, -36], arms: [104, -64, 104, -64], tilt: -10, w: 0, s: 0 },
+    point: { legs: [12, 2, 18, -2], arms: [24, -12, 150, -8], tilt: -6, w: 0, s: 1 }
   };
   const POSE_NAMES = Object.keys(POSES);
   const POSE_IX = {}; POSE_NAMES.forEach((n, i) => { POSE_IX[n] = i; });
@@ -1069,6 +1098,11 @@
     };
     // the arms over the big head: a raised arm, a flex, a wave all read in front of it
     headDraw();
+    if (P.wheel != null) {   // v194 B: the imaginary car's steering wheel, between his two fists
+      const cx = (J.armL.h.x + J.armR.h.x) / 2, cy = (J.armL.h.y + J.armR.h.y) / 2, r = Math.max(4.6, Math.hypot(J.armR.h.x - J.armL.h.x, J.armR.h.y - J.armL.h.y) / 2);
+      D.c.beginPath(); D.c.arc(cx, cy, r, 0, Math.PI * 2); D.c.lineWidth = 1.6; D.c.strokeStyle = "#2a2a30"; D.c.stroke();
+      D.at(cx, cy, P.wheel * DEG); D.line(-r, 0, r, 0, 1.1, "#3a3a42"); D.line(0, 0, 0, r, 1.1, "#3a3a42"); D.circ(0, 0, 1.6, T.p2); D.restore();
+    }
     armDraw(J.armL, false);
     armDraw(J.armR, true);
     // the ball
@@ -1128,7 +1162,8 @@
       pixelate(B.one);
       const fx = (i % COLS) * FW_PX, fy = Math.floor(i / COLS) * FH_PX;
       B.x.drawImage(B.one, 0, 0, LW, LH, fx, fy, FW_PX, FH_PX);
-      B.frames.push({ name: n, x: fx, y: fy, w: FW_PX, h: FH_PX, hipY: J ? J.hip.y : 40 });
+      B.frames.push({ name: n, x: fx, y: fy, w: FW_PX, h: FH_PX, hipY: J ? J.hip.y : 40,
+        head: J ? { x: J.head.x, y: J.head.y } : { x: CX, y: 24 }, hands: J ? [{ x: J.armL.h.x, y: J.armL.h.y }, { x: J.armR.h.x, y: J.armR.h.y }] : [{ x: CX - 8, y: 30 }, { x: CX + 8, y: 30 }] });   // v194 B: where his eyes and fists are (tears, the sign, the merch)
     }
     const dt = performance.now() - t0; B.ms += dt; V.stepMax = Math.max(V.stepMax || 0, dt); V.steps = (V.steps || 0) + 1;
     if (B.i < POSE_NAMES.length) return null;
@@ -1267,7 +1302,7 @@
   }
   function destroyAll(st) {
     if (!st) return;
-    (st.list || []).forEach((m) => { try { m.img && m.img.destroy(); } catch (e) {} try { m.sh && m.sh.destroy(); } catch (e) {} });
+    (st.list || []).forEach((m) => { try { m.img && m.img.destroy(); } catch (e) {} try { m.sh && m.sh.destroy(); } catch (e) {} try { m.v194 && dropV194B(m); } catch (e) {} });
     st.list = [];
   }
   function stateOf(scene) {
@@ -1284,8 +1319,9 @@
     destroyAll(st);
     const T = teamsFor(scene), space = spaceLevel();
     let budget = 1; st.partial = false; st.pend = null;
+    const one = on194(), homeT = homeTeamV194B();   // v194 B: only the HOME team's mascot
     ["off", "def"].forEach((team, i) => {
-      if (team === "def" && !TUv("mascotBothV193AI", 1)) return;
+      if (one ? team !== homeT : team === "def" && !TUv("mascotBothV193AI", 1)) return;
       let S = null;
       if (!SHEETS.has(sheetKey(((Number(T[team].logo) || 0) % NLOGO + NLOGO) % NLOGO, teamColours(T[team].cols), space))) {
         if (!budget) { st.partial = true; st.pend = st.pend || { logo: T[team].logo, cols: T[team].cols, space }; return; }
@@ -1296,9 +1332,9 @@
       if (!key) return;
       const img = scene.add.image(0, 0, key, POSE_IX.idleA);
       const sh = scene.add.ellipse(0, 0, 10, 3, 0x000000, TUv("sideShadowA", 0.26));
-      st.list.push({ team, bank: team === "def" ? -1 : 1, S, key, img, sh, u: null, ph: i * 210, cel: null, lastPose: -1, vis: true, colsKey: S.key });
+      st.list.push({ team, bank: team === "def" ? -1 : 1, S, key, img, sh, u: null, ph: i * 210, cel: null, lastPose: -1, vis: true, colsKey: S.key, name: T[team].name, other: T[team === "off" ? "def" : "off"].name, cols: teamColours(T[team].cols) });
     });
-    st.teamsKey = JSON.stringify(T) + space;
+    st.teamsKey = teamsKeyV194B(scene, T, space);
   }
   // which bench a celebrating marker's team stands on
   const teamOfMarker = (m) => (String((m && (m.kit || m.team)) || "off") === "def" ? "def" : "off");
@@ -1328,6 +1364,10 @@
     });
   }
   function place(scene, st, m, G, now, cam) {
+    if (on194()) {   // v194 B: the home mascot lives his own life — and a Phaser Text's canvas key (a UUID off Math.random) is paid from his own stream, never the game's
+      const mR = Math.random; Math.random = QUIET_V194B;
+      try { return placeV194B(scene, st, m, G, now, cam); } finally { Math.random = mR; }
+    }
     const S = scene.side, img = m.img;
     // the spot: on its own bench's bank, just outside the painted line, near the ball — the nearest stretch of that
     // sideline the camera can see (re-chosen every `mascotSpotMsV193AI`; the mascot jogs there, it jumps only from afar)
@@ -1410,7 +1450,8 @@
       const S = stateOf(scene);
       // who is playing: re-read on a new snap's sideline and once a second (a kit can change under a live game)
       let stale = (!S.list.length && !S.partial) || S.list.some((m) => !m.img || !m.img.scene);
-      if (!stale && (S.side !== scene.side || t0 - (S.teamsAt || 0) > 1000)) { S.teamsAt = t0; stale = S.teamsKey !== JSON.stringify(teamsFor(scene)) + spaceLevel(); }
+      if (!stale && (S.side !== scene.side || t0 - (S.teamsAt || 0) > 1000)) { S.teamsAt = t0; stale = S.teamsKey !== teamsKeyV194B(scene, teamsFor(scene), spaceLevel()); }
+      S.geom = geom;   // v194 B: the check drives frame() directly with the hook's own geometry
       if (stale) { build(scene, S); S.teamsAt = t0; }
       else if (S.partial && S.pend) { if (sheetV193AI(S.pend.logo, S.pend.cols, S.pend.space, Math.max(1, TUv("mascotPosesPerFrameV193AI", 4)))) build(scene, S); }   // a bench's sheet still drawing: the next slice, the sprites already up stay
       if (!S.list.length) return;
@@ -1424,6 +1465,588 @@
     V.frames++; V.frameMs += dt; V.frameMax = Math.max(V.frameMax, dt); if (V.ms.length < 600) V.ms.push(+dt.toFixed(3));
     if ((V.steps || 0) === b0 && V.scenes === s0) { V.steady = V.steady || []; if (V.steady.length < 600) V.steady.push(+dt.toFixed(3)); }   // the steady state: no sheet drawn, no new scene
   }
+
+  /* ===== v194 B THE MASCOT COMES ALIVE =====
+   * The owner: "Only the home team's mascot should be there. On great plays celebrate and on bad plays cry, act mad, run
+   * around. Have his personality be dictated by how well the home team is doing. Really exaggerate. He should be near the
+   * endzone most times, or on the sidelines if you can see well. Have him throwing merch in the stands. Doing cartwheels.
+   * Jumping. Steering. Holding signs. Really bring him to life. Add text bubbles (over 50) giving quippy phrases."
+   *   ONE MASCOT    the HOME team's (`window.__homeGameV93 !== false` → his own team, "off"; an away week → the opponent's).
+   *                 `build` makes only that one; the membership gate (`active()`) is untouched.
+   *   WHERE         `spotV194B` scores candidate spots every `mascotSpotMsV194B` ms: beside each end zone (outside the
+   *                 sideline, by the corner — the bias `mascotEzBiasV194B` makes that "most times") and the sideline stretch
+   *                 near the ball, both banks; only spots fully inside the camera's view count, a spot with a player on it
+   *                 is marked down, a far one and a bank switch cost. He RUNS there (`mascotRunYdV194B` yd/s, the run cycle,
+   *                 facing his way); a bank switch runs round behind the end line, never across the field. Every spot sits
+   *                 outside the painted line, and every act's sideways travel (cartwheels, circles, the drive) goes OUTWARD.
+   *                 Only an off-camera mascot is moved in one step.
+   *   MOOD          `moodV194B`: the home margin (÷ `moodMarginV194B` 14, ×1.3 in the fourth quarter), the momentum of the
+   *                 last plays (an EMA of each play's value for the home side, `moodMomentumKV194B` .45) and the season
+   *                 record when it is his team → ecstatic / confident / nervous / desperate; two bad plays in a row make
+   *                 him furious. The mood picks his idle (the swagger, the strut sign, nail-biting, pacing, slumping,
+   *                 stomping) and how BIG every reaction is (more acts, higher jumps).
+   *   REACTIONS     `classifyV194B` reads the whistle's payload from the home side: touchdown, takeaway, sack, big gain,
+   *                 stop, field goal → celebrations (cartwheels, a backflip, jumps, the air chest bump, STEERING the
+   *                 imaginary car, throwing merch); the opponent's touchdown, a giveaway, a sack taken, a flag on the home
+   *                 side, a big gain against → crying (fountain tears), the temper (red face, steam, stomping), running in
+   *                 circles, head in hands, kicking the turf. A drawn sign ("DE-FENSE", "GO <TEAM>!", "MAKE SOME NOISE",
+   *                 "REF?!") comes up on defensive downs, third downs, flags and idles.
+   *   MERCH         t-shirts, foam fingers and caps in the team's colours (`merchSheetV194B`, drawn once, pixel style) arc
+   *                 out of his hand and land IN the stands — a crowd section on camera, its own box (`C.secs`).
+   *   BUBBLES       `PHRASES_V194B`, 100+ lines in 20 buckets (touchdown, big play, takeaway, sack, bad play, opponent TD,
+   *                 giveaway, sack taken, flag, red zone, third down, defense, each mood's idle, blowouts both ways); the
+   *                 team's name where it is funny. A pixel bubble with a stepped tail over his head, a constant size on
+   *                 screen, `mascotBubbleMsV194B` 2 s, never two at once, `mascotBubbleGapMsV194B` between them.
+   *   POSES         26 new poses in the same sheet (run cycle, star, jump, cry, mad, sign, throw, steer, kick, slump,
+   *                 nails, hips, bump, point) — drawn once like the rest.
+   * Deterministic and cosmetic: every choice draws from a private seeded stream (`rngV194B`), never Math.random; nothing
+   * is written to the play, the sim or the save. Kill switch TU `v194B` 0: v193 AI's two benches exactly. `window.__V194B`. */
+  const on194 = () => !!TUv("v194B", 1);
+  const V194 = (window.__V194B = window.__V194B || { home: null, team: "", mood: null, moodScore: 0, margin: 0, momentum: 0, record: 0, act: null, bubble: null, phrases: 0, buckets: {}, reactions: [], said: [], bubbles: 0, maxBubbles: 0, merch: { spawned: 0, landed: 0, inStands: 0, flying: 0, last: null }, spot: null, ez: 0, side: 0, moves: 0, teleports: 0, judged: 0, onField: 0, errs: [] });
+  function homeTeamV194B() { return window.__homeGameV93 === false ? "def" : "off"; }
+  function teamsKeyV194B(scene, T, space) { return JSON.stringify(T) + space + (on194() ? "|v194B:" + homeTeamV194B() : ""); }
+  // a private stream (mulberry32): the mascot never draws from Math.random, so it can never move the sim's sample path
+  function rngV194B(seed) { let a = seed >>> 0; return () => { a = (a + 0x6d2b79f5) >>> 0; let t = a; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }; }
+  const QUIET_V194B = rngV194B(0x194b);
+  const pickV194B = (A, list) => list[Math.floor(A.rnd() * list.length) % list.length];
+
+  /* ---- the lines: {T} his team, {O} the other one ---- */
+  const PHRASES_V194B = {
+    td: ["TOUCHDOWN, BABY!", "SIX POINTS OF PURE JOY!", "{T} IN THE HOUSE!", "PUT IT ON THE JUMBOTRON!", "I KNEW IT! I ALWAYS KNEW IT!", "SOMEBODY CALL MY MOM!", "THAT'S HOW THE {T} DO IT!", "END ZONE? MORE LIKE FUN ZONE!", "IT'S RAINING T-SHIRTS!"],
+    big: ["LOOK AT HIM GO!", "HE'S GOT WHEELS!", "SOMEBODY CATCH HIM! ...NOT YOU, {O}!", "ZOOM ZOOM ZOOM!", "HIGHLIGHT REEL!", "MOVE THOSE CHAINS!", "BEEP BEEP! COMING THROUGH!"],
+    takeaway: ["OUR BALL NOW!", "THANK YOU, {O}!", "TAKEAWAY TIME!", "GIMME THAT!", "FINDERS KEEPERS!", "TURNOVER! TURNOVER!"],
+    sack: ["SACK ATTACK!", "PLANTED HIM!", "QB, MEET GRASS!", "THAT'S A SACK LUNCH!", "NOWHERE TO RUN!"],
+    good: ["THAT'S MY TEAM!", "YES! YES! YES!", "KEEP IT COMIN'!", "LOVE TO SEE IT!", "STOPPED COLD!"],
+    bad: ["NOOOOO!", "WHY?! WHY?!", "MY HEART CAN'T TAKE THIS", "I CAN'T WATCH...", "THAT'S NOT IN THE PLAYBOOK!", "WHO DREW UP THAT PLAY?!"],
+    giveaway: ["GIVE IT BAAACK!", "BUTTERFINGERS!", "THAT'S OUR BALL, {O}!", "NOT THE TURNOVER! ANYTHING BUT THAT!", "HOLD ON TO IT!"],
+    sackTaken: ["PROTECT THE QB!", "BLOCK SOMEBODY! ANYBODY!", "OUCH. JUST... OUCH.", "WHERE WAS THE LINE?!"],
+    oppTd: ["THAT DIDN'T COUNT, RIGHT?", "I NEED A MINUTE.", "BOO! BOOOOOO!", "{O}?! ARE YOU KIDDING ME?!", "DEFENSE, WAKE UP!", "I'M NOT CRYING, YOU'RE CRYING!"],
+    penalty: ["REF! GET YOUR EYES CHECKED!", "THAT'S A TERRIBLE CALL!", "I'VE SEEN BETTER CALLS AT BINGO!", "FLAG?! ON WHAT?!", "THE REF'S ON THEIR PAYROLL!"],
+    flagThem: ["THROW THE FLAG! YEAH!", "FREE YARDS, THANK YOU!", "CHEATERS NEVER PROSPER, {O}!"],
+    idleConfident: ["WE GOT THIS.", "TOO EASY.", "{T} NATION, STAND UP!", "IS THAT ALL YOU GOT, {O}?", "FEELING GOOD, LOOKING GOOD!", "SWAG LEVEL: MAXIMUM."],
+    idleNervous: ["I'M NOT NERVOUS. YOU'RE NERVOUS.", "C'MON... C'MON...", "COME ON, {T}!", "DEEP BREATHS. DEEP BREATHS.", "THIS IS FINE. EVERYTHING'S FINE.", "MY NAILS ARE GONE."],
+    idleEcstatic: ["BEST. DAY. EVER.", "SOMEBODY PINCH ME!", "WE'RE UNSTOPPABLE!", "I LOVE THIS TEAM!"],
+    idleDesperate: ["WE NEED A MIRACLE!", "STILL TIME! STILL TIME!", "I BELIEVE! DO YOU BELIEVE?!", "ANYBODY GOT A MIRACLE?"],
+    idleFurious: ["I'M SO MAD I COULD EAT MY HEAD!", "SOMEBODY HOLD MY FOAM FINGER!", "GRRRRRRR!", "I'M FINE! I'M TOTALLY FINE!"],
+    blowoutWin: ["CALL THE MERCY RULE!", "SCOREBOARD! LOOK AT THE SCOREBOARD!", "THIS IS A PARADE NOW!", "{O} WANTS TO GO HOME!"],
+    blowoutLoss: ["IT'S A REBUILDING YEAR...", "WAIT 'TIL NEXT SEASON!", "AT LEAST THE HOT DOGS ARE GOOD.", "STILL DANCING. NOBODY CAN STOP ME."],
+    redZone: ["PUNCH IT IN!", "I CAN SMELL THE END ZONE!", "SO CLOSE I CAN TASTE IT!", "FINISH THE DRIVE!"],
+    thirdDown: ["THIRD DOWN! GET LOUD!", "MAKE SOME NOISE!", "BIG DOWN! BIG DOWN!", "LOUDER! I CAN'T HEAR YOU!"],
+    defense: ["DE-FENSE! DE-FENSE!", "HOLD THAT LINE!", "STOP 'EM COLD!"]
+  };
+  const PHRASE_N_V194B = Object.keys(PHRASES_V194B).reduce((a, k) => a + PHRASES_V194B[k].length, 0);
+  V194.phrases = PHRASE_N_V194B; V194.buckets = Object.fromEntries(Object.keys(PHRASES_V194B).map((k) => [k, PHRASES_V194B[k].length]));
+  const nickV194B = (name, dflt) => { const w = String(name || "").replace(/^.*'s /, "").trim().split(/\s+/).filter(Boolean); const n = w[w.length - 1] || ""; return (n && !/^(HOME|AWAY)$/i.test(n) ? n : dflt).toUpperCase(); };
+  function phraseV194B(A, bucket) {
+    const L = PHRASES_V194B[bucket] || PHRASES_V194B.good;
+    let s = null;
+    for (let i = 0; i < 6; i++) { s = pickV194B(A, L); if (A.recent.indexOf(s) < 0) break; }
+    A.recent.push(s); if (A.recent.length > 10) A.recent.shift();
+    return s.replace(/\{T\}/g, A.T).replace(/\{O\}/g, A.O);
+  }
+
+  /* ---- the acts: f(t, A) → the pose at t (ms into the act), its lift / turn (logical px, deg), its OUTWARD travel dx and
+   * its along-the-sideline travel dy (logical px), and what it shows (tears, steam, a red face, a sign, a throw) ---- */
+  const cyc = (t, ms, list) => list[Math.floor(t / ms) % list.length];
+  const RUN_V194B = ["run0", "run1", "run2", "run3"];
+  const ACTS_V194B = {
+    cartwheel: { ms: 1500, f(t, A) { const u = t / 750, k = Math.floor(u), w = u - k; return { pose: w < 0.06 || w > 0.94 ? "armsUp" : "star", rot: (k % 2 ? -1 : 1) * 360 * w, lift: 9 * Math.sin(Math.PI * w) * A.big, dx: (k % 2 ? 1 - w : w) * 26 }; } },
+    backflip: { ms: 1350, f(t, A) { const u = t / 1350; if (u < 0.16) return { pose: u < 0.08 ? "crouch" : "squat" }; if (u < 0.22) return { pose: "launch", lift: 6 }; if (u < 0.78) { const q = (u - 0.22) / 0.56; return { pose: "tuck", rot: -spinPhi(q), lift: 34 * A.big * 4 * q * (1 - q) + 4 }; } return { pose: u < 0.86 ? "landing" : "armsUp" }; } },
+    jumps: { ms: 1500, f(t, A) { const k = Math.floor(t / 500), q = (t % 500) / 500; if (q < 0.2) return { pose: "crouch" }; const r = (q - 0.2) / 0.8; return { pose: k === 1 ? "star" : "jump", lift: 22 * A.big * 4 * r * (1 - r) }; } },
+    starjump: { ms: 1600, f(t, A) { const q = (t % 400) / 400; return q < 0.25 ? { pose: "stand" } : { pose: "star", lift: 12 * A.big * Math.sin(Math.PI * (q - 0.25) / 0.75) }; } },
+    airbump: { ms: 1300, f(t, A) { const k = Math.floor(t / 650), q = (t % 650) / 650; if (q < 0.25) return { pose: "run1", dx: 4 }; if (q < 0.8) { const r = (q - 0.25) / 0.55; return { pose: "bump", lift: 18 * A.big * 4 * r * (1 - r), rot: (k % 2 ? -14 : 14), dx: 4 }; } return { pose: "landing" }; } },
+    steer: { ms: 2600, f(t) { return { pose: cyc(t, 230, ["steer1", "steer0", "steer2", "steer0"]), dx: 9 + 9 * Math.sin((2 * Math.PI * t) / 1300), dy: 10 * Math.sin((2 * Math.PI * t) / 2600), lift: 1.4 * Math.abs(Math.sin(t / 90)), rot: 6 * Math.sin((2 * Math.PI * t) / 650) }; } },
+    merch: { ms: 2700, f(t) { const q = (t % 900) / 900; return { pose: q < 0.42 ? "throw0" : q < 0.75 ? "throw1" : "hips0", throwAt: Math.floor(t / 900), throwing: q >= 0.42 }; } },
+    sign: { ms: 2800, f(t) { return { pose: cyc(t, 400, ["sign0", "sign1"]), lift: 1.2 * Math.abs(Math.sin(t / 130)), sign: true }; } },
+    cry: { ms: 2800, f(t) { return { pose: cyc(t, 260, ["cry0", "cry1"]), sy: 1 + 0.05 * Math.sin(t / 50), tears: 1 }; } },
+    headhands: { ms: 2200, f(t) { return { pose: "cry0", rot: 5 * Math.sin(t / 260), tears: 0.4 }; } },
+    mad: { ms: 2400, f(t) { const k = Math.floor(t / 150) % 2; return { pose: k ? "mad1" : "mad0", dx: k ? 1.5 : -1.5, lift: k ? 0 : 2.5, steam: 1, red: 1 }; } },
+    kick: { ms: 1500, f(t) { const q = (t % 500) / 500; return { pose: q < 0.45 ? "kick" : "stand", dirt: q < 0.1, red: 0.6 }; } },
+    circles: { ms: 2600, f(t) { const a = (2 * Math.PI * t) / 1300; return { pose: cyc(t, 80, RUN_V194B), dx: 12 * (1 - Math.cos(a)), dy: 9 * Math.sin(a), face: Math.cos(a) >= 0 ? 1 : -1, sweat: 1 }; } },
+    // the idles, by mood
+    hips: { ms: 3000, f(t) { return { pose: cyc(t, 450, ["hips0", "hips1"]), dx: 2 * Math.sin(t / 290), lift: 0.8 * Math.abs(Math.sin(t / 143)) }; } },
+    nails: { ms: 3000, f(t) { return { pose: cyc(t, 140, ["nails0", "nails1"]), sy: 1 + 0.02 * Math.sin(t / 40) }; } },
+    slump: { ms: 3400, f(t) { return { pose: cyc(t, 900, ["slump0", "slump1"]), sy: 0.97 }; } },
+    pace: { ms: 3600, f(t, A) { const a = (2 * Math.PI * t) / 3600; return { pose: cyc(t, A.mood === "furious" ? 90 : 140, RUN_V194B), dy: 16 * Math.sin(a), face: Math.cos(a) >= 0 ? 1 : -1 }; } },
+    stomp: { ms: 2400, f(t) { const k = Math.floor(t / 260) % 2; return { pose: k ? "mad1" : "mad0", lift: k ? 0 : 1.5, steam: 0.5, red: 0.7 }; } },
+    wave: { ms: 2000, f(t) { return { pose: cyc(t, 250, ["wave0", "wave1"]), lift: Math.abs(Math.sin(t / 160)) * 1.6 }; } },
+    point: { ms: 1800, f(t) { return { pose: cyc(t, 450, ["point", "armsUp"]), lift: Math.abs(Math.sin(t / 150)) * 1.5 }; } }
+  };
+  const IDLE_V194B = { ecstatic: ["hips", "starjump", "sign", "steer", "point", "wave"], confident: ["hips", "sign", "wave", "point", "hips"], nervous: ["nails", "pace", "sign", "nails"], desperate: ["slump", "headhands", "sign", "slump"], furious: ["stomp", "pace", "sign", "kick"] };
+  const SIGNS_V194B = { defense: ["DE-FENSE", "HOLD THAT LINE", "MAKE SOME NOISE"], offense: ["GO {T}!", "TOUCHDOWN {T}", "LOUDER!"], thirdDown: ["MAKE SOME NOISE", "3RD DOWN!", "LOUDER!"], flag: ["REF?!", "BOO!", "REALLY?!"],
+    ecstatic: ["WE'RE #1", "GO {T}!", "SCOREBOARD!"], confident: ["GO {T}!", "#1 FANS", "LET'S GO!"], nervous: ["GO {T}!", "PLEASE?", "BELIEVE"], desperate: ["BELIEVE", "MIRACLE?", "PLEASE!"], furious: ["REF?!", "BOO!", "GRRR!"] };
+
+  /* ---- what a whistle means for the HOME side ---- */
+  function classifyV194B(pay, home) {
+    if (!pay) return null;
+    const d = String(pay.desc || "").toUpperCase(), yd = Number(pay.yards != null ? pay.yards : 0), ev = pay.event;
+    const usBall = pay.offense !== "them", homeBall = home === "off" ? usBall : !usBall;
+    const live = ev === "run" || ev === "pass" || ev === "scramble";
+    const R = (kind, v) => ({ kind, v, homeBall, event: ev || null, yards: yd });
+    if (ev === "xp" || ev === "twopt") return R(pay.scored === homeBall ? "goodLite" : "badLite", pay.scored === homeBall ? 0.2 : -0.2);
+    if (pay.penalty) { const onOff = yd < 0, onHome = onOff ? homeBall : !homeBall; return onHome ? R("penalty", -0.55) : R("flagThem", 0.3); }
+    const picked = d.includes("INTERCEPT"), fumbled = d.includes("FUMBLE") && /DEFENSE|TAKES OVER|TURNOVER|RECOVER|LOST/.test(d);
+    if (pay.scored && ev !== "fg") { const defScored = picked || fumbled; return (homeBall !== defScored) ? R("td", 1) : R("oppTd", -1); }
+    if (ev === "fg") { const good = !(d.includes("NO GOOD") || d.includes("MISS")); return good === homeBall ? R("fg", 0.55) : R(good ? "oppFg" : "badLite", good ? -0.55 : -0.4); }
+    if (pay.safety || d.includes("SAFETY")) return homeBall ? R("giveaway", -0.85) : R("takeaway", 0.85);
+    if (picked || fumbled) return homeBall ? R("giveaway", -0.9) : R("takeaway", 0.9);
+    if (d.includes("ON DOWNS")) return homeBall ? R("giveaway", -0.6) : R("takeaway", 0.6);
+    if (ev === "sack" || d.includes("SACK")) return homeBall ? R("sackTaken", -0.7) : R("sack", 0.8);
+    if (ev === "punt" || ev === "kickoff") return R("neutral", 0);
+    if ((live || ev === "incomplete") && yd >= TUv("mascotBigYdV194B", 15)) return homeBall ? R("big", 0.8) : R("oppBig", -0.75);
+    if (ev === "incomplete" || (live && yd <= 0)) return homeBall ? R("stuffed", -0.35) : R("stop", 0.4);
+    if (live && yd >= 4) return homeBall ? R("gain", 0.3) : R("oppGain", -0.3);
+    return R("neutral", 0);
+  }
+  // the reaction to each kind: the bubble bucket, how good it is, and its acts (by mood for the bad ones)
+  const BAD_V194B = { furious: ["mad", "kick", "circles"], desperate: ["cry", "headhands", "slump"], nervous: ["headhands", "circles", "cry"], confident: ["mad", "circles", "kick"], ecstatic: ["headhands", "kick", "mad"] };
+  function planV194B(A, r) {
+    const great = ["cartwheel", "backflip", "jumps", "airbump", "steer"], mood = A.mood, hype = mood === "ecstatic" ? 1 : 0;
+    const g = (n, first) => { const out = first ? first.slice() : []; while (out.length < n) { const a = pickV194B(A, great); if (out.indexOf(a) < 0) out.push(a); } return out; };
+    const b = (n, first) => { const pool = BAD_V194B[mood] || BAD_V194B.nervous, out = first ? first.slice() : []; for (let i = 0; out.length < n && i < 12; i++) { const a = pool[(i + Math.floor(A.rnd() * 3)) % pool.length]; if (out.indexOf(a) < 0) out.push(a); } return out; };
+    switch (r.kind) {
+      case "td": return { bucket: "td", acts: g(3 + hype, [pickV194B(A, ["cartwheel", "backflip"]), "merch"]) };
+      case "takeaway": return { bucket: "takeaway", acts: g(2 + hype, ["merch"]) };
+      case "sack": return { bucket: "sack", acts: g(2 + hype) };
+      case "big": return { bucket: "big", acts: g(2 + hype, [pickV194B(A, ["steer", "cartwheel", "airbump"])]) };
+      case "fg": return { bucket: "good", acts: g(1 + hype, ["jumps"]) };
+      case "stop": case "gain": case "goodLite": return { bucket: A.rnd() < 0.4 ? "good" : null, acts: [pickV194B(A, ["starjump", "point", "hips", "jumps"])] };
+      case "flagThem": return { bucket: "flagThem", acts: ["point"] };
+      case "oppTd": return { bucket: "oppTd", acts: b(3, [mood === "furious" || mood === "confident" ? "mad" : "cry", "circles"]) };
+      case "giveaway": return { bucket: "giveaway", acts: b(2 + (mood === "furious" ? 1 : 0)) };
+      case "sackTaken": return { bucket: "sackTaken", acts: b(2) };
+      case "oppBig": case "oppFg": return { bucket: "bad", acts: b(2) };
+      case "penalty": return { bucket: "penalty", acts: ["sign", "mad"], sign: pickV194B(A, SIGNS_V194B.flag) };
+      case "stuffed": case "oppGain": case "badLite": return { bucket: A.rnd() < 0.3 ? "bad" : null, acts: [pickV194B(A, mood === "furious" ? ["kick", "stomp"] : ["headhands", "nails", "kick"])] };
+      default: return { bucket: null, acts: [] };
+    }
+  }
+  function moodV194B(A) {
+    const q = A.quarter >= 4 ? TUv("moodLateKV194B", 1.3) : 1;
+    const marg = Math.max(-1.5, Math.min(1.5, A.margin / Math.max(1, TUv("moodMarginV194B", 14)))) * q;
+    const s = marg * 0.55 + A.momentum * TUv("moodMomentumKV194B", 0.45) + A.record * 0.15;
+    A.moodScore = +s.toFixed(3);
+    const mood = A.momentum <= TUv("moodFuriousV194B", -0.55) && s < 0.4 ? "furious" : s >= 0.6 ? "ecstatic" : s >= 0.15 ? "confident" : s >= -0.3 ? "nervous" : "desperate";
+    if (mood !== A.mood) { A.mood = mood; A.moodAt = performance.now(); }
+    A.big = { ecstatic: 1.35, confident: 1.1, nervous: 1, desperate: 0.9, furious: 1.15 }[mood] || 1;
+    return mood;
+  }
+  function scoreV194B(A, pay) {
+    let us = null, them = null;
+    if (pay && pay.usScore != null && pay.themScore != null) { us = Number(pay.usScore); them = Number(pay.themScore); }
+    else { try { us = Number(document.getElementById("usScore").textContent) || 0; them = Number(document.getElementById("themScore").textContent) || 0; } catch (e) { us = them = 0; } }
+    A.margin = A.home === "off" ? us - them : them - us;
+    if (pay && pay.quarter != null) A.quarter = Number(pay.quarter) || A.quarter;
+  }
+  function recordV194B(home) {
+    if (home !== "off") return 0;
+    try { const st = window.__getGridironState && window.__getGridironState(), wr = (st && st.player && st.player.weekResults) || [], pl = wr.filter((w) => w.played); if (!pl.length) return 0; const w = pl.filter((x) => x.won).length; return (2 * w - pl.length) / Math.max(3, pl.length); } catch (e) { return 0; }
+  }
+
+  /* ---- the mascot's own state ---- */
+  function initV194B(m) {
+    const A = (m.v194 = { home: m.team, rnd: rngV194B(0x194b0 + (m.S.id.logo | 0) * 7919), recent: [], T: nickV194B(m.name, "TEAM"), O: nickV194B(m.other, "THEM"),
+      mood: null, moodScore: 0, margin: 0, momentum: 0, record: recordV194B(m.team), quarter: 1, big: 1, act: null, queue: [], idleAt: 0, lastPlay: null, judgedPlay: null, sayAt: -1e9, bubble: null,
+      pos: null, tgt: null, path: [], tgtAt: -1e9, fx: [], merch: [], signTxt: null, nextIdleBubble: 0, kcss: 1, kcssAt: -1e9 });
+    scoreV194B(A, null); moodV194B(A);
+    V194.home = A.home; V194.team = A.T; V194.opp = A.O;
+    return A;
+  }
+  function dropV194B(m) {
+    const A = m.v194; if (!A) return;
+    const kill = (o) => { try { o && o.destroy(); } catch (e) {} };
+    A.fx.forEach((p) => kill(p.o)); A.fx = [];
+    A.merch.forEach((p) => kill(p.o)); A.merch = [];
+    kill(A.bubbleBox); A.bubbleBox = null; kill(A.signBox); A.signBox = null;
+    V194.bubble = null;
+  }
+  function say(A, scene, bucket, force) {
+    if (!bucket || !TUv("mascotBubblesV194B", 1)) return null;
+    const now = performance.now();
+    if (!force && now - A.sayAt < TUv("mascotBubbleGapMsV194B", 3800)) return null;
+    if (A.bubble && now < A.bubble.until && !force) return null;   // never two at once
+    const text = phraseV194B(A, bucket);
+    A.sayAt = now; A.bubble = { text, bucket, at: now, until: now + TUv("mascotBubbleMsV194B", 2000), drawn: null };
+    V194.bubbles++; V194.said.push({ bucket, text }); if (V194.said.length > 40) V194.said.shift();
+    return text;
+  }
+  function startActs(A, list, sign) {
+    A.queue = list.slice(); A.act = null; A.signTxt = sign || null; nextAct(A, performance.now());
+  }
+  function nextAct(A, now) {
+    const n = A.queue.shift();
+    if (!n || !ACTS_V194B[n]) { A.act = null; return null; }
+    const len = ACTS_V194B[n].ms * (n === "merch" ? 1 : Math.max(0.85, Math.min(1.3, A.big)));
+    A.act = { name: n, t0: now, ms: len, react: true, thrown: -1 };
+    if (n === "sign" && !A.signTxt) A.signTxt = signTextV194B(A, null);
+    return A.act;
+  }
+  function signTextV194B(A, ctx) {
+    const pool = SIGNS_V194B[ctx || (A.oppBall ? "defense" : A.mood)] || SIGNS_V194B.confident;
+    return pickV194B(A, pool).replace(/\{T\}/g, A.T);
+  }
+  // a whistle: judge the play, move the mood, start the reaction and say something
+  function judgeV194B(scene, m, pay) {
+    const A = m.v194; const r = classifyV194B(pay, A.home); if (!r) return null;
+    V194.judged++;
+    scoreV194B(A, pay);
+    const k = TUv("moodMomentumEmaV194B", 0.45);
+    A.momentum = +(A.momentum * (1 - k) + r.v * k).toFixed(3);
+    moodV194B(A);
+    const plan = planV194B(A, r);
+    if (plan.acts.length) startActs(A, plan.acts, plan.sign);
+    let text = null;
+    const blow = Math.abs(A.margin) >= TUv("mascotBlowoutV194B", 21);
+    if (plan.bucket) text = say(A, scene, plan.bucket, /^(td|oppTd|takeaway|giveaway)$/.test(r.kind));
+    else if (blow && A.rnd() < 0.35) text = say(A, scene, A.margin > 0 ? "blowoutWin" : "blowoutLoss");
+    const rec = { kind: r.kind, v: r.v, homeBall: r.homeBall, acts: plan.acts.slice(), mood: A.mood, moodScore: A.moodScore, momentum: A.momentum, margin: A.margin, said: text, at: Math.round(performance.now()) };
+    V194.reactions.push(rec); if (V194.reactions.length > 30) V194.reactions.shift();
+    return rec;
+  }
+  // a snap: the down, the field, who has it
+  function presnapV194B(scene, m, pay) {
+    const A = m.v194; if (!pay) return;
+    const usBall = pay.offense !== "them", homeBall = A.home === "off" ? usBall : !usBall;
+    A.oppBall = !homeBall;
+    if (pay.quarter != null) A.quarter = Number(pay.quarter) || A.quarter;
+    const live = /^(run|pass|incomplete|sack|scramble)$/.test(pay.event || "");
+    if (!live) return;
+    const down = Number(pay.preDown != null ? pay.preDown : pay.down || 0), ytg = 100 - Number(pay.startBall != null ? pay.startBall : 50);
+    if (A.act && A.act.react) return;   // still celebrating / sulking the last one
+    if (homeBall && ytg <= 20 && A.rnd() < 0.6) { say(A, scene, "redZone"); return; }
+    if (down === 3 && A.rnd() < 0.7) { A.signTxt = signTextV194B(A, homeBall ? "offense" : "thirdDown"); A.queue = []; A.act = { name: "sign", t0: performance.now(), ms: 2600, react: false }; say(A, scene, "thirdDown"); return; }
+    if (!homeBall && A.rnd() < 0.45) { A.signTxt = signTextV194B(A, "defense"); A.queue = []; A.act = { name: "sign", t0: performance.now(), ms: 2600, react: false }; if (A.rnd() < 0.4) say(A, scene, "defense"); }
+  }
+  function idleV194B(A, scene, now) {
+    const pool = IDLE_V194B[A.mood] || IDLE_V194B.confident, n = pickV194B(A, pool);
+    A.signTxt = n === "sign" ? signTextV194B(A, null) : null;
+    A.act = { name: n, t0: now, ms: ACTS_V194B[n].ms, react: false };
+    if (now > A.nextIdleBubble) {
+      A.nextIdleBubble = now + TUv("mascotIdleBubbleMsV194B", 9000) * (0.7 + A.rnd() * 0.8);
+      const blow = Math.abs(A.margin) >= TUv("mascotBlowoutV194B", 21);
+      const b = blow ? (A.margin > 0 ? "blowoutWin" : "blowoutLoss") : { ecstatic: "idleEcstatic", confident: "idleConfident", nervous: "idleNervous", desperate: "idleDesperate", furious: "idleFurious" }[A.mood];
+      say(A, scene, b);
+    }
+  }
+
+  /* ---- the merch: three items in his colours, drawn once a team ---- */
+  function merchSheetV194B(scene, cols) {
+    const key = "m194b_merch_" + cols.p1.slice(1) + cols.p2.slice(1), tm = scene.textures;
+    if (tm.exists(key)) return key;
+    const L = 14, cv = document.createElement("canvas"); cv.width = L * 3; cv.height = L;
+    const D = painter(cv.getContext("2d"));
+    // a t-shirt, a foam finger, a cap
+    D.poly([3, 3, 5.5, 2, 8.5, 2, 11, 3, 13, 6, 11, 7, 10.5, 6, 10.5, 12.5, 3.5, 12.5, 3.5, 6, 3, 7, 1, 6], cols.p1); D.rect(3.5, 6.2, 7, 1.2, cols.p2); D.ell(7, 2.6, 1.6, 0.8, cols.p2);
+    D.at(L, 0); D.poly([4, 13, 4, 7, 6, 6, 6, 1.5, 8, 1.5, 8, 6, 10, 6.5, 10, 13], cols.p2); D.rect(4.6, 9, 4.8, 1.6, cols.p1); D.restore();
+    D.at(L * 2, 0); D.ell(7, 8, 5, 4.2, cols.p1); D.rect(1.5, 8, 11, 2.2, cols.p1); D.ell(11.5, 10, 2.6, 1, cols.p2); D.circ(7, 4.2, 0.9, cols.p2); D.restore();
+    pixelate(cv);
+    const up = document.createElement("canvas"); up.width = cv.width * 2; up.height = cv.height * 2;
+    const ux = up.getContext("2d"); ux.imageSmoothingEnabled = false; ux.drawImage(cv, 0, 0, up.width, up.height);
+    try { const tx = tm.addCanvas(key, up); for (let i = 0; i < 3; i++) tx.add(i, 0, i * L * 2, 0, L * 2, L * 2); } catch (e) { err(e); return null; }
+    return key;
+  }
+  function throwMerchV194B(scene, m, A, from, now) {
+    const C = scene.crowd; if (!C || !C.secs || !C.built) return null;
+    const key = merchSheetV194B(scene, m.cols); if (!key) return null;
+    const cam = scene.cameras && scene.cameras.main, wv = cam && cam.worldView;
+    const all = C.secs.slice(0, C.built).filter((s) => s && s.mx != null);
+    if (!all.length) return null;
+    let on = wv ? all.filter((s) => s.mx > wv.x + 10 && s.mx < wv.x + wv.width - 10 && s.my > wv.y + 10 && s.my < wv.y + wv.height - 10) : all;
+    if (!on.length) on = all;
+    const near = on.map((s) => ({ s, d: Math.hypot(s.mx - from.x, s.my - from.y) })).sort((a, b) => a.d - b.d).slice(0, 3);
+    const sec = near[Math.floor(A.rnd() * near.length) % near.length].s;
+    const to = { x: sec.mx + (A.rnd() - 0.5) * Math.min(sec.bw * 0.5, 40), y: sec.my + (A.rnd() - 0.4) * Math.min(sec.hh || 10, 18) * 0.4 };
+    const o = scene.add.image(from.x, from.y, key, Math.floor(A.rnd() * 3) % 3);
+    const sz = Math.max(0.35, m.k * 0.55);
+    o.setScale(sz).setDepth((m.img.depth || 3.5) + 0.004);
+    const d = Math.hypot(to.x - from.x, to.y - from.y);
+    A.merch.push({ o, t0: now, ms: TUv("mascotMerchMsV194B", 820) + d * 1.2, from: { x: from.x, y: from.y }, to, h: 40 + d * 0.35, spin: (A.rnd() < 0.5 ? -1 : 1) * (540 + A.rnd() * 360), sz, sec, landed: false });
+    V194.merch.spawned++; V194.merch.flying = A.merch.length;
+    return true;
+  }
+  function stepMerchV194B(scene, A, now) {
+    for (let i = A.merch.length - 1; i >= 0; i--) {
+      const p = A.merch[i], u = (now - p.t0) / p.ms;
+      if (!p.o || !p.o.scene) { A.merch.splice(i, 1); continue; }
+      if (u < 1) {
+        p.o.setPosition(p.from.x + (p.to.x - p.from.x) * u, p.from.y + (p.to.y - p.from.y) * u - p.h * 4 * u * (1 - u));
+        p.o.setRotation((p.spin * u * Math.PI) / 180).setScale(p.sz * (1 + 0.35 * Math.sin(Math.PI * u)));
+        continue;
+      }
+      if (!p.landed) {
+        p.landed = true; p.o.setPosition(p.to.x, p.to.y).setDepth(TUv("crowdDepth", 3.45) + 0.031);
+        const s = p.sec, inBox = !!(s && p.to.x >= s.bx - 2 && p.to.x <= s.bx + s.bw + 2 && p.to.y >= s.by - 2 && p.to.y <= s.by + s.bh + 2);
+        V194.merch.landed++; if (inBox) V194.merch.inStands++;
+        V194.merch.last = { x: Math.round(p.to.x), y: Math.round(p.to.y), inStands: inBox, sec: s ? { bx: Math.round(s.bx), by: Math.round(s.by), bw: Math.round(s.bw), bh: Math.round(s.bh) } : null };
+      }
+      const f = (now - p.t0 - p.ms) / 520;   // a fan catches it: it bobs and goes
+      if (f >= 1) { try { p.o.destroy(); } catch (e) {} A.merch.splice(i, 1); continue; }
+      p.o.setPosition(p.to.x, p.to.y - Math.abs(Math.sin(f * Math.PI * 2)) * 4 * p.sz).setAlpha(1 - f * f);
+    }
+    V194.merch.flying = A.merch.length;
+  }
+
+  /* ---- the little things: tears, steam, sweat, dirt ---- */
+  function puffV194B(scene, A, kind, x, y, k, depth) {
+    if (A.fx.length > TUv("mascotFxMaxV194B", 40)) return;
+    const r = A.rnd, s = Math.max(0.35, k);
+    let o, p;
+    // sizes and speeds in his own logical px (×k): exaggerated — fountain tears, a kettle's steam
+    if (kind === "tear") { o = scene.add.ellipse(x, y, 3.6 * s, 4.6 * s, 0x6fcfff, 1).setStrokeStyle(Math.max(1, 0.8 * s), 0x1d5f9a, 1); p = { vx: (x < A.hx ? -1 : 1) * (30 + r() * 34) * s, vy: (-46 - r() * 30) * s, g: 300 * s, life: 640 }; }
+    else if (kind === "steam") { o = scene.add.ellipse(x, y, 6 * s, 6 * s, 0xf4f4f4, 0.9); p = { vx: (x < A.hx ? -1 : 1) * (10 + r() * 14) * s, vy: (-50 - r() * 24) * s, g: 0, grow: 2.6, life: 720 }; }
+    else if (kind === "sweat") { o = scene.add.ellipse(x, y, 2.6 * s, 3.4 * s, 0xbfe9ff, 1); p = { vx: (r() - 0.5) * 60 * s, vy: (-34 - r() * 20) * s, g: 220 * s, life: 460 }; }
+    else { o = scene.add.ellipse(x, y, 5 * s, 3.6 * s, 0x6a4a2a, 0.95); p = { vx: (r() - 0.5) * 80 * s, vy: (-30 - r() * 24) * s, g: 180 * s, life: 540 }; }
+    o.setDepth(depth);
+    A.fx.push(Object.assign(p, { o, t: 0, x, y }));
+  }
+  function stepFxV194B(A, dt) {
+    for (let i = A.fx.length - 1; i >= 0; i--) {
+      const p = A.fx[i]; p.t += dt;
+      if (p.t >= p.life || !p.o.scene) { try { p.o.destroy(); } catch (e) {} A.fx.splice(i, 1); continue; }
+      const s = dt / 1000; p.vy += p.g * s; p.x += p.vx * s; p.y += p.vy * s;
+      const f = p.t / p.life;
+      p.o.setPosition(p.x, p.y).setAlpha(Math.min(1, (1 - f) * 1.6));
+      if (p.grow) p.o.setScale(1 + f * p.grow);
+    }
+  }
+
+  /* ---- the bubble and the sign (drawn in "text units", scaled to the screen / to him) ---- */
+  const FONT_V194B = 'Oswald, "Arial Narrow", system-ui, sans-serif';
+  function boxV194B(scene, text, o) {
+    const tx = scene.add.text(0, 0, text, { fontFamily: FONT_V194B, fontSize: (o.fs || 20) + "px", fontStyle: "700", color: o.color || "#1a1420", align: "center", wordWrap: { width: o.wrap || 220 } }).setOrigin(0.5, 0.5);
+    const w = Math.ceil(tx.width) + (o.padX || 16), h = Math.ceil(tx.height) + (o.padY || 8), g = scene.add.graphics(), B = 3, ink = 0x17131c;
+    // a pixel box: the ink border with its corners notched, the fill, then (bubble) a stepped tail
+    g.fillStyle(ink, 1); g.fillRect(-w / 2 + B, -h / 2, w - 2 * B, h); g.fillRect(-w / 2, -h / 2 + B, w, h - 2 * B);
+    g.fillStyle(o.fill, 1); g.fillRect(-w / 2 + B, -h / 2 + B, w - 2 * B, h - 2 * B);
+    if (o.trim != null) { g.fillStyle(o.trim, 1); g.fillRect(-w / 2 + B, h / 2 - B - 4, w - 2 * B, 4); }
+    if (o.tail) {   // the stepped tail is its own piece, so it can point at him when the box is held inside the shot
+      const t = scene.add.graphics();
+      t.fillStyle(ink, 1); t.fillRect(-9, -B, 14, 6); t.fillRect(-6, 3, 9, 5); t.fillRect(-3, 8, 5, 4); t.fillStyle(o.fill, 1); t.fillRect(-6, -B - 1, 8, 6); t.fillRect(-3, 2, 3, 5);
+      o.tailOut = t;
+    }
+    if (o.stick) { g.fillStyle(0x8a5a2c, 1); g.fillRect(-3, h / 2, 6, o.stick); g.fillStyle(ink, 1); g.fillRect(-4, h / 2, 1, o.stick); g.fillRect(3, h / 2, 1, o.stick); }
+    const box = scene.add.container(0, 0, [g, tx]); box.__h = h; box.__w = w; box.__tail = o.tailOut || null;
+    if (box.__tail) { const t = box.__tail; box.once("destroy", () => { try { t.destroy(); } catch (e) {} }); }
+    return box;
+  }
+  const hexInt = (h) => parseInt(String(h).slice(1), 16) || 0;
+  function kcssV194B(scene, A, now) {
+    if (now - A.kcssAt > 1000) { A.kcssAt = now; try { const r = scene.game.canvas.getBoundingClientRect(); A.kcss = r.width > 0 ? r.width / (scene.scale.width || r.width) : 1; } catch (e) { A.kcss = 1; } }
+    return A.kcss;
+  }
+
+  /* ---- where he stands ---- */
+  const scaleV194B = () => TUv("mascotScaleV194B", 1.8);   // bigger than v193 AI's 1.45: he is the show now
+  function laneW(scene, G, m, u, bank) {
+    const paint = (scene.side && scene.side.paint) || 206;
+    const p0 = scene.crowdProject(u, G.MIDY), p1 = scene.crowdProject(u, G.MIDY + 10);
+    const pxPer = Math.max(0.01, Math.abs(p1.x - p0.x) / 10), sc0 = (p0.s * m.ageK * scaleV194B()) / SCALE;
+    return bank * (paint + TUv("mascotLaneV193AI", 8) + (15 * SCALE * sc0) / pxPer);
+  }
+  function projV194B(scene, G, m, u, w) {
+    const q = scene.crowdProject(u, G.MIDY + w);
+    q.sc = (q.s * m.ageK * scaleV194B()) / SCALE;
+    return q;
+  }
+  function inViewV194B(q, wv, head) {
+    if (!wv || !(wv.width > 0)) return true;
+    const half = 16 * q.sc * SCALE, tall = 62 * q.sc * SCALE * (head || 1);
+    return q.x - half > wv.x + 4 && q.x + half < wv.x + wv.width - 4 && q.y - tall > wv.y && q.y < wv.y + wv.height - 4;
+  }
+  function spotV194B(scene, st, m, G, now, cam, losU) {
+    const A = m.v194, YD = G.PLAY_W / 100, wv = cam && cam.worldView;
+    const liveSnap = !!(scene.play && !scene.play.done);
+    const cands = [];
+    const EZ = G.PLAY_L;
+    [EZ * 0.5, EZ * 0.85, G.FW - EZ * 0.5, G.FW - EZ * 0.85].forEach((u) => [-1, 1].forEach((bank) => cands.push({ u, bank, ez: true })));
+    [-10, -5, 0, 5, 10, 15, -15].forEach((off) => [-1, 1].forEach((bank) => cands.push({ u: Math.max(G.PLAY_L + 2 * YD, Math.min(G.PLAY_L + G.PLAY_W - 2 * YD, losU + off * YD)), bank, ez: false })));
+    const marks = (scene.markers || []).filter((mk) => mk && mk.root && mk.root.visible !== false).map((mk) => mk.root);
+    let best = null, bestS = -1e9;
+    const cur = A.tgt, zc = (cam ? cam.zoom || 1 : 1) * (A.kcss || 1), bubW = 44 / zc;   // the bubble's height in world px (constant on screen)
+    const seen = [];
+    cands.forEach((c) => {
+      const w = laneW(scene, G, m, c.u, c.bank), q = projV194B(scene, G, m, c.u, w);
+      if (!inViewV194B(q, wv, 1.15)) return;
+      if (wv && wv.width > 0 && q.y - 62 * q.sc * SCALE - bubW < wv.y) return;   // no room for what he says
+      seen.push({ c, w, q });
+    });
+    const maxK = seen.reduce((a, e) => Math.max(a, e.q.k), 0.01);
+    seen.forEach(({ c, w, q }) => {
+      const tall = 62 * q.sc * SCALE;
+      // the size on screen first (a far end zone is a speck), then the end zone's pull: "near the endzone most times"
+      let s = (q.k / maxK) * TUv("mascotSizeWV194B", 3) + (c.ez ? TUv("mascotEzBiasV194B", 2.4) : 0);
+      if (A.pos) { s -= Math.abs(c.u - A.pos.u) / (YD * 40); if (Math.sign(w) !== Math.sign(A.pos.w)) s -= liveSnap ? 6 : 2; }
+      if (cur && Math.abs(cur.u - c.u) < 3 * YD && Math.sign(cur.w) === Math.sign(w)) s += TUv("mascotStayBonusV194B", 1);
+      if (marks.some((r) => Math.abs(r.x - q.x) < tall * 0.6 && Math.abs(r.y - q.y) < tall * 0.5)) s -= 3;   // a player is standing there
+      if (s > bestS) { bestS = s; best = { u: c.u, w, ez: c.ez, bank: c.bank }; }
+    });
+    return best;
+  }
+  function pathTo(A, G, tgt) {
+    // along his own sideline; a bank switch goes round behind the nearer end line (never across the field)
+    if (!A.pos || Math.sign(A.pos.w) === Math.sign(tgt.w)) return [tgt];
+    const back = A.pos.u + tgt.u < G.FW ? -TUv("mascotBackUV194B", 5) : G.FW + TUv("mascotBackUV194B", 5);
+    return [{ u: back, w: A.pos.w }, { u: back, w: tgt.w }, tgt];
+  }
+
+  /* ---- one frame of the home mascot ---- */
+  function placeV194B(scene, st, m, G, now, cam) {
+    const img = m.img, A = m.v194 || initV194B(m), YD = G.PLAY_W / 100;
+    const dt = Math.max(0, Math.min(100, now - (m.lastT || now))); m.lastT = now;
+    if (m.ageK == null || now - (m.ageAt || 0) > 2000) { m.ageAt = now; m.ageK = Math.max(TUv("mascotAgeMinV193AI", 0.7), (() => { try { return window.__V144 && window.__V144.ageK ? window.__V144.ageK() : 1; } catch (e) { return 1; } })()); }
+    // 1. the game: a new snap, a whistle, the score
+    const P = scene.play;
+    if (P && P !== A.lastPlay) { A.lastPlay = P; try { presnapV194B(scene, m, P.payload); } catch (e) { err(e); } }
+    if (P && P.done && A.judgedPlay !== P) { A.judgedPlay = P; try { judgeV194B(scene, m, P.payload); } catch (e) { err(e); } }
+    if (now - (A.scoreAt || 0) > 1000) { A.scoreAt = now; scoreV194B(A, null); moodV194B(A); }
+    // 2. where: re-chosen every so often, or when his spot leaves the shot
+    const lf = scene._lastField, adj = (x) => (G.VDIR > 0 ? x : G.FW - x);
+    const losU = lf ? adj(G.PLAY_L + (Math.max(0, Math.min(100, lf[0])) / 100) * G.PLAY_W) : G.FW / 2;
+    const wv = cam && cam.worldView;
+    if (!A.pos) { const w0 = laneW(scene, G, m, G.PLAY_L * 0.5, 1); A.pos = { u: losU < G.FW / 2 ? G.PLAY_L * 0.5 : G.FW - G.PLAY_L * 0.5, w: w0 }; }
+    const tgtGone = A.tgt && !inViewV194B(projV194B(scene, G, m, A.tgt.u, A.tgt.w), wv, 1);
+    if (!A.tgt || tgtGone || now - A.tgtAt > TUv("mascotSpotMsV194B", 1400)) {
+      A.tgtAt = now;
+      const best = spotV194B(scene, st, m, G, now, cam, losU);
+      if (best && (!A.tgt || Math.abs(best.u - A.tgt.u) > 0.5 * YD || Math.sign(best.w) !== Math.sign(A.tgt.w))) {
+        A.tgt = best; A.path = pathTo(A, G, best); V194.moves++;
+        const qNow = projV194B(scene, G, m, A.pos.u, A.pos.w);
+        if (!m.vis || !inViewV194B(qNow, wv, 0.6)) { A.pos = { u: best.u, w: best.w }; A.path = []; V194.teleports++; }   // only where nobody sees it
+      }
+    }
+    // 3. run along the path
+    let moving = false, vx = 0;
+    if (A.path.length && !(A.act && A.act.react && m.vis)) {   // a reaction is played where he stands
+      const spd = TUv("mascotRunYdV194B", 10) * YD * (A.mood === "furious" ? 1.25 : 1) * (dt / 1000);
+      let left = spd;
+      while (left > 0 && A.path.length) {
+        const wp = A.path[0], du = wp.u - A.pos.u, dw = wp.w - A.pos.w, d = Math.hypot(du, dw);
+        if (d <= left) { A.pos = { u: wp.u, w: wp.w }; A.path.shift(); left -= d; }
+        else { A.pos = { u: A.pos.u + (du / d) * left, w: A.pos.w + (dw / d) * left }; vx = dw; left = 0; }
+      }
+      moving = A.path.length > 0;
+    }
+    const p = projV194B(scene, G, m, A.pos.u, A.pos.w), sc = p.sc, k = sc * SCALE;
+    const outS = A.pos.w >= 0 ? 1 : -1;   // + screen x is away from the field on the right bank
+    // 4. what he is doing
+    let o = null, celO = null;
+    if (m.cel && m.cel.alive) {
+      const t = m.cel.run && m.cel.run.hold != null ? m.cel.run.hold : now - m.cel.t0;
+      if (t >= m.cel.ms) m.cel.alive = false; else celO = celPose(m.cel, t);
+    }
+    if (A.act && now - A.act.t0 >= A.act.ms) { if (A.act.react && A.queue.length) nextAct(A, now); else { A.act = null; A.idleAt = now + TUv("mascotIdleGapMsV194B", 500); } }
+    if (moving && !(A.act && A.act.react)) {
+      o = { pose: cyc(now, 85, RUN_V194B), lift: Math.abs(Math.sin(now / 85)) * 1.5, face: Math.abs(vx) > 1e-3 ? Math.sign(vx) : outS };
+    } else if (celO && (!A.act || !A.act.react || (m.cel && m.cel.kind !== "cycle"))) o = celO;   // HIS mirrored body (v161 A / v177 I) or a scorer's cheer
+    else {
+      if (!A.act && now >= A.idleAt) idleV194B(A, scene, now);
+      if (A.act) {
+        const def = ACTS_V194B[A.act.name], t = now - A.act.t0;
+        o = def.f(t, A);
+        if (A.act.name === "sign") o.sign = true;
+      }
+    }
+    if (!o) o = idlePose(now, 0, m.ph);
+    if (REDUCED) { o.rot = 0; o.lift = Math.min(o.lift || 0, 2); }
+    V194.act = A.act ? A.act.name : moving ? "run" : null; V194.mood = A.mood; V194.moodScore = A.moodScore; V194.margin = A.margin; V194.momentum = A.momentum; V194.record = +A.record.toFixed(3);
+    // 5. draw him
+    const fi = POSE_IX[o.pose] != null ? POSE_IX[o.pose] : 0, f = m.S.frames[fi];
+    if (fi !== m.lastPose) { img.setFrame(fi); m.lastPose = fi; }
+    m.pose = o.pose;
+    const flip = o.face ? (o.face > 0 ? 1 : -1) : -outS;   // standing, he faces the field
+    const ox = (o.dx || 0) * outS * k, oy = (o.dy || 0) * k * 0.6;
+    img.setOrigin(0.5, f.hipY / LH);
+    img.setScale(flip * sc * (o.sx || 1), sc * (o.sy || 1));
+    img.setRotation(flip * (o.rot || 0) * DEG);
+    const hx = p.x + ox, hy = p.y - (GY - f.hipY) * k - (o.lift || 0) * k + oy;
+    img.setPosition(hx, hy);
+    let depth = 3.5; try { depth = scene.sideDepth(p.y + oy) + 0.0016; } catch (e) {}
+    img.setDepth(depth);
+    m.sh.setPosition(p.x + ox, p.y + oy - 0.4 * k).setSize(11 * k * (1 - Math.min(0.5, (o.lift || 0) / 30)), 3 * k).setDepth(depth - 0.0006);
+    // the light (the bench's shade, re-read now and then), and the temper's red face
+    if (now - (m.lightAt || 0) > 600) { m.lightAt = now; try { const f0 = scene.sideShadeBase(A.pos.u, p.k, outS); m.lv = Math.max(0, Math.min(255, Math.round((f0 * 255) / 8) * 8)); } catch (e) { m.lv = 230; } }
+    const lv = m.lv == null ? 230 : m.lv, red = o.red ? Math.min(1, o.red) * (0.75 + 0.25 * Math.sin(now / 70)) : 0;
+    const tint = ((Math.round(lv * 0.98) << 16) | (Math.round(lv * (0.99 - 0.55 * red)) << 8) | Math.round(Math.min(255, lv * 1.02) * (1 - 0.6 * red))) >>> 0;
+    if (tint !== m.tintNow) { m.tintNow = tint; img.setTint(tint); }
+    // the cull
+    let vis = true;
+    if (cam) {
+      const hPx = img.displayHeight * (cam.zoom || 1);
+      if (hPx < TUv("mascotMinPxV193AI", 14)) vis = false;
+      else if (wv && wv.width > 0 && (img.x + 40 * k < wv.x || img.x - 40 * k > wv.x + wv.width || img.y + 40 * k < wv.y || img.y - 60 * k > wv.y + wv.height)) vis = false;
+    }
+    if (vis !== m.vis) { m.vis = vis; img.setVisible(vis); m.sh.setVisible(vis); }
+    vis ? V.shown++ : V.culled++;
+    if (vis) { if (A.tgt && A.tgt.ez) V194.ez++; else V194.side++; }
+    // never on the field of play: his feet are outside the painted line (or past the end line)
+    if (Math.abs(A.pos.w) < ((scene.side && scene.side.paint) || 206) && A.pos.u > 0 && A.pos.u < G.FW) V194.onField++;
+    V194.spot = { u: Math.round(A.pos.u), w: Math.round(A.pos.w), ez: !!(A.tgt && A.tgt.ez), moving, visible: vis, x: Math.round(img.x), y: Math.round(img.y) };
+    m.sx = p.x; m.sy = p.y; m.k = k;
+    // 6. the extras: world points of his eyes and fists
+    const at = (lx, ly) => ({ x: hx + (lx - LW / 2) * k * flip, y: hy + (ly - f.hipY) * k });
+    const fxD = depth + 0.002;
+    A.fxClock = (A.fxClock || 0) + dt;
+    if (vis && A.fxClock > 70) {
+      A.fxClock = 0;
+      const hd = at(f.head.x, f.head.y); A.hx = hd.x;
+      if (o.tears && A.rnd() < o.tears) { puffV194B(scene, A, "tear", hd.x - 3.5 * k, hd.y - 1 * k, k, fxD); puffV194B(scene, A, "tear", hd.x + 3.5 * k, hd.y - 1 * k, k, fxD); }
+      if (o.steam && A.rnd() < o.steam) { puffV194B(scene, A, "steam", hd.x - 7 * k, hd.y - 7 * k, k, fxD); puffV194B(scene, A, "steam", hd.x + 7 * k, hd.y - 7 * k, k, fxD); }
+      if (o.sweat && A.rnd() < 0.5) puffV194B(scene, A, "sweat", hd.x + (A.rnd() - 0.5) * 10 * k, hd.y - 8 * k, k, fxD);
+      if (o.dirt) for (let i = 0; i < 3; i++) puffV194B(scene, A, "dirt", p.x + ox + (A.rnd() - 0.5) * 8 * k, p.y + oy, k, fxD);
+    }
+    stepFxV194B(A, dt);
+    if (o.throwing && A.act && A.act.name === "merch" && o.throwAt !== A.act.thrown) {
+      A.act.thrown = o.throwAt;
+      const hand = at(f.hands[1].x, f.hands[1].y);
+      try { if (vis) throwMerchV194B(scene, m, A, hand, now); } catch (e) { err(e); }
+    }
+    stepMerchV194B(scene, A, now);
+    // the sign over his head
+    const wantSign = !!(o.sign && A.signTxt && vis);
+    if (wantSign) {
+      if (!A.signBox || A.signBox.__txt !== A.signTxt) {
+        try { A.signBox && A.signBox.destroy(); } catch (e) {}
+        A.signBox = boxV194B(scene, A.signTxt, { fs: 22, fill: 0xfbf7ea, color: m.cols.p1 && lum(m.cols.p1) < 0.75 ? m.cols.p1 : "#1a1420", trim: hexInt(m.cols.p2), padX: 14, padY: 10, wrap: 170 }); A.signBox.__txt = A.signTxt;
+      }
+      const hands = [at(f.hands[0].x, f.hands[0].y), at(f.hands[1].x, f.hands[1].y)], top = Math.min(hands[0].y, hands[1].y);
+      const sk = Math.max((26 * k) / A.signBox.__h, 9 / (22 * (cam ? cam.zoom || 1 : 1) * kcssV194B(scene, A, now)));
+      A.signBox.setScale(sk).setPosition((hands[0].x + hands[1].x) / 2, top - (A.signBox.__h / 2) * sk + 3 * k).setDepth(depth + 0.001).setVisible(true).setRotation(Math.sin(now / 200) * 0.05);
+      V194.sign = A.signTxt;
+    } else if (A.signBox) { A.signBox.setVisible(false); V194.sign = null; }
+    // the bubble over his head: a constant size on screen, one at a time
+    const B = A.bubble;
+    if (B && now < B.until && vis) {
+      if (B.drawn !== B.text || !A.bubbleBox) {
+        try { A.bubbleBox && A.bubbleBox.destroy(); } catch (e) {}
+        A.bubbleBox = boxV194B(scene, B.text, { fs: 20, fill: 0xffffff, tail: true, padX: 16, padY: 8, wrap: 230 }); B.drawn = B.text;
+      }
+      const z = (cam ? cam.zoom || 1 : 1) * kcssV194B(scene, A, now), want = TUv("mascotBubbleCssPxV194B", 12) / (20 * z);
+      const age = now - B.at, pop = REDUCED ? 1 : 0.6 + 0.4 * Math.min(1, age / 140), fade = Math.min(1, (B.until - now) / 250);
+      const topY = hy - f.hipY * k - 4 * k - (wantSign ? 30 * k : 0);
+      const bw2 = (A.bubbleBox.__w / 2) * want, bh = A.bubbleBox.__h * want;
+      let bx = hx, by = topY - (A.bubbleBox.__h / 2 + 12) * want;
+      if (wv && wv.width > 0) { bx = Math.max(wv.x + bw2 + 3, Math.min(wv.x + wv.width - bw2 - 3, bx)); by = Math.max(wv.y + bh / 2 + 2, by); }   // held inside the shot
+      A.bubbleBox.setScale(want * pop).setPosition(bx, by).setAlpha(fade).setDepth(TUv("mascotBubbleDepthV194B", 18)).setVisible(true);
+      const tl = A.bubbleBox.__tail;
+      if (tl) tl.setScale(want * pop).setPosition(Math.max(bx - bw2 + 12 * want, Math.min(bx + bw2 - 12 * want, hx)), by + bh / 2).setAlpha(fade).setDepth(TUv("mascotBubbleDepthV194B", 18) + 0.001).setVisible(true);
+      V194.bubble = { text: B.text, bucket: B.bucket, x: Math.round(A.bubbleBox.x), y: Math.round(A.bubbleBox.y) };
+    } else {
+      if (A.bubbleBox) { A.bubbleBox.setVisible(false); if (A.bubbleBox.__tail) A.bubbleBox.__tail.setVisible(false); }
+      if (B && now >= B.until) A.bubble = null;
+      V194.bubble = null;
+    }
+    const nb = (st.list || []).filter((q) => q.v194 && q.v194.bubbleBox && q.v194.bubbleBox.visible).length; V194.maxBubbles = Math.max(V194.maxBubbles, nb);
+  }
+  // the check's and the dev harness's handles: judge a payload now, say a bucket now
+  const API_V194B = {
+    phrases: () => JSON.parse(JSON.stringify(PHRASES_V194B)), count: () => PHRASE_N_V194B, classify: classifyV194B, acts: () => Object.keys(ACTS_V194B),
+    mascot: () => { const sc = window.__gridironScene, st = sc && sc.__mascotV193AI; return st && st.list ? st.list.find((q) => q.v194) || null : null; },
+    react: (pay) => { const sc = window.__gridironScene, m = API_V194B.mascot(); return m ? judgeV194B(sc, m, pay) : null; },
+    say: (bucket) => { const sc = window.__gridironScene, m = API_V194B.mascot(); return m ? say(m.v194, sc, bucket, true) : null; },
+    act: (name) => { const m = API_V194B.mascot(); if (!m || !ACTS_V194B[name]) return null; startActs(m.v194, [name]); return name; },
+    state: () => { const m = API_V194B.mascot(), A = m && m.v194; return A ? { home: A.home, team: A.T, opp: A.O, mood: A.mood, moodScore: A.moodScore, margin: A.margin, momentum: A.momentum, act: A.act ? A.act.name : null, queue: A.queue.slice(), bubble: A.bubble ? A.bubble.text : null, sign: A.signTxt, pos: A.pos, tgt: A.tgt, fx: A.fx.length, merch: A.merch.length } : null; }
+  };
+  V194.api = API_V194B;
 
   /* ---------------- off the field: the season hero's crest card and the Locker ---------------- */
   const LIVE = new Set();   // canvases animated by one shared, self-stopping timer
@@ -1555,7 +2178,7 @@
       const pal = pals[TL && TL.palIdx ? TL.palIdx(i) : 0] || ["#1f4fd0", "#e8c86a"], url = portraitURL(i, pal, poses[n++ % poses.length]);
       h += '<figure class="mascot-gal-v193ai" data-arch="' + e[0] + '"><img alt="" src="' + url + '"><figcaption>' + ARCH[e[0]].name + "</figcaption></figure>";
     });
-    return '<div class="mascot-galw-v193ai"><div class="pal-sub-v174">Every crest has its mascot<small>' + Object.keys(ARCH).length + " costumes over the " + NLOGO + " crests — each in its team's jersey, on both benches, dancing the players' celebrations.</small></div><div class=\"mascot-galg-v193ai\">" + h + "</div></div>";
+    return '<div class="mascot-galw-v193ai"><div class="pal-sub-v174">Every crest has its mascot<small>' + Object.keys(ARCH).length + " costumes over the " + NLOGO + " crests — each in its team's jersey; the home side's works the end zone, celebrating and sulking every play.</small></div><div class=\"mascot-galg-v193ai\">" + h + "</div></div>";
   }
   /* every team the game names, mapped (the check's enumeration) */
   function mapAll() {
@@ -1581,9 +2204,10 @@
     sheet: (logo, cols, space) => sheetV193AI(logo, cols, space), contactSheet, poseSheet,
     active, owned, frame, preview, decorate, refresh, celPose, idlePose, galleryHTML, portraitURL,
     // the live mascots, read (the checks)
-    live: () => { const sc = window.__gridironScene, st = sc && sc.__mascotV193AI; return st && st.list ? st.list.map((m) => ({ team: m.team, arch: m.S.id.arch, variant: m.S.id.variant, logo: m.S.id.logo, pose: m.pose, celebrating: !!(m.cel && m.cel.alive), cel: m.cel && m.cel.alive ? { kind: m.cel.kind, name: m.cel.name || null } : null, x: Math.round(m.img.x), y: Math.round(m.img.y), h: Math.round(m.img.displayHeight), visible: !!m.img.visible, alive: !!m.img.scene, key: m.key, frame: m.lastPose, space: m.S.space })) : []; },
+    live: () => { const sc = window.__gridironScene, st = sc && sc.__mascotV193AI; return st && st.list ? st.list.map((m) => ({ team: m.team, home: !!m.v194, mood: m.v194 ? m.v194.mood : null, act: m.v194 && m.v194.act ? m.v194.act.name : null, arch: m.S.id.arch, variant: m.S.id.variant, logo: m.S.id.logo, pose: m.pose, celebrating: !!(m.cel && m.cel.alive), cel: m.cel && m.cel.alive ? { kind: m.cel.kind, name: m.cel.name || null } : null, x: Math.round(m.img.x), y: Math.round(m.img.y), h: Math.round(m.img.displayHeight), visible: !!m.img.visible, alive: !!m.img.scene, key: m.key, frame: m.lastPose, space: m.S.space })) : []; },
     // a manual cue (a later win screen, the dev harness): kind "cycle" | "body" (name flex/backflip/spike) | "v177" (name …)
     celebrate: (team, kind, name, ms) => { const sc = window.__gridironScene, st = sc && sc.__mascotV193AI; if (!st) return null; return startCel(st, team === "def" ? "def" : "off", { kind: kind || "cycle", name, t0: performance.now(), ms: ms || TUv("celebrateMs", 2400), fm: TUv("celebrateFrameMs", 170), prio: 3 }); },
+    v194b: API_V194B,   // v194 B: the home mascot's mood, acts and lines
     stats: () => ({ builds: V.builds, buildMs: +V.buildMs.toFixed(2), buildMax: +V.buildMax.toFixed(2), stepMax: +(V.stepMax || 0).toFixed(2), frames: V.frames, frameAvg: V.frames ? +(V.frameMs / V.frames).toFixed(4) : 0, frameMax: +V.frameMax.toFixed(3), shown: V.shown, culled: V.culled, cached: SHEETS.size, live: LIVE.size, cards: V.cards, previews: V.previews })
   };
 })();

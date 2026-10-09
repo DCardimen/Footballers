@@ -380,7 +380,8 @@
     "v193Ccheck",
     "v193Icheck",
     "v193AGcheck",
-    "v193AIcheck"
+    "v193AIcheck",
+    "v194Bcheck"
    ]
   },
   "statinfo": {
@@ -1496,7 +1497,8 @@
     "v156Ccheck",
     "v158Bcheck",
     "v159Bcheck",
-    "v193AIcheck"
+    "v193AIcheck",
+    "v194Bcheck"
    ]
   },
   "pwa": {
@@ -1629,7 +1631,8 @@
     "v177 G",
     "v177 H",
     "v193 Q",
-    "v193 AI"
+    "v193 AI",
+    "v194 B"
    ],
    "files": [
     "src/28-cosmetics.js",
@@ -1669,7 +1672,8 @@
     "v177FGHcheck",
     "v193Qcheck",
     "v193Ycheck",
-    "v193AIcheck"
+    "v193AIcheck",
+    "v194Bcheck"
    ]
   },
   "audio": {
@@ -5419,6 +5423,20 @@
    "needsServer": true,
    "pureNode": false,
    "flaky": []
+  },
+  "v194Bcheck": {
+   "file": "scripts/v194Bcheck.mjs",
+   "desc": "v194 B — the mascot comes alive: 50+ bucketed quippy lines (UFF only) and the new poses; store OFF no mascot; preview: ONE mascot, the home team's (away week: the opponent's); a forced home TD raises the mood and starts a celebration with merch, an opponent TD lowers it (cry / mad / circles); bad runs furious/desperate, good runs ecstatic; merch lands in a crowd section; one bubble at a time; never inside the painted field; no Math.random from 300 frames and a seeded sim unchanged; TU v194B 0 restores v193 AI's two benches; no page errors",
+   "areas": [
+    "cosmetics",
+    "field"
+   ],
+   "runtimeSec": 70,
+   "slow": false,
+   "needsServer": true,
+   "pureNode": false,
+   "flaky": [],
+   "loadSensitive": true
   },
   "v193AIcheck": {
    "file": "scripts/v193AIcheck.mjs",

@@ -30,13 +30,14 @@ const errors = []
 const url = gameUrl('index.html')
 const U = (...q) => url + (url.includes('?') ? '&' : '?') + ['stayStale', 'noFilmV114'].concat(q).join('&')
 const savePng = (name, dataUrl) => { try { fs.writeFileSync(SHOTS + name, Buffer.from(String(dataUrl).split(',')[1], 'base64')) } catch {} }
-async function open (W, H, { exp = null, preview = 0, tag = 'p' } = {}) {
+async function open (W, H, { exp = null, preview = 0, tag = 'p', benches = 0 } = {}) {
   const context = await browser.newContext({ viewport: { width: W, height: H } })
-  await context.addInitScript(({ preview }) => {
+  await context.addInitScript(({ preview, benches }) => {
+    if (benches) window.RIB_TUNE = Object.assign(window.RIB_TUNE || {}, { v194B: 0 })   // v194 B's kill switch: v193 AI's two benches
     try { localStorage.setItem('rib.coachTour.v119', 'off'); localStorage.setItem('rib.debriefOff.v122', 'off') } catch {}
     if (preview) window.RIB_TUNE = Object.assign(window.RIB_TUNE || {}, { mascotPreviewV193AI: 1 })
     setInterval(() => { try { if (window.S) window.S.tutorialSeen = true } catch {} document.querySelector('.onboard')?.remove(); document.getElementById('personaV13')?.remove(); document.getElementById('growthV42')?.remove(); document.getElementById('gv139gate')?.remove(); document.getElementById('growV132')?.remove() }, 60)
-  }, { preview })
+  }, { preview, benches })
   const p = await context.newPage(); p.on('pageerror', (e) => errors.push(tag + ': ' + (e.message || e)))
   await p.goto(U(), { waitUntil: 'networkidle', timeout: 60000 })
   await p.evaluate((exp) => { if (exp) localStorage.setItem('rib.experience.v158', exp); else localStorage.removeItem('rib.experience.v158') }, exp)
@@ -148,9 +149,11 @@ async function shotLive (p, name, m) {
 }
 
 // ================= 3/4/5. the preview tune: the broadcast, the celebrations, the card, the kill switch =================
+// (v194 B: by default only the HOME team's mascot is drawn — v194Bcheck. These two-bench assertions run under its kill
+// switch TU v194B 0, which is v193 AI exactly.)
 let perf = null
 for (const [W, H] of [[390, 844], [1280, 800]]) {
-  const { p, context } = await open(W, H, { preview: 1, tag: 'live' + W })
+  const { p, context } = await open(W, H, { preview: 1, tag: 'live' + W, benches: 1 })
   await goLive(p, 4)
   const m0 = await waitVisible(p, 'off', 25000) || await waitVisible(p, 'def', 8000)
   for (let i = 0; i < 60 && (await where(p)).length < 2; i++) await p.waitForTimeout(250)   // the second bench's sheet is drawn a slice a frame
@@ -220,9 +223,10 @@ for (const [W, H] of [[390, 844], [1280, 800]]) {
 // the Interstellar League: every mascot wears the bubble
 {
   const { p, context } = await open(400, 860, { preview: 1, tag: 'ist' })
-  await goLive(p, 8); for (let i = 0; i < 80 && (await where(p)).length < 2; i++) await p.waitForTimeout(250)
+  await goLive(p, 8); for (let i = 0; i < 80 && (await where(p)).length < 1; i++) await p.waitForTimeout(250)
+  await p.waitForTimeout(500)
   const L = await where(p)
-  ok(L.length === 2 && L.every((m) => m.space), 'in the Interstellar League every mascot wears a space bubble', L.map((m) => m.arch + ':' + m.space))
+  ok(L.length === 1 && L.every((m) => m.space), 'in the Interstellar League the (home) mascot wears a space bubble', L.map((m) => m.arch + ':' + m.space))
   await context.close()
 }
 
@@ -231,9 +235,9 @@ for (const [W, H] of [[390, 844], [1280, 800]]) {
   const { p, context } = await open(400, 860, { exp: 'member', tag: 'member' })
   const mem = await E(p, () => { const C = window.RIB_COSMETICS, R = window.RIB_MONETIZE; const o = { on: R.enabled, pv: R.preview, member: R.has('member'), owned: C.owned('mascot_team'), equip: C.equip('mascot', 'mascot_team') }; o.eq = C.equipped('mascot'); o.active = window.RIB_MASCOTS.active(true); o.tune = !!(window.RIB_TUNE || {}).mascotPreviewV193AI; return o })
   ok(mem.on && mem.pv === 'member' && mem.member && mem.owned && mem.equip && mem.eq === 'mascot_team' && mem.active && !mem.tune, 'store ON with a membership: Team Mascots is owned and equips — the mascots are his (no preview tune)', mem)
-  await goLive(p, 4); for (let i = 0; i < 80 && (await where(p)).length < 2; i++) await p.waitForTimeout(250)
+  await goLive(p, 4); for (let i = 0; i < 80 && (await where(p)).length < 1; i++) await p.waitForTimeout(250); await p.waitForTimeout(500)
   const L = await where(p)
-  ok(L.length === 2 && L.every((m) => m.alive), 'a member\'s broadcast draws both mascots', L.map((m) => m.team + ':' + m.arch))
+  ok(L.length === 1 && L.every((m) => m.alive && m.home), 'a member\'s broadcast draws the home mascot (v194 B: only the home team\'s)', L.map((m) => m.team + ':' + m.arch))
   await context.close()
 }
 {

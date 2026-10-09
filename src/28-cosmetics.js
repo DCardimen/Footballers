@@ -8961,7 +8961,7 @@
     CATS.mascot = { name: "MASCOTS", icon: "🎭", def: "mascot_none" };
     addItemsV177([
       { id: "mascot_none", cat: "mascot", name: "No Mascot", rarity: "common", source: "free", blurb: "The benches without a mascot." },
-      { id: "mascot_team", cat: "mascot", name: "Team Mascots", rarity: "legendary", source: "member", blurb: "Every crest has its mascot — a knight, a bear, a pirate, an alien… On both benches, dancing the players' celebrations." }
+      { id: "mascot_team", cat: "mascot", name: "Team Mascots", rarity: "legendary", source: "member", blurb: "Every crest has its mascot — a knight, a bear, a pirate, an alien… The home side's mascot works the end zone and the sideline: cartwheels, merch into the stands, signs, tears — and the players' celebrations." }
     ], "v193AI");
     API.slots = SLOTS.slice();
   }
