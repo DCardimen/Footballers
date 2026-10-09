@@ -187,6 +187,15 @@
     const d = v - avg;
     return d >= 10 ? 'A+' : d >= 6 ? 'A' : d >= 3 ? 'B+' : d >= 0 ? 'B' : d >= -3 ? 'C+' : d >= -7 ? 'C' : 'D';
   }
+  // v193 AH: a man who followed him here, or came because of him, says so on the depth chart
+  function ahTag(p) {
+    try {
+      if (!window.__V193AH || !window.__V193AH.on()) return '';
+    } catch (e) {
+      return '';
+    }
+    return p.followV193AH ? ' · ★ followed you' : p.drawnV193AH ? ' · ★ came for you' : '';
+  }
   function renderRoster() {
     const roster = ensureUserRoster() || [],
       sum = teamSummary(roster);
@@ -198,7 +207,7 @@
       )
       .join(
         ''
-      )}</div><div class="card tight"><div class="h2" style="margin-top:0">Persistent Depth Chart</div>${roster.map(p => `<div class="rp-pos-v158"><b>${p.pos}</b><span class="${p.star ? 'star' : ''}">${p.name} <small>#${p.jersey} · ${p.year}</small></span><span>${p.ovr} OVR</span><span class="rp-tier-v158">${p.devTrait}</span></div>`).join('')}</div>`;
+      )}</div><div class="card tight"><div class="h2" style="margin-top:0">Persistent Depth Chart</div>${roster.map(p => `<div class="rp-pos-v158"><b>${p.pos}</b><span class="${p.star ? 'star' : ''}">${p.name} <small>#${p.jersey} · ${p.year}${ahTag(p) /* v193 AH */}</small></span><span>${p.ovr} OVR</span><span class="rp-tier-v158">${p.devTrait}</span></div>`).join('')}</div>`;
   }
   function cost(k) {
     const u = UPGRADES[k],
