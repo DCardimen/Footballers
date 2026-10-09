@@ -29,6 +29,9 @@ await page.addInitScript(() => { window.RIB_TUNE = Object.assign(window.RIB_TUNE
 const errs = []
 page.on('pageerror', e => errs.push('PAGEERROR: ' + e.message))
 page.on('console', m => { if (m.type() === 'error') errs.push('CONSOLE: ' + m.text()) })
+// v193 AG took the middle arch out of the far bowl (the two side tunnels are the ways out); this check measures v112's
+// arch itself, which is still there behind `v193AGtunnel` — so it cuts it back in
+await page.addInitScript(() => { window.RIB_TUNE = Object.assign(window.RIB_TUNE || {}, { v193AGtunnel: 0 }) })
 await page.addInitScript(() => { setInterval(() => { try { if (window.o) window.o.tutorialSeen = true } catch {} document.querySelector('.onboard')?.remove() }, 60) })
 await page.goto(URL, { waitUntil: 'networkidle', timeout: 40000 })
 await page.waitForTimeout(1200)

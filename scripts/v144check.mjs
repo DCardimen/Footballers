@@ -10,7 +10,7 @@
 //   E  the ground runs out to the frame on all four sides: the far apron is drawn above the end
 //      line, and the near one keeps going past the painting with the art's own grain
 //   F  one pylon per end-zone corner, with the real-football set of eight behind a dial
-//   G  two rectangular vomitories in the far bowl's corners, mirrored, beside the middle arch
+//   G  two rectangular vomitories in the far bowl's corners, mirrored — the only two (v193 AG took the middle arch out)
 //   H  weather you can see — rain, snow, a sunny afternoon, a clear night — pinned from Settings
 //      over the week's own roll, and moving NOTHING the sim rolls
 // Usage: npm run dev (or any static server on :5173), then: node scripts/v144check.mjs
@@ -241,7 +241,7 @@ const G = await page.evaluate(() => {
   return { on, off }
 })
 ok(G.on && G.on.corners === 2, 'G: two vomitories in the far bowl, one in each upper corner', G.on ? G.on.corners + '' : 'none')
-ok(G.on.mid, 'G: beside the middle arch, which is untouched')
+ok(!G.on.mid, 'G: and they are the only two — the middle arch is gone (v193 AG THE TWO TUNNELS)')
 ok(G.on.cornerW.every(w => w > 4) && G.on.cornerH.every(h => h > 4),
   'G: both are real rectangular openings, wide and tall enough to read at phone width', `${G.on.cornerW.map(Math.round)} x ${G.on.cornerH.map(Math.round)}`)
 ok(Math.abs(G.on.cornerW[0] - G.on.cornerW[1]) < 2 && Math.abs(G.on.cornerH[0] - G.on.cornerH[1]) < 2,

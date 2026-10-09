@@ -187,7 +187,8 @@
     "renderpathcheck",
     "sidelinecheck",
     "v144check",
-    "v148check"
+    "v148check",
+    "v193AGcheck"
    ],
    "variants": [
     "`READ_POS=WR MODES=0,1,4,5` for `v147Dcheck`"
@@ -339,7 +340,8 @@
   "field": {
    "desc": "v144 — sprite scale by age, stall watchdog, between-plays shuffle, goalpost pad, apron, pylons, weather",
    "anchors": [
-    "v144"
+    "v144",
+    "v193 AG"
    ],
    "files": [],
    "checks": [
@@ -371,7 +373,8 @@
     "shot",
     "v148check",
     "v193Ccheck",
-    "v193Icheck"
+    "v193Icheck",
+    "v193AGcheck"
    ]
   },
   "statinfo": {
@@ -1392,7 +1395,8 @@
     "sidelinecheck",
     "refcheck",
     "v162Acheck",
-    "rimcheck"
+    "rimcheck",
+    "v193AGcheck"
    ]
   },
   "declare": {
@@ -5370,6 +5374,18 @@
     "statinfo"
    ],
    "runtimeSec": 20,
+   "slow": false,
+   "needsServer": true,
+   "pureNode": false,
+   "flaky": []
+  },
+  "v193AGcheck": {
+   "file": "scripts/v193AGcheck.mjs",
+   "desc": "v193 AG — the field pass: two side tunnels and no middle arch; the far stands (club level, upper deck, roof) fill the sky over the far bowl; every collision scuffs the turf in solid pixel dirt that fades by the snap and is capped; the turf composited at 2x with mowing stripes; the stands hold their shape at every field perspective; a frame wider than the field is centred.",
+   "areas": [
+    "broadcast"
+   ],
+   "runtimeSec": 90,
    "slow": false,
    "needsServer": true,
    "pureNode": false,
