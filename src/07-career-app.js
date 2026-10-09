@@ -37734,7 +37734,7 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
     const prevAvg = prevR.reduce((a, m) => a + ((m && m.ovr) || 0), 0) / prevR.length,
       top3 = new Set(
         prevR
-          .map((m, i) => ({ o: (m && m.ovr) || 0, i }))
+          .map((m, i) => ({ o: m && m.pos !== "K" && m.pos !== "P" ? m.ovr || 0 : -1, i }))
           .sort((a, b) => b.o - a.o)
           .slice(0, 3)
           .map(x => x.i)
@@ -37767,7 +37767,7 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
       if (leave) {
         const nw = rmNewManV193AA(fr[i], i, T, rnd, used, nums, at);
         players[i] = nw;
-        dep.push({ name: m0.name, pos: m0.pos, ovr: Math.round(m0.ovr || 0), why: leave, star: top3.has(i) || (m0.ovr || 0) >= prevAvg + 8, slot: i, chip: -rmChipV193AA(m0.ovr, T) });
+        dep.push({ name: m0.name, pos: m0.pos, ovr: Math.round(m0.ovr || 0), why: leave, star: top3.has(i) || (m0.pos !== "K" && m0.pos !== "P" && (m0.ovr || 0) >= prevAvg + 8), slot: i, chip: -rmChipV193AA(m0.ovr, T) });
         arr.push({ name: nw.name, pos: nw.pos, ovr: nw.ovr, why: pro ? "a rookie" : "a freshman", star: nw.star, slot: i, chip: rmChipV193AA(nw.ovr, T) });
         return;
       }
@@ -37919,7 +37919,7 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
     return (n > 0 ? "+" : n < 0 ? "−" : "±") + Math.abs(n);
   }
   function rmHtmlV193AA(e, q, N) {
-    const MAXR = Math.max(1, TU("rmRowsV193AA", 6) | 0),
+    const MAXR = Math.max(1, TU("rmRowsV193AA", 5) | 0),
       team = q.kind === "team",
       chip = (c, up) => (team ? "" : `<i class="rm-chip ${up ? "g" : "r"}">${up ? "+" : "−"}${Math.max(1, Math.round(Math.abs(c)))} TEAM</i>`),
       row = (m, cls, ch) =>
@@ -37944,9 +37944,9 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
             .slice(0, MAXR)
             .map(m => row(m, "arr", chip(m.chip, !0) + (m.lock ? `<i class="rm-chip k">🔒 ${m.lock}</i>` : "")))
             .join("")}${team ? more(q.more && q.more[1], "teammates") : more(arr.length - MAXR, "joined")}${imp
-            .slice(0, 3)
+            .slice(0, 2)
             .map(m => row(m, "imp", `<i class="rm-chip g">+${Math.max(1, Math.round(m.to - m.from))} OVR</i>`))
-            .join("")}${imp.length > 3 ? `<div class="rm-more">+ ${imp.length - 3} more grew</div>` : ""}</div>`
+            .join("")}${imp.length > 2 ? `<div class="rm-more">+ ${imp.length - 2} more came back better</div>` : ""}</div>`
         : "";
     const chemH = chemShow
       ? `<div class="rm-sec rm-chem-s"><h6>CHEMISTRY${c ? ` · ${Math.round(c[0])} → <b>${Math.round(c[1])}</b>` : ""}</h6><div class="rm-bar"><i id="rmBarV193AA" style="width:${c ? clamp99(c[0], 0, 100) : 50}%"></i></div><small>${N.rest !== 0 ? `${rmSgV193AA(N.rest)} TEAM · chemistry, your own growth${team ? ", the new level" : ""} and the rest` : "the room settles"}</small></div>`
@@ -38144,12 +38144,13 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
       { key: "blue", name: "BLUE-CHIP", gain: TU("recruitGain2V193AA", 0.25), floor: 1.2, pct: [9, 7, 5] }
     ];
   }
-  // the attributes his position needs least first (never Durability) — the ones a recruit costs
+  // the attributes his position needs least first — among the ones it reads at all (a sacrifice is felt), never Durability
   function recruitPayKeysV193AA(e) {
-    const w = (POSITIONS[e.pos] && POSITIONS[e.pos].w) || {};
-    return Object.keys(e.attrs)
-      .filter(k => typeof e.attrs[k] === "number" && k !== "injuryResist" && e.attrs[k] > 1 && ATTR_INFO[k])
-      .sort((a, b) => (w[a] || 0) - (w[b] || 0) || (e.attrs[b] || 0) - (e.attrs[a] || 0));
+    const w = (POSITIONS[e.pos] && POSITIONS[e.pos].w) || {},
+      all = Object.keys(e.attrs).filter(k => typeof e.attrs[k] === "number" && k !== "injuryResist" && e.attrs[k] > 1 && ATTR_INFO[k]),
+      used = all.filter(k => (w[k] || 0) > 0),
+      keys = used.length >= 3 ? used : all;
+    return keys.sort((a, b) => (w[a] || 0) - (w[b] || 0) || (e.attrs[b] || 0) - (e.attrs[a] || 0));
   }
   function recruitPriceV193AA(e, tier, terms, keys) {
     return tier.pct.map((p, j) => {
@@ -38398,7 +38399,7 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
 .rm-v193aa .rm-card.shake{animation:rmShakeV193AA .42s cubic-bezier(.36,.07,.19,.97) 2}
 .rm-v193aa .rm-eye{font:700 11px Oswald,sans-serif;letter-spacing:1.6px;color:#f0bb45}
 .rm-v193aa .rm-big{position:relative;display:flex;align-items:baseline;justify-content:center;gap:8px;margin:6px 0 4px}
-.rm-v193aa .rm-big b{font:700 54px/1 Oswald,Impact,sans-serif;color:#fff;letter-spacing:1px;min-width:2ch;text-align:center;transition:color .2s}
+.rm-v193aa .rm-big b{font:700 48px/1 Oswald,Impact,sans-serif;color:#fff;letter-spacing:1px;min-width:2ch;text-align:center;transition:color .2s}
 .rm-v193aa .rm-big b.dn{color:#ff6b6b;text-shadow:0 0 18px rgba(255,80,80,.45)}
 .rm-v193aa .rm-big b.up{color:#7fe0a0;text-shadow:0 0 18px rgba(127,224,160,.45)}
 .rm-v193aa .rm-big b.pop{animation:rmPopV193AA .16s ease-out}
@@ -38411,7 +38412,7 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
 .rm-v193aa .rm-sec{margin-top:8px}
 .rm-v193aa .rm-sec h6{margin:0 0 4px;font:700 10px Oswald,sans-serif;letter-spacing:1.5px;color:#9fb0c2;overflow-wrap:anywhere}
 .rm-v193aa .rm-dep-s h6{color:#ff9a9a}.rm-v193aa .rm-arr-s h6{color:#9fe6b0}
-.rm-v193aa .rm-row{display:flex;align-items:center;gap:7px;padding:5px 7px;margin-top:3px;border-radius:9px;background:rgba(255,255,255,.04);opacity:0;transform:translateX(24px);transition:transform .32s ease-out,opacity .32s ease-out,background .3s}
+.rm-v193aa .rm-row{display:flex;align-items:center;gap:7px;padding:3px 7px;margin-top:2px;border-radius:9px;background:rgba(255,255,255,.04);opacity:0;transform:translateX(24px);transition:transform .32s ease-out,opacity .32s ease-out,background .3s}
 .rm-v193aa .rm-row.dep{transform:translateX(-24px)}
 .rm-v193aa .rm-row.in{opacity:1;transform:none}
 .rm-v193aa .rm-row.dep.out{opacity:.55;transform:translateX(-10px);background:rgba(255,90,90,.08)}
@@ -38446,6 +38447,9 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
 .rm-recbtn{min-height:36px;margin-left:auto;padding:4px 12px;border-radius:9px;border:1px solid rgba(240,187,69,.6);background:rgba(240,187,69,.12);color:#f0bb45;font:700 12px Oswald,sans-serif;letter-spacing:1px;cursor:pointer;display:inline-flex;align-items:center;gap:5px;max-width:100%}
 .rm-recdone{margin-left:auto;font:600 11px Oswald,sans-serif;letter-spacing:.6px;color:#9fb0c2}
 .rm-lock-v193aa{margin-top:4px;font:500 12px 'Barlow Condensed',system-ui,sans-serif;color:#f0bb45;overflow-wrap:anywhere}
+#v193Team .rm-teamrow-v193aa{margin:0 0 5px}#v193Team .rm-lock-v193aa{margin:0 0 5px;line-height:1.2}
+#v193Team .rm-teamrow-v193aa ~ .v193-roster{max-height:calc(46vh - 46px)}
+#v193Team .rm-lock-v193aa ~ .v193-roster{max-height:calc(46vh - 66px)}
 .rc-v193aa .rc-weak{font-size:12px;color:#c9d3db;margin-bottom:8px}
 .rc-v193aa .rc-card{display:block;width:100%;box-sizing:border-box;text-align:left;margin:0 0 7px;padding:8px 10px;border-radius:11px;border:1px solid rgba(255,255,255,.16);background:rgba(255,255,255,.04);color:#e9eef2;cursor:pointer;min-height:44px;font:12px/1.35 system-ui,sans-serif;text-transform:none;letter-spacing:0}
 .rc-v193aa .rc-card:hover,.rc-v193aa .rc-card:focus{border-color:rgba(240,187,69,.7)}
