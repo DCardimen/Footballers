@@ -606,7 +606,7 @@
       r = Math.max(0, (e.age || 18) - 28) * 0.7,
       l = t.snaps || Math.round((e.snapShare || 0.2) * 65),
       d0 = (i[a] ?? 7) + l * 0.12 + r,
-      d = d0 > 0 ? d0 * fatigueMulV192C(e) : d0; /* v192C: Coasts wears less, Relentless more */
+      d = d0 > 0 ? d0 * fatigueMulV192C(e) * Math.max(0, pathVal("fatigueMult", 1)) /* v193 AD: The Engine */ : d0; /* v192C: Coasts wears less, Relentless more */
     ((n.fatigue = clamp(n.fatigue + d - n.recovery * 0.08, 0, 100)),
       (n.mentalLoad = clamp(n.mentalLoad + Math.abs((t.perf || 60) - 60) * 0.08 + (t.playoff ? 8 : 3) - 4, 0, 100)),
       n.consecutiveGames++);
@@ -5762,12 +5762,13 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
     return !!TU("v190team", 1);
   }
   function teamLiftPctV190() {
-    if (!teamLiftOnV190()) return 0;
-    return clamp99(treeFx("teamLiftV190") || 0, 0, TU("teamLiftCapV190", 15));
+    const legend = pathVal("teamLift", 0); /* v193 AD: The Captain +8% / The Mercenary −6%, on top of the nodes' capped lift */
+    if (!teamLiftOnV190()) return legend;
+    return clamp99(treeFx("teamLiftV190") || 0, 0, TU("teamLiftCapV190", 15)) + legend;
   }
   function teamLiftDV190(C) {
-    const L = teamLiftPctV190() / 100;
-    return L > 0 ? 2 * L * (0.72 + 0.5 * C) : 0;
+    const L = Math.max(-0.5, teamLiftPctV190() / 100);
+    return L ? 2 * L * (0.72 + 0.5 * C) : 0; /* v193 AD: a negative lift (The Mercenary) lowers every teammate */
   }
   function chaosTotal() {
     if (!state || !state.chaos) return 0;
@@ -7838,7 +7839,7 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
       color: "#f0bb45",
       tag: "Born great",
       cheapBranch: "physical",
-      desc: "Start every career with a massive head start: +18 to all starting attributes and 5★ recruiting — but growth is slightly slower (you were already elite). Physical branch 25% cheaper.",
+      desc: "Starts every career already elite, with a higher ceiling — and less hunger to grow.",
       startAttr: 18,
       startStars: 5,
       growthMult: 0.92,
@@ -7850,7 +7851,7 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
       color: "#c9622f",
       tag: "Outwork everyone",
       cheapBranch: "camp",
-      desc: "Modest start, but +25% attribute growth every season and +2 upgrade points per year. You get better than anyone the longer you play. Camps branch 25% cheaper.",
+      desc: "A modest start, then he outworks everyone: the longer he plays, the better he gets.",
       startAttr: 0,
       growthMult: 1.25,
       bonusPoints: 2,
@@ -7862,7 +7863,7 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
       color: "#3f8f6b",
       tag: "Genius of the game",
       cheapBranch: "mental",
-      desc: "Never fails an in-season decision, doubles combine gains, and advance odds get a permanent +8% boost. The smartest player on every field. Mental branch 25% cheaper.",
+      desc: "The smartest player on every field: no season decision is closed to him — on a lighter frame.",
       advBonus: 8,
       growthMult: 1.05,
       ppMult: 1.05
@@ -7873,7 +7874,7 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
       color: "#a05ac9",
       tag: "Build a dynasty",
       cheapBranch: "economy",
-      desc: "+60% Prestige Points from every career and start each run with +3 prestige. Slower on the field, but your legacy compounds fastest. Legacy branch 25% cheaper.",
+      desc: "Slower on the field, but his legacy compounds fastest.",
       growthMult: 0.96,
       ppMult: 1.6,
       startPrestige: 3
@@ -7884,20 +7885,582 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
       color: "#4a90c9",
       tag: "Unbreakable",
       cheapBranch: "body",
-      desc: "Tougher than most (−21% injury — nobody is injury-proof), +2 season attempts at every level, and durability never limits you. Longevity wins championships. Body branch 25% cheaper.",
+      desc: "Plays through what ends other careers, and gets more seasons at every level — on a heavier frame.",
       injuryMult: 0.3,
       extraSeasons: 2,
       growthMult: 1.08,
       ppMult: 1
-    }
+    },
+    /* v193 AD LEGENDS: the 19 new archetypes. Every key is read through `pathVal(key, default)` at a site the game
+     * already runs (the list is in the v193 AD banner under `pathVal`); `cat` is the category screenPath shows. */
+    closer: { name: "The Closer", icon: "⏱️", color: "#e0533d", tag: "Built for the big stage", cat: "performance", desc: "Rises in the playoffs and the championship, coasts through the regular season.", perfPlayoff: 8, perfReg: -3 },
+    natural: { name: "The Natural", icon: "✨", color: "#f2c94c", tag: "Makes it look easy", cat: "performance", desc: "Plays above his ratings every week, but never had to learn how to work.", perfAll: 5, growthMult: 0.8 },
+    freak: { name: "The Freak", icon: "\u{1F9EC}", color: "#57e07a", tag: "A body built in a lab", cat: "athletic", desc: "Arrives with a pro's body and a kid's understanding of the game.", startPhys: 10, startMental: -8 },
+    engine: { name: "The Engine", icon: "\u{1F50B}", color: "#4ac9b0", tag: "Never runs out", cat: "athletic", desc: "Every game takes less out of him, so he plays fresh all season — and grows a little slower for the miles.", fatigueMult: 0.6, growthMult: 0.92 },
+    lucky: { name: "The Lucky Charm", icon: "\u{1F340}", color: "#6bbf59", tag: "Born under a good sign", cat: "luck", desc: "The growth wheel breaks his way, but he starts with less than everyone else.", wheelLuck: 0.1, startAttr: -4 },
+    longshot: { name: "The Long Shot", icon: "\u{1F52D}", color: "#5ab0ff", tag: "Never count him out", cat: "luck", desc: "When the scouts say no, the GM looks again — even far below the bar. The season roll itself is harder.", secondLook: 30, advBonus: -6 },
+    cardshark: { name: "The Card Shark", icon: "\u{1F0CF}", color: "#b07cff", tag: "Always has an ace", cat: "card", desc: "The post-game deck runs rich: rarer cards, bigger percentages. Gear drops come up plain.", flipRareMult: 2, flipPctMult: 1.25, gearRareMult: 0.5 },
+    collector: { name: "The Collector", icon: "\u{1F381}", color: "#c9963a", tag: "Every locker a treasure", cat: "card", desc: "Gear drops turn up rare or better twice as often — the post-game cards pay less.", gearRareMult: 2, flipPctMult: 0.6 },
+    zealot: { name: "The Zealot", icon: "\u{1F525}", color: "#ff7a3c", tag: "All in, every season", cat: "focus", desc: "The season's focus roll hits twice as hard — both ways.", focusMultAdd: 2 },
+    monk: { name: "The Monk", icon: "\u{1F9D8}", color: "#9fc7d8", tag: "Nothing shakes him", cat: "focus", desc: "A bad focus roll never raises his prices; a good one helps half as much.", focusNegMult: 0, focusPosMult: 0.5 },
+    wildcard: { name: "The Wildcard", icon: "\u{1F3B2}", color: "#ff5aa0", tag: "Anything can happen", cat: "variance", desc: "Every game rating swings wider and booms twice as often — the bad nights get worse too.", perfVarMult: 1.6, boomMult: 2 },
+    metronome: { name: "The Metronome", icon: "⚖️", color: "#a8b4c4", tag: "Same game, every game", cat: "variance", desc: "Half the swing in every game rating, and no boom games at all.", perfVarMult: 0.5, boomMult: 0 },
+    fieldgeneral: { name: "The Field General", icon: "\u{1F4CB}", color: "#3fa0c9", tag: "Runs the huddle", cat: "iq", desc: "His game plans click more often and the staff hands him more of the calls — brains over brawn.", planClick: 0.12, sayAdd: 0.2, startPhys: -6 },
+    oracle: { name: "The Oracle", icon: "\u{1F52E}", color: "#7d6cff", tag: "Sees it before it happens", cat: "iq", desc: "Reads the training program before it reads him, and starts with a veteran's eyes — his legend builds slower.", fateOdds: 0.2, startMental: 8, legacyXpMult: 0.85 },
+    showman: { name: "The Showman", icon: "\u{1F3AC}", color: "#ffb03b", tag: "Lives for the cameras", cat: "live", desc: "Shines when you watch: better ratings and bigger paychecks live. A simmed game barely pays.", watchPayMult: 1.5, livePerf: 4, simPayMult: 0.6 },
+    executive: { name: "The Executive", icon: "\u{1F4BC}", color: "#8aa0b8", tag: "Results, not reruns", cat: "live", desc: "Quick Play pays more and costs no Legacy XP; watching pays less.", simPayMult: 1.5, simXpCutMult: 0, watchPayMult: 0.75 },
+    specialist: { name: "The Specialist", icon: "\u{1F3AF}", color: "#e8463a", tag: "One craft, mastered", cat: "attr", desc: "His position's three key attributes grow far faster; everything else lags.", keyGrowthMult: 1.35, otherGrowthMult: 0.75 },
+    captain: { name: "The Captain", icon: "\u{1F6E1}️", color: "#d4af37", tag: "The team comes first", cat: "team", desc: "Lifts every teammate's rating — and spends the hours on them, not himself.", teamLift: 8, growthMult: 0.88 },
+    mercenary: { name: "The Mercenary", icon: "\u{1F4B0}", color: "#9c6b3a", tag: "Paid to win, not to share", cat: "team", desc: "Banks more from every career; the locker room plays worse around him.", ppMult: 1.3, teamLift: -6 }
   };
+  /* ===== v193 AD LEGENDS =====
+   * The owner: "Add 19 more unlockable legends (archetypes) with a detailed explanation of what they give. Ensure the
+   * current ones are working. There should be performance based, athletic based, luck based, card based, career focus
+   * based, variance based, IQ based, live game bonus based, attribute boost based, team based. Each unlock should occur
+   * naturally while playing the game long enough. Think 20 hours to unlock all options. These should change the way you
+   * approach a run."
+   * 24 Prestige Paths (`PATHS`, the old five first). Every effect key is read through `pathVal(key, default)` at a site
+   * the game already runs, so it is a no-op when its path is not the active one:
+   *   startAttr / startPhys / startMental / startSpeed / startStars / startPrestige  `newPlayer`
+   *   growthMult (now a real ×, every attribute; the old `ua` term was floored at 0 and diluted ×0.22) and
+   *     keyGrowthMult / otherGrowthMult (the position's three key attributes, `keyAttrsV178`)  `simSeason` + its preview
+   *     (`pathGrowthV193AD`); growthMult still moves the potential ceiling (`rawCeilingV179`, (g − 1) × 36)
+   *   perfVarMult / boomMult  `rollGamePerf`; perfAll / perfPlayoff / perfReg  its outermost layer (every game: a watched one is booked from
+   *     it and moved by the live grade); livePerf  `bookLiveGameV85` (watched games only)
+   *   watchPayMult / simPayMult  `payWeekV178`; simXpCutMult  `watchV164C`; legacyXpMult  `legacyPayV152` (a labelled part)
+   *   fatigueMult  `updateConditionAfterGame`; injuryMult (× `injNodeKV153B`)  `injNodeMulV153B`;
+   *     seasonEnderWeeks  `materializeInjuryV18`; extraSeasons  `maxSeasons`
+   *   wheelLuck  src/18 `rollOutcome` (the growth wheel); planClick  src/17 `decidePlan` (the game plan's click odds),
+   *     both through `window.ribPathValV193AD`; sayAdd  `sayV171`; fateOdds  `planFateOddsV124`; noFailDecisions
+   *     `rivalLockV128` (+ the old `state.path === "prodigy"` reads in `simSeason`)
+   *   focusMultAdd  `focusMultV193Z`; focusPosMult / focusNegMult  `focusTiltFromPctV193Z`
+   *   flipRareMult  `flipRarOddsV186`; flipPctMult  `flipPctMultV186` (one line each — the deck's internals are not
+   *     touched); gearRareMult  `rollGear`
+   *   secondLook / advBonus  `scoutBarV179` (the GM's second look, any distance from the bar) / `advanceChance`
+   *   teamLift  `teamLiftPctV190` (every teammate's OVR, sim and live); ppMult  the career payout
+   * The old five: Phenom / Magnate's slower growth was dead (floored at 0) and Grinder's "+25%" was +5.5% — growth is a
+   * real multiplier now; Prodigy's "never fails a decision" never reached the v128 locks — they open for him now;
+   * Ironman's "durability never limits you" read nothing — a season-ending injury costs him `seasonEnderWeeks` (4) games.
+   * Grinder (−3 start), Prodigy (−4 physical start) and Ironman (−5 Speed / Acceleration / Quickness) gain a trade-off
+   * (`PATH_FIX_V193AD`, live only with the switch on). Every number on screenPath is built from these keys
+   * (`pathLinesV193AD`), so a card cannot drift from the model.
+   * UNLOCKS. Each path has one milestone (`LEGEND_UNLOCKS_V193AD`) on a stat the save already keeps (medals, careers
+   * finished, titles, the best level) or a counter in `state.pathStatsV193AD` (seasons, games, watched games, focus
+   * rolls, injury comebacks, A seasons — counted at the season's end in `finishSeasonGames`, the focus roll in
+   * `focusAddV193Z`, a comeback in `healNoteV193W`). Unlocked keys live in `state.pathUnlocksV193AD`. The first time a save
+   * meets v193 AD (`legendStatsV193AD`) its seasons are counted from the Hall rows, and (at that boot, `legendKeepV193AD`) a save past the old
+   * medal gate keeps the old five; every save keeps its path. `legendCheckV193AD` records new unlocks (season end,
+   * every Legacy XP payment, boot, screenPath) with a NEW LEGEND UNLOCKED pop-up + `ribHaptic('success')`; screenPath
+   * shows locked legends greyed with the milestone, "7/12" and a bar; `choosePath` refuses a locked one.
+   * Kill switch `TU("v193AD", 1)` → 0: the old five, their old numbers and the old medal gate. `window.__V193AD`;
+   * `scripts/v193ADcheck.mjs`. */
+  function legendsOnV193AD() {
+    return !!TU("v193AD", 1) && !!TU("v156A", 1); /* the legends stand on the medals: v156 A off (the Honors look) is the old five too */
+  }
+  const PATH_OLD_V193AD = ["phenom", "grinder", "prodigy", "magnate", "ironman"];
+  /* the old five's v193 AD additions (live only with the switch on) */
+  const PATH_FIX_V193AD = {
+    phenom: { startAttr: 10 } /* the card said +18; `pathCap` paid +6 */,
+    grinder: { startAttr: -3, growthMult: 1.2 } /* "+25%": capped at 1.18, then diluted to ~+4% */,
+    prodigy: { startPhys: -4, noFailDecisions: 1, advBonus: 5 } /* "+8%": `pathCap` paid +5 */,
+    ironman: { startSpeed: -5, seasonEnderWeeks: 4 } /* injuryMult 0.3 is paid now (`pathCap` floored it at 0.55: −13.5%) */
+  };
+  /* what the old five said before (shown under the kill switch) */
+  const PATH_DESC_OLD_V193AD = {
+    phenom: "Start every career with a massive head start: +18 to all starting attributes and 5★ recruiting — but growth is slightly slower (you were already elite). Physical branch 25% cheaper.",
+    grinder: "Modest start, but +25% attribute growth every season and +2 upgrade points per year. You get better than anyone the longer you play. Camps branch 25% cheaper.",
+    prodigy: "Never fails an in-season decision, doubles combine gains, and advance odds get a permanent +8% boost. The smartest player on every field. Mental branch 25% cheaper.",
+    magnate: "+60% Prestige Points from every career and start each run with +3 prestige. Slower on the field, but your legacy compounds fastest. Legacy branch 25% cheaper.",
+    ironman: "Tougher than most (−21% injury — nobody is injury-proof), +2 season attempts at every level, and durability never limits you. Longevity wins championships. Body branch 25% cheaper."
+  };
+  const PHYS_ATTRS_V193AD = ["speed", "acceleration", "quickness", "agility", "strength", "jumping"],
+    MENTAL_ATTRS_V193AD = ["awareness", "vision", "discipline"],
+    SPEED_ATTRS_V193AD = ["speed", "acceleration", "quickness"];
+  function pathKeysV193AD() {
+    return legendsOnV193AD() ? Object.keys(PATHS) : PATH_OLD_V193AD.slice();
+  }
   function currentPath() {
-    return state.path ? PATHS[state.path] : null;
+    const k = state && state.path;
+    if (!k || !PATHS[k]) return null;
+    if (!legendsOnV193AD() && PATH_OLD_V193AD.indexOf(k) < 0) return null; /* the kill switch: a new legend sleeps */
+    return PATHS[k];
+  }
+  /* a path's effect keys as they stand (its v193 AD additions merged in while the switch is on) */
+  function pathFxV193AD(k) {
+    const P = PATHS[k];
+    if (!P) return null;
+    return legendsOnV193AD() && PATH_FIX_V193AD[k] ? Object.assign({}, P, PATH_FIX_V193AD[k]) : P;
   }
   function pathVal(e, t) {
     const a = currentPath();
-    return a && a[e] != null ? a[e] : t || 0;
+    if (!a) return t || 0;
+    const o = legendsOnV193AD() && PATH_FIX_V193AD[state.path];
+    if (o && o[e] != null) return o[e];
+    return a[e] != null ? a[e] : t || 0;
   }
+  window.ribPathValV193AD = (k, d) => {
+    try {
+      return pathVal(k, d);
+    } catch (_) {
+      return d || 0;
+    }
+  };
+  /* the season's attribute growth, per attribute: growthMult × (key / other) — 1 with the switch off */
+  function pathGrowthV193AD(e, k) {
+    if (!legendsOnV193AD() || !currentPath()) return 1;
+    let m = pathVal("growthMult", 1);
+    const kg = pathVal("keyGrowthMult", 1),
+      og = pathVal("otherGrowthMult", 1);
+    if (kg !== 1 || og !== 1) {
+      let keys = [];
+      try {
+        keys = keyAttrsV178(e);
+      } catch (_) {}
+      m *= keys.indexOf(k) >= 0 ? kg : og;
+    }
+    return Math.max(0, m);
+  }
+  /* the old `ua` term (growthMult − 1, floored at 0, × 0.22) — gone while the switch is on (the real multiplier replaces it) */
+  function pathUaV193AD() {
+    return legendsOnV193AD() ? 0 : Math.max(0, pathVal("growthMult", 1) - 1);
+  }
+  /* the potential-ceiling share a path carries (the sum `rawCeilingV179` adds) */
+  function pathCeilOfV193AD(k) {
+    const P = pathFxV193AD(k);
+    return P ? ((P.growthMult != null ? P.growthMult : 1) - 1) * 36 + (k === "phenom" ? 30 : 0) : 0;
+  }
+  const PATH_CATS_V193AD = {
+    performance: { name: "Performance", icon: "\u{1F4C8}" },
+    athletic: { name: "Athletic", icon: "\u{1F3C3}" },
+    luck: { name: "Luck", icon: "\u{1F340}" },
+    card: { name: "Cards & Gear", icon: "\u{1F0CF}" },
+    focus: { name: "Career Focus", icon: "\u{1F3AF}" },
+    variance: { name: "Variance", icon: "\u{1F3B2}" },
+    iq: { name: "Football IQ", icon: "\u{1F9E0}" },
+    live: { name: "Live Game", icon: "\u{1F3AC}" },
+    attr: { name: "Attribute Boost", icon: "\u{1F4AA}" },
+    team: { name: "Team", icon: "\u{1F465}" },
+    career: { name: "Career & Legacy", icon: "\u{1F451}" }
+  };
+  const PATH_CAT_OLD_V193AD = { phenom: "attr", grinder: "attr", prodigy: "iq", magnate: "career", ironman: "athletic" };
+  function pathCatV193AD(k) {
+    const P = PATHS[k];
+    return (P && P.cat) || PATH_CAT_OLD_V193AD[k] || "career";
+  }
+  /* every effect with its real number, read off the keys — `up` the upside, `down` the trade-off */
+  function pathLinesV193AD(k) {
+    const P = pathFxV193AD(k),
+      up = [],
+      down = [];
+    if (!P) return { up, down };
+    const add = (good, txt) => (good ? up : down).push(txt),
+      sg = v => (v > 0 ? "+" : "−") + Math.abs(Math.round(v * 10) / 10),
+      pc = v => (v > 0 ? "+" : "−") + Math.abs(Math.round(v * 100)) + "%",
+      has = key => P[key] != null && P[key] !== 0;
+    has("startAttr") && add(P.startAttr > 0, `${sg(P.startAttr)} to every starting attribute`);
+    has("startPhys") && add(P.startPhys > 0, `${sg(P.startPhys)} to starting Speed, Acceleration, Quickness, Agility, Strength and Jumping`);
+    has("startSpeed") && add(P.startSpeed > 0, `${sg(P.startSpeed)} to starting Speed, Acceleration and Quickness`);
+    has("startMental") && add(P.startMental > 0, `${sg(P.startMental)} to starting Awareness, Vision and Discipline`);
+    has("startStars") && add(!0, `Recruited as a ${P.startStars}★ prospect at worst`);
+    has("startPrestige") && add(!0, `+${P.startPrestige} prestige counted when a career starts (≈ ${sg(P.startPrestige * 0.55)} to every starting attribute)`);
+    P.growthMult != null && P.growthMult !== 1 && add(P.growthMult > 1, `${pc(P.growthMult - 1)} attribute growth every season`);
+    const ceil = Math.round(pathCeilOfV193AD(k));
+    ceil && add(ceil > 0, `${sg(ceil)} potential ceiling (how high attributes can grow)`);
+    P.keyGrowthMult && P.keyGrowthMult !== 1 && add(P.keyGrowthMult > 1, `${pc(P.keyGrowthMult - 1)} growth on your position's three key attributes`);
+    P.otherGrowthMult && P.otherGrowthMult !== 1 && add(P.otherGrowthMult > 1, `${pc(P.otherGrowthMult - 1)} growth on every other attribute`);
+    has("bonusPoints") && add(P.bonusPoints > 0, `${sg(P.bonusPoints)} upgrade points a season (a slice every game; a watched game pays it ×${TU("watchPayV178", 2)})`);
+    has("perfAll") && add(P.perfAll > 0, `${sg(P.perfAll)} to your game rating in every game`);
+    has("perfPlayoff") && add(P.perfPlayoff > 0, `${sg(P.perfPlayoff)} to your game rating in every playoff and championship game`);
+    has("perfReg") && add(P.perfReg > 0, `${sg(P.perfReg)} to your game rating in every regular-season game`);
+    has("livePerf") && add(P.livePerf > 0, `${sg(P.livePerf)} to your game rating in every game you watch live`);
+    P.perfVarMult != null && P.perfVarMult !== 1 && add(P.perfVarMult < 1, `The random swing in every game rating ×${P.perfVarMult} (±${Math.round(15 * P.perfVarMult)} instead of ±15)`);
+    P.boomMult != null && P.boomMult !== 1 && add(P.boomMult > 1, P.boomMult ? `Boom games (×1.5 rating) ×${P.boomMult} as likely` : "No boom games (the ×1.5 rating night never comes)");
+    P.watchPayMult != null && P.watchPayMult !== 1 && add(P.watchPayMult > 1, `A watched game's points ×${P.watchPayMult} (×${+(TU("watchPayV178", 2) * P.watchPayMult).toFixed(2)} in all)`);
+    P.simPayMult != null && P.simPayMult !== 1 && add(P.simPayMult > 1, `A simmed game's points ×${P.simPayMult}`);
+    P.simXpCutMult != null && P.simXpCutMult !== 1 && add(P.simXpCutMult < 1, P.simXpCutMult ? `Simmed seasons lose ${Math.round(TU("simXpCutV164C", 0.15) * P.simXpCutMult * 100)}% Legacy XP (not ${Math.round(TU("simXpCutV164C", 0.15) * 100)}%)` : `Simmed seasons lose no Legacy XP (it was −${Math.round(TU("simXpCutV164C", 0.15) * 100)}%)`);
+    P.legacyXpMult != null && P.legacyXpMult !== 1 && add(P.legacyXpMult > 1, `${pc(P.legacyXpMult - 1)} Legacy XP (medals come ${P.legacyXpMult > 1 ? "faster" : "slower"})`);
+    has("advBonus") && add(P.advBonus > 0, `${sg(P.advBonus)}% on the season's advance / declare odds (the national-rank floor still holds)`);
+    has("secondLook") && add(!0, `The GM's second look: +${P.secondLook}% on every barred declare the scouts turn down — at any distance from the bar (it was only within 80% of it)`);
+    has("extraSeasons") && add(!0, `+${P.extraSeasons} seasons allowed at every level`);
+    if (P.injuryMult != null && P.injuryMult !== 1) {
+      const m = 1 - (1 - P.injuryMult) * injNodeKV153B();
+      add(m < 1, `${pc(m - 1)} injury chance`);
+    }
+    has("seasonEnderWeeks") && add(!0, `A season-ending injury never ends his season — he is back in ${P.seasonEnderWeeks} games`);
+    has("fatigueMult") && add(P.fatigueMult < 1, `${pc(P.fatigueMult - 1)} fatigue from every game (fresher legs, a better game-day rating)`);
+    if (k === "prodigy") {
+      legendsOnV193AD() && P.noFailDecisions && add(!0, "Every season-event option is open — the attribute requirements are waived, and none backfires");
+      add(!0, "Combine prep gains ×2");
+      add(!0, "+5% on the training program's fate roll");
+    }
+    has("fateOdds") && add(!0, `+${Math.round(P.fateOdds * 100)}% on the training program's fate roll (a hit waives the program's cost)`);
+    has("planClick") && add(P.planClick > 0, `+${Math.round(P.planClick * 100)}% on every game plan's "it clicks" odds`);
+    has("sayAdd") && add(P.sayAdd > 0, `+${Math.round(P.sayAdd * 100)}% say with the staff (more matchup calls on the table, each run harder)`);
+    has("wheelLuck") && add(P.wheelLuck > 0, `+${Math.round(P.wheelLuck * 100)}% on every growth-wheel roll's "it pays" odds (season commitments and crossroads)`);
+    has("focusMultAdd") && add(!0, `The season's focus-roll tilt ×${TU("focusTiltMultV193Z", 2) + P.focusMultAdd} instead of ×${TU("focusTiltMultV193Z", 2)} — a good roll cheapens those stats twice as much`);
+    has("focusMultAdd") && add(!1, `…and a bad roll raises their prices ×${(TU("focusTiltMultV193Z", 2) + P.focusMultAdd) / TU("focusTiltMultV193Z", 2)} as much too`);
+    P.focusNegMult != null && P.focusNegMult !== 1 && add(!0, P.focusNegMult ? `A bad focus roll's price rise ×${P.focusNegMult}` : "A bad focus roll never raises a price");
+    P.focusPosMult != null && P.focusPosMult !== 1 && add(P.focusPosMult > 1, `A good focus roll's discount ×${P.focusPosMult}`);
+    P.flipRareMult != null && P.flipRareMult !== 1 && add(P.flipRareMult > 1, `Rare, epic and legendary post-game cards ×${P.flipRareMult} as likely`);
+    P.flipPctMult != null && P.flipPctMult !== 1 && add(P.flipPctMult > 1, `Every post-game card's percentage ×${P.flipPctMult}`);
+    P.gearRareMult != null && P.gearRareMult !== 1 && add(P.gearRareMult > 1, `Gear drops roll rare or better ×${P.gearRareMult} as often`);
+    has("teamLift") && add(P.teamLift > 0, `${sg(P.teamLift)}% to every teammate's OVR (the simmed game and the watched one)`);
+    P.ppMult != null && P.ppMult !== 1 && add(P.ppMult > 1, `${pc(P.ppMult - 1)} Prestige Points from every career payout`);
+    P.cheapBranch && TREE[P.cheapBranch] && add(!0, `${TREE[P.cheapBranch].name} branch nodes 25% cheaper`);
+    return { up, down };
+  }
+  /* ---- the unlocks ---- */
+  /* [stat, count]: every path's one milestone, in the order a run reaches them. Paced at ~9 min a season, from
+   * `careersim --until none` (~12 seasons and ~10 games a season a career, ~13 medals a career early, 87 by season 115):
+   * the hour beside each is that estimate (docs/CHANGELOG.md v193 AD has the table). Phenom and Grinder keep the old
+   * v156 A gate (12 medals) as their milestone. */
+  const LEGEND_UNLOCKS_V193AD = {
+    natural: ["seasons", 3] /* ~0.5 h */,
+    showman: ["watched", 15] /* ~0.5–1 h (the playoffs are always watched) */,
+    phenom: ["medals", 12] /* ~1.5 h */,
+    grinder: ["medals", 12] /* ~1.5 h */,
+    ironman: ["careers", 1] /* ~1.7 h */,
+    closer: ["titles", 3] /* ~2.5 h */,
+    lucky: ["focus", 60] /* ~2.5 h (a commitment and 2–3 crossroads a season) */,
+    fieldgeneral: ["level", 4] /* Varsity, ~3 h */,
+    prodigy: ["medals", 25] /* ~3.5 h */,
+    magnate: ["careers", 2] /* ~3.6 h */,
+    cardshark: ["games", 250] /* ~3.8 h */,
+    engine: ["comebacks", 5] /* ~4–5 h */,
+    captain: ["level", 5] /* College, ~5 h */,
+    wildcard: ["medals", 45] /* ~6.5 h */,
+    executive: ["careers", 4] /* ~7 h */,
+    metronome: ["seasons", 55] /* ~8 h */,
+    zealot: ["focus", 200] /* ~8.5 h */,
+    oracle: ["aSeasons", 10] /* ~9 h */,
+    collector: ["games", 700] /* ~10.5 h */,
+    freak: ["level", 6] /* the Combine, ~11–13 h */,
+    mercenary: ["uff", 1] /* the UFF, ~12–18 h */,
+    monk: ["medals", 80] /* ~15 h */,
+    specialist: ["careers", 8] /* ~15 h */,
+    longshot: ["seasons", 130] /* ~19.5 h */
+  };
+  function legendCountOfV193AD(k) {
+    const C = legendStatsV193AD();
+    return C ? Math.max(0, +C[k] || 0) : 0;
+  }
+  const LEGEND_STATS_V193AD = {
+    seasons: { say: n => `Play ${n} season${n === 1 ? "" : "s"}`, get: () => legendCountOfV193AD("seasons") },
+    games: { say: n => `Play ${n} games`, get: () => legendCountOfV193AD("games") },
+    watched: { say: n => `Watch ${n} games live`, get: () => legendCountOfV193AD("watched") },
+    focus: { say: n => `Take ${n} focus rolls (season commitments and crossroads)`, get: () => legendCountOfV193AD("focus") },
+    comebacks: { say: n => `Come back from ${n} injuries`, get: () => legendCountOfV193AD("comebacks") },
+    aSeasons: { say: n => `Earn an A grade or better in ${n} seasons`, get: () => legendCountOfV193AD("aSeasons") },
+    medals: { say: n => `Reach ${MEDAL_ICON_V156A} ${n} medals`, get: () => medalsV156A() },
+    careers: { say: n => `Finish ${n} career${n === 1 ? "" : "s"}`, get: () => (state && state.careersCompleted) | 0 },
+    titles: { say: n => `Win ${n} championship${n === 1 ? "" : "s"} (any level)`, get: () => (state && state.titlesWon) | 0 },
+    level: { say: n => `Reach ${(LEVELS[n] || {}).name || "level " + n}`, get: () => (state && state.bestLevel) | 0, show: v => "best: " + ((LEVELS[v] || {}).name || "—") },
+    uff: { say: () => "Reach the UFF", get: () => (state && state.nflReached) | 0 }
+  };
+  /* the counters; the first read on a save seeds them from what it already holds */
+  function legendStatsV193AD() {
+    if (typeof state > "u" || !state) return null;
+    let C = state.pathStatsV193AD;
+    if (C && typeof C === "object") return C;
+    let seasons = 0;
+    try {
+      (state.hof || []).forEach(h => (seasons += Math.max(0, h && h.seasons | 0)));
+      state.player && !state.player._settled && (seasons += Math.max(0, state.player.totalSeasons | 0));
+    } catch (_) {}
+    /* an old save: its seasons from the Hall (≤ 60 rows) + the live career; ~9 games and ~3 focus rolls a season; nothing else is known */
+    C = state.pathStatsV193AD = { seasons, games: seasons * 9, watched: 0, focus: seasons * 3, comebacks: 0, aSeasons: 0, at: Date.now() };
+    C.keep = 0; /* the old gate is read once, at the boot (`legendKeepV193AD`, after the medals are mirrored) */
+    try {
+      const U = state.pathUnlocksV193AD || (state.pathUnlocksV193AD = {});
+      state.path && PATHS[state.path] && !U[state.path] && (U[state.path] = { at: Date.now(), how: "kept" });
+    } catch (_) {}
+    return C;
+  }
+  /* the old gate: a save that had passed it when it first met v193 AD keeps the old five, and whatever path it chose */
+  function legendKeepV193AD() {
+    const C = legendStatsV193AD();
+    if (!C || C.keep) return;
+    C.keep = 1;
+    try {
+      const U = state.pathUnlocksV193AD || (state.pathUnlocksV193AD = {});
+      if (oldGateV193AD()) PATH_OLD_V193AD.forEach(k => U[k] || (U[k] = { at: Date.now(), how: "kept" }));
+      state.path && PATHS[state.path] && !U[state.path] && (U[state.path] = { at: Date.now(), how: "kept" });
+    } catch (_) {}
+  }
+  function oldGateV193AD() {
+    try {
+      return medalsOnV156A() ? medalsV156A() >= pathMedalsV156A() : (state.prestige || 0) >= PATH_HONORS;
+    } catch (_) {
+      return !1;
+    }
+  }
+  function legendUnlocksV193AD() {
+    if (typeof state > "u" || !state) return {};
+    legendStatsV193AD();
+    const U = state.pathUnlocksV193AD;
+    return U && typeof U === "object" ? U : (state.pathUnlocksV193AD = {});
+  }
+  function legendCountV193AD(k, n) {
+    const C = legendStatsV193AD();
+    C && (C[k] = Math.max(0, (+C[k] || 0) + (n == null ? 1 : +n || 0)));
+  }
+  /* the milestone: { stat, need, have, frac, say, prog } */
+  function legendReqV193AD(k) {
+    const u = LEGEND_UNLOCKS_V193AD[k];
+    if (!u) return null;
+    const st = LEGEND_STATS_V193AD[u[0]];
+    let have = 0;
+    try {
+      have = st.get();
+    } catch (_) {}
+    const need = u[1],
+      frac = need > 0 ? Math.max(0, Math.min(1, have / need)) : 1;
+    return { stat: u[0], need, have, frac, met: have >= need, say: st.say(need), prog: st.show ? st.show(have) : `${Math.min(have, need).toLocaleString("en-US")}/${need.toLocaleString("en-US")}` };
+  }
+  function pathUnlockedV193AD(k) {
+    if (!PATHS[k]) return !1;
+    if (!legendsOnV193AD()) return PATH_OLD_V193AD.indexOf(k) >= 0 && oldGateV193AD();
+    const U = legendUnlocksV193AD();
+    if (U[k] || state.path === k) return !0;
+    const r = legendReqV193AD(k);
+    return !!(r && r.met);
+  }
+  /* records every milestone met since the last look; `quiet` records without the pop-up */
+  function legendCheckV193AD(quiet) {
+    if (!legendsOnV193AD() || typeof state > "u" || !state) return [];
+    const U = legendUnlocksV193AD(),
+      fresh = [];
+    for (const k of Object.keys(PATHS)) {
+      if (U[k]) continue;
+      const r = legendReqV193AD(k);
+      if (state.path === k || (r && r.met)) {
+        U[k] = { at: Date.now(), how: state.path === k ? "kept" : r.stat };
+        fresh.push(k);
+      }
+    }
+    if (fresh.length) {
+      state.legendNewV193AD = (state.legendNewV193AD || []).concat(fresh).slice(-24);
+      quiet || legendPopV193AD(fresh);
+    }
+    return fresh;
+  }
+  /* the season's end (`finishSeasonGames`, before the week rows are cleared): seasons, games, watched games, an A */
+  function legendSeasonV193AD(e, t) {
+    try {
+      if (!e) return;
+      const ws = (e.weekResults || []).filter(w => w && w.played && !w.satOut);
+      legendCountV193AD("seasons");
+      legendCountV193AD("games", ws.length);
+      legendCountV193AD("watched", ws.filter(w => w.liveBookedV85).length);
+      const g = String((t && t.grade && t.grade.grade) || (t && t.grade) || "");
+      /^A/.test(g) && legendCountV193AD("aSeasons");
+      legendCheckV193AD();
+    } catch (_) {}
+  }
+  /* a season commitment or a crossroads resolved (src/18 → `focusAddV193Z`) */
+  function legendFocusV193AD(out) {
+    try {
+      const ctx = String((out && out.ctx) || "");
+      (ctx === "season" || /^inseason/.test(ctx)) && legendCountV193AD("focus");
+    } catch (_) {}
+  }
+  /* back from an injury (not a knock) */
+  function legendComebackV193AD(inj) {
+    try {
+      if (!inj || inj.knock || inj.resting) return; /* a knock or a planned rest is no comeback */
+      legendCountV193AD("comebacks");
+      legendCheckV193AD();
+    } catch (_) {}
+  }
+  /* NEW LEGEND UNLOCKED: a pop-up that never takes a tap (pointer-events none), the haptic, a toast */
+  function legendPopV193AD(keys) {
+    try {
+      if (!keys || !keys.length || typeof document > "u") return;
+      const P = PATHS[keys[0]],
+        more = keys.length - 1;
+      V193AD.popped.push(keys.slice());
+      try {
+        window.ribHaptic && window.ribHaptic("success");
+      } catch (_) {}
+      try {
+        byId("toast") && showToast("\u{1F31F} NEW LEGEND UNLOCKED — " + P.name + (more > 0 ? " (+" + more + " more)" : ""));
+      } catch (_) {}
+      if (!document.body) return;
+      legendCssV193AD();
+      document.getElementById("legendPopV193AD")?.remove();
+      const el = document.createElement("div");
+      el.id = "legendPopV193AD";
+      el.className = "legend-pop-v193ad";
+      el.setAttribute("role", "status");
+      el.innerHTML = `<div class="lp-k">\u{1F31F} NEW LEGEND UNLOCKED</div><div class="lp-row"><span class="lp-ic">${artV193Y(P.icon, 34, P.color)}</span><div><b style="color:${P.color}">${escHtml(P.name)}</b><small>“${escHtml(P.tag)}”${more > 0 ? ` · +${more} more` : ""}</small></div></div><div class="lp-go">Choose it from the Prestige Tree → Path</div>`;
+      document.body.appendChild(el);
+      setTimeout(() => el.isConnected && el.classList.add("gone"), TU("legendPopMsV193AD", 3600));
+      setTimeout(() => el.isConnected && el.remove(), TU("legendPopMsV193AD", 3600) + 500);
+    } catch (_) {}
+  }
+  const V193AD = { popped: [] };
+  function legendCssV193AD() {
+    if (document.getElementById("legendCssV193AD")) return;
+    const st = document.createElement("style");
+    st.id = "legendCssV193AD";
+    st.textContent = `.legend-pop-v193ad{position:fixed;left:50%;top:calc(12px + env(safe-area-inset-top,0px));transform:translateX(-50%);z-index:99980;width:min(92vw,380px);box-sizing:border-box;padding:12px 14px;border-radius:14px;background:linear-gradient(180deg,#1b2233,#0e131d);border:1px solid var(--gold,#f0bb45);box-shadow:0 10px 30px rgba(0,0,0,.55);pointer-events:none;animation:lpIn .45s cubic-bezier(.3,1.5,.5,1);transition:opacity .45s,transform .45s}
+.legend-pop-v193ad.gone{opacity:0;transform:translate(-50%,-12px)}
+.legend-pop-v193ad .lp-k{font:700 12px Oswald,sans-serif;letter-spacing:3px;color:var(--gold,#f0bb45);text-align:center;margin-bottom:6px}
+.legend-pop-v193ad .lp-row{display:flex;align-items:center;gap:10px}
+.legend-pop-v193ad .lp-ic{font-size:30px;line-height:1;flex:none}
+.legend-pop-v193ad b{display:block;font:700 19px Oswald,sans-serif}
+.legend-pop-v193ad small{display:block;font:500 13px 'Barlow Condensed',sans-serif;color:var(--chalk-dim,#aab)}
+.legend-pop-v193ad .lp-go{font:500 12px 'Barlow Condensed',sans-serif;color:var(--chalk-dim,#aab);text-align:center;margin-top:6px}
+@keyframes lpIn{from{opacity:0;transform:translate(-50%,-16px) scale(.92)}to{opacity:1;transform:translate(-50%,0) scale(1)}}
+.legend-cat-v193ad{font:700 11px Oswald,sans-serif;letter-spacing:2px;color:var(--chalk-dim);margin:16px 2px 6px;display:flex;align-items:center;gap:6px}
+.legend-card-v193ad,.legend-card-v193ad.pos-card{display:block;position:relative;padding:12px;border-radius:12px;border:1px solid var(--line,rgba(255,255,255,.12));background:rgba(255,255,255,.03);margin-bottom:8px;min-width:0;cursor:pointer;-webkit-tap-highlight-color:transparent}
+.legend-card-v193ad.on{border-color:var(--lc);background:color-mix(in srgb,var(--lc) 12%,transparent)}
+.legend-card-v193ad.locked{cursor:default}
+.legend-card-v193ad.locked .lg-head,.legend-card-v193ad.locked .lg-fx{opacity:.5;filter:grayscale(.85)}
+.legend-card-v193ad .lg-head{display:flex;align-items:center;gap:10px;min-width:0}
+.legend-card-v193ad .lg-ic{flex:none;font-size:30px;line-height:1;width:38px;text-align:center}
+.legend-card-v193ad .lg-name{font:700 18px Oswald,sans-serif;line-height:1.15;overflow-wrap:anywhere}
+.legend-card-v193ad .lg-tag{font:italic 500 14px 'Barlow Condensed',sans-serif;color:var(--chalk-dim)}
+.legend-card-v193ad .lg-sum{font:500 14px 'Barlow Condensed',sans-serif;color:var(--chalk);margin:6px 0 0;line-height:1.3}
+.legend-card-v193ad .lg-fx{margin:8px 0 0;padding:0;list-style:none;font:500 14px 'Barlow Condensed',sans-serif;line-height:1.3}
+.legend-card-v193ad .lg-fx li{display:flex;gap:6px;margin:3px 0;overflow-wrap:anywhere;min-width:0}
+.legend-card-v193ad .lg-fx li i{font-style:normal;flex:none;width:14px;text-align:center}
+.legend-card-v193ad .lg-fx li.up i{color:#57e07a}
+.legend-card-v193ad .lg-fx li.dn i{color:#ff8a80}
+.legend-card-v193ad .lg-fx .lg-to{font:700 11px Oswald,sans-serif;letter-spacing:2px;color:#ff8a80;margin-top:6px}
+.legend-card-v193ad .lg-lock{margin-top:8px;font:600 14px 'Barlow Condensed',sans-serif;color:var(--chalk)}
+.legend-card-v193ad .lg-bar{height:8px;border-radius:4px;background:rgba(255,255,255,.1);overflow:hidden;margin-top:5px}
+.legend-card-v193ad .lg-bar i{display:block;height:100%;background:linear-gradient(90deg,#5ab0ff,var(--gold,#f0bb45))}
+.legend-card-v193ad .lg-badge{font:700 10px Oswald,sans-serif;letter-spacing:1px;padding:2px 6px;border-radius:6px;margin-left:6px;vertical-align:middle}
+.legend-card-v193ad .lg-badge.act{background:var(--lc);color:#111}
+.legend-card-v193ad .lg-badge.new{background:#57e07a;color:#111}
+.legend-card-v193ad .lg-badge.lk{background:rgba(255,255,255,.12);color:var(--chalk-dim)}
+.legend-sum-v193ad{display:flex;flex-wrap:wrap;gap:6px 12px;align-items:center;font:600 14px 'Barlow Condensed',sans-serif;color:var(--chalk-dim);margin-top:8px}
+.legend-sum-v193ad .lg-bar{flex:1 1 140px;height:8px;border-radius:4px;background:rgba(255,255,255,.1);overflow:hidden}
+.legend-sum-v193ad .lg-bar i{display:block;height:100%;background:linear-gradient(90deg,#5ab0ff,var(--gold,#f0bb45))}`;
+    document.head.appendChild(st);
+  }
+  /* one legend's card: the head, the tag, the summary, every effect, the trade-off, the lock */
+  function legendCardV193AD(k, chosen) {
+    const P = PATHS[k],
+      L = pathLinesV193AD(k),
+      un = pathUnlockedV193AD(k),
+      on = chosen === k,
+      isNew = un && (state.legendNewV193AD || []).indexOf(k) >= 0,
+      r = un ? null : legendReqV193AD(k),
+      fx = `<ul class="lg-fx">${L.up.map(x => `<li class="up"><i>✓</i><span>${x}</span></li>`).join("")}${L.down.length ? `<li class="lg-to">TRADE-OFF</li>${L.down.map(x => `<li class="dn"><i>✗</i><span>${x}</span></li>`).join("")}` : ""}</ul>`;
+    return `<div class="legend-card-v193ad pos-card ${on ? "on best" : ""} ${un ? "" : "locked"}" data-path="${k}" style="--lc:${P.color}" ${un ? `onclick="choosePath('${k}')"` : `onclick="legendLockedV193AD('${k}')"`}>
+      <div class="lg-head"><span class="lg-ic">${artV193Y(P.icon, 34, P.color)}</span><div style="min-width:0"><div class="lg-name" style="color:${P.color}">${escHtml(P.name)}${on ? '<span class="lg-badge act">ACTIVE</span>' : ""}${isNew && !on ? '<span class="lg-badge new">NEW</span>' : ""}${un ? "" : '<span class="lg-badge lk">\u{1F512} LOCKED</span>'}</div><div class="lg-tag">“${escHtml(P.tag)}”</div></div></div>
+      <div class="lg-sum">${escHtml(P.desc || "")}</div>
+      ${fx}
+      ${r ? `<div class="lg-lock">\u{1F512} ${escHtml(r.say)} — ${escHtml(r.prog)}<div class="lg-bar"><i style="width:${Math.round(r.frac * 100)}%"></i></div></div>` : ""}
+    </div>`;
+  }
+  function legendLockedV193AD(k) {
+    const r = legendReqV193AD(k);
+    showToast("\u{1F512} " + ((PATHS[k] && PATHS[k].name) || "Locked") + " — " + (r ? r.say + " (" + r.prog + ")" : "locked"));
+    try {
+      window.ribHaptic && window.ribHaptic("warning");
+    } catch (_) {}
+  }
+  /* screenPath, v193 AD: the summary, then every category's legends (unlocked first within it) */
+  function screenPathV193AD() {
+    legendCheckV193AD();
+    legendCssV193AD();
+    const t = state.path,
+      keys = Object.keys(PATHS),
+      n = keys.filter(k => pathUnlockedV193AD(k)).length,
+      order = Object.keys(PATH_CATS_V193AD),
+      cats = order.filter(c => keys.some(k => pathCatV193AD(k) === c));
+    const sw = medalsOnV156A() ? " for " + pathSwitchCostV156A() + " PP (a quarter of your balance, at least 50)" : " for a Legacy Reset cost";
+    byId("screen").innerHTML = `
+    <div class="eyebrow">Prestige Path · Permanent Archetype</div>
+    <div class="h1">Choose Your Legend</div>
+    <div class="sub">${n ? "Commit to a legend that reshapes every future career — each one is a different way to play a run. You can switch later" + sw + "." : "Legends unlock as you play — seasons, careers, medals, titles, the levels you reach. Every locked card says what it takes."} Tap a card to commit.</div>
+    <div class="legend-sum-v193ad"><span>\u{1F31F} <b style="color:var(--gold)">${n}</b> of ${keys.length} legends unlocked</span><span class="lg-bar"><i style="width:${Math.round((n / keys.length) * 100)}%"></i></span></div>
+    ${cats
+      .map(c => {
+        const ks = keys.filter(k => pathCatV193AD(k) === c).sort((a, b) => (pathUnlockedV193AD(b) ? 1 : 0) - (pathUnlockedV193AD(a) ? 1 : 0));
+        return `<div class="legend-cat-v193ad">${artV193Y(PATH_CATS_V193AD[c].icon, 16)} ${PATH_CATS_V193AD[c].name.toUpperCase()}</div>${ks.map(k => legendCardV193AD(k, t)).join("")}`;
+      })
+      .join("")}
+  `;
+    byId("dock").innerHTML = `<button class="btn secondary" onclick="go('shop')">Back to Prestige Tree</button>`;
+    /* seen: the NEW badges clear on the next visit */
+    state.legendNewV193AD = [];
+  }
+  /* the Legacy XP a legend pays (`legacyPayV152` adds it as a labelled part) */
+  function legendXpMultV193AD() {
+    return Math.max(0, pathVal("legacyXpMult", 1));
+  }
+  function legendBootV193AD() {
+    try {
+      legendsOnV193AD() && (legendKeepV193AD(), legendCheckV193AD(!0));
+    } catch (_) {}
+  }
+  /* the Prestige Tree's dock button */
+  function legendDockV193AD() {
+    const keys = Object.keys(PATHS),
+      n = keys.filter(k => pathUnlockedV193AD(k)).length,
+      P = state.path && PATHS[state.path];
+    return P ? `${P.icon} ${P.name} · ${n}/${keys.length}` : n ? `⚡ Choose Your Legend · ${n}/${keys.length}` : `\u{1F512} Legends · 0/${keys.length}`;
+  }
+  /* the nearest locked milestone (the hub / coach can quote it) */
+  function legendNextV193AD() {
+    let best = null;
+    Object.keys(PATHS).forEach(k => {
+      if (pathUnlockedV193AD(k)) return;
+      const r = legendReqV193AD(k);
+      r && (!best || r.frac > best.r.frac) && (best = { k, r });
+    });
+    return best;
+  }
+  window.legendLockedV193AD = legendLockedV193AD;
+  window.__V193AD = {
+    on: legendsOnV193AD,
+    keys: () => Object.keys(PATHS),
+    old: PATH_OLD_V193AD.slice(),
+    path: k => pathFxV193AD(k),
+    cat: pathCatV193AD,
+    cats: () => Object.assign({}, PATH_CATS_V193AD),
+    lines: pathLinesV193AD,
+    unlocks: () => JSON.parse(JSON.stringify(LEGEND_UNLOCKS_V193AD)),
+    req: legendReqV193AD,
+    unlocked: pathUnlockedV193AD,
+    check: q => legendCheckV193AD(q),
+    stats: () => legendStatsV193AD(),
+    count: (k, n) => legendCountV193AD(k, n),
+    next: legendNextV193AD,
+    val: (k, d) => pathVal(k, d),
+    growth: (e, k) => pathGrowthV193AD(e || (state && state.player), k),
+    popped: V193AD.popped,
+    /* dev/checks: each reader, sampled as the game runs it (clones where the reader writes) */
+    probe: {
+      perf: (e, opts) => rollGamePerf(e, 0, opts || {}),
+      fatigue: (e, plan) => {
+        const c = JSON.parse(JSON.stringify(e));
+        return updateConditionAfterGame(c, { snaps: 40, perf: 60, week: 1, opp: "probe" }, plan || "disciplined", null).fatigueDelta;
+      },
+      flipOdds: () => flipRarOddsV186(),
+      flipPct: () => flipPctMultV186(),
+      gear: () => rollGear(0).rarity,
+      scout: e => scoutBarV179(e || state.player),
+      say: e => sayV171(e || state.player),
+      fate: k => planFateOddsV124(k),
+      fateKeys: () => Object.keys(PLAN_FATE_V124),
+      tilt: pct => focusTiltFromPctV193Z(pct),
+      pay: (e, w, watched) => payWeekV178(JSON.parse(JSON.stringify(e)), JSON.parse(JSON.stringify(Object.assign({}, w, { payV178: null }))), { watched: !!watched }),
+      watch: e => watchV164C(e || state.player),
+      team: e => teamPairV76(e || state.player, {}).us,
+      teamLift: () => teamLiftPctV190(),
+      xp: () => legendXpMultV193AD(),
+      lock: (eff, e) => rivalLockV128(eff, e || state.player),
+      maxSeasons: () => maxSeasons(),
+      injMul: () => injNodeMulV153B(),
+      cost: k => nodeCost(TREE_NODES[k]),
+      ceil: () => rawCeilingV179()
+    }
+  };
   function nodeLvl(e) {
     return (state.tree && state.tree[e]) || 0;
   }
@@ -8359,6 +8922,7 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
     return medalFriendlyV156A(medalsForHonorsV156A(PATH_HONORS));
   }
   function pathOpenV156A() {
+    if (legendsOnV193AD()) return Object.keys(PATHS).some(k => pathUnlockedV193AD(k)); /* v193 AD: open once any legend is */
     return medalsOnV156A() ? medalsV156A() >= pathMedalsV156A() : state.prestige >= PATH_HONORS;
   }
   function pathSwitchCostV156A() {
@@ -8625,7 +9189,8 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
         nodeLvl("fateOdds") * 0.04 +
         (state && state.path === "prodigy" ? 0.05 : 0) +
         treeFx("fateOdds") +
-        gearV147("fateOdds"),
+        gearV147("fateOdds") +
+        pathVal("fateOdds", 0) /* v193 AD: The Oracle */,
       0.05,
       0.97
     );
@@ -8821,7 +9386,8 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
       name: (ATTR_INFO[eff.reqAttr] && ATTR_INFO[eff.reqAttr].name) || eff.reqAttr,
       need,
       have,
-      ok: have >= need
+      ok: have >= need || pathVal("noFailDecisions", 0) > 0 /* v193 AD: The Prodigy never fails a decision — every option is open */,
+      waivedV193AD: have < need && pathVal("noFailDecisions", 0) > 0
     };
   }
   /* the option's effects, read off the option itself so the card and the model cannot disagree */
@@ -11960,6 +12526,10 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
     r && ATTR_KEYS.forEach(v => (t[v] = clamp99(t[v] + r, 1, n + 15)));
     const l = pathVal("startAttr", 0);
     l && ATTR_KEYS.forEach(v => (t[v] = clamp99(t[v] + l, 1, attrCap())));
+    /* v193 AD: a legend's body or mind at the start (The Freak, The Field General, The Oracle; Prodigy / Ironman's frame) */
+    [[PHYS_ATTRS_V193AD, pathVal("startPhys", 0)], [MENTAL_ATTRS_V193AD, pathVal("startMental", 0)], [SPEED_ATTRS_V193AD, pathVal("startSpeed", 0)]].forEach(
+      ([ks, d]) => d && ks.forEach(v => t[v] != null && (t[v] = clamp99(t[v] + d, 1, attrCap())))
+    );
     const d = nodeLvl("dynasty") * 0.1 + nodeLvl("inheritance") * 0.25;
     d &&
       state.lastCareerAttrs &&
@@ -14030,10 +14600,11 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
       d = 1 + (e.attrs.stamina - 10) * 0.0015;
     let c = hasTrait(e, "streaky") ? 23 : 15;
     c *= Math.max(0.5, 1 - treeFx("varDown") - gearV147("varDown")) * (seasonModFx("varMult") || 1);
+    c *= Math.max(0, pathVal("perfVarMult", 1)); /* v193 AD: The Wildcard ×1.6 / The Metronome ×0.5 */
     let u = (s - i) * 2.4 + poiseShapeV192C(e, randRange(-c, c)) /* v192C: Poise narrows the swing, lifts the floor */ * l + 50 + (t / n.games) * 2 + ((state && state._fateBoost) || 0);
     (a.playoff && ((u += (treeFx("playoffPerf") + seasonModFx("playoffPerf")) * (TU("v190F", 1) ? 1 + nodeLvl("clutch") * 0.2 : 1)) /* v190 F: Clutch Gene — big-game bonuses +20% a level */, hasTrait(e, "xfactor") && (u += 12)),
       hasTrait(e, "butterFingers") && Math.random() < 0.12 && (u -= 18),
-      Math.random() < (hasTrait(e, "streaky") ? 0.06 : 0.04) * boomMulV192C(e) /* v192C: Volatile booms, Even-Keeled does not */ && u > 40 && (u *= 1.5),
+      Math.random() < (hasTrait(e, "streaky") ? 0.06 : 0.04) * boomMulV192C(e) /* v192C: Volatile booms, Even-Keeled does not */ * Math.max(0, pathVal("boomMult", 1)) /* v193 AD */ && u > 40 && (u *= 1.5),
       (u *= d));
     const p = clamp99(xi(u), 1, 100);
     const y = Math.random() < injChanceV54(e, a);
@@ -14396,7 +14967,7 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
         chaosGrowthV193E() /* v193 E: every chaos point grows every future player */ +
         gearFx("growth") +
         Math.max(0, tierGrowth(e) - 1) +
-        Math.max(0, pathVal("growthMult", 1) - 1) +
+        pathUaV193AD() /* v193 AD: the path's growth is a real multiplier now (`pathGrowthV193AD`) — off: the old floored term */ +
         Math.max(0, l),
       fa = clamp99(1 + ua * 0.22, 0.88, 1.34),
       xe = clamp99(e.potential * Me * Fe * xt * da * fa, 0.62, 1.58),
@@ -14415,7 +14986,7 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
     ATTR_KEYS.forEach(R => {
       const O = Ye[R] ? 0.92 + 0.16 * (Ye[R] / $) : 0.86;
       let Pe = st * O + Rt;
-      (a.focus && a.focus.includes(R) && (Pe += Tt), (J[R] = Math.max(0, Pe)));
+      (a.focus && a.focus.includes(R) && (Pe += Tt), (J[R] = Math.max(0, Pe) * pathGrowthV193AD(e, R)) /* v193 AD: the legend's growth, per attribute */);
     });
     const w = Object.values(state.tree || {}).reduce((R, O) => R + O, 0),
       k = clamp99(rawCeilingV179(w), 30, attrCap()); /* v179 I: one sum (`rawCeilingV179`) */
@@ -16707,7 +17278,7 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
           chaosGrowthV193E() /* v193 E: the preview reads the same chaos growth */ +
           gearFx("growth") +
           Math.max(0, tierGrowth(e) - 1) +
-          Math.max(0, pathVal("growthMult", 1) - 1) +
+          pathUaV193AD() /* v193 AD */ +
           Math.max(0, l),
         fa = clamp99(1 + ua * 0.22, 0.88, 1.34),
         xe = clamp99(e.potential * Me * Fe * xt * da * fa, 0.62, 1.58),
@@ -16730,7 +17301,7 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
           Oq = Ye[R] ? 0.92 + 0.16 * (Ye[R] / $) : 0.86;
         let J = st * Oq + Rt;
         a.focus && a.focus.includes(R) && (J += Tt);
-        J = Math.max(0, J);
+        J = Math.max(0, J) * pathGrowthV193AD(e, R); /* v193 AD: the preview reads the same legend growth */
         const kR = Math.min(attrCap(), Math.round(k * ((e.statCeilV17 && e.statCeilV17[R]) || 1)));
         let Pe = clamp99(1 - (O / attrCap()) * 0.55, 0.35, 1);
         if (O >= kR - 18) {
@@ -17304,7 +17875,9 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
                 sayV = rivalSayV128(s.eff, e),
                 vr = rivalVarV128(s.eff);
               if (lk)
-                i = lk.ok
+                i = lk.waivedV193AD
+                  ? `<span class="fit-tag fit-natural">\u{1F9E0} PRODIGY — ${escHtml(lk.name.toUpperCase())} ${lk.need} WAIVED</span>` /* v193 AD */
+                  : lk.ok
                   ? `<span class="fit-tag fit-natural">${escHtml(lk.name.toUpperCase())} ${lk.have} ✓</span>`
                   : `<span class="fit-tag fit-poor">🔒 NEEDS ${escHtml(lk.name.toUpperCase())} ${lk.need} — YOU HAVE ${lk.have}</span>`;
               const dead = (s.eff.ppCost && state.pp < s.eff.ppCost) || (lk && !lk.ok);
@@ -22000,6 +22573,7 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
     const t = Math.min(30, chaosTotal() * 0.25),
       a = RARITIES.map((u, h) => {
         let p = u.w;
+        h >= 1 && (p *= Math.max(0, pathVal("gearRareMult", 1))) /* v193 AD: rare or better — The Collector ×2 / The Card Shark ×0.5 */;
         return (h >= 2 && (p += t * (h - 1)), h < (e || 0) && (p = 0), p);
       }),
       s = a.reduce((u, h) => u + h, 0);
@@ -22553,6 +23127,11 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
       const add = Math.round(gain * (xk - 1));
       ((gain += add), (parts = (parts || []).concat([["Legacy nodes +" + Math.round((xk - 1) * 100) + "% XP", add]])));
     }
+    const pk = legendXpMultV193AD(); /* v193 AD: a legend's Legacy XP (The Oracle ×0.85) */
+    if (pk !== 1 && pk >= 0) {
+      const add = Math.round(gain * (pk - 1));
+      ((gain = Math.max(0, gain + add)), (parts = (parts || []).concat([["Legend · " + ((currentPath() || {}).name || "") + " " + (add >= 0 ? "+" : "−") + Math.abs(Math.round((pk - 1) * 100)) + "% XP", add]])));
+    }
     const from = legacyRankV152(L.xp),
       at = Date.now(),
       who = (e && e.name) || "";
@@ -22572,6 +23151,9 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
     mirrorV156A(); /* v156 A: state.prestige follows the medals */
     try {
       window.RIB_LEGACY && window.RIB_LEGACY.awarded && window.RIB_LEGACY.awarded(L.last);
+    } catch (_) {}
+    try {
+      legendCheckV193AD(); /* v193 AD: a medal or a finished career may unlock a legend */
     } catch (_) {}
     return L.last;
   }
@@ -23099,6 +23681,16 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
           ); /* v193 W: the pop-up says it */
       } catch (x) {}
     }
+    /* v193 AD: The Ironman — a season-ender is `seasonEnderWeeks` games out instead, every time */
+    if (inj && inj.seasonEnding && pathVal("seasonEnderWeeks", 0) > 0) {
+      inj.seasonEnding = !1;
+      inj.weeksRemaining = pathVal("seasonEnderWeeks", 0) | 0;
+      inj.severity = Math.min(inj.severity || 3, 3);
+      inj.ironmanV193AD = !0;
+      try {
+        injPopOnV193W() || toast("\u{1F9BE} IRONMAN — " + inj.name + " was a season-ender. He is back in " + inj.weeksRemaining + " games.");
+      } catch (x) {}
+    }
     /* v146 C: Miracle Hands -- a 2+ game injury is shorter, never under one game; season-enders untouched */
     if (inj && !inj.seasonEnding && inj.weeksRemaining > 1) inj.weeksRemaining = healWeeksV146(inj.weeksRemaining);
     if (inj) {
@@ -23253,6 +23845,7 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
     ((e.seasonStats = t),
       logSeasonV77(e, t),
       legacySeasonV152(e, t) /* v152 A: the season pays its Legacy XP */,
+      legendSeasonV193AD(e, t) /* v193 AD: seasons, games, watched games, an A — before the week rows go */,
       (e.weekResults = null),
       (e.currentWeek = null),
       completeChallenges(),
@@ -26285,7 +26878,7 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
     try {
       amp = treeFx("focusAmpV193Z") || 0;
     } catch (_) {}
-    return TU("focusTiltMultV193Z", 2) + amp * TU("focusAmpPerLvlV193Z", 0.5);
+    return TU("focusTiltMultV193Z", 2) + amp * TU("focusAmpPerLvlV193Z", 0.5) + pathVal("focusMultAdd", 0) /* v193 AD: The Zealot */;
   }
   /* the cap scales with the multiplier, so the amplifier is never silently capped away */
   function focusCapV193Z() {
@@ -26295,8 +26888,9 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
   function focusTiltFromPctV193Z(pct) {
     const t = ((Number(pct) || 0) * focusMultV193Z()) / 100,
       cap = focusCapV193Z(),
-      neg = Math.min(cap, TU("focusTiltNegMaxV193Z", 0.75));
-    return Math.max(-neg, Math.min(cap, t));
+      neg = Math.min(cap, TU("focusTiltNegMaxV193Z", 0.75)),
+      leg = t < 0 ? pathVal("focusNegMult", 1) : pathVal("focusPosMult", 1); /* v193 AD: The Monk — a bad roll ×0, a good one ×0.5 */
+    return Math.max(-neg, Math.min(cap, t * Math.max(0, leg)));
   }
   /* this season's record, or null (another season, another career, the switch off) */
   function focusRecV193Z(e) {
@@ -26312,6 +26906,7 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
   }
   /* an outcome resolved (src/18): its stats take the signed percent, adding to anything already rolled this season */
   function focusAddV193Z(e, out) {
+    legendFocusV193AD(out); /* v193 AD: a focus roll taken */
     if (!focusOnV193Z() || !e || !out || !Array.isArray(out.stats)) return null;
     const ctx = String(out.ctx || "");
     if (!(ctx === "season" || /^inseason/.test(ctx))) return null;
@@ -26999,6 +27594,7 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
     refund: () => freeAgencyRefundV154()
   };
   function screenPath() {
+    if (legendsOnV193AD()) return screenPathV193AD(); /* v193 AD: 24 legends, each with its milestone */
     const e = pathOpenV156A() /* v156 A */,
       t = state.path;
     ((byId("screen").innerHTML = `
@@ -27007,6 +27603,7 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
     <div class="sub">${e ? "Commit to a path that reshapes every future career. This is the deepest choice in the game — each path is a completely different way to reach the UFF. You can switch later" + (medalsOnV156A() ? " for " + pathSwitchCostV156A() + " PP (a quarter of your balance, at least 50)." : " for a Legacy Reset cost.") : medalsOnV156A() ? `Reach <b style="color:var(--gold)">${MEDAL_ICON_V156A} ${pathMedalsV156A()} medals</b> to unlock a Prestige Path. You have ${MEDAL_ICON_V156A} ${medalsV156A()}. Medals are your Legacy Rank — every season and every career earns them.` : `Reach <b style="color:var(--gold)">${HONOR_ICON_V130} ${PATH_HONORS} Honors</b> to unlock a Prestige Path. You're at ${HONOR_ICON_V130} ${state.prestige}. Honors come from finishing careers — they are not recruit stars.`}</div>
     <div class="mt" style="margin-top:14px">
       ${Object.entries(PATHS)
+        .filter(([a]) => PATH_OLD_V193AD.indexOf(a) >= 0) /* v193 AD off: the old five */
         .map(([a, s]) => {
           const n = t === a;
           return `<div class="pos-card ${n ? "best" : ""}" style="${n ? "border-color:" + s.color : ""}" ${e ? `onclick="choosePath('${a}')"` : ""}>
@@ -27014,7 +27611,7 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
           <div class="pos-info">
             <div class="pn" style="color:${s.color}">${s.name} ${n ? '<span class="fit-tag fit-natural">ACTIVE</span>' : ""}</div>
             <div class="pd" style="font-style:italic;opacity:.7">"${s.tag}"</div>
-            <div class="pd" style="margin-top:4px">${s.desc}</div>
+            <div class="pd" style="margin-top:4px">${PATH_DESC_OLD_V193AD[a] || s.desc}</div>
           </div>
         </div>`;
         })
@@ -27024,6 +27621,9 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
       (byId("dock").innerHTML = `<button class="btn secondary" onclick="go('shop')">Back to Prestige Tree</button>`));
   }
   function choosePath(e) {
+    if (legendsOnV193AD() && PATHS[e] && state.path !== e && !pathUnlockedV193AD(e)) return legendLockedV193AD(e); /* v193 AD: a locked legend is refused */
+    legendsOnV193AD() && legendCheckV193AD(!0);
+    if (!PATHS[e]) return;
     if (!pathOpenV156A()) {
       showToast(medalsOnV156A() ? "Reach " + MEDAL_ICON_V156A + " " + pathMedalsV156A() + " medals first" : "Reach " + HONOR_ICON_V130 + " " + PATH_HONORS + " Honors first");
       return;
@@ -27123,7 +27723,9 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
     <div id="branchNodes">${branchNodesHtml(branchTab)}</div>
   `;
     const t = Math.max(0, Math.max(1, state.prestige) - (state.respecUsed || 0)),
-      a = state.path
+      a = legendsOnV193AD()
+        ? legendDockV193AD() /* v193 AD: the legend, and how many are unlocked */
+        : state.path
         ? PATHS[state.path].icon + " " + PATHS[state.path].name
         : pathOpenV156A()
           ? "⚡ Choose Path"
@@ -28958,6 +29560,7 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
       (state.view = "hub"),
       legacyBootV152() /* v152 A: a pre-v152 save's Hall is credited once */,
       mirrorV156A() /* v156 A: record the old Honors once (the grandfather floor), then mirror the medals */,
+      legendBootV193AD() /* v193 AD: the old gate keeps the old five; what the save has done unlocks, quietly */,
       reopenBootV154() /* v154 A: a UFF career stuck settled after the arrival is reopened */,
       freeAgencyRefundV154() /* v154 A: Second Chances → Free Agency */,
       render(),
@@ -29655,7 +30258,9 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
   const wc = rollGamePerf;
   rollGamePerf = function (e, t, a) {
     const r = wc(e, t || 0, a),
-      l = Vn(e, "injuryRisk");
+      l = Vn(e, "injuryRisk"),
+      lgV193AD = pathVal("perfAll", 0) + pathVal(a && a.playoff ? "perfPlayoff" : "perfReg", 0); /* v193 AD: The Natural / The Closer — on the finished rating (outermost layer) */
+    lgV193AD && r && (r.perf = clamp99(Math.round((Number(r.perf) || 0) + lgV193AD), 1, 100));
     return (
       l > 0 && !r.injured && Math.random() < l && (r.injured = !0),
       l < 0 && r.injured && Math.random() < Math.min(0.8, Math.abs(l) * 2) && (r.injured = !1),
@@ -29926,7 +30531,7 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
       chem = (pl.worldState && pl.worldState.teamChemistry) != null ? Number(pl.worldState.teamChemistry) : 50,
       fg = (state.tree && state.tree.fieldGeneral) || 0;
     return clamp99(
-      TU("sayBaseV171", 0.3) + (trust - 50) / TU("sayTrustSpanV171", 90) + (chem - 50) / TU("sayChemSpanV171", 180) + fg * 0.12,
+      TU("sayBaseV171", 0.3) + (trust - 50) / TU("sayTrustSpanV171", 90) + (chem - 50) / TU("sayChemSpanV171", 180) + fg * 0.12 + pathVal("sayAdd", 0) /* v193 AD: The Field General */,
       0.12,
       1
     );
@@ -30601,7 +31206,7 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
   };
   const Ec = pathVal;
   pathVal = function (e, t) {
-    return pathCap(e, Ec(e, t));
+    return legendsOnV193AD() ? Ec(e, t) : pathCap(e, Ec(e, t)); /* v193 AD: the card's number is the number paid (`PATH_FIX_V193AD` restates the old five) */
   };
   GAME_PLANS.some(e => e.id === "recovery") ||
     GAME_PLANS.push({
@@ -31921,7 +32526,7 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
         const gb = grader(e.pos, had.stat, had.snaps || snaps);
         delta = (dev(gl.score) - dev(gb.score)) * 13 + (wb(us, them) - wb(had.us, had.them));
       }
-      w.perf = clamp99(Math.round((Number(w.perf) || 50) + delta * condMultV54(e)), 1, 100);
+      w.perf = clamp99(Math.round((Number(w.perf) || 50) + delta * condMultV54(e) + (w.liveBookedV85 ? 0 : pathVal("livePerf", 0)) /* v193 AD: The Showman, once a watched game */), 1, 100);
       e.pick6Career = Math.max(
         0,
         (e.pick6Career || 0) + ((g.stat.pick6 || 0) - ((had && had.stat && had.stat.pick6) || 0))
@@ -34705,7 +35310,7 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
     if (!games) return off;
     const share = watched / games,
       bonus = TU("watchXpBonusV164C", 0.25),
-      cut = TU("simXpCutV164C", 0.15),
+      cut = TU("simXpCutV164C", 0.15) * Math.max(0, pathVal("simXpCutMult", 1)) /* v193 AD: The Executive */,
       mult = Math.round((1 + bonus * share - cut * (1 - share)) * 100) / 100;
     return { share, watched, simmed, games, mult, label: (mult >= 1 ? "Watched live ×" : "Simmed ×") + mulTxtV193N(mult) + " (" + Math.round(share * 100) + "% watched)" };
   }
@@ -38378,7 +38983,7 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
     return !!TU("v186F", 1);
   }
   function flipRarOddsV186() {
-    const luck = (1 + medalFxV179("flipLuckV179")) * (1 + treeFx("flipRareV186")),
+    const luck = (1 + medalFxV179("flipLuckV179")) * (1 + treeFx("flipRareV186")) * Math.max(0, pathVal("flipRareMult", 1)) /* v193 AD: The Card Shark */,
       leg = TU("flipLegV186", 0.001) * luck,
       epic = TU("flipEpicV186", 0.005) * luck,
       rare = TU("flipRareP_V186", 0.05) * luck,
@@ -38417,7 +39022,7 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
     return bonus;
   }
   function flipPctMultV186() {
-    return 1 + treeFx("flipPctV186");
+    return (1 + treeFx("flipPctV186")) * Math.max(0, pathVal("flipPctMult", 1)) /* v193 AD: The Card Shark ×1.25 / The Collector ×0.6 */;
   }
   const FLIPS_V178 = [
     { id: "pt1", w: 38, rar: "common", col: "#c8d0da", icon: "🪙", name: "+10% Upgrade Points" } /* v179 N: % of the week (min +1) */,
@@ -38733,7 +39338,7 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
       ordPts = orders ? hits * TU("orderPtsV178", 0.2) * worth + (orders.length && hits === orders.length ? TU("sweepPtsV178", 0.4) * worth : 0) : 0,
       pace = paceV178(e, w, stat),
       milePts = pace && pace.hit.length ? pace.hit.length * TU("milePtsV178", 0.75) * worth : 0,
-      raw = (pot.raw + ordPts + milePts) * wmul * heat.mult * (1 + treeFx("payMultV179")) * TU("betaPayV182", 1) /* v179 G: Golden Paycheck (the medal is inside treeFx); v193 E: Eternal Form and Glass Cannon too; v182: the beta paycheck dial */,
+      raw = (pot.raw + ordPts + milePts) * wmul * Math.max(0, pathVal(watched ? "watchPayMult" : "simPayMult", 1)) /* v193 AD: The Showman / The Executive */ * heat.mult * (1 + treeFx("payMultV179")) * TU("betaPayV182", 1) /* v179 G: Golden Paycheck (the medal is inside treeFx); v193 E: Eternal Form and Glass Cannon too; v182: the beta paycheck dial */,
       bank0 = e.payBankV178 || 0,
       bank = bank0 + raw,
       whole = Math.floor(bank + 1e-9);
@@ -39910,6 +40515,7 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
     } catch (_) {}
   }
   function healNoteV193W(e, inj, how) {
+    legendComebackV193AD(inj); /* v193 AD: back from an injury */
     if (!injPopOnV193W() || !e || !inj || inj.knock) return;
     try {
       const Q = (e.injQV193W = Array.isArray(e.injQV193W) ? e.injQV193W : []),
@@ -40447,6 +41053,8 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
         v = pot <= potBar ? 1 / (1 + Math.exp(-(pot - potBar) / soft)) : 0.5 + (vMax - 0.5) * (1 - Math.exp(-(pot - potBar) / (potBar * TU("verdictTauV179", 0.35))));
         // the GM overrules on a close call, not a long shot: only within `secondLookFloorV179` of the bar
         sl = pot >= potBar * TU("secondLookFloorV179", 0.8) ? Math.min(TU("secondLookCapV179", 50), TU("secondLookBaseV179", 10) + adv * TU("secondLookPerOddsV179", 1.5)) / 100 : 0;
+        const lsV193AD = pathVal("secondLook", 0); /* v193 AD: The Long Shot — the GM looks again at any distance from the bar */
+        lsV193AD > 0 && (sl = Math.min(TU("longShotCapV193AD", 0.8), sl + lsV193AD / 100));
       }
     }
     const vt = v + (1 - v) * sl;
@@ -41522,7 +42130,7 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
   };
   const choosePathV192B = choosePath;
   choosePath = function (k) {
-    if (!confirmOnV192B() || !PATHS[k] || state.path === k || !pathOpenV156A()) return choosePathV192B.apply(this, arguments);
+    if (!confirmOnV192B() || !PATHS[k] || state.path === k || !pathOpenV156A() || (legendsOnV193AD() && !pathUnlockedV193AD(k))) return choosePathV192B.apply(this, arguments); /* v193 AD: a locked legend is refused inside */
     const from = state.path && PATHS[state.path],
       cost = from && medalsOnV156A() ? pathSwitchCostV156A() : 0;
     if (from && medalsOnV156A() && (state.pp || 0) < cost) return choosePathV192B.apply(this, arguments); /* its own "need N PP" */
