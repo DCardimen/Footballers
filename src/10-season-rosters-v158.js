@@ -146,9 +146,17 @@
       let pack = window.__GRIDIRON_GENERATE_ROSTER_V157(target, (p.seasonSeed || 1) + (p.level || 0) * 1009);
       ensureMeta(pack.players, p.seasonSeed || 1);
       applyProgramBoost(pack.players);
+      // v193 AA: the same program carries its men into the new season (graduations, departures, growth, new faces);
+      // a new program is a new roster. The carried men already wear this season's locker-room moves.
+      let carriedV193AA = null;
+      try {
+        carriedV193AA = window.__V193AA && window.__V193AA.carry(p, pack.players, p.teamRosterV158, key, target);
+      } catch (e) {
+        console.warn('[v193 AA carry]', e);
+      }
       // v153 B: this season's locker-room moves (departures, lifts, the sacrifice) ride a rebuilt roster too
       try {
-        window.__V153B && window.__V153B.applyRoster(p, pack.players);
+        if (!(carriedV193AA && carriedV193AA.skipLocker)) window.__V153B && window.__V153B.applyRoster(p, pack.players);
       } catch (e) {}
       p.teamRosterV158 = pack.players;
       p.teamRosterSeasonV158 = key;
@@ -298,6 +306,8 @@
   }
   ensureUserRoster();
   window.__V158_ROSTER = ensureUserRoster; // v153 B: the locker-room rolls name men off THIS roster
+  window.__V158_KEY = seasonKey; // v193 AA: the season key a roster is built for
+  window.__V158_META = ensureMeta; // v193 AA: a new face gets a year, a jersey, a trait like the rest
   window.__GRIDIRON_SIMULATE_V158 = function (iterations) {
     iterations = Math.max(1000, iterations || 50000);
     const errors = [];

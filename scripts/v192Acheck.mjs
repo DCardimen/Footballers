@@ -78,11 +78,13 @@ const R = await M(() => {
   const r = { mult: V.repsMult(), card: V.flipReps() }
   for (const k in p.attrs) p.attrs[k] = 20
   p.practiceV178 = {}
+  window.RIB_TUNE.v193AB = 0   // v193 AB retired the Extra reps / +1 Permanent cards (a Spillover now): their mechanics live on behind the switch
   window.__V179.applyFlip('reps', { week: 1, opp: 'X' })
   r.bank = Object.values(p.practiceV178).reduce((a, b) => a + b, 0)
   r.want = window.__V193X ? 0.25 * window.__V193X.perPoint() * 20 / 100 : 0.25   // v193 X: the quarter point is a percent of the stat (College calibration)
   window.RIB_TUNE.v193X = 0; p.practiceV178 = {}; window.__V179.applyFlip('reps', { week: 2, opp: 'X' }); r.bankX0 = Object.values(p.practiceV178).reduce((a, b) => a + b, 0); delete window.RIB_TUNE.v193X
   window.RIB_TUNE.v192A = 0; r.offMult = V.repsMult(); r.offCard = V.flipReps(); delete window.RIB_TUNE.v192A
+  delete window.RIB_TUNE.v193AB
   return r
 })
 ok(R.mult === 0.5 && R.card === 0.25 && Math.abs(R.bank - R.want) < 1e-9 && Math.abs(R.bankX0 - 0.25) < 1e-9, 'practice reps ×0.5, the Extra reps card a quarter point (v193 X: as a percent of the stat; v193X 0 the flat quarter)', R)
@@ -156,19 +158,25 @@ const D = await M(() => {
   const share = (n) => top3.reduce((a, k) => a + (n[k] || 0), 0) / 600
   const n0 = draw(); S.tree = { focusReps: 5 }; const n5 = draw(); S.tree = {}
   const node = X.TREE_NODES.focusReps
-  // the cards themselves
+  // the cards themselves (v193 AB: the old reps / +1 cards, behind its switch)
+  window.RIB_TUNE.v193AB = 0
   for (const k in p.attrs) p.attrs[k] = 20
   const before = Object.assign({}, p.attrs); const got = {}
   for (let i = 0; i < 40; i++) { p.practiceV178 = {}; window.__V179.applyFlip('reps', { week: i, opp: 'Q' }); for (const k in p.practiceV178) got[k] = 1 }
   const before2 = Object.assign({}, p.attrs), up = {}
   for (let i = 0; i < 40; i++) { window.__V179.applyFlip('attr', { week: i, opp: 'R' }) }
   for (const k in p.attrs) if (p.attrs[k] > before2[k]) up[k] = p.attrs[k] - before2[k]
-  return { stats0: Object.keys(n0).length, share0: share(n0), stats5: Object.keys(n5).length, share5: share(n5), node: node && { branch: node.branch, max: node.max, cost: X.nodeCost(node) }, repsStats: Object.keys(got).length, attrStats: Object.keys(up).length, onlyPos: Object.keys(n0).every((k) => W[k] > 0) }
+  delete window.RIB_TUNE.v193AB
+  // v193 AB: the Hot Streak card draws its stat through the same weighting (Focused Reps leans it)
+  const hot = (lv) => { S.tree = lv ? { focusReps: lv } : {}; const n = {}; let t = 0; for (let i = 0; i < 400; i++) for (const id of window.__V193AB.deck({ week: i, opp: 'F' + i }, 10)) { const c = window.__V193AB.parse(id); if (c && c.kind === 'hot') { n[c.attr] = (n[c.attr] || 0) + 1; t++ } } S.tree = {}; return top3.reduce((a, k) => a + (n[k] || 0), 0) / Math.max(1, t) }
+  const hot0 = hot(0), hot5 = hot(5)
+  return { stats0: Object.keys(n0).length, share0: share(n0), stats5: Object.keys(n5).length, share5: share(n5), node: node && { branch: node.branch, max: node.max, cost: X.nodeCost(node) }, repsStats: Object.keys(got).length, attrStats: Object.keys(up).length, hot0, hot5, onlyPos: Object.keys(n0).every((k) => W[k] > 0) }
 })
 ok(D.stats0 >= 7 && D.share0 < 0.55 && D.onlyPos, 'at Lv 0 the draws spread over the position\'s stats (top three take < 55%)', D)
 ok(D.share5 > 0.6 && D.share5 > D.share0 + 0.25, 'Focused Reps Lv 5 leans them onto the key stats', D)
 ok(D.node && D.node.branch === 'mental' && D.node.max === 5 && D.node.cost >= 100, 'Focused Reps is a 5-level Mental node', D.node)
-ok(D.repsStats >= 4 && D.attrStats >= 4, 'the reps and +1 cards land on several stats', D)
+ok(D.repsStats >= 4 && D.attrStats >= 4, 'the reps and +1 cards land on several stats (v193AB 0)', D)
+ok(D.hot5 > D.hot0 + 0.2, 'v193 AB: Focused Reps leans the Hot Streak card\'s stat onto the key stats too', { lv0: D.hot0, lv5: D.hot5 })
 
 console.log(JSON.stringify({ pass, fail, pageErrors: errs.length }))
 if (errs.length) console.log('page errors:', errs.slice(0, 6))

@@ -110,7 +110,7 @@
       ${cur([
         ['<b>★</b> STARS', 'The <b>recruit rating</b>, 1 to 5 — what the scouts think of <i>this</i> player.', 'Rolled with the player; raised by the tree, a Path, and holding your own in a tougher tier.', 'Sets his soft cap: 60% of the ceiling at 1★, 85% at 5★. Gone when his career ends.'],
         ['<b>🪙</b> PP', '<b>Prestige Points</b> — the gold coin, the only money.', 'Every career end, titles, challenges, objectives, the Legacy milestones. Chaos multiplies it.', 'Spent in the VAULT and on prestige-tree nodes. Every node you buy is kept by every son after.'],
-        ['<b>🎖️</b> MEDALS', 'The <b>Legacy Rank</b> — one medal per rank, and the family’s <b>rank</b>. Never spent.', 'Legacy XP, every season and at every career end (G.O.A.T. and Immortal add to it). Chaos multiplies it.', 'Your medal count unlocks the deeper nodes of the prestige tree (“Needs 🎖️ N medals”) and a Path at 12 medals; it lifts every soft cap, and every tenth rank pays a PP bounty. Never resets.'],
+        ['<b>🎖️</b> MEDALS', 'The <b>Legacy Rank</b> — one medal per rank, and the family’s <b>rank</b>. Never spent.', 'Legacy XP, every season and at every career end (G.O.A.T. and Immortal add to it). Chaos multiplies it.', 'Your medal count unlocks the deeper nodes of the prestige tree (“Needs 🎖️ N medals”) and the first two Legends (Prestige Paths) at 12 medals — the other 22 unlock by playing (seasons, titles, careers, games watched live), about 20 hours for all 24; it lifts every soft cap, and every tenth rank pays a PP bounty. Never resets.'],
       ])}
       ${note('THE STAR IS THE PLAYER. THE COIN AND THE MEDAL ARE THE FAMILY.', 'A four-star recruit is a player rating. “Needs 🎖️ 35 medals” is the account’s rank. Nothing in the game ever asks for a thirty-five-star player, because there is no such thing.')}
       <h4>What the medals unlock</h4>
@@ -417,7 +417,7 @@
       ${list([
         '<b>Levels 0 through 4 are close to automatic.</b> The advancing shares are enormous (50%, 45%, 35%, 25%, 12% of huge fields), so anything short of a disaster leaves you far inside and your call-up reads around 98%. Expect to walk to Varsity.',
         '<b>College is where a first career usually ends.</b> It wants a rating a first-run player cannot reach. The <i>ceiling</i> is the wall, not the declare roll, and the two spare years generally cannot fix it.',
-        '<b>That is the design, not a failure.</b> A finished career pays PP for the vault and Legacy XP — the medals that unlock the tree. A first career is worth about a dozen medals, and a Path unlocks at 12. You are farming the next man, and he starts taller.',
+        '<b>That is the design, not a failure.</b> A finished career pays PP for the vault and Legacy XP — the medals that unlock the tree. A first career is worth about a dozen medals, and the Phenom and the Grinder (the first Legends) unlock at 12. You are farming the next man, and he starts taller.',
       ])}
       <h4>What the code actually rewards</h4>
       ${num([

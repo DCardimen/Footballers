@@ -606,7 +606,7 @@
       r = Math.max(0, (e.age || 18) - 28) * 0.7,
       l = t.snaps || Math.round((e.snapShare || 0.2) * 65),
       d0 = (i[a] ?? 7) + l * 0.12 + r,
-      d = d0 > 0 ? d0 * fatigueMulV192C(e) : d0; /* v192C: Coasts wears less, Relentless more */
+      d = d0 > 0 ? d0 * fatigueMulV192C(e) * Math.max(0, pathVal("fatigueMult", 1)) /* v193 AD: The Engine */ : d0; /* v192C: Coasts wears less, Relentless more */
     ((n.fatigue = clamp(n.fatigue + d - n.recovery * 0.08, 0, 100)),
       (n.mentalLoad = clamp(n.mentalLoad + Math.abs((t.perf || 60) - 60) * 0.08 + (t.playoff ? 8 : 3) - 4, 0, 100)),
       n.consecutiveGames++);
@@ -5196,6 +5196,10 @@
         const cap = typeof drSoftCap === "function" ? Math.round(drSoftCap(pl, k)) : 0;
         chips += '<span class="si-chip-v142">YOURS <b>' + cur + "</b></span>";
         if (cap) chips += '<span class="si-chip-v142">SOFT CAP <b>' + cap + "</b></span>";
+        const tz = focusTiltOfV193Z(pl, k); /* v193 Z: this season's focus roll tilts this stat's price */
+        if (tz)
+          chips +=
+            '<span class="si-chip-v142 si-tilt-v193z">FOCUS <b style="color:' + (tz < 0 ? "#ff8a80" : "#7fe0a0") + '">' + focusPctTxtV193Z(tz) + "</b> THIS SEASON</span>";
         if (L.metric)
           chips +=
             '<span class="si-chip-v142">' + L.metric.label.toUpperCase() + " <b>" + L.metric.fmt(cur) + "</b></span>";
@@ -5308,6 +5312,18 @@
   function perfPctV190() {
     return 0; /* v193 E: the game-day percent is gone (the banner below); `window.__V190.perfPct` keeps reading 0 */
   }
+  /* ===== v193 AC COLLEGE PAYS =====
+   * The owner: "consider scaling college prestige a bit higher (2 to 3× what it is now)". The careersim runs end most
+   * careers at the College → Combine declare, so College's base (28) was what most careers paid. It is ×2.5 now (70), and
+   * the levels above it rise just enough to stay above it (Combine 45 → 90, the UFF 70 → 110, Interstellar 120 → 180).
+   * ONE table for every reader (the career's end, the pot, the receipt, SPEND NOW's "a career pays ~N"). Knobs
+   * `careerBaseCollegeV193AC` … ; kill switch `v193AC` 0 = the old table. */
+  function careerBaseV193AC(lv) {
+    lv = Math.max(0, Math.min(8, lv | 0));
+    const old = [1, 2, 4, 8, 15, 28, 45, 70, 120][lv] || 1;
+    if (!TU("v193AC", 1)) return old;
+    return [1, 2, 4, 8, 15, TU("careerBaseCollegeV193AC", 70), TU("careerBaseCombineV193AC", 90), TU("careerBaseUffV193AC", 110), TU("careerBaseIstV193AC", 180)][lv] || 1;
+  }
   /* ===== v193 J THE REDRAWN NODES ARE PAID BACK =====
    * v193 E took "+N% to every attribute a game" (`perfFlat`) out of the game and gave its seven nodes new effects. A save
    * that bought them paid for the old effect, and the tree's free respecs are rationed by medals — so once a save, at
@@ -5387,7 +5403,7 @@
       tile = x => {
         const can = pp >= x.cost,
           b = br(x);
-        return `<button type="button" class="sn-row-v193e qb-tile-v193l${can ? "" : " off"}" data-key="${x.key}" style="--qb-c:${b.color}" onclick="quickBuyV193L('${x.key}')" title="${escHtml(b.name)}"${can ? "" : ' aria-disabled="true"'}><span class="qb-n-v193l"><i>${x.icon}</i> ${escHtml(x.name)}</span><b class="qb-p-v193l">${ppFmtV146(x.cost)} PP${can ? "" : `<em> · ${ppFmtV146(x.cost - pp)} away</em>`}</b></button>`;
+        return `<button type="button" class="sn-row-v193e qb-tile-v193l${can ? "" : " off"}" data-key="${x.key}" style="--qb-c:${b.color}" onclick="quickBuyV193L('${x.key}')" title="${escHtml(b.name)}"${can ? "" : ' aria-disabled="true"'}><span class="qb-n-v193l"><i>${nodeArtV193Y(x.n, x.branch, 16) /* v193 Y */}</i> ${escHtml(x.name)}</span><b class="qb-p-v193l">${ppFmtV146(x.cost)} PP${can ? "" : `<em> · ${ppFmtV146(x.cost - pp)} away</em>`}</b></button>`;
       };
     return `<div class="card tight spend-v193e qb-v193l" id="spendNowV193E">
   <div class="qb-h-v193l"><div class="l sn-k-v193e">⚡ QUICK BUY <small>${n} affordable · tap to open the vault</small></div><div class="qb-nav-v193l"><button type="button" class="qb-arr-v193l" onclick="quickPageV193L(-1)" ${quickPageIxV193L ? "" : "disabled"} aria-label="Cheaper upgrades">◀</button><span>${quickPageIxV193L + 1}/${pages.length}</span><button type="button" class="qb-arr-v193l" onclick="quickPageV193L(1)" ${quickPageIxV193L < pages.length - 1 ? "" : "disabled"} aria-label="Pricier upgrades">▶</button></div></div>
@@ -5504,7 +5520,7 @@
     } catch (_) {}
     let seasons = 0;
     for (let i = 0; i <= lv; i++) seasons += (LEVELS[i] && LEVELS[i].seasons) || 2;
-    const ii = [1, 2, 4, 8, 15, 28, 45, 70, 120][lv] || 1;
+    const ii = careerBaseV193AC(lv);
     return Math.max(1, Math.round((ii + seasons * 0.35) * sm * chaosEarnedAtV193E(lv, c)));
   }
   function chaosProjectV193E(lv) {
@@ -5539,14 +5555,14 @@
       br = x => TREE[x.branch] || { icon: "", name: x.branch, color: "var(--gold)" },
       row = x =>
         /* one chip a node, in a row that scrolls sideways: the tree stays inside its scroll budget (scrollcheck) */
-        `<div class="sn-row-v193e"><span class="sn-name-v193e">${x.icon} ${escHtml(x.name)}<small style="color:${br(x).color}">${br(x).icon} ${escHtml(br(x).name)}</small></span><button class="buy" onclick="vaultBuy('${x.key}')">${ppFmtV146(x.cost)} PP</button></div>`,
+        `<div class="sn-row-v193e"><span class="sn-name-v193e">${nodeArtV193Y(x.n, x.branch, 16) /* v193 Y */} ${escHtml(x.name)}<small style="color:${br(x).color}">${branchArtV193Y(x.branch, 12)} ${escHtml(br(x).name)}</small></span><button class="buy" onclick="vaultBuy('${x.key}')">${ppFmtV146(x.cost)} PP</button></div>`,
       p = state && state.player,
       lv = p ? p.level | 0 : 0,
       pays = careerPayAtV193E(lv);
     if (!can.length) {
       const c = all[0];
       /* one line: the cheapest node, how far, what a career pays — the tree is a long list already (scrollcheck) */
-      return `<div class="card tight spend-v193e sn-one-v193e" id="spendNowV193E"><span class="sn-k-v193e">🌳 NEXT UP</span><span class="sn-away-v193e">${c.icon} <b>${escHtml(c.name)}</b> <span style="color:${br(c).color}">${br(c).icon}</span> ${ppFmtV146(c.cost)} PP · <b>${ppFmtV146(c.cost - pp)} PP away</b> — a ${LEVELS[lv].name} career pays ~${ppFmtV146(pays)}${lv < 8 ? `, one that reaches ${LEVELS[lv + 1].name} ~${ppFmtV146(careerPayAtV193E(lv + 1))}` : ""}.</span></div>`;
+      return `<div class="card tight spend-v193e sn-one-v193e" id="spendNowV193E"><span class="sn-k-v193e">🌳 NEXT UP</span><span class="sn-away-v193e">${nodeArtV193Y(c.n, c.branch, 16) /* v193 Y */} <b>${escHtml(c.name)}</b> <span style="color:${br(c).color}">${branchArtV193Y(c.branch, 14)}</span> ${ppFmtV146(c.cost)} PP · <b>${ppFmtV146(c.cost - pp)} PP away</b> — a ${LEVELS[lv].name} career pays ~${ppFmtV146(pays)}${lv < 8 ? `, one that reaches ${LEVELS[lv + 1].name} ~${ppFmtV146(careerPayAtV193E(lv + 1))}` : ""}.</span></div>`;
     }
     return `<div class="card tight spend-v193e" id="spendNowV193E"><div class="sn-chips-v193e"><div class="l sn-k-v193e">🌳 SPEND NOW <small>${yes.length} affordable${yes.length > can.length ? ` <br>the ${can.length} cheapest` : ""}</small></div>${can.map(row).join("")}</div></div>`;
   }
@@ -5656,7 +5672,7 @@ ${col(
   function scoutsExplainHtmlV193E() {
     const D = scoutsExplainDataV193E(),
       pc = v => (v == null ? "—" : Math.round(v * 10) / 10 + "%"),
-      block = (icon, t, body) => `<div class="sx-block-v193e" style="margin:0 0 10px;padding:8px 10px;border-radius:8px;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.12)"><div style="font-family:'Oswald';font-weight:700;letter-spacing:1.5px;font-size:12px;color:var(--gold);margin-bottom:3px">${icon} ${t}</div><div style="font-size:12.5px;line-height:1.4">${body}</div></div>`;
+      block = (icon, t, body) => `<div class="sx-block-v193e" style="margin:0 0 10px;padding:8px 10px;border-radius:8px;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.12)"><div style="font-family:'Oswald';font-weight:700;letter-spacing:1.5px;font-size:12px;color:var(--gold);margin-bottom:3px">${artV193Y(icon, 18) /* v193 Y */} ${t}</div><div style="font-size:12.5px;line-height:1.4">${body}</div></div>`;
     return `<div class="scouts-x-v193e" style="text-align:left">
 ${block("★", "RECRUIT STARS", `<b>${"★".repeat(Math.max(0, Math.min(5, D.stars))) || "—"}</b> (${D.stars} of 5) — the talent grade he was born with; the program tiers re-grade it. Coaches and the Recruiting Board rate him on sight by it. <b>It never rolls</b> — the declare does not read it.`)}
 ${block("🏅", "NATIONAL RANK", `${D.rank != null ? `<b>#${fmtInt(D.rank)}</b> of ${fmtInt(D.of)} at ${D.level} · <b>top ${D.topPct}%</b>` : `your place among the ${fmtInt(D.of)} at ${D.level}`} — THIS season's production and OVR against every peer at the level. It is the <b>floor under the declare roll</b>${D.rankCh != null ? ` (the rank alone: ${pc(D.rankCh)}; your declare odds now: <b>${pc(D.declare)}</b>)` : ""}. At ${D.level}: #1 rolls ≥ ${pc(D.num1)}, <b>top 1% ≥ ${pc(D.top1)}</b>, top 5% ≥ ${pc(D.top5)}, the last man inside the advancing ${D.half}% a coin flip, well outside it single digits. <b>One roll; a miss ends the career.</b>${D.floorOn ? ` A top-1% season rolls at ≥ ${TU("rankTop1FloorV193E", 99)}% now (v193 E) — before, 97%.` : ""}${D.lv >= 5 ? " From College on the season roll is followed by the scouts' verdict below." : ""}`)}
@@ -5746,12 +5762,13 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
     return !!TU("v190team", 1);
   }
   function teamLiftPctV190() {
-    if (!teamLiftOnV190()) return 0;
-    return clamp99(treeFx("teamLiftV190") || 0, 0, TU("teamLiftCapV190", 15));
+    const legend = pathVal("teamLift", 0); /* v193 AD: The Captain +8% / The Mercenary −6%, on top of the nodes' capped lift */
+    if (!teamLiftOnV190()) return legend;
+    return clamp99(treeFx("teamLiftV190") || 0, 0, TU("teamLiftCapV190", 15)) + legend;
   }
   function teamLiftDV190(C) {
-    const L = teamLiftPctV190() / 100;
-    return L > 0 ? 2 * L * (0.72 + 0.5 * C) : 0;
+    const L = Math.max(-0.5, teamLiftPctV190() / 100);
+    return L ? 2 * L * (0.72 + 0.5 * C) : 0; /* v193 AD: a negative lift (The Mercenary) lowers every teammate */
   }
   function chaosTotal() {
     if (!state || !state.chaos) return 0;
@@ -6428,6 +6445,18 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
           mult: 1.55,
           max: 6,
           req: { honors: 7 }
+        },
+        {
+          /* v193 Z: the focus roll's season-long price tilt is the outcome's percent ×2 — each level adds ×0.5, both ways */
+          key: "focusAmpV193Z",
+          name: "Focus Amplifier",
+          icon: "🎯",
+          desc: "Your focus roll's swing on skill prices: ×2.5 at Lv 1, +0.5 a level (×5 at Lv 6) — a good roll pays more, a bad one costs more.",
+          cost: 20,
+          mult: 1.6,
+          max: TU("focusAmpMaxV193Z", 6),
+          req: { honors: 10 },
+          fx: { focusAmpV193Z: 1 }
         },
         {
           key: "vet",
@@ -7465,6 +7494,38 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
           max: 5,
           fx: { flipRareV186: 0.3 }
         },
+        /* v193 AB: the new cards' own nodes, priced like Card Shark / Marked Cards (the fx keys are read per level with the
+         * Apex's ×1.5 taken back out, so these descs are exact) */
+        {
+          key: "hotHands",
+          name: "Hot Hands",
+          icon: "🔥",
+          desc: "HOT STREAK cards roll +3% at both ends of their boost and +1 game at both ends of how long it lasts, per level, and one stat holds +3% more of them stacked. Lv 5: 20–65% for 6–15 games, stacking to 75%.",
+          cost: 2e3,
+          mult: 3,
+          max: 5,
+          fx: { hotPctV193AB: 3, hotGamesV193AB: 1 }
+        },
+        {
+          key: "spillCoach",
+          name: "Spill Coach",
+          icon: "🔁",
+          desc: "SPILLOVER cards roll +5% at both ends of their share, per level (Lv 5: 30–75% of every point). From Lv 3 you choose which KEY stat each one feeds.",
+          cost: 2e3,
+          mult: 3,
+          max: 5,
+          fx: { spillPctV193AB: 5 }
+        },
+        {
+          key: "doubleShift",
+          name: "Double Shift",
+          icon: "💵",
+          desc: "The 2× POINTS card turns up ×1.5 as often per level (Lv 4: about 1 card in 10 instead of 1 in 50). At Lv 4 it also doubles the first 2 games of next season.",
+          cost: 3e3,
+          mult: 3,
+          max: 4,
+          fx: { dblShiftV193AB: 1 }
+        },
         {
           key: "inevitable",
           name: "Inevitable",
@@ -7810,7 +7871,7 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
       color: "#f0bb45",
       tag: "Born great",
       cheapBranch: "physical",
-      desc: "Start every career with a massive head start: +18 to all starting attributes and 5★ recruiting — but growth is slightly slower (you were already elite). Physical branch 25% cheaper.",
+      desc: "Starts every career already elite, with a higher ceiling — and less hunger to grow.",
       startAttr: 18,
       startStars: 5,
       growthMult: 0.92,
@@ -7822,7 +7883,7 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
       color: "#c9622f",
       tag: "Outwork everyone",
       cheapBranch: "camp",
-      desc: "Modest start, but +25% attribute growth every season and +2 upgrade points per year. You get better than anyone the longer you play. Camps branch 25% cheaper.",
+      desc: "A modest start, then he outworks everyone: the longer he plays, the better he gets.",
       startAttr: 0,
       growthMult: 1.25,
       bonusPoints: 2,
@@ -7834,7 +7895,7 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
       color: "#3f8f6b",
       tag: "Genius of the game",
       cheapBranch: "mental",
-      desc: "Never fails an in-season decision, doubles combine gains, and advance odds get a permanent +8% boost. The smartest player on every field. Mental branch 25% cheaper.",
+      desc: "The smartest player on every field: no season decision is closed to him — on a lighter frame.",
       advBonus: 8,
       growthMult: 1.05,
       ppMult: 1.05
@@ -7845,7 +7906,7 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
       color: "#a05ac9",
       tag: "Build a dynasty",
       cheapBranch: "economy",
-      desc: "+60% Prestige Points from every career and start each run with +3 prestige. Slower on the field, but your legacy compounds fastest. Legacy branch 25% cheaper.",
+      desc: "Slower on the field, but his legacy compounds fastest.",
       growthMult: 0.96,
       ppMult: 1.6,
       startPrestige: 3
@@ -7856,20 +7917,582 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
       color: "#4a90c9",
       tag: "Unbreakable",
       cheapBranch: "body",
-      desc: "Tougher than most (−21% injury — nobody is injury-proof), +2 season attempts at every level, and durability never limits you. Longevity wins championships. Body branch 25% cheaper.",
+      desc: "Plays through what ends other careers, and gets more seasons at every level — on a heavier frame.",
       injuryMult: 0.3,
       extraSeasons: 2,
       growthMult: 1.08,
       ppMult: 1
-    }
+    },
+    /* v193 AD LEGENDS: the 19 new archetypes. Every key is read through `pathVal(key, default)` at a site the game
+     * already runs (the list is in the v193 AD banner under `pathVal`); `cat` is the category screenPath shows. */
+    closer: { name: "The Closer", icon: "⏱️", color: "#e0533d", tag: "Built for the big stage", cat: "performance", desc: "Rises in the playoffs and the championship, coasts through the regular season.", perfPlayoff: 8, perfReg: -3 },
+    natural: { name: "The Natural", icon: "✨", color: "#f2c94c", tag: "Makes it look easy", cat: "performance", desc: "Plays above his ratings every week, but never had to learn how to work.", perfAll: 5, growthMult: 0.8 },
+    freak: { name: "The Freak", icon: "\u{1F9EC}", color: "#57e07a", tag: "A body built in a lab", cat: "athletic", desc: "Arrives with a pro's body and a kid's understanding of the game.", startPhys: 10, startMental: -8 },
+    engine: { name: "The Engine", icon: "\u{1F50B}", color: "#4ac9b0", tag: "Never runs out", cat: "athletic", desc: "Every game takes less out of him, so he plays fresh all season — and grows a little slower for the miles.", fatigueMult: 0.6, growthMult: 0.92 },
+    lucky: { name: "The Lucky Charm", icon: "\u{1F340}", color: "#6bbf59", tag: "Born under a good sign", cat: "luck", desc: "The growth wheel breaks his way, but he starts with less than everyone else.", wheelLuck: 0.1, startAttr: -4 },
+    longshot: { name: "The Long Shot", icon: "\u{1F52D}", color: "#5ab0ff", tag: "Never count him out", cat: "luck", desc: "When the scouts say no, the GM looks again — even far below the bar. The season roll itself is harder.", secondLook: 30, advBonus: -6 },
+    cardshark: { name: "The Card Shark", icon: "\u{1F0CF}", color: "#b07cff", tag: "Always has an ace", cat: "card", desc: "The post-game deck runs rich: rarer cards, bigger percentages. Gear drops come up plain.", flipRareMult: 2, flipPctMult: 1.25, gearRareMult: 0.5 },
+    collector: { name: "The Collector", icon: "\u{1F381}", color: "#c9963a", tag: "Every locker a treasure", cat: "card", desc: "Gear drops turn up rare or better twice as often — the post-game cards pay less.", gearRareMult: 2, flipPctMult: 0.6 },
+    zealot: { name: "The Zealot", icon: "\u{1F525}", color: "#ff7a3c", tag: "All in, every season", cat: "focus", desc: "The season's focus roll hits twice as hard — both ways.", focusMultAdd: 2 },
+    monk: { name: "The Monk", icon: "\u{1F9D8}", color: "#9fc7d8", tag: "Nothing shakes him", cat: "focus", desc: "A bad focus roll never raises his prices; a good one helps half as much.", focusNegMult: 0, focusPosMult: 0.5 },
+    wildcard: { name: "The Wildcard", icon: "\u{1F3B2}", color: "#ff5aa0", tag: "Anything can happen", cat: "variance", desc: "Every game rating swings wider and booms twice as often — the bad nights get worse too.", perfVarMult: 1.6, boomMult: 2 },
+    metronome: { name: "The Metronome", icon: "⚖️", color: "#a8b4c4", tag: "Same game, every game", cat: "variance", desc: "Half the swing in every game rating, and no boom games at all.", perfVarMult: 0.5, boomMult: 0 },
+    fieldgeneral: { name: "The Field General", icon: "\u{1F4CB}", color: "#3fa0c9", tag: "Runs the huddle", cat: "iq", desc: "His game plans click more often and the staff hands him more of the calls — brains over brawn.", planClick: 0.12, sayAdd: 0.2, startPhys: -6 },
+    oracle: { name: "The Oracle", icon: "\u{1F52E}", color: "#7d6cff", tag: "Sees it before it happens", cat: "iq", desc: "Reads the training program before it reads him, and starts with a veteran's eyes — his legend builds slower.", fateOdds: 0.2, startMental: 8, legacyXpMult: 0.85 },
+    showman: { name: "The Showman", icon: "\u{1F3AC}", color: "#ffb03b", tag: "Lives for the cameras", cat: "live", desc: "Shines when you watch: better ratings and bigger paychecks live. A simmed game barely pays.", watchPayMult: 1.5, livePerf: 4, simPayMult: 0.6 },
+    executive: { name: "The Executive", icon: "\u{1F4BC}", color: "#8aa0b8", tag: "Results, not reruns", cat: "live", desc: "Quick Play pays more and costs no Legacy XP; watching pays less.", simPayMult: 1.5, simXpCutMult: 0, watchPayMult: 0.75 },
+    specialist: { name: "The Specialist", icon: "\u{1F3AF}", color: "#e8463a", tag: "One craft, mastered", cat: "attr", desc: "His position's three key attributes grow far faster; everything else lags.", keyGrowthMult: 1.35, otherGrowthMult: 0.75 },
+    captain: { name: "The Captain", icon: "\u{1F6E1}️", color: "#d4af37", tag: "The team comes first", cat: "team", desc: "Lifts every teammate's rating — and spends the hours on them, not himself.", teamLift: 8, growthMult: 0.88 },
+    mercenary: { name: "The Mercenary", icon: "\u{1F4B0}", color: "#9c6b3a", tag: "Paid to win, not to share", cat: "team", desc: "Banks more from every career; the locker room plays worse around him.", ppMult: 1.3, teamLift: -6 }
   };
+  /* ===== v193 AD LEGENDS =====
+   * The owner: "Add 19 more unlockable legends (archetypes) with a detailed explanation of what they give. Ensure the
+   * current ones are working. There should be performance based, athletic based, luck based, card based, career focus
+   * based, variance based, IQ based, live game bonus based, attribute boost based, team based. Each unlock should occur
+   * naturally while playing the game long enough. Think 20 hours to unlock all options. These should change the way you
+   * approach a run."
+   * 24 Prestige Paths (`PATHS`, the old five first). Every effect key is read through `pathVal(key, default)` at a site
+   * the game already runs, so it is a no-op when its path is not the active one:
+   *   startAttr / startPhys / startMental / startSpeed / startStars / startPrestige  `newPlayer`
+   *   growthMult (now a real ×, every attribute; the old `ua` term was floored at 0 and diluted ×0.22) and
+   *     keyGrowthMult / otherGrowthMult (the position's three key attributes, `keyAttrsV178`)  `simSeason` + its preview
+   *     (`pathGrowthV193AD`); growthMult still moves the potential ceiling (`rawCeilingV179`, (g − 1) × 36)
+   *   perfVarMult / boomMult  `rollGamePerf`; perfAll / perfPlayoff / perfReg  its outermost layer (every game: a watched one is booked from
+   *     it and moved by the live grade); livePerf  `bookLiveGameV85` (watched games only)
+   *   watchPayMult / simPayMult  `payWeekV178`; simXpCutMult  `watchV164C`; legacyXpMult  `legacyPayV152` (a labelled part)
+   *   fatigueMult  `updateConditionAfterGame`; injuryMult (× `injNodeKV153B`)  `injNodeMulV153B`;
+   *     seasonEnderWeeks  `materializeInjuryV18`; extraSeasons  `maxSeasons`
+   *   wheelLuck  src/18 `rollOutcome` (the growth wheel); planClick  src/17 `decidePlan` (the game plan's click odds),
+   *     both through `window.ribPathValV193AD`; sayAdd  `sayV171`; fateOdds  `planFateOddsV124`; noFailDecisions
+   *     `rivalLockV128` (+ the old `state.path === "prodigy"` reads in `simSeason`)
+   *   focusMultAdd  `focusMultV193Z`; focusPosMult / focusNegMult  `focusTiltFromPctV193Z`
+   *   flipRareMult  `flipRarOddsV186`; flipPctMult  `flipPctMultV186` (one line each — the deck's internals are not
+   *     touched); gearRareMult  `rollGear`
+   *   secondLook / advBonus  `scoutBarV179` (the GM's second look, any distance from the bar) / `advanceChance`
+   *   teamLift  `teamLiftPctV190` (every teammate's OVR, sim and live); ppMult  the career payout
+   * The old five: Phenom / Magnate's slower growth was dead (floored at 0) and Grinder's "+25%" was +5.5% — growth is a
+   * real multiplier now; Prodigy's "never fails a decision" never reached the v128 locks — they open for him now;
+   * Ironman's "durability never limits you" read nothing — a season-ending injury costs him `seasonEnderWeeks` (4) games.
+   * Grinder (−3 start), Prodigy (−4 physical start) and Ironman (−5 Speed / Acceleration / Quickness) gain a trade-off
+   * (`PATH_FIX_V193AD`, live only with the switch on). Every number on screenPath is built from these keys
+   * (`pathLinesV193AD`), so a card cannot drift from the model.
+   * UNLOCKS. Each path has one milestone (`LEGEND_UNLOCKS_V193AD`) on a stat the save already keeps (medals, careers
+   * finished, titles, the best level) or a counter in `state.pathStatsV193AD` (seasons, games, watched games, focus
+   * rolls, injury comebacks, A seasons — counted at the season's end in `finishSeasonGames`, the focus roll in
+   * `focusAddV193Z`, a comeback in `healNoteV193W`). Unlocked keys live in `state.pathUnlocksV193AD`. The first time a save
+   * meets v193 AD (`legendStatsV193AD`) its seasons are counted from the Hall rows, and (at that boot, `legendKeepV193AD`) a save past the old
+   * medal gate keeps the old five; every save keeps its path. `legendCheckV193AD` records new unlocks (season end,
+   * every Legacy XP payment, boot, screenPath) with a NEW LEGEND UNLOCKED pop-up + `ribHaptic('success')`; screenPath
+   * shows locked legends greyed with the milestone, "7/12" and a bar; `choosePath` refuses a locked one.
+   * Kill switch `TU("v193AD", 1)` → 0: the old five, their old numbers and the old medal gate. `window.__V193AD`;
+   * `scripts/v193ADcheck.mjs`. */
+  function legendsOnV193AD() {
+    return !!TU("v193AD", 1) && !!TU("v156A", 1); /* the legends stand on the medals: v156 A off (the Honors look) is the old five too */
+  }
+  const PATH_OLD_V193AD = ["phenom", "grinder", "prodigy", "magnate", "ironman"];
+  /* the old five's v193 AD additions (live only with the switch on) */
+  const PATH_FIX_V193AD = {
+    phenom: { startAttr: 10 } /* the card said +18; `pathCap` paid +6 */,
+    grinder: { startAttr: -3, growthMult: 1.2 } /* "+25%": capped at 1.18, then diluted to ~+4% */,
+    prodigy: { startPhys: -4, noFailDecisions: 1, advBonus: 5 } /* "+8%": `pathCap` paid +5 */,
+    ironman: { startSpeed: -5, seasonEnderWeeks: 4 } /* injuryMult 0.3 is paid now (`pathCap` floored it at 0.55: −13.5%) */
+  };
+  /* what the old five said before (shown under the kill switch) */
+  const PATH_DESC_OLD_V193AD = {
+    phenom: "Start every career with a massive head start: +18 to all starting attributes and 5★ recruiting — but growth is slightly slower (you were already elite). Physical branch 25% cheaper.",
+    grinder: "Modest start, but +25% attribute growth every season and +2 upgrade points per year. You get better than anyone the longer you play. Camps branch 25% cheaper.",
+    prodigy: "Never fails an in-season decision, doubles combine gains, and advance odds get a permanent +8% boost. The smartest player on every field. Mental branch 25% cheaper.",
+    magnate: "+60% Prestige Points from every career and start each run with +3 prestige. Slower on the field, but your legacy compounds fastest. Legacy branch 25% cheaper.",
+    ironman: "Tougher than most (−21% injury — nobody is injury-proof), +2 season attempts at every level, and durability never limits you. Longevity wins championships. Body branch 25% cheaper."
+  };
+  const PHYS_ATTRS_V193AD = ["speed", "acceleration", "quickness", "agility", "strength", "jumping"],
+    MENTAL_ATTRS_V193AD = ["awareness", "vision", "discipline"],
+    SPEED_ATTRS_V193AD = ["speed", "acceleration", "quickness"];
+  function pathKeysV193AD() {
+    return legendsOnV193AD() ? Object.keys(PATHS) : PATH_OLD_V193AD.slice();
+  }
   function currentPath() {
-    return state.path ? PATHS[state.path] : null;
+    const k = state && state.path;
+    if (!k || !PATHS[k]) return null;
+    if (!legendsOnV193AD() && PATH_OLD_V193AD.indexOf(k) < 0) return null; /* the kill switch: a new legend sleeps */
+    return PATHS[k];
+  }
+  /* a path's effect keys as they stand (its v193 AD additions merged in while the switch is on) */
+  function pathFxV193AD(k) {
+    const P = PATHS[k];
+    if (!P) return null;
+    return legendsOnV193AD() && PATH_FIX_V193AD[k] ? Object.assign({}, P, PATH_FIX_V193AD[k]) : P;
   }
   function pathVal(e, t) {
     const a = currentPath();
-    return a && a[e] != null ? a[e] : t || 0;
+    if (!a) return t || 0;
+    const o = legendsOnV193AD() && PATH_FIX_V193AD[state.path];
+    if (o && o[e] != null) return o[e];
+    return a[e] != null ? a[e] : t || 0;
   }
+  window.ribPathValV193AD = (k, d) => {
+    try {
+      return pathVal(k, d);
+    } catch (_) {
+      return d || 0;
+    }
+  };
+  /* the season's attribute growth, per attribute: growthMult × (key / other) — 1 with the switch off */
+  function pathGrowthV193AD(e, k) {
+    if (!legendsOnV193AD() || !currentPath()) return 1;
+    let m = pathVal("growthMult", 1);
+    const kg = pathVal("keyGrowthMult", 1),
+      og = pathVal("otherGrowthMult", 1);
+    if (kg !== 1 || og !== 1) {
+      let keys = [];
+      try {
+        keys = keyAttrsV178(e);
+      } catch (_) {}
+      m *= keys.indexOf(k) >= 0 ? kg : og;
+    }
+    return Math.max(0, m);
+  }
+  /* the old `ua` term (growthMult − 1, floored at 0, × 0.22) — gone while the switch is on (the real multiplier replaces it) */
+  function pathUaV193AD() {
+    return legendsOnV193AD() ? 0 : Math.max(0, pathVal("growthMult", 1) - 1);
+  }
+  /* the potential-ceiling share a path carries (the sum `rawCeilingV179` adds) */
+  function pathCeilOfV193AD(k) {
+    const P = pathFxV193AD(k);
+    return P ? ((P.growthMult != null ? P.growthMult : 1) - 1) * 36 + (k === "phenom" ? 30 : 0) : 0;
+  }
+  const PATH_CATS_V193AD = {
+    performance: { name: "Performance", icon: "\u{1F4C8}" },
+    athletic: { name: "Athletic", icon: "\u{1F3C3}" },
+    luck: { name: "Luck", icon: "\u{1F340}" },
+    card: { name: "Cards & Gear", icon: "\u{1F0CF}" },
+    focus: { name: "Career Focus", icon: "\u{1F3AF}" },
+    variance: { name: "Variance", icon: "\u{1F3B2}" },
+    iq: { name: "Football IQ", icon: "\u{1F9E0}" },
+    live: { name: "Live Game", icon: "\u{1F3AC}" },
+    attr: { name: "Attribute Boost", icon: "\u{1F4AA}" },
+    team: { name: "Team", icon: "\u{1F465}" },
+    career: { name: "Career & Legacy", icon: "\u{1F451}" }
+  };
+  const PATH_CAT_OLD_V193AD = { phenom: "attr", grinder: "attr", prodigy: "iq", magnate: "career", ironman: "athletic" };
+  function pathCatV193AD(k) {
+    const P = PATHS[k];
+    return (P && P.cat) || PATH_CAT_OLD_V193AD[k] || "career";
+  }
+  /* every effect with its real number, read off the keys — `up` the upside, `down` the trade-off */
+  function pathLinesV193AD(k) {
+    const P = pathFxV193AD(k),
+      up = [],
+      down = [];
+    if (!P) return { up, down };
+    const add = (good, txt) => (good ? up : down).push(txt),
+      sg = v => (v > 0 ? "+" : "−") + Math.abs(Math.round(v * 10) / 10),
+      pc = v => (v > 0 ? "+" : "−") + Math.abs(Math.round(v * 100)) + "%",
+      has = key => P[key] != null && P[key] !== 0;
+    has("startAttr") && add(P.startAttr > 0, `${sg(P.startAttr)} to every starting attribute`);
+    has("startPhys") && add(P.startPhys > 0, `${sg(P.startPhys)} to starting Speed, Acceleration, Quickness, Agility, Strength and Jumping`);
+    has("startSpeed") && add(P.startSpeed > 0, `${sg(P.startSpeed)} to starting Speed, Acceleration and Quickness`);
+    has("startMental") && add(P.startMental > 0, `${sg(P.startMental)} to starting Awareness, Vision and Discipline`);
+    has("startStars") && add(!0, `Recruited as a ${P.startStars}★ prospect at worst`);
+    has("startPrestige") && add(!0, `+${P.startPrestige} prestige counted when a career starts (≈ ${sg(P.startPrestige * 0.55)} to every starting attribute)`);
+    P.growthMult != null && P.growthMult !== 1 && add(P.growthMult > 1, `${pc(P.growthMult - 1)} attribute growth every season`);
+    const ceil = Math.round(pathCeilOfV193AD(k));
+    ceil && add(ceil > 0, `${sg(ceil)} potential ceiling (how high attributes can grow)`);
+    P.keyGrowthMult && P.keyGrowthMult !== 1 && add(P.keyGrowthMult > 1, `${pc(P.keyGrowthMult - 1)} growth on your position's three key attributes`);
+    P.otherGrowthMult && P.otherGrowthMult !== 1 && add(P.otherGrowthMult > 1, `${pc(P.otherGrowthMult - 1)} growth on every other attribute`);
+    has("bonusPoints") && add(P.bonusPoints > 0, `${sg(P.bonusPoints)} upgrade points a season (a slice every game; a watched game pays it ×${TU("watchPayV178", 2)})`);
+    has("perfAll") && add(P.perfAll > 0, `${sg(P.perfAll)} to your game rating in every game`);
+    has("perfPlayoff") && add(P.perfPlayoff > 0, `${sg(P.perfPlayoff)} to your game rating in every playoff and championship game`);
+    has("perfReg") && add(P.perfReg > 0, `${sg(P.perfReg)} to your game rating in every regular-season game`);
+    has("livePerf") && add(P.livePerf > 0, `${sg(P.livePerf)} to your game rating in every game you watch live`);
+    P.perfVarMult != null && P.perfVarMult !== 1 && add(P.perfVarMult < 1, `The random swing in every game rating ×${P.perfVarMult} (±${Math.round(15 * P.perfVarMult)} instead of ±15)`);
+    P.boomMult != null && P.boomMult !== 1 && add(P.boomMult > 1, P.boomMult ? `Boom games (×1.5 rating) ×${P.boomMult} as likely` : "No boom games (the ×1.5 rating night never comes)");
+    P.watchPayMult != null && P.watchPayMult !== 1 && add(P.watchPayMult > 1, `A watched game's points ×${P.watchPayMult} (×${+(TU("watchPayV178", 2) * P.watchPayMult).toFixed(2)} in all)`);
+    P.simPayMult != null && P.simPayMult !== 1 && add(P.simPayMult > 1, `A simmed game's points ×${P.simPayMult}`);
+    P.simXpCutMult != null && P.simXpCutMult !== 1 && add(P.simXpCutMult < 1, P.simXpCutMult ? `Simmed seasons lose ${Math.round(TU("simXpCutV164C", 0.15) * P.simXpCutMult * 100)}% Legacy XP (not ${Math.round(TU("simXpCutV164C", 0.15) * 100)}%)` : `Simmed seasons lose no Legacy XP (it was −${Math.round(TU("simXpCutV164C", 0.15) * 100)}%)`);
+    P.legacyXpMult != null && P.legacyXpMult !== 1 && add(P.legacyXpMult > 1, `${pc(P.legacyXpMult - 1)} Legacy XP (medals come ${P.legacyXpMult > 1 ? "faster" : "slower"})`);
+    has("advBonus") && add(P.advBonus > 0, `${sg(P.advBonus)}% on the season's advance / declare odds (the national-rank floor still holds)`);
+    has("secondLook") && add(!0, `The GM's second look: +${P.secondLook}% on every barred declare the scouts turn down — at any distance from the bar (it was only within 80% of it)`);
+    has("extraSeasons") && add(!0, `+${P.extraSeasons} seasons allowed at every level`);
+    if (P.injuryMult != null && P.injuryMult !== 1) {
+      const m = 1 - (1 - P.injuryMult) * injNodeKV153B();
+      add(m < 1, `${pc(m - 1)} injury chance`);
+    }
+    has("seasonEnderWeeks") && add(!0, `A season-ending injury never ends his season — he is back in ${P.seasonEnderWeeks} games`);
+    has("fatigueMult") && add(P.fatigueMult < 1, `${pc(P.fatigueMult - 1)} fatigue from every game (fresher legs, a better game-day rating)`);
+    if (k === "prodigy") {
+      legendsOnV193AD() && P.noFailDecisions && add(!0, "Every season-event option is open — the attribute requirements are waived, and none backfires");
+      add(!0, "Combine prep gains ×2");
+      add(!0, "+5% on the training program's fate roll");
+    }
+    has("fateOdds") && add(!0, `+${Math.round(P.fateOdds * 100)}% on the training program's fate roll (a hit waives the program's cost)`);
+    has("planClick") && add(P.planClick > 0, `+${Math.round(P.planClick * 100)}% on every game plan's "it clicks" odds`);
+    has("sayAdd") && add(P.sayAdd > 0, `+${Math.round(P.sayAdd * 100)}% say with the staff (more matchup calls on the table, each run harder)`);
+    has("wheelLuck") && add(P.wheelLuck > 0, `+${Math.round(P.wheelLuck * 100)}% on every growth-wheel roll's "it pays" odds (season commitments and crossroads)`);
+    has("focusMultAdd") && add(!0, `The season's focus-roll tilt ×${TU("focusTiltMultV193Z", 2) + P.focusMultAdd} instead of ×${TU("focusTiltMultV193Z", 2)} — a good roll cheapens those stats twice as much`);
+    has("focusMultAdd") && add(!1, `…and a bad roll raises their prices ×${(TU("focusTiltMultV193Z", 2) + P.focusMultAdd) / TU("focusTiltMultV193Z", 2)} as much too`);
+    P.focusNegMult != null && P.focusNegMult !== 1 && add(!0, P.focusNegMult ? `A bad focus roll's price rise ×${P.focusNegMult}` : "A bad focus roll never raises a price");
+    P.focusPosMult != null && P.focusPosMult !== 1 && add(P.focusPosMult > 1, `A good focus roll's discount ×${P.focusPosMult}`);
+    P.flipRareMult != null && P.flipRareMult !== 1 && add(P.flipRareMult > 1, `Rare, epic and legendary post-game cards ×${P.flipRareMult} as likely`);
+    P.flipPctMult != null && P.flipPctMult !== 1 && add(P.flipPctMult > 1, `Every post-game card's percentage ×${P.flipPctMult}`);
+    P.gearRareMult != null && P.gearRareMult !== 1 && add(P.gearRareMult > 1, `Gear drops roll rare or better ×${P.gearRareMult} as often`);
+    has("teamLift") && add(P.teamLift > 0, `${sg(P.teamLift)}% to every teammate's OVR (the simmed game and the watched one)`);
+    P.ppMult != null && P.ppMult !== 1 && add(P.ppMult > 1, `${pc(P.ppMult - 1)} Prestige Points from every career payout`);
+    P.cheapBranch && TREE[P.cheapBranch] && add(!0, `${TREE[P.cheapBranch].name} branch nodes 25% cheaper`);
+    return { up, down };
+  }
+  /* ---- the unlocks ---- */
+  /* [stat, count]: every path's one milestone, in the order a run reaches them. Paced at ~9 min a season, from
+   * `careersim --until none` (~12 seasons and ~10 games a season a career, ~13 medals a career early, 87 by season 115):
+   * the hour beside each is that estimate (docs/CHANGELOG.md v193 AD has the table). Phenom and Grinder keep the old
+   * v156 A gate (12 medals) as their milestone. */
+  const LEGEND_UNLOCKS_V193AD = {
+    natural: ["seasons", 3] /* ~0.5 h */,
+    showman: ["watched", 15] /* ~0.5–1 h (the playoffs are always watched) */,
+    phenom: ["medals", 12] /* ~1.5 h */,
+    grinder: ["medals", 12] /* ~1.5 h */,
+    ironman: ["careers", 1] /* ~1.7 h */,
+    closer: ["titles", 3] /* ~2.5 h */,
+    lucky: ["focus", 60] /* ~2.5 h (a commitment and 2–3 crossroads a season) */,
+    fieldgeneral: ["level", 4] /* Varsity, ~3 h */,
+    prodigy: ["medals", 25] /* ~3.5 h */,
+    magnate: ["careers", 2] /* ~3.6 h */,
+    cardshark: ["games", 250] /* ~3.8 h */,
+    engine: ["comebacks", 5] /* ~4–5 h */,
+    captain: ["level", 5] /* College, ~5 h */,
+    wildcard: ["medals", 45] /* ~6.5 h */,
+    executive: ["careers", 4] /* ~7 h */,
+    metronome: ["seasons", 55] /* ~8 h */,
+    zealot: ["focus", 200] /* ~8.5 h */,
+    oracle: ["aSeasons", 10] /* ~9 h */,
+    collector: ["games", 700] /* ~10.5 h */,
+    freak: ["level", 6] /* the Combine, ~11–13 h */,
+    mercenary: ["uff", 1] /* the UFF, ~12–18 h */,
+    monk: ["medals", 80] /* ~15 h */,
+    specialist: ["careers", 8] /* ~15 h */,
+    longshot: ["seasons", 130] /* ~19.5 h */
+  };
+  function legendCountOfV193AD(k) {
+    const C = legendStatsV193AD();
+    return C ? Math.max(0, +C[k] || 0) : 0;
+  }
+  const LEGEND_STATS_V193AD = {
+    seasons: { say: n => `Play ${n} season${n === 1 ? "" : "s"}`, get: () => legendCountOfV193AD("seasons") },
+    games: { say: n => `Play ${n} games`, get: () => legendCountOfV193AD("games") },
+    watched: { say: n => `Watch ${n} games live`, get: () => legendCountOfV193AD("watched") },
+    focus: { say: n => `Take ${n} focus rolls (season commitments and crossroads)`, get: () => legendCountOfV193AD("focus") },
+    comebacks: { say: n => `Come back from ${n} injuries`, get: () => legendCountOfV193AD("comebacks") },
+    aSeasons: { say: n => `Earn an A grade or better in ${n} seasons`, get: () => legendCountOfV193AD("aSeasons") },
+    medals: { say: n => `Reach ${MEDAL_ICON_V156A} ${n} medals`, get: () => medalsV156A() },
+    careers: { say: n => `Finish ${n} career${n === 1 ? "" : "s"}`, get: () => (state && state.careersCompleted) | 0 },
+    titles: { say: n => `Win ${n} championship${n === 1 ? "" : "s"} (any level)`, get: () => (state && state.titlesWon) | 0 },
+    level: { say: n => `Reach ${(LEVELS[n] || {}).name || "level " + n}`, get: () => (state && state.bestLevel) | 0, show: v => "best: " + ((LEVELS[v] || {}).name || "—") },
+    uff: { say: () => "Reach the UFF", get: () => (state && state.nflReached) | 0 }
+  };
+  /* the counters; the first read on a save seeds them from what it already holds */
+  function legendStatsV193AD() {
+    if (typeof state > "u" || !state) return null;
+    let C = state.pathStatsV193AD;
+    if (C && typeof C === "object") return C;
+    let seasons = 0;
+    try {
+      (state.hof || []).forEach(h => (seasons += Math.max(0, h && h.seasons | 0)));
+      state.player && !state.player._settled && (seasons += Math.max(0, state.player.totalSeasons | 0));
+    } catch (_) {}
+    /* an old save: its seasons from the Hall (≤ 60 rows) + the live career; ~9 games and ~3 focus rolls a season; nothing else is known */
+    C = state.pathStatsV193AD = { seasons, games: seasons * 9, watched: 0, focus: seasons * 3, comebacks: 0, aSeasons: 0, at: Date.now() };
+    C.keep = 0; /* the old gate is read once, at the boot (`legendKeepV193AD`, after the medals are mirrored) */
+    try {
+      const U = state.pathUnlocksV193AD || (state.pathUnlocksV193AD = {});
+      state.path && PATHS[state.path] && !U[state.path] && (U[state.path] = { at: Date.now(), how: "kept" });
+    } catch (_) {}
+    return C;
+  }
+  /* the old gate: a save that had passed it when it first met v193 AD keeps the old five, and whatever path it chose */
+  function legendKeepV193AD() {
+    const C = legendStatsV193AD();
+    if (!C || C.keep) return;
+    C.keep = 1;
+    try {
+      const U = state.pathUnlocksV193AD || (state.pathUnlocksV193AD = {});
+      if (oldGateV193AD()) PATH_OLD_V193AD.forEach(k => U[k] || (U[k] = { at: Date.now(), how: "kept" }));
+      state.path && PATHS[state.path] && !U[state.path] && (U[state.path] = { at: Date.now(), how: "kept" });
+    } catch (_) {}
+  }
+  function oldGateV193AD() {
+    try {
+      return medalsOnV156A() ? medalsV156A() >= pathMedalsV156A() : (state.prestige || 0) >= PATH_HONORS;
+    } catch (_) {
+      return !1;
+    }
+  }
+  function legendUnlocksV193AD() {
+    if (typeof state > "u" || !state) return {};
+    legendStatsV193AD();
+    const U = state.pathUnlocksV193AD;
+    return U && typeof U === "object" ? U : (state.pathUnlocksV193AD = {});
+  }
+  function legendCountV193AD(k, n) {
+    const C = legendStatsV193AD();
+    C && (C[k] = Math.max(0, (+C[k] || 0) + (n == null ? 1 : +n || 0)));
+  }
+  /* the milestone: { stat, need, have, frac, say, prog } */
+  function legendReqV193AD(k) {
+    const u = LEGEND_UNLOCKS_V193AD[k];
+    if (!u) return null;
+    const st = LEGEND_STATS_V193AD[u[0]];
+    let have = 0;
+    try {
+      have = st.get();
+    } catch (_) {}
+    const need = u[1],
+      frac = need > 0 ? Math.max(0, Math.min(1, have / need)) : 1;
+    return { stat: u[0], need, have, frac, met: have >= need, say: st.say(need), prog: st.show ? st.show(have) : `${Math.min(have, need).toLocaleString("en-US")}/${need.toLocaleString("en-US")}` };
+  }
+  function pathUnlockedV193AD(k) {
+    if (!PATHS[k]) return !1;
+    if (!legendsOnV193AD()) return PATH_OLD_V193AD.indexOf(k) >= 0 && oldGateV193AD();
+    const U = legendUnlocksV193AD();
+    if (U[k] || state.path === k) return !0;
+    const r = legendReqV193AD(k);
+    return !!(r && r.met);
+  }
+  /* records every milestone met since the last look; `quiet` records without the pop-up */
+  function legendCheckV193AD(quiet) {
+    if (!legendsOnV193AD() || typeof state > "u" || !state) return [];
+    const U = legendUnlocksV193AD(),
+      fresh = [];
+    for (const k of Object.keys(PATHS)) {
+      if (U[k]) continue;
+      const r = legendReqV193AD(k);
+      if (state.path === k || (r && r.met)) {
+        U[k] = { at: Date.now(), how: state.path === k ? "kept" : r.stat };
+        fresh.push(k);
+      }
+    }
+    if (fresh.length) {
+      state.legendNewV193AD = (state.legendNewV193AD || []).concat(fresh).slice(-24);
+      quiet || legendPopV193AD(fresh);
+    }
+    return fresh;
+  }
+  /* the season's end (`finishSeasonGames`, before the week rows are cleared): seasons, games, watched games, an A */
+  function legendSeasonV193AD(e, t) {
+    try {
+      if (!e) return;
+      const ws = (e.weekResults || []).filter(w => w && w.played && !w.satOut);
+      legendCountV193AD("seasons");
+      legendCountV193AD("games", ws.length);
+      legendCountV193AD("watched", ws.filter(w => w.liveBookedV85).length);
+      const g = String((t && t.grade && t.grade.grade) || (t && t.grade) || "");
+      /^A/.test(g) && legendCountV193AD("aSeasons");
+      legendCheckV193AD();
+    } catch (_) {}
+  }
+  /* a season commitment or a crossroads resolved (src/18 → `focusAddV193Z`) */
+  function legendFocusV193AD(out) {
+    try {
+      const ctx = String((out && out.ctx) || "");
+      (ctx === "season" || /^inseason/.test(ctx)) && legendCountV193AD("focus");
+    } catch (_) {}
+  }
+  /* back from an injury (not a knock) */
+  function legendComebackV193AD(inj) {
+    try {
+      if (!inj || inj.knock || inj.resting) return; /* a knock or a planned rest is no comeback */
+      legendCountV193AD("comebacks");
+      legendCheckV193AD();
+    } catch (_) {}
+  }
+  /* NEW LEGEND UNLOCKED: a pop-up that never takes a tap (pointer-events none), the haptic, a toast */
+  function legendPopV193AD(keys) {
+    try {
+      if (!keys || !keys.length || typeof document > "u") return;
+      const P = PATHS[keys[0]],
+        more = keys.length - 1;
+      V193AD.popped.push(keys.slice());
+      try {
+        window.ribHaptic && window.ribHaptic("success");
+      } catch (_) {}
+      try {
+        byId("toast") && showToast("\u{1F31F} NEW LEGEND UNLOCKED — " + P.name + (more > 0 ? " (+" + more + " more)" : ""));
+      } catch (_) {}
+      if (!document.body) return;
+      legendCssV193AD();
+      document.getElementById("legendPopV193AD")?.remove();
+      const el = document.createElement("div");
+      el.id = "legendPopV193AD";
+      el.className = "legend-pop-v193ad";
+      el.setAttribute("role", "status");
+      el.innerHTML = `<div class="lp-k">\u{1F31F} NEW LEGEND UNLOCKED</div><div class="lp-row"><span class="lp-ic">${artV193Y(P.icon, 34, P.color)}</span><div><b style="color:${P.color}">${escHtml(P.name)}</b><small>“${escHtml(P.tag)}”${more > 0 ? ` · +${more} more` : ""}</small></div></div><div class="lp-go">Choose it from the Prestige Tree → Path</div>`;
+      document.body.appendChild(el);
+      setTimeout(() => el.isConnected && el.classList.add("gone"), TU("legendPopMsV193AD", 3600));
+      setTimeout(() => el.isConnected && el.remove(), TU("legendPopMsV193AD", 3600) + 500);
+    } catch (_) {}
+  }
+  const V193AD = { popped: [] };
+  function legendCssV193AD() {
+    if (document.getElementById("legendCssV193AD")) return;
+    const st = document.createElement("style");
+    st.id = "legendCssV193AD";
+    st.textContent = `.legend-pop-v193ad{position:fixed;left:50%;top:calc(12px + env(safe-area-inset-top,0px));transform:translateX(-50%);z-index:99980;width:min(92vw,380px);box-sizing:border-box;padding:12px 14px;border-radius:14px;background:linear-gradient(180deg,#1b2233,#0e131d);border:1px solid var(--gold,#f0bb45);box-shadow:0 10px 30px rgba(0,0,0,.55);pointer-events:none;animation:lpIn .45s cubic-bezier(.3,1.5,.5,1);transition:opacity .45s,transform .45s}
+.legend-pop-v193ad.gone{opacity:0;transform:translate(-50%,-12px)}
+.legend-pop-v193ad .lp-k{font:700 12px Oswald,sans-serif;letter-spacing:3px;color:var(--gold,#f0bb45);text-align:center;margin-bottom:6px}
+.legend-pop-v193ad .lp-row{display:flex;align-items:center;gap:10px}
+.legend-pop-v193ad .lp-ic{font-size:30px;line-height:1;flex:none}
+.legend-pop-v193ad b{display:block;font:700 19px Oswald,sans-serif}
+.legend-pop-v193ad small{display:block;font:500 13px 'Barlow Condensed',sans-serif;color:var(--chalk-dim,#aab)}
+.legend-pop-v193ad .lp-go{font:500 12px 'Barlow Condensed',sans-serif;color:var(--chalk-dim,#aab);text-align:center;margin-top:6px}
+@keyframes lpIn{from{opacity:0;transform:translate(-50%,-16px) scale(.92)}to{opacity:1;transform:translate(-50%,0) scale(1)}}
+.legend-cat-v193ad{font:700 11px Oswald,sans-serif;letter-spacing:2px;color:var(--chalk-dim);margin:16px 2px 6px;display:flex;align-items:center;gap:6px}
+.legend-card-v193ad,.legend-card-v193ad.pos-card{display:block;position:relative;padding:12px;border-radius:12px;border:1px solid var(--line,rgba(255,255,255,.12));background:rgba(255,255,255,.03);margin-bottom:8px;min-width:0;cursor:pointer;-webkit-tap-highlight-color:transparent}
+.legend-card-v193ad.on{border-color:var(--lc);background:color-mix(in srgb,var(--lc) 12%,transparent)}
+.legend-card-v193ad.locked{cursor:default}
+.legend-card-v193ad.locked .lg-head,.legend-card-v193ad.locked .lg-fx{opacity:.5;filter:grayscale(.85)}
+.legend-card-v193ad .lg-head{display:flex;align-items:center;gap:10px;min-width:0}
+.legend-card-v193ad .lg-ic{flex:none;font-size:30px;line-height:1;width:38px;text-align:center}
+.legend-card-v193ad .lg-name{font:700 18px Oswald,sans-serif;line-height:1.15;overflow-wrap:anywhere}
+.legend-card-v193ad .lg-tag{font:italic 500 14px 'Barlow Condensed',sans-serif;color:var(--chalk-dim)}
+.legend-card-v193ad .lg-sum{font:500 14px 'Barlow Condensed',sans-serif;color:var(--chalk);margin:6px 0 0;line-height:1.3}
+.legend-card-v193ad .lg-fx{margin:8px 0 0;padding:0;list-style:none;font:500 14px 'Barlow Condensed',sans-serif;line-height:1.3}
+.legend-card-v193ad .lg-fx li{display:flex;gap:6px;margin:3px 0;overflow-wrap:anywhere;min-width:0}
+.legend-card-v193ad .lg-fx li i{font-style:normal;flex:none;width:14px;text-align:center}
+.legend-card-v193ad .lg-fx li.up i{color:#57e07a}
+.legend-card-v193ad .lg-fx li.dn i{color:#ff8a80}
+.legend-card-v193ad .lg-fx .lg-to{font:700 11px Oswald,sans-serif;letter-spacing:2px;color:#ff8a80;margin-top:6px}
+.legend-card-v193ad .lg-lock{margin-top:8px;font:600 14px 'Barlow Condensed',sans-serif;color:var(--chalk)}
+.legend-card-v193ad .lg-bar{height:8px;border-radius:4px;background:rgba(255,255,255,.1);overflow:hidden;margin-top:5px}
+.legend-card-v193ad .lg-bar i{display:block;height:100%;background:linear-gradient(90deg,#5ab0ff,var(--gold,#f0bb45))}
+.legend-card-v193ad .lg-badge{font:700 10px Oswald,sans-serif;letter-spacing:1px;padding:2px 6px;border-radius:6px;margin-left:6px;vertical-align:middle}
+.legend-card-v193ad .lg-badge.act{background:var(--lc);color:#111}
+.legend-card-v193ad .lg-badge.new{background:#57e07a;color:#111}
+.legend-card-v193ad .lg-badge.lk{background:rgba(255,255,255,.12);color:var(--chalk-dim)}
+.legend-sum-v193ad{display:flex;flex-wrap:wrap;gap:6px 12px;align-items:center;font:600 14px 'Barlow Condensed',sans-serif;color:var(--chalk-dim);margin-top:8px}
+.legend-sum-v193ad .lg-bar{flex:1 1 140px;height:8px;border-radius:4px;background:rgba(255,255,255,.1);overflow:hidden}
+.legend-sum-v193ad .lg-bar i{display:block;height:100%;background:linear-gradient(90deg,#5ab0ff,var(--gold,#f0bb45))}`;
+    document.head.appendChild(st);
+  }
+  /* one legend's card: the head, the tag, the summary, every effect, the trade-off, the lock */
+  function legendCardV193AD(k, chosen) {
+    const P = PATHS[k],
+      L = pathLinesV193AD(k),
+      un = pathUnlockedV193AD(k),
+      on = chosen === k,
+      isNew = un && (state.legendNewV193AD || []).indexOf(k) >= 0,
+      r = un ? null : legendReqV193AD(k),
+      fx = `<ul class="lg-fx">${L.up.map(x => `<li class="up"><i>✓</i><span>${x}</span></li>`).join("")}${L.down.length ? `<li class="lg-to">TRADE-OFF</li>${L.down.map(x => `<li class="dn"><i>✗</i><span>${x}</span></li>`).join("")}` : ""}</ul>`;
+    return `<div class="legend-card-v193ad pos-card ${on ? "on best" : ""} ${un ? "" : "locked"}" data-path="${k}" style="--lc:${P.color}" ${un ? `onclick="choosePath('${k}')"` : `onclick="legendLockedV193AD('${k}')"`}>
+      <div class="lg-head"><span class="lg-ic">${artV193Y(P.icon, 34, P.color)}</span><div style="min-width:0"><div class="lg-name" style="color:${P.color}">${escHtml(P.name)}${on ? '<span class="lg-badge act">ACTIVE</span>' : ""}${isNew && !on ? '<span class="lg-badge new">NEW</span>' : ""}${un ? "" : '<span class="lg-badge lk">\u{1F512} LOCKED</span>'}</div><div class="lg-tag">“${escHtml(P.tag)}”</div></div></div>
+      <div class="lg-sum">${escHtml(P.desc || "")}</div>
+      ${fx}
+      ${r ? `<div class="lg-lock">\u{1F512} ${escHtml(r.say)} — ${escHtml(r.prog)}<div class="lg-bar"><i style="width:${Math.round(r.frac * 100)}%"></i></div></div>` : ""}
+    </div>`;
+  }
+  function legendLockedV193AD(k) {
+    const r = legendReqV193AD(k);
+    showToast("\u{1F512} " + ((PATHS[k] && PATHS[k].name) || "Locked") + " — " + (r ? r.say + " (" + r.prog + ")" : "locked"));
+    try {
+      window.ribHaptic && window.ribHaptic("warning");
+    } catch (_) {}
+  }
+  /* screenPath, v193 AD: the summary, then every category's legends (unlocked first within it) */
+  function screenPathV193AD() {
+    legendCheckV193AD();
+    legendCssV193AD();
+    const t = state.path,
+      keys = Object.keys(PATHS),
+      n = keys.filter(k => pathUnlockedV193AD(k)).length,
+      order = Object.keys(PATH_CATS_V193AD),
+      cats = order.filter(c => keys.some(k => pathCatV193AD(k) === c));
+    const sw = medalsOnV156A() ? " for " + pathSwitchCostV156A() + " PP (a quarter of your balance, at least 50)" : " for a Legacy Reset cost";
+    byId("screen").innerHTML = `
+    <div class="eyebrow">Prestige Path · Permanent Archetype</div>
+    <div class="h1">Choose Your Legend</div>
+    <div class="sub">${n ? "Commit to a legend that reshapes every future career — each one is a different way to play a run. You can switch later" + sw + "." : "Legends unlock as you play — seasons, careers, medals, titles, the levels you reach. Every locked card says what it takes."} Tap a card to commit.</div>
+    <div class="legend-sum-v193ad"><span>\u{1F31F} <b style="color:var(--gold)">${n}</b> of ${keys.length} legends unlocked</span><span class="lg-bar"><i style="width:${Math.round((n / keys.length) * 100)}%"></i></span></div>
+    ${cats
+      .map(c => {
+        const ks = keys.filter(k => pathCatV193AD(k) === c).sort((a, b) => (pathUnlockedV193AD(b) ? 1 : 0) - (pathUnlockedV193AD(a) ? 1 : 0));
+        return `<div class="legend-cat-v193ad">${artV193Y(PATH_CATS_V193AD[c].icon, 16)} ${PATH_CATS_V193AD[c].name.toUpperCase()}</div>${ks.map(k => legendCardV193AD(k, t)).join("")}`;
+      })
+      .join("")}
+  `;
+    byId("dock").innerHTML = `<button class="btn secondary" onclick="go('shop')">Back to Prestige Tree</button>`;
+    /* seen: the NEW badges clear on the next visit */
+    state.legendNewV193AD = [];
+  }
+  /* the Legacy XP a legend pays (`legacyPayV152` adds it as a labelled part) */
+  function legendXpMultV193AD() {
+    return Math.max(0, pathVal("legacyXpMult", 1));
+  }
+  function legendBootV193AD() {
+    try {
+      legendsOnV193AD() && (legendKeepV193AD(), legendCheckV193AD(!0));
+    } catch (_) {}
+  }
+  /* the Prestige Tree's dock button */
+  function legendDockV193AD() {
+    const keys = Object.keys(PATHS),
+      n = keys.filter(k => pathUnlockedV193AD(k)).length,
+      P = state.path && PATHS[state.path];
+    return P ? `${P.icon} ${P.name} · ${n}/${keys.length}` : n ? `⚡ Choose Your Legend · ${n}/${keys.length}` : `\u{1F512} Legends · 0/${keys.length}`;
+  }
+  /* the nearest locked milestone (the hub / coach can quote it) */
+  function legendNextV193AD() {
+    let best = null;
+    Object.keys(PATHS).forEach(k => {
+      if (pathUnlockedV193AD(k)) return;
+      const r = legendReqV193AD(k);
+      r && (!best || r.frac > best.r.frac) && (best = { k, r });
+    });
+    return best;
+  }
+  window.legendLockedV193AD = legendLockedV193AD;
+  window.__V193AD = {
+    on: legendsOnV193AD,
+    keys: () => Object.keys(PATHS),
+    old: PATH_OLD_V193AD.slice(),
+    path: k => pathFxV193AD(k),
+    cat: pathCatV193AD,
+    cats: () => Object.assign({}, PATH_CATS_V193AD),
+    lines: pathLinesV193AD,
+    unlocks: () => JSON.parse(JSON.stringify(LEGEND_UNLOCKS_V193AD)),
+    req: legendReqV193AD,
+    unlocked: pathUnlockedV193AD,
+    check: q => legendCheckV193AD(q),
+    stats: () => legendStatsV193AD(),
+    count: (k, n) => legendCountV193AD(k, n),
+    next: legendNextV193AD,
+    val: (k, d) => pathVal(k, d),
+    growth: (e, k) => pathGrowthV193AD(e || (state && state.player), k),
+    popped: V193AD.popped,
+    /* dev/checks: each reader, sampled as the game runs it (clones where the reader writes) */
+    probe: {
+      perf: (e, opts) => rollGamePerf(e, 0, opts || {}),
+      fatigue: (e, plan) => {
+        const c = JSON.parse(JSON.stringify(e));
+        return updateConditionAfterGame(c, { snaps: 40, perf: 60, week: 1, opp: "probe" }, plan || "disciplined", null).fatigueDelta;
+      },
+      flipOdds: () => flipRarOddsV186(),
+      flipPct: () => flipPctMultV186(),
+      gear: () => rollGear(0).rarity,
+      scout: e => scoutBarV179(e || state.player),
+      say: e => sayV171(e || state.player),
+      fate: k => planFateOddsV124(k),
+      fateKeys: () => Object.keys(PLAN_FATE_V124),
+      tilt: pct => focusTiltFromPctV193Z(pct),
+      pay: (e, w, watched) => payWeekV178(JSON.parse(JSON.stringify(e)), JSON.parse(JSON.stringify(Object.assign({}, w, { payV178: null }))), { watched: !!watched }),
+      watch: e => watchV164C(e || state.player),
+      team: e => teamPairV76(e || state.player, {}).us,
+      teamLift: () => teamLiftPctV190(),
+      xp: () => legendXpMultV193AD(),
+      lock: (eff, e) => rivalLockV128(eff, e || state.player),
+      maxSeasons: () => maxSeasons(),
+      injMul: () => injNodeMulV153B(),
+      cost: k => nodeCost(TREE_NODES[k]),
+      ceil: () => rawCeilingV179()
+    }
+  };
   function nodeLvl(e) {
     return (state.tree && state.tree[e]) || 0;
   }
@@ -7931,6 +8554,20 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
         mult: 2,
         max: 3,
         req: { honors: 30 }
+      },
+      {
+        /* v193 AA THE FRANCHISE RECRUITER: the season's RECRUIT A PLAYER deal, upgraded — read through treeFx("recruiterV193AA"): fx 0.5 × the
+         * branch's ×2 is exactly 1 a level, so the numbers below are what it pays (`fxPaidV193AA` keeps the ×2 tag off) */
+        key: "recruiterV193AA",
+        name: "The Franchise Recruiter",
+        icon: "📇",
+        desc: "Every level makes the season's RECRUIT A PLAYER deal better: the price in your attributes is 25% smaller, the recruit rates +3 OVR higher, and he is locked to your team 1 season longer. At Lv 3: 75% off the price, +9 OVR, a 6-season lock.",
+        cost: 125e3,
+        mult: 2.5,
+        max: 3,
+        req: { honors: 30 },
+        fx: { recruiterV193AA: 0.5 },
+        fxPaidV193AA: !0
       },
       {
         key: "longBands",
@@ -8331,6 +8968,7 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
     return medalFriendlyV156A(medalsForHonorsV156A(PATH_HONORS));
   }
   function pathOpenV156A() {
+    if (legendsOnV193AD()) return Object.keys(PATHS).some(k => pathUnlockedV193AD(k)); /* v193 AD: open once any legend is */
     return medalsOnV156A() ? medalsV156A() >= pathMedalsV156A() : state.prestige >= PATH_HONORS;
   }
   function pathSwitchCostV156A() {
@@ -8597,7 +9235,8 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
         nodeLvl("fateOdds") * 0.04 +
         (state && state.path === "prodigy" ? 0.05 : 0) +
         treeFx("fateOdds") +
-        gearV147("fateOdds"),
+        gearV147("fateOdds") +
+        pathVal("fateOdds", 0) /* v193 AD: The Oracle */,
       0.05,
       0.97
     );
@@ -8793,7 +9432,8 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
       name: (ATTR_INFO[eff.reqAttr] && ATTR_INFO[eff.reqAttr].name) || eff.reqAttr,
       need,
       have,
-      ok: have >= need
+      ok: have >= need || pathVal("noFailDecisions", 0) > 0 /* v193 AD: The Prodigy never fails a decision — every option is open */,
+      waivedV193AD: have < need && pathVal("noFailDecisions", 0) > 0
     };
   }
   /* the option's effects, read off the option itself so the card and the model cannot disagree */
@@ -9733,7 +10373,7 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
     key: "focusReps",
     name: "Focused Reps",
     icon: "🎯",
-    desc: "The Extra reps and +1 Permanent cards lean harder on your position's KEY stats, per level (at Lv 0 they spread across every stat the position uses).",
+    desc: "The HOT STREAK card's stat leans harder on your position's KEY stats, per level (at Lv 0 it spreads across every stat the position uses).",
     cost: 6,
     mult: 1.7,
     max: 5,
@@ -11796,7 +12436,7 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
         const i = t[n.key],
           r = i ? a(i.rarity) : null;
         return `<div class="eq-slot ${i ? "r-" + i.rarity : ""}"${i ? ` onclick="gearPickV147('${i.id}')"` : ""}>
-          <div class="eq-ic">${n.icon}</div>
+          <div class="eq-ic">${artV193Y(n.icon, 30, r ? r.color : "#7d8794") /* v193 Y */}</div>
           ${i ? `<div class="eq-name" style="color:${r.color}">${escHtml(i.name)}</div><div class="eq-eff">${r.name} · ${(i.mods || []).length} mod${(i.mods || []).length === 1 ? "" : "s"}</div>` : `<div class="eq-name" style="color:var(--chalk-dim)">Empty ${n.name}</div>`}
         </div>`;
       }).join("")}
@@ -11819,7 +12459,7 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
                 sel = _gearSelV147 === n.id;
               return `<div class="gear-row r-${n.rarity}${sel ? " sel" : ""}" data-gear="${escHtml(n.id)}">
         <div class="gr-main-v147">
-        <span class="gr-ic">${n.icon}</span>
+        <span class="gr-ic">${artV193Y(n.icon, 26, i.color) /* v193 Y */}</span>
         <div class="gr-info" onclick="gearPickV147('${n.id}')">
           <div class="gr-name" style="color:${i.color}">${escHtml(n.name)} ${r ? '<span style="color:#57e07a">✓ EQUIPPED</span>' : ""}</div>
           <div class="gr-eff"><b style="color:${i.color}">${i.name}</b> · ${s(n)} · <span class="gr-lv-v193">Lv ${gearLvlTxtV193G(n)} · +${gearLvlPctV193(n)}%</span>${gearMaxedV193G(n) ? ` · <span class="gr-max-v193g">maxed — a rarer piece grows further</span>` : ""} · <span class="gr-price-v193">💰 ${gearSellNowV193G(gearSellPriceV193(n))} PP</span></div>
@@ -11932,6 +12572,10 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
     r && ATTR_KEYS.forEach(v => (t[v] = clamp99(t[v] + r, 1, n + 15)));
     const l = pathVal("startAttr", 0);
     l && ATTR_KEYS.forEach(v => (t[v] = clamp99(t[v] + l, 1, attrCap())));
+    /* v193 AD: a legend's body or mind at the start (The Freak, The Field General, The Oracle; Prodigy / Ironman's frame) */
+    [[PHYS_ATTRS_V193AD, pathVal("startPhys", 0)], [MENTAL_ATTRS_V193AD, pathVal("startMental", 0)], [SPEED_ATTRS_V193AD, pathVal("startSpeed", 0)]].forEach(
+      ([ks, d]) => d && ks.forEach(v => t[v] != null && (t[v] = clamp99(t[v] + d, 1, attrCap())))
+    );
     const d = nodeLvl("dynasty") * 0.1 + nodeLvl("inheritance") * 0.25;
     d &&
       state.lastCareerAttrs &&
@@ -13277,6 +13921,9 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
       W.lingering = W.lingering
         .map(b => Object.assign({}, b, { games: (b.games | 0) - 1 }))
         .filter(b => (b.games | 0) > 0);
+    try {
+      wk && hotDecayV193AB(pl, wk); /* v193 AB: a Hot Streak counts a played game down (a sat-out week never gets here) */
+    } catch (_) {}
   }
   /* ===== v111 THE FOCUS — three ways to spend a Saturday =====
    * Three position-appropriate picks, one stat each, 1.2x for that game only. Rows are
@@ -13500,6 +14147,9 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
       try {
         intensityV171(pl).buffs.forEach(b => out.push(b)); /* v171 D: how hard he plays this one */
       } catch (_) {}
+    try {
+      hotBuffsV193AB(pl).forEach(b => out.push(b)); /* v193 AB: the Hot Streak cards — a percent of the stat, every game path */
+    } catch (_) {}
     return out;
   }
   /* everything the attribute sheet and the engine should see this game */
@@ -13994,7 +14644,7 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
   };
   function rollGamePerf(e, t = 0, a) {
     a = a || {};
-    const s = playerPower(e) /* v193 E: the game-day percent is gone */,
+    const s = playerPower(e) /* v193 E: the game-day percent is gone */ + hotPerfLiftV193AB(e) /* v193 AB: the Hot Streak's OVR */,
       n = LEVELS[e.level],
       i = n.need - 6 + chaosOppBoost(e.level) + seasonModFx("peerShift"),
       r = 1 + nodeLvl("clutch") * 0.02,
@@ -14002,10 +14652,11 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
       d = 1 + (e.attrs.stamina - 10) * 0.0015;
     let c = hasTrait(e, "streaky") ? 23 : 15;
     c *= Math.max(0.5, 1 - treeFx("varDown") - gearV147("varDown")) * (seasonModFx("varMult") || 1);
+    c *= Math.max(0, pathVal("perfVarMult", 1)); /* v193 AD: The Wildcard ×1.6 / The Metronome ×0.5 */
     let u = (s - i) * 2.4 + poiseShapeV192C(e, randRange(-c, c)) /* v192C: Poise narrows the swing, lifts the floor */ * l + 50 + (t / n.games) * 2 + ((state && state._fateBoost) || 0);
     (a.playoff && ((u += (treeFx("playoffPerf") + seasonModFx("playoffPerf")) * (TU("v190F", 1) ? 1 + nodeLvl("clutch") * 0.2 : 1)) /* v190 F: Clutch Gene — big-game bonuses +20% a level */, hasTrait(e, "xfactor") && (u += 12)),
       hasTrait(e, "butterFingers") && Math.random() < 0.12 && (u -= 18),
-      Math.random() < (hasTrait(e, "streaky") ? 0.06 : 0.04) * boomMulV192C(e) /* v192C: Volatile booms, Even-Keeled does not */ && u > 40 && (u *= 1.5),
+      Math.random() < (hasTrait(e, "streaky") ? 0.06 : 0.04) * boomMulV192C(e) /* v192C: Volatile booms, Even-Keeled does not */ * Math.max(0, pathVal("boomMult", 1)) /* v193 AD */ && u > 40 && (u *= 1.5),
       (u *= d));
     const p = clamp99(xi(u), 1, 100);
     const y = Math.random() < injChanceV54(e, a);
@@ -14368,7 +15019,7 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
         chaosGrowthV193E() /* v193 E: every chaos point grows every future player */ +
         gearFx("growth") +
         Math.max(0, tierGrowth(e) - 1) +
-        Math.max(0, pathVal("growthMult", 1) - 1) +
+        pathUaV193AD() /* v193 AD: the path's growth is a real multiplier now (`pathGrowthV193AD`) — off: the old floored term */ +
         Math.max(0, l),
       fa = clamp99(1 + ua * 0.22, 0.88, 1.34),
       xe = clamp99(e.potential * Me * Fe * xt * da * fa, 0.62, 1.58),
@@ -14387,7 +15038,7 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
     ATTR_KEYS.forEach(R => {
       const O = Ye[R] ? 0.92 + 0.16 * (Ye[R] / $) : 0.86;
       let Pe = st * O + Rt;
-      (a.focus && a.focus.includes(R) && (Pe += Tt), (J[R] = Math.max(0, Pe)));
+      (a.focus && a.focus.includes(R) && (Pe += Tt), (J[R] = Math.max(0, Pe) * pathGrowthV193AD(e, R)) /* v193 AD: the legend's growth, per attribute */);
     });
     const w = Object.values(state.tree || {}).reduce((R, O) => R + O, 0),
       k = clamp99(rawCeilingV179(w), 30, attrCap()); /* v179 I: one sum (`rawCeilingV179`) */
@@ -14485,7 +15136,8 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
     e.level >= 8 && earnStardustV186(e, U, ke) /* v186 E: the Interstellar's own currency */;
     const ge = 4 + e.level * 3,
       _p178 = seasonPayV178(e, P, ie, Y, B) /* v178 A: the games paid their own points; this is what is left */,
-      $e =
+      $e = ptsEarnV193AB(
+        e,
         (_p178
           ? _p178.pts
           : Math.round(
@@ -14493,7 +15145,8 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
             )) /* v164 C: the season's points ride the watched share */ +
         Math.floor(treeFx("pointsFlat") + gearFx("pointsFlat") + seasonModFx("pointsFlat") + gearV147("points")) +
         Math.floor(treeFx("wisdomPtsV190")) /* v190 F: Eternal Wisdom, its own uncapped term (was pointsFlat, capped at 3) */ +
-        repsV146(),
+        repsV146()
+      ) /* v193 AB: a 2× POINTS season counts its own points double too */,
       de = prodStats(e.pos, U, e.level),
       ne = Object.values(state.tree || {}).reduce((R, O) => R + O, 0),
       ue = 30 + effectivePrestige(state.prestige) * 0.65 + Math.sqrt(ne) * 0.75,
@@ -14556,6 +15209,8 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
       (e.points += $e),
       e.seasonsAtLevel++,
       e.totalSeasons++,
+      delete e.focusTiltV193Z /* v193 Z: the focus roll's price tilt lives one season — every settle path runs through here */,
+      abSeasonEndV193AB(e) /* v193 AB: the Spillover and 2× POINTS are this season's */,
       e.seasonsSinceStart++,
       e.age++,
       (e.awards = (e.awards || []).concat(Te)),
@@ -16253,6 +16908,7 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
     </div>
 
     ${seasonModBanner(e)}
+    ${cardChipsV193AB(e) /* v193 AB: the held cards — a Hot Streak, a Spillover, 2× POINTS */}
     ${fr(e)}
     ${e.nemesis && Math.random() < 0.4 ? nemesisBanner(e) : ""}
     ${
@@ -16678,7 +17334,7 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
           chaosGrowthV193E() /* v193 E: the preview reads the same chaos growth */ +
           gearFx("growth") +
           Math.max(0, tierGrowth(e) - 1) +
-          Math.max(0, pathVal("growthMult", 1) - 1) +
+          pathUaV193AD() /* v193 AD */ +
           Math.max(0, l),
         fa = clamp99(1 + ua * 0.22, 0.88, 1.34),
         xe = clamp99(e.potential * Me * Fe * xt * da * fa, 0.62, 1.58),
@@ -16701,7 +17357,7 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
           Oq = Ye[R] ? 0.92 + 0.16 * (Ye[R] / $) : 0.86;
         let J = st * Oq + Rt;
         a.focus && a.focus.includes(R) && (J += Tt);
-        J = Math.max(0, J);
+        J = Math.max(0, J) * pathGrowthV193AD(e, R); /* v193 AD: the preview reads the same legend growth */
         const kR = Math.min(attrCap(), Math.round(k * ((e.statCeilV17 && e.statCeilV17[R]) || 1)));
         let Pe = clamp99(1 - (O / attrCap()) * 0.55, 0.35, 1);
         if (O >= kR - 18) {
@@ -17275,7 +17931,9 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
                 sayV = rivalSayV128(s.eff, e),
                 vr = rivalVarV128(s.eff);
               if (lk)
-                i = lk.ok
+                i = lk.waivedV193AD
+                  ? `<span class="fit-tag fit-natural">\u{1F9E0} PRODIGY — ${escHtml(lk.name.toUpperCase())} ${lk.need} WAIVED</span>` /* v193 AD */
+                  : lk.ok
                   ? `<span class="fit-tag fit-natural">${escHtml(lk.name.toUpperCase())} ${lk.have} ✓</span>`
                   : `<span class="fit-tag fit-poor">🔒 NEEDS ${escHtml(lk.name.toUpperCase())} ${lk.need} — YOU HAVE ${lk.have}</span>`;
               const dead = (s.eff.ppCost && state.pp < s.eff.ppCost) || (lk && !lk.ok);
@@ -17826,6 +18484,7 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
           t * 0.35 +
           teamPrestigeQV153B(_prF) +
           teamDecisionQV153B(state.player) +
+          rosterQV193AA(state.player) /* v193 AA: the men the program carried, over the roster's own target */ +
           clubQV146B(state.player) /* v146 B: the club he signed with · v153 B: prestige halved, decisions added */,
         0.3,
         1.65
@@ -17847,10 +18506,14 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
         attrs: youSimAttrs(),
         stat: a
       });
+    // v193 AA: a recruit he signed plays for him — his name, his number, his rating on the game's scale
+    try {
+      recruitPlantV193AA(P, u * (0.72 + C * 0.5), (pos, ovr) => h(pos, simOvrV178(ovr)));
+    } catch (_) {}
     (function () {
-      const seen = new Set();
+      const seen = new Set([...P.off, ...P.def].filter(x => x && x.recruitV193AA).map(x => x.name)); /* v193 AA: a recruit keeps his name */
       [...P.off, ...P.def, ...v.off, ...v.def].forEach(pl => {
-        if (!pl || pl.you) {
+        if (!pl || pl.you || pl.recruitV193AA) {
           pl && pl.name && seen.add(pl.name);
           return;
         }
@@ -21623,7 +22286,8 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
           off: !!x.isOff /* v193 B: the team page lists the two elevens */,
           num: x.num,
           locker: x.lockerV191 || 0 /* v193 B: the Locker Room's +1s on this man */,
-          lift: x.liftV193 || 0 /* v193 B: the team nodes' lift on this man, in OVR points */
+          lift: x.liftV193 || 0 /* v193 B: the team nodes' lift on this man, in OVR points */,
+          recruit: x.recruitV193AA || 0 /* v193 AA: a locked recruit — the seasons his lock has left */
         }));
       return { seed, us: { ovr: c.us.ovr, players: roster(c.us) }, opp: { ovr: c.opp.ovr, players: roster(c.opp) } };
     } catch (err) {
@@ -21820,6 +22484,7 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
           t * 0.35 +
           (opts.noShareV192B ? 0 : teamPrestigeQV153B(prF)) /* v192 B: the before/after card asks without it */ +
           teamDecisionQV153B(e) +
+          rosterQV193AA(e) /* v193 AA */ +
           (opts.clubQ != null ? opts.clubQ : clubQV146B(e)) /* v146 B · v153 B */,
         0.3,
         1.65
@@ -21971,6 +22636,7 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
     const t = Math.min(30, chaosTotal() * 0.25),
       a = RARITIES.map((u, h) => {
         let p = u.w;
+        h >= 1 && (p *= Math.max(0, pathVal("gearRareMult", 1))) /* v193 AD: rare or better — The Collector ×2 / The Card Shark ×0.5 */;
         return (h >= 2 && (p += t * (h - 1)), h < (e || 0) && (p = 0), p);
       }),
       s = a.reduce((u, h) => u + h, 0);
@@ -22524,6 +23190,11 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
       const add = Math.round(gain * (xk - 1));
       ((gain += add), (parts = (parts || []).concat([["Legacy nodes +" + Math.round((xk - 1) * 100) + "% XP", add]])));
     }
+    const pk = legendXpMultV193AD(); /* v193 AD: a legend's Legacy XP (The Oracle ×0.85) */
+    if (pk !== 1 && pk >= 0) {
+      const add = Math.round(gain * (pk - 1));
+      ((gain = Math.max(0, gain + add)), (parts = (parts || []).concat([["Legend · " + ((currentPath() || {}).name || "") + " " + (add >= 0 ? "+" : "−") + Math.abs(Math.round((pk - 1) * 100)) + "% XP", add]])));
+    }
     const from = legacyRankV152(L.xp),
       at = Date.now(),
       who = (e && e.name) || "";
@@ -22543,6 +23214,9 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
     mirrorV156A(); /* v156 A: state.prestige follows the medals */
     try {
       window.RIB_LEGACY && window.RIB_LEGACY.awarded && window.RIB_LEGACY.awarded(L.last);
+    } catch (_) {}
+    try {
+      legendCheckV193AD(); /* v193 AD: a medal or a finished career may unlock a legend */
     } catch (_) {}
     return L.last;
   }
@@ -22901,6 +23575,8 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
     ${combineYearV139(e) ? combineBoardV139(e) : ""}
     ${hero168 /* v168: the season opens on its hero */}
     ${seasonModBanner(e)}
+    ${cardChipsV193AB(e) /* v193 AB: the held cards — a Hot Streak, a Spillover, 2× POINTS */}
+    ${cardSummaryV193AB(e, "season") /* v193 AB: every card this season's games dealt, the simmed ones too */}
     <div class="sub${hero168 ? " sx-old-v168" : ""}">${d ? "All games played — finish the season to see your results." : `Record: <b style="color:var(--good)">${c}-${u}</b>`}${p && p.startsWith('<div class="threshold') ? p : ""}</div>
     ${p && !p.startsWith('<div class="threshold') ? p : ""}
     <div class="sched-list mt" style="margin-top:14px">
@@ -23070,6 +23746,16 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
           ); /* v193 W: the pop-up says it */
       } catch (x) {}
     }
+    /* v193 AD: The Ironman — a season-ender is `seasonEnderWeeks` games out instead, every time */
+    if (inj && inj.seasonEnding && pathVal("seasonEnderWeeks", 0) > 0) {
+      inj.seasonEnding = !1;
+      inj.weeksRemaining = pathVal("seasonEnderWeeks", 0) | 0;
+      inj.severity = Math.min(inj.severity || 3, 3);
+      inj.ironmanV193AD = !0;
+      try {
+        injPopOnV193W() || toast("\u{1F9BE} IRONMAN — " + inj.name + " was a season-ender. He is back in " + inj.weeksRemaining + " games.");
+      } catch (x) {}
+    }
     /* v146 C: Miracle Hands -- a 2+ game injury is shorter, never under one game; season-enders untouched */
     if (inj && !inj.seasonEnding && inj.weeksRemaining > 1) inj.weeksRemaining = healWeeksV146(inj.weeksRemaining);
     if (inj) {
@@ -23098,6 +23784,9 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
   function sitOutWeekV18(e, s) {
     const c = cv18(e),
       inj = c.injury;
+    try {
+      hotRefundV193AB(e, s); /* v193 AB: a week booked and then sat out (hurt) gives its Hot Streak game back */
+    } catch (_) {}
     s.played = !0;
     s.satOut = !0;
     s.statLine = null;
@@ -23224,6 +23913,7 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
     ((e.seasonStats = t),
       logSeasonV77(e, t),
       legacySeasonV152(e, t) /* v152 A: the season pays its Legacy XP */,
+      legendSeasonV193AD(e, t) /* v193 AD: seasons, games, watched games, an A — before the week rows go */,
       (e.weekResults = null),
       (e.currentWeek = null),
       completeChallenges(),
@@ -23971,7 +24661,7 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
       row = M.find(m => m[0] === cur) || M[1];
     return `<div class="fx-row" id="bigSlowRowV193W" style="margin:8px 0 2px">
         <div class="fx-head"><span class="fx-label">🎬 Big-play slow motion</span><span class="fx-val" id="bigSlowValV193W">${row[1]}</span></div>
-        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin:2px 0 4px">${M.map(m => `<button class="btn bigslow-v193w ${m[0] === cur ? "secondary" : "ghost"}" data-mode="${m[0]}" style="padding:8px 2px;font-size:12px" onclick="setBigSlowV193W('${m[0]}')">${m[1]}</button>`).join("")}</div>
+        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin:2px 0 4px">${M.map(m => `<button class="btn bigslow-v193w ${m[0] === cur ? "secondary" : "ghost"}" data-mode="${m[0]}" style="padding:8px 2px;font-size:12px;min-height:36px" onclick="setBigSlowV193W('${m[0]}')">${m[1]}</button>`).join("")}</div>
         <div class="fx-desc" id="bigSlowDescV193W">${row[2]} Touchdowns, turnovers, sacks, big hits and 20+ yard gains.</div>
       </div>`;
   }
@@ -25517,6 +26207,7 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
 
     ${n ? "" : `<div class="small center" style="margin-top:4px">${d ? (c ? '<span class="miss">⚠ Final season at this level — you must declare now. Miss the roll and your career ends here.</span>' : `You have <b>${r}</b> season${r > 1 ? "s" : ""} left to raise your stats before you're forced to declare.`) : `<span style="color:var(--gold)">📚 You're still in ${a.grade.toLowerCase()} — play <b>${l - e.seasonsAtLevel}</b> more season${l - e.seasonsAtLevel > 1 ? "s" : ""} here before you can move up.</span>`}</div>`}
     ${finalTableV168(e) /* v168: where the year finished in the league — on the GRADE tab, beside the grade */}
+    ${cardSummaryV193AB(e, "result") /* v193 AB: the season's cards, the ones picked for him in simmed games too */}
     ${legacyCardV152("season")}
   `),
       n)
@@ -26144,12 +26835,14 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
         <div class="up-ovr-v153" id="liveOvr">OVR ${t}</div>
       </div>
     </div>
+    ${(focusCssV193Z(), focusLineV193Z(e)) /* v193 Z: this season's focus-roll tilts */}
+    ${spillLineV193AB(e) /* v193 AB: the Spillover cards held this season */}
     ${(() => {
       const st = clamp99(Math.round(e.stars || 1), 1, 5),
         bp = Math.round((TU("drStarBase", 0.6) + (st - 1) * TU("drStarStep", 0.0625)) * 100),
         pp = Math.round((TU("drPrestigePct", 0.01) * (state.prestige || 0) + softPctV146()) * 100);
       return `<div class="up-how-v153"><button type="button" class="up-how-b-v153" onclick="upHowV153()"><span>📉 <b>1 pt</b> per +1 up to each <b class="gold">soft cap</b>, then more</span><em>HOW PRICES WORK</em></button>
-      <div class="up-how-note-v153">Stats marked <span class="weight-tag">KEY</span> matter most for your position and raise your OVR the fastest. <b>Diminishing returns — no hard cap.</b> Each stat costs <b>1 pt</b> up to its <b class="gold">soft cap</b>, then <b>2, 3, 4…</b> per band of ${bandWV146()} above it${bandTopV146() < 1 / 0 ? ` (never more than <b>${bandTopV146()}</b>)` : ""}, and <b>×${wallMultV146()}</b> from <b>${wallAtV146()}</b> on. ★${st} sets your soft caps at <b>${bp}%</b> of ceiling${pp ? ` · ${medalsOnV156A() ? "Medals" : "Honors"} add <b style="color:#7fe0a0">+${pp}%</b>` : ""} — more RECRUIT stars and more ${medalsOnV156A() ? "MEDALS" : "HONORS"} push the cheap zone massively higher. The bar under each stat fills to its soft cap; gold values are past it.</div></div>`;
+      <div class="up-how-note-v153">Stats marked <span class="weight-tag">KEY</span> matter most for your position and raise your OVR the fastest. <b>Diminishing returns — no hard cap.</b> Each stat costs <b>1 pt</b> up to its <b class="gold">soft cap</b>, then <b>2, 3, 4…</b> per band of ${bandWV146()} above it${bandTopV146() < 1 / 0 ? ` (never more than <b>${bandTopV146()}</b>)` : ""}, and <b>×${wallMultV146()}</b> from <b>${wallAtV146()}</b> on. ★${st} sets your soft caps at <b>${bp}%</b> of ceiling${pp ? ` · ${medalsOnV156A() ? "Medals" : "Honors"} add <b style="color:#7fe0a0">+${pp}%</b>` : ""} — more RECRUIT stars and more ${medalsOnV156A() ? "MEDALS" : "HONORS"} push the cheap zone massively higher. The bar under each stat fills to its soft cap; gold values are past it.${focusOnV193Z() ? ` <b>Your focus roll tilts a season's prices:</b> every stat the season's commitment (or a midseason crossroads) lands on costs more or less <b>for that season only</b> — ${focusMultTxtV193Z()} its percent, so a −6% roll makes those points buy ${Math.round(6 * focusMultV193Z())}% less (10 pts → ${Math.round(10 * (1 + focusTiltFromPctV193Z(-6)))} levels) and a +6% roll ${Math.round(6 * focusMultV193Z())}% more (10 pts → ${Math.round(10 * (1 + focusTiltFromPctV193Z(6)))}).` : ""}</div></div>`;
     })()}
     ${(() => {
       const row = a => {
@@ -26157,7 +26850,7 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
         return `<div class="up-attr${isKey(a) ? " key" : ""}" data-k="${a}">
           <div class="info"><div class="un"><span class="up-ic-v153">${ATTR_INFO[a].icon}</span><span class="up-nm-v153">${ATTR_INFO[a].name}</span>${isKey(a) ? '<span class="weight-tag">KEY</span>' : ""}${statInfoBtnV142(a)}${n ? `<span class="up-metric" title="${n.label}"><small>${n.label}</small><b id="mtr-${a}">${n.fmt(e.attrs[a])}</b></span>` : ""}</div>
             <div class="desc">${ATTR_INFO[a].desc}</div>
-            <div class="up-line-v153"><span class="up-cap" id="cap-${a}"></span></div>
+            <div class="up-line-v153"><span class="up-tiltslot-v193z" id="tilt-${a}"></span><span class="up-cap" id="cap-${a}"></span></div>
             <div class="up-bar-v153" id="bar-${a}"><i></i></div></div>
           <button class="step" onclick="alloc('${a}',-1)" id="minus-${a}" aria-label="Lower ${ATTR_INFO[a].name}">−</button>
           <div class="uv" id="uv-${a}">${Math.round(e.attrs[a])}</div>
@@ -26226,6 +26919,170 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
       return 0;
     }
   }; /* v134: the sim asks the tree through this, never o.tree */
+  /* ===== v193 Z THE FOCUS ROLL TILTS THE SEASON =====
+   * The owner: "In addition to the career focus roll, I think that should provide bonuses or declines to that season's
+   * stat gains. So if I have −6% speed, a multiplier (2× to −12 percent) would apply to the upgrade skills for that
+   * season only. So you would need 10 points to upgrade 9 levels in that case." When the season commitment or a
+   * midseason crossroads (src/18 `applyOutcome`, ctx "season" / "inseason|…") resolves, every attribute it touched gets
+   * a SKILL TILT for this season: the outcome's signed percent × `focusMultV193Z()` (`focusTiltMultV193Z` 2, plus
+   * `focusAmpPerLvlV193Z` 0.5 a level of the Mental node FOCUS AMPLIFIER, `focusAmpV193Z` through `treeFx`, max
+   * `focusAmpMaxV193Z` 6 levels → ×5). Outcomes add up per attribute (`player.focusTiltV193Z.pcts`, read live); the tilt
+   * is capped at ±`focusTiltCapPerMultV193Z` (20%) × the multiplier (×2 → 40%; `focusTiltCapV193Z` overrides), a minus
+   * never past −`focusTiltNegMaxV193Z` (75%). Stored as `player.focusTiltV193Z = { season: totalSeasons, career, pcts,
+   * tilts, carry }` and dead the moment the season settles (`simSeason` deletes it where `totalSeasons` advances; the read
+   * also checks the season number, so no path can carry it over).
+   * THE PRICE. A tilted attribute's per-level price is the band price (`drCost`: the soft cap, the bands, the wall)
+   * × 1/(1 + tilt), charged in WHOLE points with the remainder carried per attribute (`carry[k]`, the running owed −
+   * charged, always in [−½, ½]): the charge for one level is round(carry + price). At −12% the levels cost 1.136 →
+   * 10 points buy 9 levels; at +12% 0.893 → 10 points buy 11. The sheet's +/−, hold-to-spend and the two auto buttons
+   * all go through `focusChargeV193Z`; a minus refunds exactly what that level charged and puts the carry back.
+   * The sheet shows a chip per tilted row, the tilted next charge on its +, "10 pts buy 9 levels" in the readout and a
+   * header line; the stat card (v142) a chip; src/18's result card says what the tilt will do and buzzes.
+   * Kill switch `TU("v193Z", 1)` → 0: no tilt is set or read — the old prices. `window.__V193Z`; `v193Zcheck.mjs`. */
+  function focusOnV193Z() {
+    return !!TU("v193Z", 1);
+  }
+  /* the multiplier on the outcome's percent: 2, +0.5 a Focus Amplifier level */
+  function focusMultV193Z() {
+    let amp = 0;
+    try {
+      amp = treeFx("focusAmpV193Z") || 0;
+    } catch (_) {}
+    return TU("focusTiltMultV193Z", 2) + amp * TU("focusAmpPerLvlV193Z", 0.5) + pathVal("focusMultAdd", 0) /* v193 AD: The Zealot */;
+  }
+  /* the cap scales with the multiplier, so the amplifier is never silently capped away */
+  function focusCapV193Z() {
+    return Math.max(0, TU("focusTiltCapV193Z", TU("focusTiltCapPerMultV193Z", 0.2) * focusMultV193Z()));
+  }
+  /* a signed percent (−6) → the tilt it makes (−0.12), capped */
+  function focusTiltFromPctV193Z(pct) {
+    const t = ((Number(pct) || 0) * focusMultV193Z()) / 100,
+      cap = focusCapV193Z(),
+      neg = Math.min(cap, TU("focusTiltNegMaxV193Z", 0.75)),
+      leg = t < 0 ? pathVal("focusNegMult", 1) : pathVal("focusPosMult", 1); /* v193 AD: The Monk — a bad roll ×0, a good one ×0.5 */
+    return Math.max(-neg, Math.min(cap, t * Math.max(0, leg)));
+  }
+  /* this season's record, or null (another season, another career, the switch off) */
+  function focusRecV193Z(e) {
+    if (!focusOnV193Z() || !e) return null;
+    const r = e.focusTiltV193Z;
+    if (!r || !r.pcts || r.season !== (e.totalSeasons | 0)) return null;
+    if (r.career != null && state && state.careers != null && r.career !== state.careers) return null;
+    return r;
+  }
+  function focusTiltOfV193Z(e, k) {
+    const r = focusRecV193Z(e);
+    return r && r.pcts[k] ? focusTiltFromPctV193Z(r.pcts[k]) : 0;
+  }
+  /* an outcome resolved (src/18): its stats take the signed percent, adding to anything already rolled this season */
+  function focusAddV193Z(e, out) {
+    legendFocusV193AD(out); /* v193 AD: a focus roll taken */
+    if (!focusOnV193Z() || !e || !out || !Array.isArray(out.stats)) return null;
+    const ctx = String(out.ctx || "");
+    if (!(ctx === "season" || /^inseason/.test(ctx))) return null;
+    const pct = (out.sign < 0 ? -1 : 1) * Math.abs(Number(out.pct) || 0);
+    if (!pct) return null;
+    let r = focusRecV193Z(e);
+    if (!r) r = e.focusTiltV193Z = { season: e.totalSeasons | 0, career: state ? state.careers : null, pcts: {}, tilts: {}, carry: {} };
+    r.carry = r.carry || {};
+    r.tilts = r.tilts || {};
+    out.stats.forEach(k => {
+      if (!k || !ATTR_INFO[k]) return;
+      r.pcts[k] = (r.pcts[k] || 0) + pct;
+      r.tilts[k] = Math.round(focusTiltFromPctV193Z(r.pcts[k]) * 1e4) / 1e4;
+      r.pcts[k] || (delete r.pcts[k], delete r.tilts[k]);
+    });
+    return r;
+  }
+  /* the next level's price: the band price × 1/(1 + tilt), charged whole, the remainder carried */
+  function focusChargeV193Z(e, k) {
+    const base = drCost(e, k),
+      t = focusTiltOfV193Z(e, k);
+    if (!t) return { c: base, base, tilt: 0, carry0: null, carry: null };
+    const r = focusRecV193Z(e),
+      c0 = Number(r.carry && r.carry[k]) || 0,
+      raw = c0 + base / (1 + t),
+      c = Math.max(0, Math.round(raw));
+    return { c, base, tilt: t, carry0: c0, carry: Math.round((raw - c) * 1e9) / 1e9 };
+  }
+  function focusPayV193Z(e, k, ch) {
+    const r = ch && ch.carry != null ? focusRecV193Z(e) : null;
+    r && ((r.carry = r.carry || {}), (r.carry[k] = ch.carry));
+  }
+  function focusUnpayV193Z(e, k, c0) {
+    const r = c0 != null ? focusRecV193Z(e) : null;
+    r && ((r.carry = r.carry || {}), (r.carry[k] = c0));
+  }
+  /* whole-number words: "−12%" */
+  function focusPctTxtV193Z(t) {
+    const p = Math.round(t * 100);
+    return (p < 0 ? "−" : "+") + Math.abs(p) + "%";
+  }
+  function focusMultTxtV193Z() {
+    return "×" + Math.round(focusMultV193Z() * 10) / 10;
+  }
+  function focusNameV193Z(k) {
+    return (ATTR_INFO[k] && ATTR_INFO[k].name) || k;
+  }
+  /* the sheet's header line: "🎯 Focus roll ×2: Speed −12% · Grit +10% — this season only" */
+  function focusLineV193Z(e) {
+    const r = focusRecV193Z(e);
+    if (!r) return "";
+    const ks = Object.keys(r.pcts).filter(k => focusTiltOfV193Z(e, k));
+    if (!ks.length) return "";
+    return (
+      `<div class="up-focus-v193z" id="focusLineV193Z">🎯 <b>Focus roll ${focusMultTxtV193Z()}:</b> ` +
+      ks
+        .map(k => {
+          const t = focusTiltOfV193Z(e, k);
+          return `<span class="${t < 0 ? "neg" : "pos"}">${focusNameV193Z(k)} ${focusPctTxtV193Z(t)}</span>`;
+        })
+        .join(" · ") +
+      " — this season only</div>"
+    );
+  }
+  /* the row's chip */
+  function focusChipV193Z(e, k) {
+    const t = focusTiltOfV193Z(e, k);
+    if (!t) return "";
+    return `<span class="up-tilt-v193z ${t < 0 ? "neg" : "pos"}" title="Your focus roll: every ${focusNameV193Z(k)} point you spend this season buys ${Math.abs(Math.round(t * 100))}% ${t < 0 ? "less" : "more"}">🎯 ${focusPctTxtV193Z(t)} this season</span>`;
+  }
+  /* the readout's price: "10 pts buy 9 levels" at a 1-pt band, "34 pts per 10 levels" above it */
+  function focusPriceTxtV193Z(base, t) {
+    if (!t) return "";
+    if (base <= 1) return `10 pts buy ${Math.round(10 * (1 + t))} levels`;
+    return `${Math.round((10 * base) / (1 + t))} pts per 10 levels`;
+  }
+  function focusCssV193Z() {
+    if (document.getElementById("focusCssV193Z")) return;
+    const st = document.createElement("style");
+    st.id = "focusCssV193Z";
+    st.textContent = [
+      ".up-focus-v193z{margin:0 0 8px;padding:6px 10px;border-radius:10px;border:1px solid rgba(240,187,69,.35);background:rgba(240,187,69,.07);font:500 13px 'Barlow Condensed',sans-serif;color:var(--chalk-dim);line-height:1.35}",
+      ".up-focus-v193z b{color:var(--chalk)}.up-focus-v193z .neg{color:#ff8a80;font-weight:700}.up-focus-v193z .pos{color:#7fe0a0;font-weight:700}",
+      ".up-tilt-v193z{flex:none;display:inline-block;padding:1px 6px;border-radius:9px;font:700 10.5px Oswald,sans-serif;letter-spacing:.4px;white-space:nowrap}",
+      ".up-tilt-v193z.neg{color:#ff8a80;border:1px solid rgba(255,138,128,.45);background:rgba(201,74,58,.14)}",
+      ".up-tilt-v193z.pos{color:#7fe0a0;border:1px solid rgba(127,224,160,.45);background:rgba(63,158,90,.14)}",
+      ".step .stepcost.tilt-neg{color:#ff8a80}.step .stepcost.tilt-pos{color:#7fe0a0}",
+      ".up-tiltslot-v193z:empty{display:none}",
+      ".up-v153 .up-line-v153.tilt-v193z{flex-wrap:wrap;row-gap:2px;white-space:normal}" /* the chip and the tilted price both read, on two lines if they must */
+    ].join("");
+    (document.head || document.documentElement).appendChild(st);
+  }
+  window.__V193Z = {
+    on: focusOnV193Z,
+    mult: focusMultV193Z,
+    cap: focusCapV193Z,
+    tiltFromPct: focusTiltFromPctV193Z,
+    tilt: (k, e) => focusTiltOfV193Z(e || (state && state.player), k),
+    rec: e => focusRecV193Z(e || (state && state.player)),
+    add: (e, out) => focusAddV193Z(e, out),
+    charge: (k, e) => focusChargeV193Z(e || (state && state.player), k),
+    pctTxt: focusPctTxtV193Z,
+    multTxt: focusMultTxtV193Z,
+    name: focusNameV193Z,
+    line: e => focusLineV193Z(e || (state && state.player))
+  };
   function drSoftCap(e, k) {
     const st = clamp99(Math.round(e.stars || 1), 1, 5),
       base = TU("drStarBase", 0.6) + (st - 1) * TU("drStarStep", 0.0625),
@@ -26247,16 +27104,18 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
     let n = 0,
       g = 0;
     for (; e.points > 0 && g++ < 5e3;) {
-      const open = pool.filter(i => (e.attrs[i] || 0) < attrCap() && drCost(e, i) <= e.points);
+      const ch = {}; /* v193 Z: the focus roll's tilted, whole charge for each stat's next level */
+      pool.forEach(i => (ch[i] = focusChargeV193Z(e, i)));
+      const open = pool.filter(i => (e.attrs[i] || 0) < attrCap() && ch[i].c <= e.points);
       if (!open.length) break;
       const mc = Math.min.apply(
         null,
-        open.map(i => drCost(e, i))
+        open.map(i => ch[i].c)
       );
       let pick = null;
       for (let j = 0; j < pool.length; j++) {
         const i = pool[(n + j) % pool.length];
-        if (open.indexOf(i) >= 0 && drCost(e, i) === mc) {
+        if (open.indexOf(i) >= 0 && ch[i].c === mc) {
           pick = i;
           n = (n + j + 1) % pool.length;
           break;
@@ -26266,7 +27125,10 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
       (e.attrs[pick]++,
         (e.points -= mc),
         (allocSpent[pick] = (allocSpent[pick] || 0) + 1),
-        (allocCosts[pick] = allocCosts[pick] || []).push(mc));
+        (allocCosts[pick] = allocCosts[pick] || []).push(mc),
+        (allocCarryV193Z[pick] = allocCarryV193Z[pick] || []).push(ch[pick].carry0),
+        focusPayV193Z(e, pick, ch[pick]),
+        (allocSpillV193AB[pick] = allocSpillV193AB[pick] || []).push(spillPayV193AB(e, mc)) /* v193 AB: the held Spillovers take their share */);
     }
     screenUpgrade();
   }
@@ -26283,27 +27145,35 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
     drAutoAlloc(ATTR_KEYS.slice());
   }
   let allocSpent = {},
-    allocCosts = {};
+    allocCosts = {},
+    allocCarryV193Z = {} /* v193 Z: each bought level's carry before it, so a minus puts the remainder back exactly */,
+    allocSpillV193AB = {}; /* v193 AB: what each bought level spilled, so a minus takes exactly that back */
   function alloc(e, t) {
     const a = state.player;
     if (t > 0) {
-      const c = drCost(a, e);
+      const ch = focusChargeV193Z(a, e) /* v193 Z: the band price, tilted by this season's focus roll, charged whole */,
+        c = ch.c;
       if (a.attrs[e] >= attrCap()) {
         showToast("Absolute limit reached");
         return;
       }
       if (a.points < c) {
-        showToast(c > 1 ? "Needs " + c + " pts — diminishing returns past " + drSoftCap(a, e) : "No points left");
+        showToast(c > 1 ? "Needs " + c + " pts — " + (ch.tilt < 0 && ch.base < c ? "your focus roll's " + focusPctTxtV193Z(ch.tilt) + " this season" : "diminishing returns past " + drSoftCap(a, e)) : "No points left");
         return;
       }
       ((a.attrs[e] = Math.round(a.attrs[e]) + 1),
         (a.points -= c),
         (allocSpent[e] = (allocSpent[e] || 0) + 1),
-        (allocCosts[e] = allocCosts[e] || []).push(c));
+        (allocCosts[e] = allocCosts[e] || []).push(c),
+        (allocCarryV193Z[e] = allocCarryV193Z[e] || []).push(ch.carry0),
+        focusPayV193Z(a, e, ch),
+        (allocSpillV193AB[e] = allocSpillV193AB[e] || []).push(spillPayV193AB(a, c)) /* v193 AB: the held Spillovers take their share */);
     } else {
       if ((allocSpent[e] || 0) <= 0) return;
       ((a.attrs[e] = Math.round(a.attrs[e]) - 1),
         (a.points += allocCosts[e] && allocCosts[e].length ? allocCosts[e].pop() : 1),
+        focusUnpayV193Z(a, e, allocCarryV193Z[e] && allocCarryV193Z[e].length ? allocCarryV193Z[e].pop() : null),
+        spillUnpayV193AB(a, allocSpillV193AB[e] && allocSpillV193AB[e].length ? allocSpillV193AB[e].pop() : null) /* v193 AB: exactly what it spilled */,
         allocSpent[e]--);
     }
     byId("uv-" + e).textContent = Math.round(a.attrs[e]);
@@ -26321,14 +27191,19 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
         n = byId("minus-" + a),
         v = byId("uv-" + a),
         c = drCost(e, a),
+        ch = focusChargeV193Z(e, a) /* v193 Z: the next +1's whole charge, tilted by this season's focus roll */,
         sc = drSoftCap(e, a),
         over = (e.attrs[a] || 0) >= sc;
       (s &&
-        ((s.disabled = e.points < c || (e.attrs[a] || 0) >= attrCap()),
-        (s.innerHTML = c > 1 ? '+<i class="stepcost' + (c >= 4 ? " deep" : "") + '">' + c + "</i>" : "+"),
-        (s.title = over
-          ? "Past soft cap " + sc + " — each +1 costs " + c + " pts here"
-          : "1 pt per +1 until soft cap " + sc)),
+        ((s.disabled = e.points < ch.c || (e.attrs[a] || 0) >= attrCap()),
+        (s.innerHTML = ch.tilt
+          ? '+<i class="stepcost ' + (ch.tilt < 0 ? "tilt-neg" : "tilt-pos") + '">' + ch.c + "</i>"
+          : c > 1
+            ? '+<i class="stepcost' + (c >= 4 ? " deep" : "") + '">' + c + "</i>"
+            : "+"),
+        (s.title =
+          (over ? "Past soft cap " + sc + " — each +1 costs " + c + " pts here" : "1 pt per +1 until soft cap " + sc) +
+          (ch.tilt ? " · focus roll " + focusPctTxtV193Z(ch.tilt) + " this season: the next +1 costs " + ch.c : ""))),
         v && ((v.style.color = over ? (c >= 4 ? "#ff8a80" : "var(--gold)") : ""), (v.title = "Soft cap: " + sc)),
         n && (n.disabled = (allocSpent[a] || 0) <= 0));
       const cp = byId("cap-" + a);
@@ -26349,6 +27224,15 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
                 ' — <b style="color:#7fe0a0">1 pt per +1</b> for ' +
                 wholeNum(sc - (e.attrs[a] || 0)) +
                 " more");
+      /* v193 Z: a tilted row — the chip, and the readout states the tilted price */
+      const tl = byId("tilt-" + a),
+        sp193 = spillChipV193AB(e, a); /* v193 AB: a Spillover's target shows its pending share */
+      tl && ((tl.innerHTML = focusChipV193Z(e, a) + sp193), tl.parentElement && tl.parentElement.classList.toggle("tilt-v193z", !!ch.tilt || !!sp193));
+      sp193 && v && (v.textContent = Math.round(e.attrs[a] || 0)); /* a spilled point lands on a row you did not tap */
+      cp &&
+        ch.tilt &&
+        (e.attrs[a] || 0) < attrCap() &&
+        (cp.innerHTML = (over ? "Past soft cap " : "Soft cap ") + sc + ' — <b style="color:' + (ch.tilt < 0 ? "#ff8a80" : "#7fe0a0") + '">' + focusPriceTxtV193Z(c, ch.tilt) + "</b>");
       /* v153 E: the soft-cap bar — fills to the cap (green), gold past it, red where a +1 costs 4 or more */
       const bar = byId("bar-" + a);
       if (bar) {
@@ -26363,7 +27247,7 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
     });
   }
   function doneUpgrade() {
-    ((allocSpent = {}), (allocCosts = {}), saveGame(), showToast("Player upgraded!"), goView("hub"));
+    ((allocSpent = {}), (allocCosts = {}), (allocCarryV193Z = {}), (allocSpillV193AB = {}), saveGame(), showToast("Player upgraded!"), goView("hub"));
   }
   /* ===== v67 SOFT-CAP LEGIBILITY — the price of a point, stated where the choice is
    * made. v21 gave every stat a soft cap and a rising price above it (2, then 3, then
@@ -26533,7 +27417,7 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
         (hasTrait(e, "showman") ? 1.15 : 1) *
         eraMult(),
       n = nodeLvl("legacy") * e.totalSeasons,
-      i = [1, 2, 4, 8, 15, 28, 45, 70, 120][Math.min(a, 8)] || 1,
+      i = careerBaseV193AC(a),
       r = arr
         ? tailPPV154(e, arr, s, a)
         : Math.max(1, Math.round(((i + e.totalSeasons * 0.35 + (e.titles || 0) * 4) * s + n) * chaosEarnedMult(a))),
@@ -26590,7 +27474,7 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
       c.length
         ? `<div class="card tight end-legacy-v150" style="border-color:var(--gold)">
       <div class="l" style="font-size:11px;color:var(--gold);letter-spacing:2px;margin-bottom:8px">🌳 YOU CAN NOW AFFORD</div>
-      ${c.map(h => `<div style="display:flex;justify-content:space-between;align-items:center;padding:4px 0;font-family:'Barlow Condensed';font-size:14px"><span>${h.icon} ${h.name}</span><span style="color:var(--gold);font-family:'Oswald'">${nodeCost(h)} PP</span></div>`).join("")}
+      ${c.map(h => `<div style="display:flex;justify-content:space-between;align-items:center;padding:4px 0;font-family:'Barlow Condensed';font-size:14px"><span>${nodeArtV193Y(h, null, 18) /* v193 Y */} ${h.name}</span><span style="color:var(--gold);font-family:'Oswald'">${nodeCost(h)} PP</span></div>`).join("")}
     </div>`
         : ""
     }
@@ -26786,6 +27670,7 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
     refund: () => freeAgencyRefundV154()
   };
   function screenPath() {
+    if (legendsOnV193AD()) return screenPathV193AD(); /* v193 AD: 24 legends, each with its milestone */
     const e = pathOpenV156A() /* v156 A */,
       t = state.path;
     ((byId("screen").innerHTML = `
@@ -26794,6 +27679,7 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
     <div class="sub">${e ? "Commit to a path that reshapes every future career. This is the deepest choice in the game — each path is a completely different way to reach the UFF. You can switch later" + (medalsOnV156A() ? " for " + pathSwitchCostV156A() + " PP (a quarter of your balance, at least 50)." : " for a Legacy Reset cost.") : medalsOnV156A() ? `Reach <b style="color:var(--gold)">${MEDAL_ICON_V156A} ${pathMedalsV156A()} medals</b> to unlock a Prestige Path. You have ${MEDAL_ICON_V156A} ${medalsV156A()}. Medals are your Legacy Rank — every season and every career earns them.` : `Reach <b style="color:var(--gold)">${HONOR_ICON_V130} ${PATH_HONORS} Honors</b> to unlock a Prestige Path. You're at ${HONOR_ICON_V130} ${state.prestige}. Honors come from finishing careers — they are not recruit stars.`}</div>
     <div class="mt" style="margin-top:14px">
       ${Object.entries(PATHS)
+        .filter(([a]) => PATH_OLD_V193AD.indexOf(a) >= 0) /* v193 AD off: the old five */
         .map(([a, s]) => {
           const n = t === a;
           return `<div class="pos-card ${n ? "best" : ""}" style="${n ? "border-color:" + s.color : ""}" ${e ? `onclick="choosePath('${a}')"` : ""}>
@@ -26801,7 +27687,7 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
           <div class="pos-info">
             <div class="pn" style="color:${s.color}">${s.name} ${n ? '<span class="fit-tag fit-natural">ACTIVE</span>' : ""}</div>
             <div class="pd" style="font-style:italic;opacity:.7">"${s.tag}"</div>
-            <div class="pd" style="margin-top:4px">${s.desc}</div>
+            <div class="pd" style="margin-top:4px">${PATH_DESC_OLD_V193AD[a] || s.desc}</div>
           </div>
         </div>`;
         })
@@ -26811,6 +27697,9 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
       (byId("dock").innerHTML = `<button class="btn secondary" onclick="go('shop')">Back to Prestige Tree</button>`));
   }
   function choosePath(e) {
+    if (legendsOnV193AD() && PATHS[e] && state.path !== e && !pathUnlockedV193AD(e)) return legendLockedV193AD(e); /* v193 AD: a locked legend is refused */
+    legendsOnV193AD() && legendCheckV193AD(!0);
+    if (!PATHS[e]) return;
     if (!pathOpenV156A()) {
       showToast(medalsOnV156A() ? "Reach " + MEDAL_ICON_V156A + " " + pathMedalsV156A() + " medals first" : "Reach " + HONOR_ICON_V130 + " " + PATH_HONORS + " Honors first");
       return;
@@ -26842,13 +27731,52 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
   let branchTab = "physical";
   /* ===== v193 V ICONS IN THE MENU'S STYLE (07's share: the tree's branch tabs) =====
    * each branch tab wears its glyph from the menu-style icon set (src/24-bottom-nav.js `ribIconV193V`) in the
-   * branch's own colour as the metal; the node icons in the lists stay emoji. Before 24 has loaded (the boot's
+   * branch's own colour as the metal; the node icons in the lists are v193 Y's (`nodeArtV193Y`). Before 24 has loaded (the boot's
    * first draw) and under `TU("v193V", 0)` it is the emoji. */
   function branchIconV193V(key, branch) {
     try {
       if (TU("v193V", 1) && typeof window.ribIconV193V === "function") return window.ribIconV193V("branch:" + key, branch.icon, { tint: branch.color });
     } catch (e) {}
     return branch.icon;
+  }
+  /* ===== v193 Y THE EMOJI BECOME ART (07's share: the tree's nodes, QUICK BUY, SPEND NOW, the career end) =====
+   * every node's emoji is drawn by the one renderer (src/24-bottom-nav.js `ribArtV193Y`): its concept from
+   * `NODE_ART_V193Y` (or a keyword in the node's name / description), in the branch's own metal — the same tint as
+   * the branch tab (v193 V). Before 24 has loaded (the boot's first draw) and under `TU("v193Y", 0)` it is the emoji. */
+  function nodeArtV193Y(node, branchKey, size) {
+    try {
+      if (node && TU("v193Y", 1) && typeof window.ribArtV193Y === "function") {
+        const bk = branchKey || node.branch || (TREE_NODES[node.key] || {}).branch,
+          br = TREE[bk];
+        return window.ribArtV193Y(node.icon, { size: size || 34, tint: br && br.color, hint: (node.name || "") + " " + (node.desc || ""), cls: "ra-node-v193y" });
+      }
+    } catch (e) {}
+    return node ? node.icon : "";
+  }
+  /* any emoji the cards show, drawn (`size` px, `tint` a colour for the metal); the emoji itself when off / unknown */
+  function artV193Y(icon, size, tint) {
+    try {
+      if (icon && TU("v193Y", 1) && typeof window.ribArtV193Y === "function") return window.ribArtV193Y(icon, { size: size || 20, tint: tint || null });
+    } catch (e) {}
+    return icon == null ? "" : String(icon);
+  }
+  /* a line that starts with an emoji: the emoji drawn, the rest kept as it is (markup allowed) */
+  function artLeadV193Y(str, size, tint) {
+    try {
+      if (TU("v193Y", 1) && typeof window.ribArtLeadV193Y === "function") return window.ribArtLeadV193Y(str, { size: size || 18, tint: tint || null });
+    } catch (e) {}
+    return str;
+  }
+  /* a branch's own glyph, small (the SPEND NOW chips name the branch) */
+  function branchArtV193Y(key, size) {
+    const br = TREE[key];
+    try {
+      if (br && TU("v193Y", 1) && typeof window.ribArtV193Y === "function") {
+        const g = window.__V193V && window.__V193V.alias["branch:" + key];
+        if (g) return window.ribArtV193Y(g, { size: size || 14, tint: br.color, emoji: br.icon });
+      }
+    } catch (e) {}
+    return br ? br.icon : "";
   }
   function screenPrestige() {
     const e = Object.values(state.tree || {}).reduce((n, i) => n + i, 0);
@@ -26871,7 +27799,9 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
     <div id="branchNodes">${branchNodesHtml(branchTab)}</div>
   `;
     const t = Math.max(0, Math.max(1, state.prestige) - (state.respecUsed || 0)),
-      a = state.path
+      a = legendsOnV193AD()
+        ? legendDockV193AD() /* v193 AD: the legend, and how many are unlocked */
+        : state.path
         ? PATHS[state.path].icon + " " + PATHS[state.path].name
         : pathOpenV156A()
           ? "⚡ Choose Path"
@@ -26913,7 +27843,7 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
                   : `🔒 Needs ${HONOR_ICON_V130} ${honorReqV130(a.req)} HONORS — you have ${honorsV130()}`) /* v156 A */
               : a.req.node && (d = `🔒 Needs ${TREE_NODES[a.req.node].name} Lv ${a.req.lvl}`)),
           `<div class="shop-item" style="${i ? "" : "opacity:.55"};border-color:${s > 0 ? t.color : "var(--line)"}">
-      <div class="ic">${a.icon}</div>
+      <div class="ic">${nodeArtV193Y(a, e) /* v193 Y */}</div>
       <div class="si"><div class="st">${a.name} <span class="lvl" style="color:${t.color}">Lv ${s}/${a.max}</span></div>
         <div class="sd">${a.desc}</div>
         ${d ? `<div class="sd" style="color:var(--blood)">${d}</div>` : ""}
@@ -28706,6 +29636,7 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
       (state.view = "hub"),
       legacyBootV152() /* v152 A: a pre-v152 save's Hall is credited once */,
       mirrorV156A() /* v156 A: record the old Honors once (the grandfather floor), then mirror the medals */,
+      legendBootV193AD() /* v193 AD: the old gate keeps the old five; what the save has done unlocks, quietly */,
       reopenBootV154() /* v154 A: a UFF career stuck settled after the arrival is reopened */,
       freeAgencyRefundV154() /* v154 A: Second Chances → Free Agency */,
       render(),
@@ -29403,7 +30334,9 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
   const wc = rollGamePerf;
   rollGamePerf = function (e, t, a) {
     const r = wc(e, t || 0, a),
-      l = Vn(e, "injuryRisk");
+      l = Vn(e, "injuryRisk"),
+      lgV193AD = pathVal("perfAll", 0) + pathVal(a && a.playoff ? "perfPlayoff" : "perfReg", 0); /* v193 AD: The Natural / The Closer — on the finished rating (outermost layer) */
+    lgV193AD && r && (r.perf = clamp99(Math.round((Number(r.perf) || 0) + lgV193AD), 1, 100));
     return (
       l > 0 && !r.injured && Math.random() < l && (r.injured = !0),
       l < 0 && r.injured && Math.random() < Math.min(0.8, Math.abs(l) * 2) && (r.injured = !1),
@@ -29674,7 +30607,7 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
       chem = (pl.worldState && pl.worldState.teamChemistry) != null ? Number(pl.worldState.teamChemistry) : 50,
       fg = (state.tree && state.tree.fieldGeneral) || 0;
     return clamp99(
-      TU("sayBaseV171", 0.3) + (trust - 50) / TU("sayTrustSpanV171", 90) + (chem - 50) / TU("sayChemSpanV171", 180) + fg * 0.12,
+      TU("sayBaseV171", 0.3) + (trust - 50) / TU("sayTrustSpanV171", 90) + (chem - 50) / TU("sayChemSpanV171", 180) + fg * 0.12 + pathVal("sayAdd", 0) /* v193 AD: The Field General */,
       0.12,
       1
     );
@@ -30197,7 +31130,7 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
       ((t.roleBattle103 -= 100),
       t.breakthroughs103++,
       (t.coachTrust = clamp99((t.coachTrust || 50) + 10, 0, 100)),
-      (t.points = (t.points || 0) + 1),
+      (t.points = (t.points || 0) + ptsEarnV193AB(t, 1)) /* v193 AB */,
       (t.snapShare = clamp99((t.snapShare || 0.1) + 0.12, 0.06, 0.98)),
       (l = !0),
       pushStory(
@@ -30349,7 +31282,7 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
   };
   const Ec = pathVal;
   pathVal = function (e, t) {
-    return pathCap(e, Ec(e, t));
+    return legendsOnV193AD() ? Ec(e, t) : pathCap(e, Ec(e, t)); /* v193 AD: the card's number is the number paid (`PATH_FIX_V193AD` restates the old five) */
   };
   GAME_PLANS.some(e => e.id === "recovery") ||
     GAME_PLANS.push({
@@ -31669,7 +32602,7 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
         const gb = grader(e.pos, had.stat, had.snaps || snaps);
         delta = (dev(gl.score) - dev(gb.score)) * 13 + (wb(us, them) - wb(had.us, had.them));
       }
-      w.perf = clamp99(Math.round((Number(w.perf) || 50) + delta * condMultV54(e)), 1, 100);
+      w.perf = clamp99(Math.round((Number(w.perf) || 50) + delta * condMultV54(e) + (w.liveBookedV85 ? 0 : pathVal("livePerf", 0)) /* v193 AD: The Showman, once a watched game */), 1, 100);
       e.pick6Career = Math.max(
         0,
         (e.pick6Career || 0) + ((g.stat.pick6 || 0) - ((had && had.stat && had.stat.pick6) || 0))
@@ -34453,7 +35386,7 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
     if (!games) return off;
     const share = watched / games,
       bonus = TU("watchXpBonusV164C", 0.25),
-      cut = TU("simXpCutV164C", 0.15),
+      cut = TU("simXpCutV164C", 0.15) * Math.max(0, pathVal("simXpCutMult", 1)) /* v193 AD: The Executive */,
       mult = Math.round((1 + bonus * share - cut * (1 - share)) * 100) / 100;
     return { share, watched, simmed, games, mult, label: (mult >= 1 ? "Watched live ×" : "Simmed ×") + mulTxtV193N(mult) + " (" + Math.round(share * 100) + "% watched)" };
   }
@@ -37097,7 +38030,7 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
       let cnt = 1 + (rnd() < (S.tox - 0.8) * 0.6 ? 1 : 0) + (rnd() < (S.tox - 1.4) * 0.6 ? 1 : 0);
       cnt = Math.min(cnt, Math.max(0, TU("v153BleaveMax", 3) - L.leaves), opts.count || 3);
       for (let i = 0; i < cnt; i++) {
-        const m = pickMateV153B(e, rnd);
+        const m = pickMateV153B(e, rnd, o => !lockLeftV193AA(e, o.p)) /* v193 AA: a locked recruit never walks */;
         if (!m) break;
         out.push(
           recordEventV153B(
@@ -37430,7 +38363,7 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
           ? `🤝 Your sacrifice this season: you gave up <b>${cost}</b> point${cost === 1 ? "" : "s"}; your unit gained <b>+${given} OVR</b>. `
           : `🤝 No sacrifice this season${L.sacrificed ? "" : " — the offseason board offers one"}. `) +
         (L.ovrDelta ? `This season's moves put the team rating <b>${L.ovrDelta > 0 ? "+" : ""}${L.ovrDelta.toFixed(1)}</b>. ` : "") +
-        `</div><div class="small" style="margin-top:4px;color:var(--chalk-dim)">⏳ <b>How long it lasts:</b> roster moves (lifts, sacrifices, departures) last <b>this season</b> — the roster turns over when it ends. Chemistry carries over: it drifts ${Math.round(fade * 100)}% of the way back to 50 each season, so ${
+        `</div><div class="small" style="margin-top:4px;color:var(--chalk-dim)">⏳ <b>How long it lasts:</b> ${rmOnV193AA() ? `the men carry into next season with what they gained (v193 AA: seniors graduate, a few move on, new faces fill the slots; a 🔒 recruit stays until his lock runs out)` : `roster moves (lifts, sacrifices, departures) last <b>this season</b> — the roster turns over when it ends`}. Chemistry carries over: it drifts ${Math.round(fade * 100)}% of the way back to 50 each season, so ${
           Math.abs(gap) < 1 ? "it is at neutral now" : `your ${gap > 0 ? "+" : ""}${Math.round(gap)} keeps ${gap > 0 ? "paying" : "costing"} for about <b>${lastS} season${lastS === 1 ? "" : "s"}</b>`
         } (it moves the team's strength ${q >= 0 ? "+" : ""}${Math.round(q * 100)}% today).${careerSac ? ` Career: ${careerSac} sacrifice${careerSac === 1 ? "" : "s"} on record.` : ""}</div></details></div>`
     );
@@ -37448,6 +38381,7 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
   window.sacrificeAskV153B = sacrificeAskV153B;
   function showLockerPopV153B(evs) {
     if (!evs || !evs.length) return;
+    if (rmOnV193AA() && rmPopOnV193AA()) return void rmLockerV193AA(evs); /* v193 AA: the moves are felt on the ROSTER MOVES card */
     document.getElementById("lockerPopV153B")?.remove();
     const bad = evs.some(v => v.kind === "leave");
     document.body.insertAdjacentHTML(
@@ -37458,6 +38392,1025 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
     );
     setTimeout(() => document.getElementById("lockerPopV153B")?.remove(), 5200);
   }
+
+  /* ===== v193 AA THE ROSTER MOVES, AND YOU FEEL IT =====
+   * The owner: "When players join or leave the team, I would like to see how the overall team rating goes up or down.
+   * Show it in a satisfying way — a daunting number decline for someone good leaving, a green boost bonus for someone
+   * new coming in, or team chemistry building. Do the same if you sacrifice your stats for a player gain, and lock in
+   * that player for 3 seasons or something like this. Add an Impossible prestige node that upgrades this at 1M PP."
+   * THE ROSTER CARRIES (src/10 → `rmCarryV193AA`, through `window.__V193AA.carry` when it builds a season's roster):
+   *   the same program (`rmProgV193AA`: the level, and the club in the UFF) keeps its men. At a new season key
+   *   (`rmTurnoverV193AA`, seeded per man — no Math.random): an amateur SR graduates (or ages out below JV), a JV-to-
+   *   college man transfers at `rmTransferPV193AA` (5%), a pro leaves at `rmProLeavePV193AA` (18%; 30% of those
+   *   retire) — the Roster Department's Retention and Facilities trim those odds; a man the locker room touched this
+   *   season (v153 B's events) and a LOCKED recruit never leave. Who stays is a year older and grows by his dev trait
+   *   (`RM_GROW_V193AA`, a share of the roster's target a season, Sports Science / Facilities +0.2% a level, never past
+   *   his potential); an empty slot gets a new face off src/09's own maker at `rmNewInKV193AA` (96%) of the fresh
+   *   man's OVR, a name off the career's name pool. A new program (a level up, another club) is a fresh roster.
+   *   The chemistry moves with it: +`rmChemBackV193AA` 0.3 a returning man, −`rmChemNewV193AA` 0.6 a new one (±5 at
+   *   most); a new team drifts half the way back to 50 (`rmChemNewTeamV193AA`).
+   * THE TEAM FEELS IT (`rosterQV193AA`, in BOTH `teamPairV76` and `buildGameRosters`, so the sim and the watched game
+   *   agree — v76): the carried men's mean OVR over the roster's own target, 1:1 in team OVR (Q = 2·dev / level
+   *   base), bounded ±`rosterQMaxV193AA` 0.12 quality. A fresh roster is exactly its target: 0. This season's v153 B
+   *   moves are kept out of it (`carryOvrV193AA`) — the locker room's own ledger counts them.
+   * THE CARD (`rmQV193AA` on the player, saved; `rmPumpV193AA` at the season screen or the hub once nothing is in the
+   *   way — v193 W's rule `injBlockedV193W`, the growth card, the locker pop; off under an automated browser unless
+   *   `v193AAprompt` 1, v189 B): ROSTER MOVES — the team OVR big; departures slide out with a red "−N TEAM" (what the man
+   *   was worth over a walk-on, `rmWalkOnKV193AA` 60% of the target, over the 22), a star (top 3 of the roster or 8+
+   *   over its mean) makes the number tick DOWN digit by digit in red with a shake and a heavy haptic; arrivals slide in
+   *   with a green "+N TEAM", the returners' growth beside them, the number climbs in green with a sparkle and success;
+   *   then CHEMISTRY fills and the rest (your own growth, the club, the level) lands on the real after-OVR —
+   *   "TEAM 61 → 64 (+3)". Tap to skip; reduced motion is the end state. A level / club change is A NEW TEAM (the men
+   *   you leave, the men you join, the number straight to the new team's). v153 B's mid-season moves ride the same card
+   *   (`rmLockerV193AA`, merged into the season's card while it is unseen). `e.rmLastV193AA` is the latest delta: the
+   *   season screen's team card (`teamQualityHtmlV192B`) and the pregame YOUR TEAM page show "▼ 4 since last season".
+   * RECRUIT A PLAYER (the same row, `openRecruitV193AA`): three recruits for the weakest units (`recruitOffersV193AA`
+   *   — src/09's maker at the roster's target, PROSPECT / STARTER / BLUE-CHIP at +10 / 17 / 25% of the target over the
+   *   man he replaces and at least 98 / 108 / 120% of it), each priced in YOUR attributes — a percent of the two or three
+   *   the position needs least (`POSITIONS[pos].w`; never Durability): 6+4 / 8+6 / 9+7+5%, the points in small. The
+   *   ribDialog confirm says what you lose, who you gain, the team OVR before → after, and the lock: `recruitLockSeasonsV193AA`
+   *   (3) seasons, this one counted (`lockedUntilV193AA` = totalSeasons + 3) — he never leaves in turnover, and the lock
+   *   ends when the career leaves the program (a level up, another club). Signing subtracts the points, puts him in the
+   *   replaced man's slot of src/10's roster (the pregame, `teamPairV76`, and `buildGameRosters` plants him by name on
+   *   the game's scale — `recruitPlantV193AA`), and plays the card. `recruitPerSeasonV193AA` (1) a season.
+   * THE FRANCHISE RECRUITER (`TREE.impossible`, `recruiterV193AA`, 125,000 × the branch's ×8 = 1,000,000 PP at Lv 1,
+   *   ×2.5 a level, max 3): `treeFx("recruiterV193AA")` (0.5 × the branch's ×2 = 1 a level) — the price −25% a level,
+   *   the recruit +3 OVR a level, the lock +1 season a level.
+   * Kill switch `TU("v193AA", 1)`: 0 = the old rebuild (no carry, no term, no card, no recruit, no planting).
+   * `window.__V193AA`; `scripts/v193AAcheck.mjs`. */
+  var RM_V193AA; // the card's record — a var: the boot can draw a screen that reads it before this line runs (v140)
+  function rmStV193AA() {
+    return RM_V193AA || (RM_V193AA = { open: null, shown: [], samples: [], last: null, skipped: !1, timers: [], soon: 0, seq: 0 });
+  }
+  function rmOnV193AA() {
+    return !!TU("v193AA", 1);
+  }
+  function rmPopOnV193AA() {
+    let auto = !1;
+    try {
+      auto = !!(typeof navigator < "u" && navigator.webdriver);
+    } catch (_) {}
+    return rmOnV193AA() && !!TU("v193AAprompt", auto ? 0 : 1);
+  }
+  function rmProgV193AA(e) {
+    const lv = (e && e.level) | 0;
+    return lv + "|" + (lv >= 7 ? String((e.clubV146B && e.clubV146B.name) || (e.teamIdentity && e.teamIdentity.dfl) || "") : "");
+  }
+  function rmTeamNameV193AA(e) {
+    try {
+      return e && e.teamIdentity ? teamName(e) : "";
+    } catch (_) {
+      return "";
+    }
+  }
+  function rmKeyV193AA(e) {
+    try {
+      return window.__V158_KEY ? window.__V158_KEY(e) : null;
+    } catch (_) {
+      return null;
+    }
+  }
+  // the seasons a man's lock has left, this one counted (0 = free to go)
+  function lockLeftV193AA(e, m) {
+    if (!m || !m.lockedUntilV193AA || !rmOnV193AA()) return 0;
+    return Math.max(0, (m.lockedUntilV193AA | 0) - ((e && e.totalSeasons) | 0));
+  }
+  // what a man is worth to the team: his OVR over a walk-on in his slot, over the 22 (team OVR is the roster's mean)
+  function rmChipV193AA(ovr, target) {
+    return ((Number(ovr) || 0) - target * TU("rmWalkOnKV193AA", 0.6)) / 22;
+  }
+  function rmDevOfV193AA(R, target) {
+    if (!Array.isArray(R) || !R.length) return 0;
+    let s = 0;
+    R.forEach(m => (s += m ? Number(m.carryOvrV193AA != null ? m.carryOvrV193AA : m.ovr) || 0 : 0));
+    return s / R.length - (Number(target) || 0);
+  }
+  function rmRefreshDevV193AA(e) {
+    const R = e && e.teamRosterV158,
+      M = e && e.rosterMetaV193AA;
+    if (Array.isArray(R) && M) M.dev = +rmDevOfV193AA(R, M.target).toFixed(3);
+    return M ? M.dev : 0;
+  }
+  /* the team term: the men the program carried, over the roster's target, in the quality factor both builders read */
+  function rosterQV193AA(e) {
+    if (!e || !rmOnV193AA()) return 0;
+    if (state && e === state.player && window.__V158_ROSTER) {
+      const k = rmKeyV193AA(e);
+      if (k && e.teamRosterSeasonV158 !== k)
+        try {
+          window.__V158_ROSTER(); // a new season's key: build (carry) the roster before the team is read
+        } catch (_) {}
+    }
+    const M = e.rosterMetaV193AA;
+    if (!M || !M.dev || M.key !== e.teamRosterSeasonV158) return 0;
+    const u = levelBaseV178(e.level),
+      mx = TU("rosterQMaxV193AA", 0.12);
+    return clamp99((2 * M.dev) / Math.max(1, u), -mx, mx);
+  }
+  // a share of the roster's target a season, by the man's dev trait
+  var RM_GROW_V193AA = { Generational: 0.06, Superstar: 0.045, Fast: 0.03, Normal: 0.02, Slow: 0.01, Bust: 0 };
+  var RM_ATTRS_V193AA = ["speed", "acceleration", "agility", "strength", "tackling", "throwing", "awareness", "catching", "blocking", "weight"];
+  function rmScaleV193AA(m, k) {
+    if (!m || !(k > 0) || k === 1) return m;
+    RM_ATTRS_V193AA.forEach(a => {
+      if (typeof m[a] === "number") m[a] = clamp99(Math.round(m[a] * k), 1, 999);
+      if (m.ratings && typeof m.ratings[a] === "number") m.ratings[a] = clamp99(Math.round(m.ratings[a] * k), 1, 999);
+    });
+    return m;
+  }
+  function rmNameV193AA(rnd, used) {
+    let nm = "";
+    for (let g = 0; g < 40; g++) {
+      nm = ROSTER_FIRST[Math.floor(rnd() * ROSTER_FIRST.length)] + " " + ROSTER_LAST[Math.floor(rnd() * ROSTER_LAST.length)];
+      if (!used.has(nm)) break;
+    }
+    used.add(nm);
+    return nm;
+  }
+  function rmTraitV193AA(rnd) {
+    const n = rnd() * 100;
+    return n < 5 ? "Generational" : n < 17 ? "Superstar" : n < 38 ? "Fast" : n < 82 ? "Normal" : n < 94 ? "Slow" : "Bust";
+  }
+  var RM_POT_V193AA = { Generational: 24, Superstar: 17, Fast: 11, Normal: 6, Slow: 3, Bust: 0 };
+  // a new face for slot i: src/09's man for that slot, at the new-face share of his OVR, with a name, a number, a trait
+  function rmNewManV193AA(f, i, T, rnd, used, nums, at, ovrOverride) {
+    const base = f && f.ovr ? f : { pos: "LB", ovr: T, ratings: {} },
+      ovr = clamp99(Math.round(ovrOverride != null ? ovrOverride : (base.ovr || T) * TU("rmNewInKV193AA", 0.96)), 1, 999),
+      m = rmScaleV193AA(JSON.parse(JSON.stringify(base)), ovr / Math.max(1, base.ovr || ovr));
+    m.ovr = m.overall = ovr;
+    m.name = rmNameV193AA(rnd, used);
+    m.id = "P" + i + "s" + at;
+    m.year = "FR";
+    let j = 1 + Math.floor(rnd() * 99);
+    for (let g = 0; g < 99 && nums.has(j); g++) j = (j % 99) + 1;
+    nums.add(j);
+    m.jersey = j;
+    m.devTrait = rmTraitV193AA(rnd);
+    m.potential = clamp99(ovr + (RM_POT_V193AA[m.devTrait] || 5), 1, 999);
+    m.hometown = ["Indiana", "Ohio", "Texas", "Florida", "Georgia", "California", "Michigan", "Pennsylvania"][Math.floor(rnd() * 8)];
+    m.star = m.tier === "star";
+    m.carryOvrV193AA = ovr;
+    m.newV193AA = at;
+    delete m.lockerV153B;
+    delete m.lockedUntilV193AA;
+    delete m.recruitV193AA;
+    return m;
+  }
+  /* src/10 asks this when it builds a season's roster: carry the program's men, or start fresh */
+  function rmCarryV193AA(p, players, prevR, key, target) {
+    if (!p || !Array.isArray(players)) return null;
+    const M0 = p.rosterMetaV193AA,
+      prog = rmProgV193AA(p),
+      fresh = why => {
+        players.forEach(m => m && (m.carryOvrV193AA = m.ovr));
+        p.rosterMetaV193AA = { key, prog, target, at: p.totalSeasons | 0, dev: 0, team: rmTeamNameV193AA(p) };
+        return { carried: !1, why };
+      };
+    if (!rmOnV193AA()) return fresh("off");
+    if (!Array.isArray(prevR) || prevR.length !== players.length) return fresh("first");
+    // a save from before v193 AA has no meta: the same level is the same program
+    const prevProg = M0 ? M0.prog : String(p.teamRosterSeasonV158 || "").split(":")[0] === String(p.level | 0) ? prog : null;
+    if (prevProg !== prog) {
+      const r = fresh("new team");
+      try {
+        rmQueueTeamV193AA(p, prevR, players, M0);
+      } catch (x) {
+        console.warn("[v193 AA team]", x);
+      }
+      return r;
+    }
+    const T = M0 && M0.target > 0 ? M0.target : target;
+    if (M0 && (M0.key === key || (M0.at | 0) === (p.totalSeasons | 0))) {
+      // the same season, rebuilt (a club re-signed, a nulled key, the new season's seed after the offseason's
+      // turnover — the key moves twice a season, at the end and at the start): the men stay exactly as they were
+      prevR.forEach((m, i) => (players[i] = m));
+      p.rosterMetaV193AA = Object.assign({}, M0, { key, prog });
+      p.rosterMetaV193AA.dev = +rmDevOfV193AA(players, T).toFixed(3);
+      return { carried: !0, skipLocker: !0, same: !0 };
+    }
+    return rmTurnoverV193AA(p, players, prevR, key, prog, T, M0);
+  }
+  function rmTurnoverV193AA(p, players, prevR, key, prog, T, M0) {
+    const lv = p.level | 0,
+      pro = lv >= 7,
+      at = p.totalSeasons | 0,
+      rp = (state && state.rosterPrestigeV158) || {},
+      ret = rp.retention | 0,
+      fac = rp.facilities | 0,
+      sci = rp.sportsScience | 0,
+      L = p.lockerV153B && p.lockerV153B.stamp === stampV153B(p) ? p.lockerV153B : null,
+      evD = {},
+      touched = {};
+    (L ? L.events || [] : []).forEach(v => {
+      touched[v.slot] = 1;
+      evD[v.slot] = (evD[v.slot] || 0) + ((v.ovrTo || 0) - (v.ovrFrom || 0));
+    });
+    const prevAvg = prevR.reduce((a, m) => a + ((m && m.ovr) || 0), 0) / prevR.length,
+      top3 = new Set(
+        prevR
+          .map((m, i) => ({ o: m && m.pos !== "K" && m.pos !== "P" ? m.ovr || 0 : -1, i }))
+          .sort((a, b) => b.o - a.o)
+          .slice(0, 3)
+          .map(x => x.i)
+      ),
+      gen = window.__GRIDIRON_GENERATE_ROSTER_V157,
+      fr = gen ? gen(T, ((p.seasonSeed || 1) ^ 0x7a3c) + lv * 131 + at * 17).players : [],
+      used = new Set(prevR.map(m => m && m.name)),
+      nums = new Set(prevR.map(m => m && m.jersey)),
+      yearUp = { FR: "SO", SO: "JR", JR: "SR", SR: "SR" },
+      dep = [],
+      arr = [],
+      imp = [];
+    const before0 = p.teamSnapV193AA && p.teamSnapV193AA.prog === prog ? p.teamSnapV193AA.team : null;
+    prevR.forEach((m0, i) => {
+      if (!m0) return;
+      const rnd = seededRng("v193AA", p.name || "", at, lv, i, key),
+        m = JSON.parse(JSON.stringify(m0)),
+        locked = lockLeftV193AA(p, m) > 0;
+      delete m.lockerV153B;
+      let leave = null;
+      if (!locked && !touched[i]) {
+        if (!pro) {
+          if (m.year === "SR") leave = lv <= 2 ? "aged up — on to the next league" : lv >= 5 ? "out of eligibility — graduated" : "graduated";
+          else if (lv >= 3 && rnd() < TU("rmTransferPV193AA", 0.05) * (1 - 0.1 * ret)) leave = "entered the transfer portal";
+        } else {
+          const P = TU("rmProLeavePV193AA", 0.18) * Math.max(0, 1 - 0.1 * ret) * (top3.has(i) ? Math.max(0, 1 - 0.06 * fac) : 1);
+          if (rnd() < P) leave = rnd() < 0.3 ? "retired" : "signed elsewhere in free agency";
+        }
+      }
+      if (leave) {
+        const nw = rmNewManV193AA(fr[i], i, T, rnd, used, nums, at);
+        players[i] = nw;
+        dep.push({ name: m0.name, pos: m0.pos, ovr: Math.round(m0.ovr || 0), why: leave, star: top3.has(i) || (m0.pos !== "K" && m0.pos !== "P" && (m0.ovr || 0) >= prevAvg + 8), slot: i, chip: -rmChipV193AA(m0.ovr, T) });
+        arr.push({ name: nw.name, pos: nw.pos, ovr: nw.ovr, why: pro ? "a rookie" : "a freshman", star: nw.star, slot: i, chip: rmChipV193AA(nw.ovr, T) });
+        return;
+      }
+      // he stays: a year older and better for it (this season's locker-room moves stay on the locker room's ledger)
+      const base = (m.ovr || 1) - (evD[i] || 0),
+        g = RM_GROW_V193AA[m.devTrait] != null ? RM_GROW_V193AA[m.devTrait] : 0.02,
+        grow = Math.max(0, Math.round(T * (g + 0.002 * (sci + fac)))),
+        room = m.potential != null ? Math.max(0, Math.round(m.potential - base)) : grow,
+        add = Math.min(grow, room);
+      if (add > 0) {
+        rmScaleV193AA(m, (m.ovr + add) / Math.max(1, m.ovr));
+        m.ovr = m.overall = m.ovr + add;
+        imp.push({ name: m.name, pos: m.pos, ovr: m.ovr, from: m0.ovr, to: m.ovr, why: "a year stronger", slot: i, chip: add / 22 });
+      }
+      if (!pro) m.year = yearUp[m.year] || m.year;
+      m.carryOvrV193AA = base + add;
+      players[i] = m;
+    });
+    p.rosterMetaV193AA = { key, prog, target: T, at, dev: 0, team: rmTeamNameV193AA(p) };
+    p.rosterMetaV193AA.dev = +rmDevOfV193AA(players, T).toFixed(3);
+    // the room: who came back, and who is new
+    const nNew = dep.length,
+      nBack = players.length - nNew,
+      c0 = chemOfV153B(p),
+      mx = TU("rmChemMaxV193AA", 5),
+      d = clamp99(nBack * TU("rmChemBackV193AA", 0.3) - nNew * TU("rmChemNewV193AA", 0.6), -mx, mx);
+    Math.abs(d) >= 0.1 && chemMoveV153B(p, Math.round(d * 10) / 10, "who came back, and who is new");
+    const c1 = chemOfV153B(p);
+    if (dep.length || imp.length)
+      rmQueueV193AA(p, { kind: "season", at, before: before0, dep, arr, imp, chem: [c0, c1], target: T, team: rmTeamNameV193AA(p) });
+    return { carried: !0, skipLocker: !0, dep: dep.length, imp: imp.length };
+  }
+  function rmQueueTeamV193AA(p, prevR, players, M0) {
+    const S0 = p.teamSnapV193AA,
+      T0 = (M0 && M0.target) || 50,
+      T1 = (p.rosterMetaV193AA && p.rosterMetaV193AA.target) || 50,
+      top = (R, T, why) =>
+        R.map((m, i) => ({ m, i }))
+          .filter(o => o.m && o.m.pos !== "K" && o.m.pos !== "P")
+          .sort((a, b) => (b.m.ovr || 0) - (a.m.ovr || 0))
+          .slice(0, 3)
+          .map(o => ({ name: o.m.name, pos: o.m.pos, ovr: Math.round(o.m.ovr || 0), why, star: !0, slot: o.i, chip: 0 })),
+      c0 = chemOfV153B(p);
+    if (teamOnV153B()) chemMoveV153B(p, Math.round((50 - c0) * TU("rmChemNewTeamV193AA", 0.5) * 10) / 10, "a new team");
+    const from = (S0 && S0.teamName) || (M0 && M0.team) || "your old team";
+    rmQueueV193AA(p, {
+      kind: "team",
+      at: p.totalSeasons | 0,
+      before: S0 ? S0.team : null,
+      fromName: from,
+      toName: rmTeamNameV193AA(p) || "your new team",
+      dep: top(prevR, T0, "stays with " + from),
+      arr: top(players, T1, "your new teammate"),
+      more: [Math.max(0, prevR.length - 3), Math.max(0, players.length - 3)],
+      imp: [],
+      chem: [c0, chemOfV153B(p)],
+      target: T1
+    });
+  }
+  function rmQueueV193AA(e, it) {
+    if (!e || !it) return null;
+    const Q = (e.rmQV193AA = Array.isArray(e.rmQV193AA) ? e.rmQV193AA : []),
+      last = Q[Q.length - 1],
+      R = rmStV193AA();
+    it.id = "rm" + (it.at | 0) + "_" + ++R.seq + "_" + Date.now().toString(36);
+    if (last && !last.opened && last.kind === "team" && it.kind === "team" && last.at === it.at) {
+      // a level's new roster, then the club he signs with: one card, the old team to the last new one
+      Object.assign(last, { toName: it.toName, arr: it.arr, more: [last.more ? last.more[0] : 0, it.more ? it.more[1] : 0], target: it.target, chem: [last.chem ? last.chem[0] : it.chem[0], it.chem[1]] });
+      return last;
+    }
+    if (last && !last.opened && last.kind === "season" && it.kind === "team" && last.at === it.at) {
+      // the offseason's turnover, then a level up before he saw it: the old team (as he last saw it) to the new one
+      it.before = last.before != null ? last.before : it.before;
+      Q.splice(Q.length - 1, 1);
+    }
+    Q.push(it);
+    Q.length > 6 && Q.splice(0, Q.length - 6);
+    rmSoonV193AA(700);
+    return it;
+  }
+  /* v153 B's moves (a teammate walks, grows, your sacrifice) ride the card: merged into the season's unseen card */
+  function rmLockerV193AA(evs) {
+    const e = state && state.player;
+    if (!e || !evs || !evs.length) return;
+    const T = (e.rosterMetaV193AA && e.rosterMetaV193AA.target) || levelBaseV178(e.level),
+      dep = [],
+      arr = [],
+      imp = [];
+    evs.forEach(v => {
+      if (v.kind === "leave") {
+        dep.push({ name: v.name, pos: v.pos, ovr: Math.round(v.ovrFrom || 0), why: (v.quit ? "quit the team" : "entered the transfer portal") + " — " + (v.why || ""), star: !1, slot: v.slot, chip: -rmChipV193AA(v.ovrFrom, T) });
+        arr.push({ name: v.newName, pos: v.pos, ovr: Math.round(v.ovrTo || 0), why: "his replacement", slot: v.slot, chip: rmChipV193AA(v.ovrTo, T) });
+      } else imp.push({ name: v.name, pos: v.pos, ovr: Math.round(v.ovrTo || 0), from: v.ovrFrom, to: v.ovrTo, why: v.kind === "sacrifice" ? "your sacrifice" : "grew beside you", slot: v.slot, chip: ((v.ovrTo || 0) - (v.ovrFrom || 0)) / 22 });
+    });
+    const Q = (e.rmQV193AA = Array.isArray(e.rmQV193AA) ? e.rmQV193AA : []),
+      last = Q[Q.length - 1];
+    if (last && !last.opened && last.at === (e.totalSeasons | 0) && (last.kind === "season" || last.kind === "locker")) {
+      last.dep = (last.dep || []).concat(dep);
+      last.arr = (last.arr || []).concat(arr);
+      last.imp = (last.imp || []).concat(imp);
+      return;
+    }
+    rmQueueV193AA(e, { kind: "locker", at: e.totalSeasons | 0, before: null, dep, arr, imp, chem: null, target: T });
+  }
+  /* the numbers the card walks through: before → departures → arrivals and growth → the real after */
+  function rmNumsV193AA(e, q) {
+    const after = q.after != null ? q.after : teamPairV76(e, {}).us,
+      sum = a => (a || []).reduce((s, m) => s + (Number(m.chip) || 0), 0),
+      depSum = q.kind === "team" ? 0 : sum(q.dep),
+      upSum = q.kind === "team" ? 0 : sum(q.arr) + sum(q.imp),
+      n0 = q.before != null ? Math.round(q.before) : Math.round(after - depSum - upSum);
+    let n1 = Math.round(n0 + depSum),
+      n2 = Math.round(n0 + depSum + upSum);
+    if (q.kind === "team") (n1 = n0), (n2 = after);
+    if (q.kind === "recruit") n2 = after;
+    return { n0, n1, n2, n3: after, rest: after - n2, star: q.kind !== "team" && (q.dep || []).some(m => m.star) };
+  }
+  function rmBlockedV193AA(q) {
+    if (!state || !state.player || state.view === "live" || state.view === "splash") return !0;
+    try {
+      if (window.ribDialog && window.ribDialog.isOpen) return !0;
+      if (window.__RIB_COACH && window.__RIB_COACH.isOpen) return !0;
+      if (document.querySelector("#pgOverlayV13,#simCardV178,#rib-vault-v137,.onboard,#personaV13")) return !0;
+    } catch (_) {}
+    if (q && q.kind === "recruit") return !1; // he just signed him: the card plays now (over the pregame too)
+    if (state.view !== "season" && state.view !== "hub") return !0;
+    try {
+      if (injBlockedV193W()) return !0;
+      if (INJ_W.open) return !0;
+    } catch (_) {}
+    try {
+      if (growCoveredV193O() || growBusyV193O()) return !0;
+    } catch (_) {}
+    return !!document.querySelector("#lockerPopV153B");
+  }
+  function rmSoonV193AA(ms) {
+    const R = rmStV193AA();
+    clearTimeout(R.soon);
+    R.soon = setTimeout(() => rmPumpV193AA(), ms != null ? ms : 500);
+  }
+  function rmPumpV193AA(force) {
+    const e = state && state.player,
+      Q = e && Array.isArray(e.rmQV193AA) ? e.rmQV193AA : null,
+      R = rmStV193AA();
+    if (!rmPopOnV193AA() || !Q || !Q.length || R.open || document.getElementById("rmV193AA")) return !1;
+    // a card from an earlier season is stale: drop it quietly
+    while (Q.length && (Q[0].at | 0) < (e.totalSeasons | 0) - 1) Q.shift();
+    const q = Q[0];
+    if (!q || (!force && rmBlockedV193AA(q)) || (force && rmBlockedV193AA({ kind: "recruit" }))) return !1;
+    rmOpenV193AA(e, q);
+    return !0;
+  }
+  function rmSgV193AA(n) {
+    return (n > 0 ? "+" : n < 0 ? "−" : "±") + Math.abs(n);
+  }
+  function rmHtmlV193AA(e, q, N) {
+    const MAXR = Math.max(1, TU("rmRowsV193AA", 5) | 0),
+      team = q.kind === "team",
+      chip = (c, up) => (team ? "" : `<i class="rm-chip ${up ? "g" : "r"}">${up ? "+" : "−"}${Math.max(1, Math.round(Math.abs(c)))} TEAM</i>`),
+      row = (m, cls, ch) =>
+        `<div class="rm-row ${cls}${m.star && cls === "dep" ? " star" : ""}" data-slot="${m.slot}"><span class="rm-pos">${escHtml(String(m.pos || ""))}</span><span class="rm-nm">${m.star && cls === "dep" && !team ? "⭐ " : ""}${escHtml(String(m.name || "—"))}<small>${escHtml(String(m.why || ""))}</small></span><b class="rm-ovr">${Math.round(m.ovr || 0)}</b>${ch}</div>`,
+      dep = (q.dep || []).slice().sort((a, b) => (b.star ? 1 : 0) - (a.star ? 1 : 0) || (b.ovr || 0) - (a.ovr || 0)),
+      arr = (q.arr || []).slice().sort((a, b) => (b.ovr || 0) - (a.ovr || 0)),
+      imp = (q.imp || []).slice().sort((a, b) => (b.to - b.from || 0) - (a.to - a.from || 0)),
+      more = (n, what) => (n > 0 ? `<div class="rm-more">+ ${n} more ${what}</div>` : ""),
+      title = { season: "A NEW SEASON", team: "A NEW TEAM", recruit: "YOU SIGNED A RECRUIT", locker: "THE LOCKER ROOM" }[q.kind] || "ROSTER MOVES",
+      c = q.chem,
+      chemShow = !!(c && Math.round(c[1]) !== Math.round(c[0])) || N.rest !== 0,
+      d = N.n3 - N.n0;
+    const depH = dep.length
+      ? `<div class="rm-sec rm-dep-s"><h6>${team ? "YOU LEFT · " + escHtml(String(q.fromName || "")).toUpperCase() : "LEFT THE TEAM"}</h6>${dep
+          .slice(0, MAXR)
+          .map(m => row(m, "dep", chip(m.chip, !1)))
+          .join("")}${team ? more(q.more && q.more[0], "stay behind") : more(dep.length - MAXR, "left")}</div>`
+      : "";
+    const arrH =
+      arr.length || imp.length
+        ? `<div class="rm-sec rm-arr-s"><h6>${team ? "YOUR NEW TEAM · " + escHtml(String(q.toName || "")).toUpperCase() : arr.length ? "JOINED" : "CAME BACK BETTER"}</h6>${arr
+            .slice(0, MAXR)
+            .map(m => row(m, "arr", chip(m.chip, !0) + (m.lock ? `<i class="rm-chip k">🔒 ${m.lock}</i>` : "")))
+            .join("")}${team ? more(q.more && q.more[1], "teammates") : more(arr.length - MAXR, "joined")}${imp
+            .slice(0, 2)
+            .map(m => row(m, "imp", `<i class="rm-chip g">+${Math.max(1, Math.round(m.to - m.from))} OVR</i>`))
+            .join("")}${imp.length > 2 ? `<div class="rm-more">+ ${imp.length - 2} more came back better</div>` : ""}</div>`
+        : "";
+    const chemH = chemShow
+      ? `<div class="rm-sec rm-chem-s"><h6>CHEMISTRY${c ? ` · ${Math.round(c[0])} → <b>${Math.round(c[1])}</b>` : ""}</h6><div class="rm-bar"><i id="rmBarV193AA" style="width:${c ? clamp99(c[0], 0, 100) : 50}%"></i></div><small>${N.rest !== 0 ? `${rmSgV193AA(N.rest)} TEAM · chemistry, your own growth${team ? ", the new level" : ""} and the rest` : "the room settles"}</small></div>`
+      : "";
+    return `<div class="rm-card" id="rmCardV193AA" role="dialog" aria-label="Roster moves"><div class="rm-eye">🏈 ROSTER MOVES · ${title}</div>
+      <div class="rm-big"><b id="rmNumV193AA" data-n="${N.n0}">${N.n0}</b><span>TEAM OVR</span><em class="rm-spark"><i></i><i></i><i></i><i></i><i></i></em></div>
+      ${depH}${arrH}${chemH}
+      <div class="rm-end" id="rmEndV193AA">TEAM ${N.n0} → ${N.n3} <em class="${d > 0 ? "up" : d < 0 ? "dn" : ""}">(${rmSgV193AA(d)})</em></div>
+      <button type="button" class="btn rm-go" id="rmGoV193AA">CONTINUE</button><div class="rm-hint" id="rmHintV193AA">tap to skip</div></div>`;
+  }
+  function rmReducedV193AA() {
+    try {
+      return !!(window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches);
+    } catch (_) {
+      return !1;
+    }
+  }
+  function rmOpenV193AA(e, q) {
+    rmCssV193AA();
+    const R = rmStV193AA();
+    if (q.after == null) q.after = teamPairV76(e, {}).us; // frozen at the open: the number the season screen shows
+    const N = rmNumsV193AA(e, q);
+    q.opened = !0;
+    e.rmLastV193AA = { from: N.n0, to: N.n3, kind: q.kind, at: e.totalSeasons | 0 };
+    const root = document.createElement("div");
+    root.className = "rm-v193aa";
+    root.id = "rmV193AA";
+    root.innerHTML = rmHtmlV193AA(e, q, N);
+    document.body.appendChild(root);
+    R.open = q;
+    R.done = !1;
+    R.skipped = !1;
+    R.samples = [N.n0];
+    R.nums = N;
+    R.timers.forEach(clearTimeout);
+    R.timers = [];
+    R.last = { kind: q.kind, id: q.id, n: N, dep: (q.dep || []).length, arr: (q.arr || []).length, imp: (q.imp || []).length, at: Date.now() };
+    R.shown.push(R.last);
+    R.shown.length > 20 && R.shown.shift();
+    root.addEventListener("click", ev => {
+      if (ev.target && ev.target.closest && ev.target.closest("#rmGoV193AA")) return void rmCloseV193AA();
+      if (!R.done) {
+        R.skipped = !0;
+        rmFinishV193AA(root, q, N);
+      } else if (ev.target === root) rmCloseV193AA();
+    });
+    try {
+      saveGame();
+    } catch (_) {}
+    if (rmReducedV193AA()) return void rmFinishV193AA(root, q, N, !0);
+    rmPlayV193AA(root, q, N);
+  }
+  function rmTickV193AA(el, from, to, cls, R, done) {
+    const steps = Math.abs(to - from),
+      dir = to > from ? 1 : -1;
+    if (!steps) return void (done && done(0));
+    const ms = clamp99(steps * TU("rmTickMsV193AA", 90), 320, 1500),
+      per = ms / steps;
+    el.classList.remove("up", "dn");
+    el.classList.add(cls);
+    for (let k = 1; k <= steps; k++)
+      R.timers.push(
+        setTimeout(() => {
+          const v = from + dir * k;
+          el.textContent = String(v);
+          el.dataset.n = String(v);
+          R.samples.push(v);
+          el.classList.remove("pop");
+          void el.offsetWidth;
+          el.classList.add("pop");
+          if (k === steps && done) done(ms);
+        }, per * k)
+      );
+  }
+  function rmPlayV193AA(root, q, N) {
+    const R = rmStV193AA(),
+      at = (fn, ms) => R.timers.push(setTimeout(fn, ms)),
+      card = root.querySelector("#rmCardV193AA"),
+      num = root.querySelector("#rmNumV193AA"),
+      deps = [...root.querySelectorAll(".rm-row.dep")],
+      ups = [...root.querySelectorAll(".rm-row.arr,.rm-row.imp")],
+      stag = TU("rmStaggerMsV193AA", 200);
+    let t = 350;
+    deps.forEach((r, k) => at(() => r.classList.add("in"), t + k * stag));
+    t += deps.length * stag + (deps.length ? 250 : 0);
+    at(() => {
+      deps.forEach(r => r.classList.add("out"));
+      if (N.n1 !== N.n0 && N.star) {
+        card && card.classList.add("shake");
+        buzzV193O("heavy");
+      }
+      rmTickV193AA(num, N.n0, N.n1, "dn", R);
+    }, t);
+    t += (N.n1 !== N.n0 ? clamp99(Math.abs(N.n1 - N.n0) * TU("rmTickMsV193AA", 90), 320, 1500) : 0) + 380;
+    ups.forEach((r, k) => at(() => r.classList.add("in"), t + k * stag));
+    t += ups.length * stag + (ups.length ? 250 : 0);
+    at(() => {
+      card && card.classList.remove("shake");
+      rmTickV193AA(num, N.n1, N.n2, N.n2 >= N.n1 ? "up" : "dn", R, () => {
+        if (N.n2 > N.n1) {
+          root.querySelector(".rm-big") && root.querySelector(".rm-big").classList.add("spark");
+          buzzV193O("success");
+        }
+      });
+    }, t);
+    t += (N.n2 !== N.n1 ? clamp99(Math.abs(N.n2 - N.n1) * TU("rmTickMsV193AA", 90), 320, 1500) : 0) + 380;
+    at(() => {
+      const bar = root.querySelector("#rmBarV193AA");
+      bar && q.chem && (bar.style.width = clamp99(q.chem[1], 0, 100) + "%");
+      rmTickV193AA(num, N.n2, N.n3, N.n3 >= N.n2 ? "up" : "dn", R);
+    }, t);
+    t += (N.n3 !== N.n2 ? clamp99(Math.abs(N.n3 - N.n2) * TU("rmTickMsV193AA", 90), 320, 1500) : 0) + 700;
+    at(() => rmFinishV193AA(root, q, N), t);
+  }
+  // the end state: every row in, the number on the real after-OVR, the line under it — a tap, reduced motion or the end
+  function rmFinishV193AA(root, q, N, quiet) {
+    const R = rmStV193AA();
+    R.timers.forEach(clearTimeout);
+    R.timers = [];
+    R.done = !0;
+    root.querySelectorAll(".rm-row").forEach(r => r.classList.add("in"));
+    root.querySelectorAll(".rm-row.dep").forEach(r => r.classList.add("out"));
+    const num = root.querySelector("#rmNumV193AA"),
+      d = N.n3 - N.n0;
+    if (num) {
+      num.textContent = String(N.n3);
+      num.dataset.n = String(N.n3);
+      num.classList.remove("up", "dn", "pop");
+      d && num.classList.add(d > 0 ? "up" : "dn");
+    }
+    R.samples[R.samples.length - 1] !== N.n3 && R.samples.push(N.n3);
+    const bar = root.querySelector("#rmBarV193AA");
+    bar && q.chem && (bar.style.width = clamp99(q.chem[1], 0, 100) + "%");
+    root.querySelector("#rmCardV193AA") && root.querySelector("#rmCardV193AA").classList.remove("shake");
+    root.classList.add("done");
+    const h = root.querySelector("#rmHintV193AA");
+    h && (h.textContent = "");
+    R.last && (R.last.skipped = R.skipped, R.last.reduced = !!quiet);
+  }
+  function rmCloseV193AA() {
+    const e = state && state.player,
+      R = rmStV193AA(),
+      q = R.open;
+    R.timers.forEach(clearTimeout);
+    R.timers = [];
+    document.getElementById("rmV193AA")?.remove();
+    R.open = null;
+    if (e && q && Array.isArray(e.rmQV193AA)) {
+      const i = e.rmQV193AA.indexOf(q);
+      i >= 0 && e.rmQV193AA.splice(i, 1);
+    }
+    try {
+      saveGame();
+    } catch (_) {}
+    try {
+      if (state && state.view === "season") render();
+    } catch (_) {}
+    rmSoonV193AA(600);
+    try {
+      injSoonV193W(700);
+    } catch (_) {}
+  }
+  /* ---- RECRUIT A PLAYER ---- */
+  function recruitLvV193AA() {
+    return Math.max(0, Number(treeFx("recruiterV193AA")) || 0);
+  }
+  function recruitTermsV193AA() {
+    const lv = recruitLvV193AA();
+    return {
+      lv,
+      costK: Math.max(0, 1 - TU("recruitCutV193AA", 0.25) * lv),
+      ovrAdd: Math.round(TU("recruitOvrStepV193AA", 3) * lv),
+      lock: Math.max(1, Math.round(TU("recruitLockSeasonsV193AA", 3) + TU("recruitLockStepV193AA", 1) * lv))
+    };
+  }
+  function recruitsLeftV193AA(e) {
+    const r = e && e.recruitSeasonV193AA,
+      n = r && r.at === ((e.totalSeasons | 0)) ? r.n | 0 : 0;
+    return Math.max(0, TU("recruitPerSeasonV193AA", 1) - n);
+  }
+  function recruitWhyNotV193AA(e) {
+    if (!rmOnV193AA()) return "Recruiting is switched off.";
+    if (!e || !e.pos || !e.attrs) return "Start a career first.";
+    if (e._settled) return "The career is over.";
+    const R = rosterV153B(e);
+    if (!R || !R.length) return "Your roster is drawn when the season starts.";
+    if (!recruitsLeftV193AA(e)) return "One recruit a season — you signed " + ((e.recruitSeasonV193AA && e.recruitSeasonV193AA.name) || "yours") + " this season.";
+    return "";
+  }
+  var RM_UNITS_V193AA = { QB: ["QB"], SKILL: ["RB", "WR", "TE"], "O-LINE": ["LT", "LG", "C", "RG", "RT"], FRONT: ["EDGE", "DT", "LB"], SECONDARY: ["CB", "S"] };
+  function recruitTiersV193AA() {
+    return [
+      { key: "prospect", name: "PROSPECT", gain: TU("recruitGain0V193AA", 0.1), floor: 0.98, pct: [6, 4] },
+      { key: "starter", name: "STARTER", gain: TU("recruitGain1V193AA", 0.17), floor: 1.08, pct: [8, 6] },
+      { key: "blue", name: "BLUE-CHIP", gain: TU("recruitGain2V193AA", 0.25), floor: 1.2, pct: [9, 7, 5] }
+    ];
+  }
+  // the attributes his position needs least first — among the ones it reads at all (a sacrifice is felt), never Durability
+  function recruitPayKeysV193AA(e) {
+    const w = (POSITIONS[e.pos] && POSITIONS[e.pos].w) || {},
+      all = Object.keys(e.attrs).filter(k => typeof e.attrs[k] === "number" && k !== "injuryResist" && e.attrs[k] > 1 && ATTR_INFO[k]),
+      used = all.filter(k => (w[k] || 0) > 0),
+      keys = used.length >= 3 ? used : all;
+    return keys.sort((a, b) => (w[a] || 0) - (w[b] || 0) || (e.attrs[b] || 0) - (e.attrs[a] || 0));
+  }
+  function recruitPriceV193AA(e, tier, terms, keys) {
+    return tier.pct.map((p, j) => {
+      const k = keys[j],
+        pct = Math.max(1, Math.round(p * terms.costK));
+      return k ? { k, name: (ATTR_INFO[k] && ATTR_INFO[k].name) || k, pct, pts: Math.max(1, Math.round(((e.attrs[k] || 0) * pct) / 100)) } : null;
+    }).filter(Boolean);
+  }
+  // the team OVR with this man in that slot and these points gone — measured, then put back
+  function recruitTryV193AA(e, slot, man, cost) {
+    const R = e.teamRosterV158,
+      old = R[slot],
+      was = {};
+    cost.forEach(c => ((was[c.k] = e.attrs[c.k]), (e.attrs[c.k] = Math.max(1, (e.attrs[c.k] || 0) - c.pts))));
+    R[slot] = man;
+    rmRefreshDevV193AA(e);
+    let v = 0;
+    try {
+      v = teamPairV76(e, {}).us;
+    } finally {
+      R[slot] = old;
+      for (const k in was) e.attrs[k] = was[k];
+      rmRefreshDevV193AA(e);
+    }
+    return v;
+  }
+  function recruitOffersV193AA(e) {
+    const R = rosterV153B(e);
+    if (!R || !R.length || !e.attrs) return { offers: [], weak: [] };
+    const M = e.rosterMetaV193AA,
+      T = M && M.target > 0 ? M.target : R.reduce((a, m) => a + (m.ovr || 0), 0) / R.length,
+      terms = recruitTermsV193AA(),
+      noPos = e.pos === "QB" ? ["QB"] : e.pos === "TE" ? ["TE"] : [] /* his own one-man slot */,
+      units = Object.entries(RM_UNITS_V193AA)
+        .map(([k, ps]) => {
+          const men = R.map((p, i) => ({ p, i })).filter(o => o.p && ps.includes(o.p.pos));
+          return { k, avg: men.length ? men.reduce((a, o) => a + (o.p.ovr || 0), 0) / men.length : 999, men: men.filter(o => !lockLeftV193AA(e, o.p) && !noPos.includes(o.p.pos)).sort((a, b) => (a.p.ovr || 0) - (b.p.ovr || 0)) };
+        })
+        .filter(u => u.men.length)
+        .sort((a, b) => a.avg - b.avg),
+      picks = [],
+      take = o => o && !picks.some(x => x.i === o.i) && picks.push(Object.assign({ unit: null }, o));
+    if (!units.length) return { offers: [], weak: [] };
+    const u1 = units[0],
+      u2 = units[1];
+    take(Object.assign({}, u1.men[0], { unit: u1.k }));
+    const alt = u1.men.find(o => o.p.pos !== u1.men[0].p.pos);
+    if (alt) take(Object.assign({}, alt, { unit: u1.k }));
+    if (u2) take(Object.assign({}, u2.men[0], { unit: u2.k }));
+    units.forEach(u => u.men.forEach(o => picks.length < 3 && take(Object.assign({}, o, { unit: u.k }))));
+    const rnd = seededRng("v193AA-rec", e.name || "", e.totalSeasons | 0, e.level | 0, (M && M.key) || ""),
+      gen = window.__GRIDIRON_GENERATE_ROSTER_V157,
+      fr = gen ? gen(Math.round(T), ((e.seasonSeed || 1) ^ 0x2b1d) + (e.totalSeasons | 0) * 7).players : [],
+      used = new Set(R.map(m => m && m.name)),
+      nums = new Set(R.map(m => m && m.jersey)),
+      keys = recruitPayKeysV193AA(e),
+      before = teamPairV76(e, {}).us,
+      tiers = recruitTiersV193AA();
+    const offers = picks.slice(0, 3).map((o, n) => {
+      const tier = tiers[n],
+        old = o.p,
+        ovr = Math.max((old.ovr || 0) + Math.max(2, Math.round(T * tier.gain)), Math.round(T * tier.floor)) + terms.ovrAdd,
+        man = rmNewManV193AA(fr[o.i] || old, o.i, T, rnd, used, nums, e.totalSeasons | 0, ovr);
+      man.devTrait = "Fast";
+      man.potential = clamp99(ovr + 11, 1, 999);
+      man.tier = ovr >= T * 1.25 ? "star" : "average";
+      man.star = man.tier === "star";
+      if ((e.level | 0) >= 7) man.year = "SO";
+      const cost = recruitPriceV193AA(e, tier, terms, keys),
+        after = recruitTryV193AA(e, o.i, Object.assign({}, man, { carryOvrV193AA: ovr }), cost);
+      return { i: n, slot: o.i, unit: o.unit, tier: tier.name, man, old: { name: old.name, pos: old.pos, ovr: Math.round(old.ovr || 0) }, cost, before, after, lock: terms.lock };
+    });
+    return { offers, weak: units.slice(0, 2).map(u => ({ k: u.k, avg: Math.round(u.avg) })), T, terms };
+  }
+  function recruitCostTxtV193AA(cost, small) {
+    return cost.map(c => `−${c.pct}% ${escHtml(c.name)}${small ? ` <small>(−${c.pts})</small>` : ` (−${c.pts})`}`).join(small ? " · " : ", ");
+  }
+  function recruitSheetHtmlV193AA(e, O) {
+    rmCssV193AA();
+    const lockTxt = `locked to your team for ${O.terms.lock} seasons`;
+    return `<div class="rc-v193aa"><div class="rc-weak">Your weakest units: ${O.weak.map(w => `<b>${escHtml(w.k)}</b> ${w.avg}`).join(" · ")}. Each recruit takes the weakest man's place there and is <b>${lockTxt}</b>. You pay in your own attributes — the ones your position needs least.</div>${O.offers
+      .map(o => {
+        const d = o.after - o.before;
+        return `<button type="button" class="rc-card" id="rcPickV193AA${o.i}" onclick="recruitPickV193AA(${o.i})"><span class="rc-top"><i class="rc-tier">${o.tier}</i><span class="rc-nm">${escHtml(o.man.name)} <small>${escHtml(o.man.pos)} · ${escHtml(o.unit || "")}</small></span><b class="rc-ovr">${o.man.ovr}</b></span><span class="rc-line">Replaces ${escHtml(o.old.name)} (${escHtml(o.old.pos)} ${o.old.ovr}) · TEAM ${o.before} → <b class="${d > 0 ? "up" : d < 0 ? "dn" : ""}">${o.after}</b> (${rmSgV193AA(d)})</span><span class="rc-cost">PRICE: ${recruitCostTxtV193AA(o.cost, !0)}</span></button>`;
+      })
+      .join("")}<div class="rc-foot">One recruit a season${O.terms.lv ? ` · The Franchise Recruiter Lv ${Math.round(O.terms.lv)}: ${Math.round((1 - O.terms.costK) * 100)}% off the price, +${O.terms.ovrAdd} OVR, a ${O.terms.lock}-season lock` : ""}.</div></div>`;
+  }
+  function recruitPickV193AA(i) {
+    try {
+      window.ribDialog && window.ribDialog.close("r" + i);
+    } catch (_) {}
+  }
+  window.recruitPickV193AA = recruitPickV193AA;
+  function openRecruitV193AA() {
+    const e = state && state.player,
+      why = recruitWhyNotV193AA(e);
+    if (why) return void showToast(why);
+    const O = recruitOffersV193AA(e);
+    if (!O.offers.length) return void showToast("No one to recruit this season.");
+    buzzV193O("tap");
+    const D = window.ribDialog,
+      go = v => {
+        if (typeof v === "string" && /^r\d$/.test(v)) recruitConfirmV193AA(+v.slice(1));
+      };
+    if (D && D.show) return D.show({ title: "RECRUIT A PLAYER", html: recruitSheetHtmlV193AA(e, O), buttons: [{ label: "Not now", value: null }], cancelValue: null }).then(go);
+  }
+  window.openRecruitV193AA = openRecruitV193AA;
+  function recruitConfirmV193AA(i) {
+    const e = state && state.player,
+      O = recruitOffersV193AA(e),
+      o = O.offers[i];
+    if (!o) return Promise.resolve(!1);
+    const d = o.after - o.before,
+      msg =
+        `YOU LOSE (for good): ${recruitCostTxtV193AA(o.cost)}.\n` +
+        `YOU GAIN: ${o.man.name} (${o.man.pos}, ${o.man.ovr} OVR, ${o.tier}) in place of ${o.old.name} (${o.old.pos}, ${o.old.ovr}).\n` +
+        `TEAM ${o.before} → ${o.after} (${rmSgV193AA(d)}).\n` +
+        `He is LOCKED to your team for ${o.lock} seasons (this one counted) — he won't leave in turnover. If you move up a level or sign with another club before then, he can't follow: the lock ends there.`;
+    return askV150(msg, { title: "Sign " + o.man.name + "?", ok: "Sign him" }).then(ok => {
+      if (!ok) return !1;
+      const r = recruitSignV193AA(i);
+      if (!r) return !1;
+      try {
+        render();
+      } catch (_) {}
+      try {
+        window.__V193B && window.__V193B.repv && window.__V193B.repv();
+      } catch (_) {}
+      rmPumpV193AA(!0);
+      return !0;
+    });
+  }
+  window.recruitConfirmV193AA = recruitConfirmV193AA;
+  function recruitSignV193AA(i) {
+    const e = state && state.player,
+      why = recruitWhyNotV193AA(e);
+    if (why) {
+      showToast(why);
+      return null;
+    }
+    const O = recruitOffersV193AA(e),
+      o = O.offers[i],
+      R = rosterV153B(e);
+    if (!o || !R) return null;
+    const at = e.totalSeasons | 0,
+      old = R[o.slot],
+      before = teamPairV76(e, {}).us,
+      took = {};
+    o.cost.forEach(c => {
+      const was = e.attrs[c.k] || 0;
+      e.attrs[c.k] = Math.max(1, was - c.pts);
+      took[c.k] = e.attrs[c.k] - was;
+    });
+    const man = o.man;
+    man.carryOvrV193AA = man.ovr;
+    man.lockedUntilV193AA = at + o.lock;
+    man.recruitV193AA = { at, tier: o.tier, from: old && old.name, cost: o.cost.map(c => ({ k: c.k, pct: c.pct, pts: c.pts })) };
+    R[o.slot] = man;
+    rmRefreshDevV193AA(e);
+    e.recruitSeasonV193AA = { at, n: ((e.recruitSeasonV193AA && e.recruitSeasonV193AA.at === at && e.recruitSeasonV193AA.n) | 0) + 1, name: man.name };
+    (e.recruitLogV193AA = e.recruitLogV193AA || []).push({ at, level: e.level | 0, name: man.name, pos: man.pos, ovr: man.ovr, slot: o.slot, until: man.lockedUntilV193AA, took });
+    e.recruitLogV193AA.length > 24 && e.recruitLogV193AA.shift();
+    const after = teamPairV76(e, {}).us,
+      T = O.T;
+    rmQueueV193AA(e, {
+      kind: "recruit",
+      at,
+      before,
+      after,
+      dep: [{ name: old ? old.name : "—", pos: man.pos, ovr: Math.round((old && old.ovr) || 0), why: "made room for " + man.name, star: !1, slot: o.slot, chip: -rmChipV193AA(old && old.ovr, T) }],
+      arr: [{ name: man.name, pos: man.pos, ovr: man.ovr, why: o.tier + " · paid " + recruitCostTxtV193AA(o.cost), star: man.star, slot: o.slot, chip: rmChipV193AA(man.ovr, T), lock: o.lock }],
+      imp: [],
+      chem: null,
+      target: T
+    });
+    buzzV193O("reward");
+    try {
+      saveGame();
+    } catch (_) {}
+    return { before, after, man, old, cost: o.cost, took, slot: o.slot };
+  }
+  /* the watched game: a locked recruit takes a slot at his position in the game's eleven, by name, on its scale */
+  var RM_GPOS_V193AA = { QB: "QB", RB: "RB", WR: "WR", TE: "TE", LT: "OL", LG: "OL", C: "OL", RG: "OL", RT: "OL", EDGE: "DL", DT: "DL", LB: "LB", CB: "CB", S: "S" };
+  function recruitPlantV193AA(P, teamScale, attrsOf) {
+    const e = state && state.player;
+    if (!e || !rmOnV193AA() || !P) return 0;
+    const R = Array.isArray(e.teamRosterV158) ? e.teamRosterV158 : null,
+      M = e.rosterMetaV193AA;
+    if (!R || !M || M.key !== e.teamRosterSeasonV158) return 0;
+    const T = M.target > 0 ? M.target : levelBaseV178(e.level);
+    let n = 0;
+    R.forEach(m => {
+      const left = lockLeftV193AA(e, m);
+      if (!left || !m.recruitV193AA) return;
+      const gp = RM_GPOS_V193AA[m.pos];
+      if (!gp) return;
+      const side = [...P.off, ...P.def],
+        slot = side.find(x => x && !x.you && !x.recruitV193AA && x.pos === gp);
+      if (!slot) return;
+      slot.name = m.name;
+      slot.num = m.jersey != null ? m.jersey : slot.num;
+      slot.ovr = clamp99(Math.round(((m.ovr || T) / Math.max(1, T)) * teamScale), 3, 999);
+      slot.attrs = attrsOf(gp, slot.ovr);
+      slot.recruitV193AA = left;
+      n++;
+    });
+    return n;
+  }
+  /* the row on the season screen's team card and the pregame YOUR TEAM page: the latest delta, the locks, the action */
+  function rmTeamRowHtmlV193AA(e, where) {
+    if (!rmOnV193AA() || !e || !e.pos) return "";
+    rmCssV193AA();
+    const L = e.rmLastV193AA,
+      d = L && (L.at | 0) === (e.totalSeasons | 0) ? L.to - L.from : null,
+      lab = L ? { season: "since last season", team: "from your last team", recruit: "from your recruit", locker: "from the locker room" }[L.kind] || "" : "",
+      chip = d == null ? "" : `<span class="rm-dchip ${d > 0 ? "up" : d < 0 ? "dn" : ""}" id="rmDeltaV193AA_${where}">${d > 0 ? "▲" : d < 0 ? "▼" : "="} ${Math.abs(d)} ${lab}</span>`,
+      R = Array.isArray(e.teamRosterV158) ? e.teamRosterV158 : [],
+      locks = R.filter(m => m && m.recruitV193AA && lockLeftV193AA(e, m) > 0),
+      left = recruitsLeftV193AA(e),
+      btn = e._settled
+        ? ""
+        : left > 0
+          ? `<button type="button" class="rm-recbtn" id="rmRecruitBtnV193AA_${where}" onclick="openRecruitV193AA()">${artV193Y("🤝", 16)} RECRUIT A PLAYER</button>`
+          : `<span class="rm-recdone">✓ Recruited this season</span>`;
+    return `<div class="rm-teamrow-v193aa" id="rmTeamRowV193AA_${where}">${chip}${btn}</div>${locks
+      .map(m => {
+        const n = lockLeftV193AA(e, m);
+        return `<div class="rm-lock-v193aa">🔒 <b>${escHtml(m.name)}</b> ${escHtml(m.pos)} ${Math.round(m.ovr)} · locked ${n} more season${n === 1 ? "" : "s"}</div>`;
+      })
+      .join("")}`;
+  }
+  function rmTeamRowSafeV193AA(e) {
+    try {
+      return rmTeamRowHtmlV193AA(e, "season");
+    } catch (_) {
+      return "";
+    }
+  }
+  function rmCssV193AA() {
+    if (typeof document > "u" || document.getElementById("rmCssV193AA")) return;
+    document.head.insertAdjacentHTML(
+      "beforeend",
+      `<style id="rmCssV193AA">
+.rm-v193aa{position:fixed;inset:0;z-index:100000;display:flex;align-items:center;justify-content:center;padding:calc(env(safe-area-inset-top) + 14px) 14px calc(env(safe-area-inset-bottom) + 14px);background:rgba(3,6,10,.8);-webkit-backdrop-filter:blur(3px);backdrop-filter:blur(3px);animation:rmFadeV193AA .2s ease-out}
+.rm-v193aa .rm-card{width:100%;max-width:420px;max-height:100%;overflow:auto;box-sizing:border-box;background:linear-gradient(180deg,#131c29,#0b1119);border:1px solid rgba(240,187,69,.45);border-radius:16px;box-shadow:0 18px 50px rgba(0,0,0,.6);padding:14px 14px 12px;color:#e9eef2;font:13px/1.4 system-ui,sans-serif}
+.rm-v193aa .rm-card.shake{animation:rmShakeV193AA .42s cubic-bezier(.36,.07,.19,.97) 2}
+.rm-v193aa .rm-eye{font:700 11px Oswald,sans-serif;letter-spacing:1.6px;color:#f0bb45}
+.rm-v193aa .rm-big{position:relative;display:flex;align-items:baseline;justify-content:center;gap:8px;margin:6px 0 4px}
+.rm-v193aa .rm-big b{font:700 48px/1 Oswald,Impact,sans-serif;color:#fff;letter-spacing:1px;min-width:2ch;text-align:center;transition:color .2s}
+.rm-v193aa .rm-big b.dn{color:#ff6b6b;text-shadow:0 0 18px rgba(255,80,80,.45)}
+.rm-v193aa .rm-big b.up{color:#7fe0a0;text-shadow:0 0 18px rgba(127,224,160,.45)}
+.rm-v193aa .rm-big b.pop{animation:rmPopV193AA .16s ease-out}
+.rm-v193aa .rm-big span{font:700 11px Oswald,sans-serif;letter-spacing:1.4px;color:#9fb0c2}
+.rm-v193aa .rm-spark{position:absolute;inset:0;pointer-events:none}
+.rm-v193aa .rm-spark i{position:absolute;width:6px;height:6px;border-radius:50%;background:#bff5cf;box-shadow:0 0 8px #7fe0a0;opacity:0;left:50%;top:50%}
+.rm-v193aa .rm-big.spark .rm-spark i{animation:rmSparkV193AA .8s ease-out forwards}
+.rm-v193aa .rm-big.spark .rm-spark i:nth-child(1){--dx:-60px;--dy:-22px}.rm-v193aa .rm-big.spark .rm-spark i:nth-child(2){--dx:58px;--dy:-26px;animation-delay:.06s}
+.rm-v193aa .rm-big.spark .rm-spark i:nth-child(3){--dx:-38px;--dy:20px;animation-delay:.1s}.rm-v193aa .rm-big.spark .rm-spark i:nth-child(4){--dx:42px;--dy:18px;animation-delay:.14s}.rm-v193aa .rm-big.spark .rm-spark i:nth-child(5){--dx:0;--dy:-34px;animation-delay:.04s}
+.rm-v193aa .rm-sec{margin-top:8px}
+.rm-v193aa .rm-sec h6{margin:0 0 4px;font:700 10px Oswald,sans-serif;letter-spacing:1.5px;color:#9fb0c2;overflow-wrap:anywhere}
+.rm-v193aa .rm-dep-s h6{color:#ff9a9a}.rm-v193aa .rm-arr-s h6{color:#9fe6b0}
+.rm-v193aa .rm-row{display:flex;align-items:center;gap:7px;padding:3px 7px;margin-top:2px;border-radius:9px;background:rgba(255,255,255,.04);opacity:0;transform:translateX(24px);transition:transform .32s ease-out,opacity .32s ease-out,background .3s}
+.rm-v193aa .rm-row.dep{transform:translateX(-24px)}
+.rm-v193aa .rm-row.in{opacity:1;transform:none}
+.rm-v193aa .rm-row.dep.out{opacity:.55;transform:translateX(-10px);background:rgba(255,90,90,.08)}
+.rm-v193aa .rm-row.dep.star{border:1px solid rgba(255,107,107,.55)}
+.rm-v193aa .rm-row.arr.in,.rm-v193aa .rm-row.imp.in{background:rgba(127,224,160,.08)}
+.rm-v193aa .rm-pos{flex:0 0 34px;font:700 11px Oswald,sans-serif;color:#9fb0c2}
+.rm-v193aa .rm-nm{flex:1;min-width:0;font:600 13px 'Barlow Condensed',system-ui,sans-serif;color:#fff;overflow-wrap:anywhere}
+.rm-v193aa .rm-nm small{display:block;font:400 10.5px system-ui,sans-serif;color:#9fb0c2}
+.rm-v193aa .rm-ovr{flex:0 0 auto;font:700 15px Oswald,sans-serif;color:#fff}
+.rm-v193aa .rm-chip{flex:0 0 auto;font:700 10px Oswald,sans-serif;font-style:normal;letter-spacing:.6px;padding:2px 6px;border-radius:8px;white-space:nowrap}
+.rm-v193aa .rm-chip.r{color:#ff8a80;border:1px solid rgba(255,138,128,.6);background:rgba(255,90,90,.12)}
+.rm-v193aa .rm-chip.g{color:#7fe0a0;border:1px solid rgba(127,224,160,.6);background:rgba(127,224,160,.12)}
+.rm-v193aa .rm-chip.k{color:#f0bb45;border:1px solid rgba(240,187,69,.6)}
+.rm-v193aa .rm-more{margin-top:3px;font-size:11px;color:#9fb0c2}
+.rm-v193aa .rm-bar{height:9px;border-radius:6px;background:rgba(255,255,255,.08);overflow:hidden;margin:3px 0}
+.rm-v193aa .rm-bar i{display:block;height:100%;background:linear-gradient(90deg,#f0bb45,#7fe0a0);transition:width .7s ease-out}
+.rm-v193aa .rm-chem-s small{font-size:11px;color:#9fb0c2}
+.rm-v193aa .rm-end{margin-top:10px;text-align:center;font:700 22px/1.15 Oswald,Impact,sans-serif;letter-spacing:.8px;color:#fff;opacity:0;transform:scale(.9);transition:opacity .3s,transform .3s}
+.rm-v193aa.done .rm-end{opacity:1;transform:none}
+.rm-v193aa .rm-end em{font-style:normal}.rm-v193aa .rm-end em.up{color:#7fe0a0}.rm-v193aa .rm-end em.dn{color:#ff6b6b}
+.rm-v193aa .rm-go{display:block;width:100%;margin:10px 0 0;min-height:44px}
+.rm-v193aa .rm-hint{text-align:center;font-size:10.5px;color:#7d8a99;margin-top:4px;min-height:14px}
+@keyframes rmFadeV193AA{from{opacity:0}to{opacity:1}}
+@keyframes rmShakeV193AA{10%,90%{transform:translateX(-2px)}20%,80%{transform:translateX(4px)}30%,50%,70%{transform:translateX(-6px)}40%,60%{transform:translateX(6px)}}
+@keyframes rmPopV193AA{from{transform:scale(1.12)}to{transform:none}}
+@keyframes rmSparkV193AA{0%{opacity:1;transform:translate(-50%,-50%) scale(.6)}100%{opacity:0;transform:translate(calc(-50% + var(--dx)),calc(-50% + var(--dy))) scale(1.2)}}
+@media (prefers-reduced-motion:reduce){.rm-v193aa *{animation:none!important;transition:none!important}}
+.rm-teamrow-v193aa{display:flex;flex-wrap:wrap;align-items:center;gap:6px 8px;margin-top:6px}
+.rm-dchip{font:700 11px Oswald,sans-serif;letter-spacing:.5px;padding:2px 7px;border-radius:9px;border:1px solid rgba(255,255,255,.2);color:var(--chalk-dim,#9fb0c2);white-space:nowrap}
+.rm-dchip.up{color:#7fe0a0;border-color:rgba(127,224,160,.55);background:rgba(127,224,160,.1)}
+.rm-dchip.dn{color:#ff8a80;border-color:rgba(255,138,128,.55);background:rgba(255,90,90,.1)}
+.rm-recbtn{min-height:36px;margin-left:auto;padding:4px 12px;border-radius:9px;border:1px solid rgba(240,187,69,.6);background:rgba(240,187,69,.12);color:#f0bb45;font:700 12px Oswald,sans-serif;letter-spacing:1px;cursor:pointer;display:inline-flex;align-items:center;gap:5px;max-width:100%}
+.rm-recdone{margin-left:auto;font:600 11px Oswald,sans-serif;letter-spacing:.6px;color:#9fb0c2}
+.rm-lock-v193aa{margin-top:4px;font:500 12px 'Barlow Condensed',system-ui,sans-serif;color:#f0bb45;overflow-wrap:anywhere}
+#v193Team .rm-teamrow-v193aa{margin:0 0 5px}#v193Team .rm-lock-v193aa{margin:0 0 5px;line-height:1.2}
+#v193Team .rm-teamrow-v193aa ~ .v193-roster{max-height:calc(46vh - 46px)}
+#v193Team .rm-lock-v193aa ~ .v193-roster{max-height:calc(46vh - 66px)}
+.rc-v193aa .rc-weak{font-size:12px;color:#c9d3db;margin-bottom:8px}
+.rc-v193aa .rc-card{display:block;width:100%;box-sizing:border-box;text-align:left;margin:0 0 7px;padding:8px 10px;border-radius:11px;border:1px solid rgba(255,255,255,.16);background:rgba(255,255,255,.04);color:#e9eef2;cursor:pointer;min-height:44px;font:12px/1.35 system-ui,sans-serif;text-transform:none;letter-spacing:0}
+.rc-v193aa .rc-card:hover,.rc-v193aa .rc-card:focus{border-color:rgba(240,187,69,.7)}
+.rc-v193aa .rc-top{display:flex;align-items:center;gap:7px}
+.rc-v193aa .rc-tier{font:700 9.5px Oswald,sans-serif;font-style:normal;letter-spacing:1.2px;color:#f0bb45;border:1px solid rgba(240,187,69,.55);border-radius:7px;padding:1px 5px;white-space:nowrap}
+.rc-v193aa .rc-nm{flex:1;min-width:0;font:700 14px 'Barlow Condensed',system-ui,sans-serif;color:#fff;overflow-wrap:anywhere}
+.rc-v193aa .rc-nm small{font:500 11px system-ui,sans-serif;color:#9fb0c2}
+.rc-v193aa .rc-ovr{font:700 20px Oswald,sans-serif;color:#7fe0a0}
+.rc-v193aa .rc-line,.rc-v193aa .rc-cost{display:block;margin-top:3px;color:#c9d3db;overflow-wrap:anywhere}
+.rc-v193aa .rc-line b.up{color:#7fe0a0}.rc-v193aa .rc-line b.dn{color:#ff8a80}
+.rc-v193aa .rc-cost{color:#ff9a9a;font-weight:600}.rc-v193aa .rc-cost small{color:#9fb0c2;font-weight:400}
+.rc-v193aa .rc-foot{font-size:11px;color:#9fb0c2}
+</style>`
+    );
+  }
+  // the render: keep the roster current, take the team's number for the next card's "before", pump the queue
+  const renderV193AA = render;
+  render = function () {
+    const r = renderV193AA.apply(this, arguments);
+    try {
+      const e = state && state.player;
+      if (rmOnV193AA() && e && e.pos && !e._settled && (state.view === "season" || state.view === "hub" || state.view === "training")) {
+        window.__V158_ROSTER && window.__V158_ROSTER();
+        e.teamSnapV193AA = { team: teamPairV76(e, {}).us, chem: chemOfV153B(e), prog: rmProgV193AA(e), at: e.totalSeasons | 0, teamName: rmTeamNameV193AA(e) };
+        if (state.view === "season" && !(onV192B() && TU("v192Bteam", 1))) {
+          const sc = byId("screen");
+          if (sc && !sc.querySelector("#rmTeamCardV193AA"))
+            sc.insertAdjacentHTML("beforeend", `<div class="card tight" id="rmTeamCardV193AA"><div class="eyebrow">👥 YOUR TEAM · ${e.teamSnapV193AA.team} OVR</div>${rmTeamRowHtmlV193AA(e, "season")}</div>`);
+        }
+      }
+      e && Array.isArray(e.rmQV193AA) && e.rmQV193AA.length && rmSoonV193AA(700);
+    } catch (x) {
+      console.warn("[v193 AA render]", x);
+    }
+    return r;
+  };
+  // the screens that close themselves (the post-game card, the Quick Play card) do not always re-render: look again now and then
+  typeof window < "u" &&
+    setInterval(() => {
+      try {
+        const e = state && state.player;
+        e && Array.isArray(e.rmQV193AA) && e.rmQV193AA.length && !rmStV193AA().open && rmPumpV193AA();
+      } catch (_) {}
+    }, 1500);
+  window.__V193AA = {
+    on: rmOnV193AA,
+    popOn: rmPopOnV193AA,
+    carry: (p, players, prevR, key, target) => rmCarryV193AA(p, players, prevR, key, target),
+    get queue() {
+      return (state && state.player && state.player.rmQV193AA) || [];
+    },
+    get rec() {
+      return rmStV193AA();
+    },
+    pump: f => rmPumpV193AA(f),
+    blocked: q => rmBlockedV193AA(q),
+    nums: q => rmNumsV193AA(state.player, q),
+    skip: () => {
+      const root = document.getElementById("rmV193AA"),
+        R = rmStV193AA();
+      if (root && R.open && !R.done) (R.skipped = !0), rmFinishV193AA(root, R.open, R.nums);
+    },
+    close: () => rmCloseV193AA(),
+    rosterQ: e => rosterQV193AA(e || state.player),
+    dev: e => rmRefreshDevV193AA(e || state.player),
+    lockLeft: m => lockLeftV193AA(state.player, m),
+    terms: () => recruitTermsV193AA(),
+    offers: () => recruitOffersV193AA(state.player),
+    sign: i => recruitSignV193AA(i),
+    open: () => openRecruitV193AA(),
+    confirm: i => recruitConfirmV193AA(i),
+    whyNot: () => recruitWhyNotV193AA(state && state.player),
+    left: () => recruitsLeftV193AA(state && state.player),
+    row: where => {
+      try {
+        return rmTeamRowHtmlV193AA(state && state.player, where || "pregame");
+      } catch (_) {
+        return "";
+      }
+    },
+    chip: (ovr, T) => rmChipV193AA(ovr, T)
+  };
 
   /* ===== v153 B ONE KEY STAT, OR TWO AND A RISK =====
    * The owner: "Training throughout a career tends to be the exact same suggestion … no training has more than 1
@@ -38126,7 +40079,7 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
     return !!TU("v186F", 1);
   }
   function flipRarOddsV186() {
-    const luck = (1 + medalFxV179("flipLuckV179")) * (1 + treeFx("flipRareV186")),
+    const luck = (1 + medalFxV179("flipLuckV179")) * (1 + treeFx("flipRareV186")) * Math.max(0, pathVal("flipRareMult", 1)) /* v193 AD: The Card Shark */,
       leg = TU("flipLegV186", 0.001) * luck,
       epic = TU("flipEpicV186", 0.005) * luck,
       rare = TU("flipRareP_V186", 0.05) * luck,
@@ -38165,8 +40118,571 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
     return bonus;
   }
   function flipPctMultV186() {
-    return 1 + treeFx("flipPctV186");
+    return (1 + treeFx("flipPctV186")) * Math.max(0, pathVal("flipPctMult", 1)) /* v193 AD: The Card Shark ×1.25 / The Collector ×0.6 */;
   }
+  /* ===== v193 AB THE CARDS PAY IN PLAY =====
+   * The owner: "Don't modify the coach trust via the card flip. Coach trust must be earned. Instead, replace it with a
+   * temporary stat boost … +5 to 10% to a random stat, for 1 to 10 games … I like the idea of holding your upgrades if you
+   * choose a '10% of stats go to Acceleration for every point you spend' … replace the % stats in the flip card … a rare
+   * 2× upgrade points this season only (1/50 cards) … range from 5 percent to 50 percent at the base … 1 game to 10 games.
+   * Modifiable in prestige of course." With the switch on, NO card touches coach trust, and the deck deals:
+   *   HOT STREAK (`hot:<rar>:<attr>:<pct>:<games>`) — +pct% to ONE attribute (a weighted draw over the position's stats,
+   *     v192 A's `flipStatWeightsV192A`, so Focused Reps leans it) for `games` games. The rarity carries the size: on the
+   *     base `hotPctMinV193AB`–`hotPctMaxV193AB` (5–50%) a common rolls 5–12, uncommon 10–20, rare 18–32, epic 30–42,
+   *     legendary 40–50 (`abBandV193AB`); the games the same way on `hotGamesMinV193AB`–`hotGamesMaxV193AB` (1–10). Held
+   *     on the player as `player.hotV193AB = [{attr, pct, gamesLeft, games, rar}]`; `ownBuffsV111` hands each attribute's
+   *     total (capped at `hotStackCapV193AB` 60%, + Hot Hands) to every game path as a v193 X percent buff (points off the
+   *     attribute today) — the watched game's `_raw`, the quick sim (`__aiSeasonGame` → simGameV2), the projections, the
+   *     sheet (`effAttrsV85`) — and the core `rollGamePerf` reads the OVR it adds (`hotPerfLiftV193AB`). `decayWearV111`
+   *     (a game is spent; a sat-out week never gets there) counts it down, once per week.
+   *   SPILLOVER (`spill:<rar>:<attr>:<pct>`) — "for the rest of this season every skill point you spend also puts pct% of a
+   *     point into <attr>" (one of the position's four KEY stats; `spillPctMinV193AB`–`spillPctMaxV193AB` 5–50%, skewed
+   *     by rarity the same way). HELD in `player.spillV193AB = {season, career, list, units, landed}`: each point spent on
+   *     the sheet (`alloc`, the hold-to-spend through `window.alloc`, both auto buttons) adds points × pct UNITS to the
+   *     attribute; the attribute holds floor(units / 100) whole points of it (`landed`), the rest is the pending fraction —
+   *     integer units, so 10 points at 20% are exactly +2 and a minus takes back exactly what it gave. Dead when the season
+   *     settles (core `simSeason`, where v193 Z drops its tilt; the read also checks the season number).
+   *   2× POINTS (`dbl`) — every upgrade point earned this season counts double: ONE helper (`ptsEarnV193AB`) on the
+   *     three places a season pays points — the week's paycheck (`payWeekV178`'s raw, before the bank), the season's own
+   *     points (`$e` in `simSeason`) and a depth-chart breakthrough. The Upgrade Point cards' season-end bonus is a share of
+   *     the (already doubled) paychecks, so it is never doubled twice. Its odds are its own draw on every slot BEFORE the
+   *     rarity draw: `doublePtsOddsV193AB` (0.02).
+   * THE PRESTIGE MENU (the Apex, next to Lucky Draw / Card Shark / Marked Cards; `treeFx` keys read per level with the
+   * Apex's ×1.5 taken back out, so the desc's numbers are exact): HOT HANDS `hotHands` (+3% both ends of the percent, +1
+   * game both ends, +3% on the stack cap a level; Lv 5: 20–65% for 6–15 games, stacking to 75%), SPILL COACH `spillCoach`
+   * (+5% both ends a level, Lv 5: 30–75%; from Lv 3 you aim it at any of the key stats — a picker under the card and on
+   * the skill sheet), DOUBLE SHIFT `doubleShift` (the 2× card ×1.5 as likely a level, Lv 4: ~1 in 10; at Lv 4 it also
+   * doubles the first `dblShiftNextGamesV193AB` (2) games of next season).
+   * An old card (`trust`, `reps`, `attr` — a deck dealt before, the v178 deck, a direct call) is re-dealt as the new one
+   * of its rarity, seeded. Kill switch `TU("v193AB", 1)` → 0: the old deck, the old cards, no boost, spill or doubling.
+   * `window.__V193AB`; `v193ABcheck.mjs`. */
+  function abOnV193AB() {
+    return !!TU("v193AB", 1);
+  }
+  function abRarsV193AB() {
+    return ["common", "uncommon", "rare", "epic", "legendary"];
+  }
+  function abColV193AB(rar) {
+    return { common: "#c8d0da", uncommon: "#6bbf59", rare: "#5ab0ff", epic: "#b07cff", legendary: "#f2c94c", jackpot: "#ff7ad9" }[rar] || "#c8d0da";
+  }
+  /* each rarity's slice of the base range — on 5–50: common 5–12, uncommon 10–20, rare 18–32, epic 30–42, legendary 40–50 */
+  function abBandV193AB(rar) {
+    const B = { common: [0, 7], uncommon: [5, 15], rare: [13, 27], epic: [25, 37], legendary: [35, 45] }[rar] || [0, 7];
+    return [B[0] / 45, B[1] / 45];
+  }
+  /* an Apex node's number per level, the branch's ×1.5 taken back out (the node's desc states the real totals) */
+  function abNodeFxV193AB(k) {
+    try {
+      return treeFx(k) / (branchFxV186("apex") || 1);
+    } catch (_) {
+      return 0;
+    }
+  }
+  function abRangeV193AB(lo, hi, rar, add, mult) {
+    const b = abBandV193AB(rar),
+      m = mult == null ? 1 : mult,
+      a = Math.max(1, Math.round((lo + (hi - lo) * b[0] + add) * m)),
+      z = Math.max(a, Math.round((lo + (hi - lo) * b[1] + add) * m));
+    return [a, z];
+  }
+  /* v193 AD's legends scale every card's percent (The Card Shark ×1.25, The Collector ×0.6) — the new cards' too */
+  function abLegendPctV193AB() {
+    try {
+      return Math.max(0, pathVal("flipPctMult", 1));
+    } catch (_) {
+      return 1;
+    }
+  }
+  function hotRangeV193AB(rar) {
+    return {
+      pct: abRangeV193AB(TU("hotPctMinV193AB", 5), TU("hotPctMaxV193AB", 50), rar, abNodeFxV193AB("hotPctV193AB"), abLegendPctV193AB()),
+      games: abRangeV193AB(TU("hotGamesMinV193AB", 1), TU("hotGamesMaxV193AB", 10), rar, abNodeFxV193AB("hotGamesV193AB"))
+    };
+  }
+  function spillRangeV193AB(rar) {
+    return abRangeV193AB(TU("spillPctMinV193AB", 5), TU("spillPctMaxV193AB", 50), rar, abNodeFxV193AB("spillPctV193AB"), abLegendPctV193AB());
+  }
+  /* the most one attribute holds of its stacked boosts (Hot Hands lifts it with the range) */
+  function hotCapV193AB() {
+    return TU("hotStackCapV193AB", 60) + abNodeFxV193AB("hotPctV193AB");
+  }
+  function dblOddsV193AB() {
+    let leg = 1;
+    try {
+      leg = Math.max(0, pathVal("flipRareMult", 1)); /* v193 AD: The Card Shark makes the rare cards likelier — the 2× card too */
+    } catch (_) {}
+    return Math.min(1, TU("doublePtsOddsV193AB", 0.02) * Math.pow(TU("dblShiftStepV193AB", 1.5), abNodeFxV193AB("dblShiftV193AB")) * leg);
+  }
+  function dblCarryGamesV193AB() {
+    const n = TREE_NODES.doubleShift;
+    return n && nodeLvl("doubleShift") >= n.max ? TU("dblShiftNextGamesV193AB", 2) : 0;
+  }
+  function abRollV193AB(rng, r) {
+    return r[0] + Math.min(r[1] - r[0], Math.floor(rng() * (r[1] - r[0] + 1)));
+  }
+  function abNameV193AB(k) {
+    return (ATTR_INFO[k] && ATTR_INFO[k].name) || k;
+  }
+  /* the Hot Streak's stat: v192 A's weighted draw over the position's stats (Focused Reps leans it to the key ones) */
+  function hotAttrV193AB(e, rng) {
+    let ws = [];
+    try {
+      ws = flipStatWeightsV192A(e);
+    } catch (_) {}
+    if (!ws.length) return keyAttrsV178(e)[0] || "speed";
+    let r = rng() * ws.reduce((a, c) => a + c[1], 0);
+    for (const [k, v] of ws) if ((r -= v) <= 0) return k;
+    return ws[ws.length - 1][0];
+  }
+  /* the Spillover's stats: the position's four KEY stats */
+  function spillKeysV193AB(e) {
+    const W = (e && POSITIONS[e.pos] && POSITIONS[e.pos].w) || {},
+      ks = Object.keys(W)
+        .filter(k => W[k] > 0 && e.attrs && e.attrs[k] != null)
+        .sort((a, b) => W[b] - W[a])
+        .slice(0, 4);
+    return ks.length ? ks : ["speed"];
+  }
+  function abParseV193AB(id) {
+    const s = String(id == null ? "" : id);
+    if (s === "dbl") return { kind: "dbl", rar: "jackpot" };
+    const p = s.split(":");
+    if (p[0] === "hot" && p.length === 5) return { kind: "hot", rar: p[1], attr: p[2], pct: +p[3] || 0, games: +p[4] || 0 };
+    if (p[0] === "spill" && p.length === 4) return { kind: "spill", rar: p[1], attr: p[2], pct: +p[3] || 0 };
+    return null;
+  }
+  function abLegacyV193AB(id) {
+    return id === "trust" || id === "reps" || id === "attr";
+  }
+  function abMakeV193AB(e, rng, kind, rar) {
+    if (kind === "hot") {
+      const R = hotRangeV193AB(rar),
+        k = hotAttrV193AB(e, rng);
+      return "hot:" + rar + ":" + k + ":" + abRollV193AB(rng, R.pct) + ":" + abRollV193AB(rng, R.games);
+    }
+    const ks = spillKeysV193AB(e),
+      k = ks[Math.min(ks.length - 1, Math.floor(rng() * ks.length))];
+    return "spill:" + rar + ":" + k + ":" + abRollV193AB(rng, spillRangeV193AB(rar));
+  }
+  /* the deck: a 2× POINTS draw on each slot, then v186's rarity, then a card of it (the % cards, a Hot Streak, a Spillover) */
+  function abDeckV193AB(e, rng, size) {
+    const O = flipRarOddsV186(),
+      order = ["legendary", "epic", "rare", "uncommon", "common"],
+      dbl = dblOddsV193AB();
+    return Array.from({ length: Math.max(3, size | 0) }, () => {
+      if (rng() < dbl) return "dbl";
+      let r = rng(),
+        rar = "common";
+      for (const k of order)
+        if ((r -= O[k]) < 0) {
+          rar = k;
+          break;
+        }
+      const pool = FLIPS_V186.filter(c => c.rar === rar && !abLegacyV193AB(c.id))
+          .map(c => c.id)
+          .concat(["hot", "spill"]),
+        id = pool[Math.min(pool.length - 1, Math.floor(rng() * pool.length))];
+      return id === "hot" || id === "spill" ? abMakeV193AB(e, rng, id, rar) : id;
+    });
+  }
+  /* an old card: the trust card is a Hot Streak (uncommon), Extra reps a common Spillover, +1 Permanent a legendary one */
+  function abLegacyMapV193AB(e, id, rng) {
+    if (id === "trust") return abMakeV193AB(e, rng, "hot", "uncommon");
+    if (id === "reps") return abMakeV193AB(e, rng, "spill", "common");
+    if (id === "attr") return abMakeV193AB(e, rng, "spill", "legendary");
+    return id;
+  }
+  function abLegacyRngV193AB(e, w, id, slot) {
+    return seededRng(e.seasonSeed || 0, e.level || 0, e.totalSeasons || 0, (w && w.week) || 0, (w && w.opp) || "", String(id), slot | 0, "legacyV193AB");
+  }
+  /* a deck dealt before (a save mid-reel) keeps its picks; an unpicked old card is re-dealt for its slot, seeded */
+  function abMigrateV193AB(e, w) {
+    const F = w && w.payV178 && w.payV178.flip;
+    if (!abOnV193AB() || !e || !F || !Array.isArray(F.deck) || !F.deck.some(abLegacyV193AB)) return;
+    F.deck = F.deck.map((id, j) => (abLegacyV193AB(id) && !(F.picked || []).some(p => p.i === j) ? abLegacyMapV193AB(e, id, abLegacyRngV193AB(e, w, id, j)) : id));
+  }
+  function abRarV193AB(id) {
+    const c = abParseV193AB(id);
+    if (c) return c.rar;
+    const f = FLIPS_V186.find(x => x.id === id);
+    return f ? f.rar : "common";
+  }
+  /* the card's face: the numbers it rolled, whole */
+  function abFaceV193AB(id) {
+    const c = abParseV193AB(id);
+    if (!c) return null;
+    if (c.kind === "dbl") return { id, kind: "dbl", rar: "jackpot", col: abColV193AB("jackpot"), icon: "💵", name: "2× POINTS · this season" };
+    if (c.kind === "hot")
+      return { id, kind: "hot", rar: c.rar, col: abColV193AB(c.rar), icon: "🔥", name: "+" + Math.round(c.pct) + "% " + abNameV193AB(c.attr) + " · " + c.games + (c.games === 1 ? " game" : " games") };
+    return { id, kind: "spill", rar: c.rar, col: abColV193AB(c.rar), icon: "🔁", name: Math.round(c.pct) + "% → " + abNameV193AB(c.attr) };
+  }
+  /* ---- the Spillover, held ---- */
+  function spillRecV193AB(e, make) {
+    if (!abOnV193AB() || !e) return null;
+    let R = e.spillV193AB;
+    const live = R && Array.isArray(R.list) && R.season === (e.totalSeasons | 0) && (R.career == null || !state || state.careers == null || R.career === state.careers);
+    if (!live) {
+      if (!make) return null;
+      R = e.spillV193AB = { season: e.totalSeasons | 0, career: state && state.careers != null ? state.careers : null, list: [], units: {}, landed: {} };
+    }
+    R.units = R.units || {};
+    R.landed = R.landed || {};
+    return R;
+  }
+  function spillAimOkV193AB() {
+    return nodeLvl("spillCoach") >= TU("spillAimLvlV193AB", 3);
+  }
+  /* units are points × percent; the attribute holds floor(units / 100) whole points of them (never past the cap) */
+  function spillMoveV193AB(e, R, k, du) {
+    R.units[k] = Math.max(0, (R.units[k] || 0) + du);
+    const want = Math.floor(R.units[k] / 100),
+      have = R.landed[k] || 0,
+      cur = Number(e.attrs[k]) || 0;
+    let d = want - have;
+    if (d > 0) d = Math.min(d, Math.max(0, Math.floor(attrCap() - cur)));
+    if (d < 0) d = Math.max(d, -have);
+    if (d) {
+      e.attrs[k] = cur + d;
+      R.landed[k] = have + d;
+    }
+  }
+  /* c points were just spent: every held Spillover adds c × its percent to its stat; returns what to take back on a minus */
+  function spillPayV193AB(e, c) {
+    const R = spillRecV193AB(e);
+    if (!R || !R.list.length || !(c > 0)) return null;
+    const rec = {};
+    R.list.forEach(s => {
+      const u = Math.round(c * (Number(s.pct) || 0));
+      s && s.attr && u > 0 && (rec[s.attr] = (rec[s.attr] || 0) + u);
+    });
+    for (const k in rec) spillMoveV193AB(e, R, k, rec[k]);
+    return rec;
+  }
+  function spillUnpayV193AB(e, rec) {
+    const R = rec ? spillRecV193AB(e) : null;
+    if (!R) return;
+    for (const k in rec) spillMoveV193AB(e, R, k, -rec[k]);
+  }
+  function spillAimV193AB(e, i, k) {
+    const R = spillRecV193AB(e);
+    if (!R || !R.list[i] || !spillAimOkV193AB() || spillKeysV193AB(e).indexOf(k) < 0) return false;
+    R.list[i].attr = k;
+    return true;
+  }
+  /* ---- 2× POINTS ---- */
+  function dblGamesPaidV193AB(e) {
+    return ((e && e.weekResults) || []).filter(w => w && w.payV178 && !w.payV178.skipped).length;
+  }
+  function dblActiveV193AB(e) {
+    if (!abOnV193AB() || !e || !e.dblPtsV193AB) return false;
+    const D = e.dblPtsV193AB,
+      s = e.totalSeasons | 0;
+    if (D.career != null && state && state.careers != null && D.career !== state.careers) return false;
+    if (D.season === s) return true;
+    return D.season === s - 1 && (D.next | 0) > 0 && dblGamesPaidV193AB(e) < (D.next | 0);
+  }
+  /* THE one helper every in-season point award goes through */
+  function ptsEarnV193AB(e, n) {
+    return dblActiveV193AB(e) ? n * 2 : n;
+  }
+  /* ---- the Hot Streak, in play ---- */
+  function hotListV193AB(pl) {
+    return abOnV193AB() && pl && Array.isArray(pl.hotV193AB) ? pl.hotV193AB.filter(b => b && b.attr && (b.gamesLeft | 0) > 0) : [];
+  }
+  function hotTotalsV193AB(pl, list) {
+    const T = {},
+      cap = hotCapV193AB();
+    (list || hotListV193AB(pl)).forEach(b => {
+      b && b.attr && (b.gamesLeft | 0) > 0 && (T[b.attr] = Math.min(cap, (T[b.attr] || 0) + (Number(b.pct) || 0)));
+    });
+    return T;
+  }
+  /* the attributes' totals as v193 X percent buffs — `ownBuffsV111` hands them to every game path */
+  function hotBuffsV193AB(pl) {
+    if (!abOnV193AB() || !pl || !pl.attrs) return [];
+    const T = hotTotalsV193AB(pl);
+    return Object.keys(T)
+      .filter(k => T[k] > 0 && pl.attrs[k] != null)
+      .map(k => ({ stat: k, amt: rollPtsV193X(pl, k, T[k]), pct: Math.round(T[k]), v193AB: "hot" }));
+  }
+  /* the OVR the boosts add, for rollGamePerf (a game already spent reads the boosts it was played with) */
+  function hotPerfLiftV193AB(e) {
+    if (!abOnV193AB() || !TU("hotPerfV193AB", 1) || !e || !e.attrs || !e.pos) return 0;
+    let list = null;
+    try {
+      const wk = curWeekV111(e);
+      list = wk && wk._hotV193AB ? wk._hotV193AB : null;
+    } catch (_) {}
+    const T = hotTotalsV193AB(e, list),
+      ks = Object.keys(T);
+    if (!ks.length) return 0;
+    const A = Object.assign({}, e.attrs);
+    ks.forEach(k => A[k] != null && (A[k] += rollPtsV193X(e, k, T[k])));
+    return Math.max(0, calcOvr(A, e.pos, e.body) - calcOvr(e.attrs, e.pos, e.body));
+  }
+  /* a game is spent (decayWearV111, once a week): every boost counts one down */
+  function hotDecayV193AB(pl, wk) {
+    if (!pl || !wk || !Array.isArray(pl.hotV193AB) || !pl.hotV193AB.length) return;
+    const L = hotListV193AB(pl);
+    L.length && (wk._hotV193AB = L.map(b => Object.assign({}, b)));
+    pl.hotV193AB = L.map(b => Object.assign({}, b, { gamesLeft: (b.gamesLeft | 0) - 1 })).filter(b => b.gamesLeft > 0);
+  }
+  /* a week whose game was booked (and counted) but which he then sits out hurt: the count goes back — an injured game
+   * does not spend a Hot Streak game */
+  function hotRefundV193AB(e, wk) {
+    const B = wk && wk._hotV193AB;
+    if (!e || !Array.isArray(B)) return;
+    delete wk._hotV193AB;
+    const L = Array.isArray(e.hotV193AB) ? e.hotV193AB : (e.hotV193AB = []),
+      done = new Set();
+    B.forEach(b => {
+      const m = L.find(x => !done.has(x) && x.attr === b.attr && x.pct === b.pct && (x.games | 0) === (b.games | 0) && (x.gamesLeft | 0) === (b.gamesLeft | 0) - 1);
+      if (m) m.gamesLeft = b.gamesLeft;
+      else L.push(Object.assign({}, b));
+      done.add(m || L[L.length - 1]);
+    });
+  }
+  /* ---- a card lands ---- */
+  function abApplyV193AB(e, id, w) {
+    const c = abParseV193AB(id);
+    if (!c || !e) return null;
+    if (c.kind === "hot") {
+      e.hotV193AB = Array.isArray(e.hotV193AB) ? e.hotV193AB : [];
+      e.hotV193AB.push({ attr: c.attr, pct: c.pct, gamesLeft: c.games, games: c.games, rar: c.rar });
+      applyFlipV178.abV193AB = { kind: "hot" };
+      return "+" + Math.round(c.pct) + "% " + abNameV193AB(c.attr) + " · " + c.games + (c.games === 1 ? " game" : " games");
+    }
+    if (c.kind === "spill") {
+      const R = spillRecV193AB(e, true);
+      R.list.push({ attr: c.attr, pct: c.pct, rar: c.rar });
+      applyFlipV178.abV193AB = { kind: "spill", idx: R.list.length - 1 };
+      return Math.round(c.pct) + "% → " + abNameV193AB(c.attr) + " · this season";
+    }
+    const next = dblCarryGamesV193AB();
+    e.dblPtsV193AB = { season: e.totalSeasons | 0, career: state && state.careers != null ? state.careers : null, next };
+    applyFlipV178.abV193AB = { kind: "dbl" };
+    return "2× POINTS · this season" + (next ? " + " + next + " games" : "");
+  }
+  /* the season settles (core simSeason, after the season's own points are paid): the Spillover and 2× POINTS are spent */
+  function abSeasonEndV193AB(e) {
+    if (!e) return;
+    delete e.spillV193AB;
+    const D = e.dblPtsV193AB;
+    if (D && !(D.season === (e.totalSeasons | 0) - 1 && (D.next | 0) > 0)) delete e.dblPtsV193AB;
+  }
+  /* ---- the screens ---- */
+  function abCssV193AB() {
+    if (typeof document > "u" || document.getElementById("abCssV193AB")) return "";
+    const st = document.createElement("style");
+    st.id = "abCssV193AB";
+    st.textContent = [
+      ".ab-chips-v193ab{display:flex;flex-wrap:wrap;gap:5px;margin:6px 0 8px}",
+      ".ab-chip-v193ab{display:inline-flex;align-items:center;gap:3px;max-width:100%;padding:2px 8px;border-radius:10px;font:600 12px 'Barlow Condensed',sans-serif;line-height:1.3;white-space:normal;border:1px solid rgba(255,255,255,.18);background:rgba(255,255,255,.05);color:var(--chalk)}",
+      ".ab-chip-v193ab.hot{border-color:rgba(255,157,74,.55);background:rgba(255,120,40,.12);color:#ffc08a}",
+      ".ab-chip-v193ab.spill{border-color:rgba(90,176,255,.5);background:rgba(90,176,255,.1);color:#a9d4ff}",
+      ".ab-chip-v193ab.dbl{border-color:rgba(255,122,217,.6);background:rgba(255,122,217,.12);color:#ffb3ec}",
+      ".up-spill-v193ab{margin:0 0 8px;padding:6px 10px;border-radius:10px;border:1px solid rgba(90,176,255,.4);background:rgba(90,176,255,.08);font:500 13px 'Barlow Condensed',sans-serif;color:var(--chalk-dim);line-height:1.4}",
+      ".up-spill-v193ab b{color:#a9d4ff}.up-spill-v193ab select{font:600 12px 'Barlow Condensed',sans-serif;background:#0d121c;color:var(--chalk);border:1px solid rgba(90,176,255,.5);border-radius:6px;max-width:130px}",
+      ".up-spillchip-v193ab{flex:none;display:inline-block;padding:1px 6px;border-radius:9px;font:700 10.5px Oswald,sans-serif;letter-spacing:.4px;white-space:nowrap;color:#a9d4ff;border:1px solid rgba(90,176,255,.45);background:rgba(90,176,255,.12)}",
+      ".ab-aim-v193ab{display:flex;flex-wrap:wrap;align-items:center;gap:5px;margin-top:6px;font:600 12px 'Barlow Condensed',sans-serif;color:var(--chalk-dim)}",
+      ".ab-aim-v193ab button{padding:3px 8px;border-radius:8px;border:1px solid rgba(90,176,255,.45);background:rgba(90,176,255,.08);color:var(--chalk);font:600 12px 'Barlow Condensed',sans-serif;cursor:pointer}",
+      ".ab-aim-v193ab button.on{background:rgba(90,176,255,.35);border-color:#a9d4ff;color:#fff}",
+      ".ab-log-v193ab summary{cursor:pointer;font:500 14px 'Barlow Condensed',sans-serif;color:var(--chalk-dim);list-style-position:inside}",
+      ".ab-log-v193ab summary b{color:var(--gold)}",
+      ".ab-log-rows-v193ab{margin-top:6px;display:flex;flex-direction:column;gap:3px}",
+      ".ab-log-row-v193ab{display:flex;align-items:baseline;gap:8px;font:500 13px 'Barlow Condensed',sans-serif;line-height:1.3;min-width:0}",
+      ".ab-log-row-v193ab .wk{flex:0 0 auto;min-width:44px;color:var(--chalk-dim);font-family:Oswald,sans-serif;font-size:11px;letter-spacing:.5px}",
+      ".ab-log-row-v193ab .say{flex:1 1 auto;min-width:0;overflow-wrap:anywhere}",
+      ".ab-log-row-v193ab em{flex:0 0 auto;font:600 10px Oswald,sans-serif;letter-spacing:.6px;color:var(--chalk-dim);opacity:.8}"
+    ].join("");
+    (document.head || document.documentElement).appendChild(st);
+    return "";
+  }
+  /* the chips on the hub and the season screen: "🔥 +22% Speed · 4 games", "🔁 20% → Acceleration", "💵 2× POINTS" */
+  function cardChipsV193AB(e) {
+    if (!abOnV193AB() || !e) return "";
+    const out = [];
+    try {
+      const cap = hotCapV193AB(),
+        T = hotTotalsV193AB(e);
+      hotListV193AB(e).forEach(b => {
+        const g = b.gamesLeft | 0;
+        out.push(`<span class="ab-chip-v193ab hot">🔥 +${Math.round(b.pct)}% ${escHtml(abNameV193AB(b.attr))} · ${g} game${g === 1 ? "" : "s"}${T[b.attr] >= cap ? ` <small>(stack capped at ${Math.round(cap)}%)</small>` : ""}</span>`);
+      });
+      const R = spillRecV193AB(e);
+      R &&
+        R.list.forEach(s => out.push(`<span class="ab-chip-v193ab spill">🔁 ${Math.round(s.pct)}% of every point → ${escHtml(abNameV193AB(s.attr))} · this season</span>`));
+      if (dblActiveV193AB(e)) {
+        const D = e.dblPtsV193AB,
+          carry = D.season !== (e.totalSeasons | 0);
+        out.push(`<span class="ab-chip-v193ab dbl">💵 2× POINTS · ${carry ? "the first " + (D.next | 0) + " games" : "this season"}</span>`);
+      }
+    } catch (_) {
+      return "";
+    }
+    if (!out.length) return "";
+    abCssV193AB();
+    return `<div class="ab-chips-v193ab" id="abChipsV193AB">${out.join("")}</div>`;
+  }
+  /* the pregame sheet's rows */
+  function abPregameRowsV193AB(pl) {
+    if (!abOnV193AB() || !pl) return [];
+    const rows = [];
+    try {
+      const T = hotTotalsV193AB(pl);
+      hotListV193AB(pl).forEach(b => {
+        const g = b.gamesLeft | 0;
+        rows.push({ l: "🔥 Hot streak", v: "+" + Math.round(b.pct) + "% " + abNameV193AB(b.attr) + " (+" + rollPtsV193X(pl, b.attr, Math.min(b.pct, T[b.attr] || b.pct)) + ") · " + g + " game" + (g === 1 ? "" : "s"), good: true });
+      });
+      dblActiveV193AB(pl) && rows.push({ l: "💵 Upgrade points", v: "2× this game", good: true });
+    } catch (_) {}
+    return rows;
+  }
+  /* the skill sheet's header line: "🔁 20% of every point → Acceleration (this season)" (from Spill Coach Lv 3: a picker) */
+  function spillLineV193AB(e) {
+    const R = spillRecV193AB(e);
+    if (!R || !R.list.length) return "";
+    abCssV193AB();
+    const aim = spillAimOkV193AB(),
+      ks = spillKeysV193AB(e);
+    return (
+      `<div class="up-spill-v193ab" id="spillLineV193AB">` +
+      R.list
+        .map(
+          (s, i) =>
+            `🔁 <b>${Math.round(s.pct)}%</b> of every point you spend → ${
+              aim
+                ? `<select aria-label="Spillover stat" onchange="window.__V193AB.aim(${i},this.value)">${ks.map(k => `<option value="${k}"${k === s.attr ? " selected" : ""}>${escHtml(abNameV193AB(k))}</option>`).join("")}</select>`
+                : `<b>${escHtml(abNameV193AB(s.attr))}</b>`
+            } (this season)`
+        )
+        .join("<br>") +
+      `</div>`
+    );
+  }
+  /* a target row's chip: the pending share of its next spilled point */
+  function spillChipV193AB(e, k) {
+    const R = spillRecV193AB(e);
+    if (!R || !R.list.some(s => s.attr === k) && !R.units[k]) return "";
+    const pend = Math.round((R.units[k] || 0) - (R.landed[k] || 0) * 100),
+      got = R.landed[k] || 0;
+    return `<span class="up-spillchip-v193ab" id="spillChipV193AB-${k}" title="Spillover: the share of your next free point">🔁 ${got ? "+" + got + " · " : ""}${Math.max(0, pend)}% to the next +1</span>`;
+  }
+  /* the reel: the Spillover's stat picker (Spill Coach Lv 3+), under the cards */
+  function spillAimHtmlV193AB(e, F) {
+    if (!abOnV193AB() || !F || !spillAimOkV193AB()) return "";
+    const R = spillRecV193AB(e);
+    if (!R) return "";
+    const ks = spillKeysV193AB(e);
+    return (F.picked || [])
+      .filter(p => p.ab && p.ab.kind === "spill" && R.list[p.ab.idx])
+      .map(
+        p =>
+          `<div class="ab-aim-v193ab" data-idx="${p.ab.idx}">🔁 Spill into:${ks
+            .map(k => `<button type="button" class="${R.list[p.ab.idx].attr === k ? "on" : ""}" onclick="event.stopPropagation();window.__V193AB.aimCard(${p.ab.idx},'${k}',${p.i})">${escHtml(abNameV193AB(k))}</button>`)
+            .join("")}</div>`
+      )
+      .join("");
+  }
+  function abAimCardV193AB(idx, k, i) {
+    const e = state && state.player;
+    if (!spillAimV193AB(e, idx, k)) return false;
+    try {
+      const R = spillRecV193AB(e),
+        s = R.list[idx],
+        say = Math.round(s.pct) + "% → " + abNameV193AB(s.attr) + " · this season",
+        el = document.querySelector(`#rvFlipV178 .rvc-v178[data-i="${i}"] .b`);
+      el && (el.innerHTML = `<i>🔁</i>${escHtml(say)}<small>${escHtml(String(s.rar || "").toUpperCase())}</small>`);
+      const w = e.weekResults && e.currentWeek != null ? e.weekResults[e.currentWeek] : null,
+        F = (w && w.payV178 && w.payV178.flip) || (V178.cardWeek && V178.cardWeek.payV178 && V178.cardWeek.payV178.flip),
+        pk = F && F.picked.find(p => p.i === i);
+      pk && (pk.say = say);
+      const box = document.getElementById("rvAimV193AB");
+      box && F && (box.innerHTML = spillAimHtmlV193AB(e, F));
+      buzzV193O("select");
+    } catch (_) {}
+    return true;
+  }
+  /* ---- the auto-pick and the season's card log ---- */
+  function abRankV193AB(id) {
+    return { jackpot: 6, legendary: 5, epic: 4, rare: 3, uncommon: 2, common: 1 }[abRarV193AB(id)] || 0;
+  }
+  /* the deck's slots, best first: rarity (2× POINTS on top), then the order dealt */
+  function abBestOrderV193AB(deck) {
+    return (deck || [])
+      .map((id, i) => i)
+      .sort((a, b) => abRankV193AB(deck[b]) - abRankV193AB(deck[a]) || a - b);
+  }
+  function abWeekLabelV193AB(e, w) {
+    if (!w) return "";
+    if (w.playoff) return String(w.round || "Playoff");
+    const reg = ((e && e.weekResults) || []).filter(x => x && !x.playoff),
+      i = reg.indexOf(w);
+    return "WK " + (i >= 0 ? i + 1 : w.week || "?");
+  }
+  /* every card a game of this season dealt and what it gave: `player.cardLogV193AB = {season, career, list}` */
+  function cardLogV193AB(e, w, pk) {
+    if (!abOnV193AB() || !e || !pk) return;
+    const s = e.totalSeasons | 0,
+      car = state && state.careers != null ? state.careers : null;
+    let L = e.cardLogV193AB;
+    if (!L || L.season !== s || L.career !== car || !Array.isArray(L.list)) L = e.cardLogV193AB = { season: s, career: car, list: [] };
+    const c = flipCardV178(pk.id);
+    L.list.push({ wk: abWeekLabelV193AB(e, w), id: pk.id, say: String(pk.say || c.name || ""), icon: c.icon, rar: c.rar, auto: !!pk.auto });
+    L.list.length > 120 && L.list.splice(0, L.list.length - 120);
+  }
+  /* "🃏 Cards this season": the season screen (this season) and the season's result (the one just settled) */
+  function cardSummaryV193AB(e, where) {
+    if (!abOnV193AB() || !e) return "";
+    const L = e.cardLogV193AB,
+      s = e.totalSeasons | 0;
+    if (!L || !Array.isArray(L.list) || !L.list.length || L.season !== (where === "result" ? s - 1 : s)) return "";
+    abCssV193AB();
+    const auto = L.list.filter(x => x.auto).length,
+      whole = t => String(t).replace(/(\d+\.\d+)%/g, m => Math.round(parseFloat(m)) + "%");
+    return (
+      `<details class="card tight ab-log-v193ab" id="cardLogV193AB" data-where="${where}"><summary>🃏 <b>Cards this season</b> · ${L.list.length}${auto ? ` · ${auto} picked for you (the best rarity)` : ""}</summary><div class="ab-log-rows-v193ab">` +
+      L.list
+        .map(x => `<div class="ab-log-row-v193ab"><span class="wk">${escHtml(x.wk)}</span><span class="say" style="color:${abColV193AB(x.rar)}">${x.icon || ""} ${escHtml(whole(x.say))}</span>${x.auto ? "<em>auto</em>" : ""}</div>`)
+        .join("") +
+      `</div></details>`
+    );
+  }
+  window.__V193AB = {
+    on: abOnV193AB,
+    best: abBestOrderV193AB,
+    auto: w => autoFlipV178(state.player, w),
+    log: pl => (pl || (state && state.player) || {}).cardLogV193AB || null,
+    summary: (where, pl) => cardSummaryV193AB(pl || (state && state.player), where || "season"),
+    deck: (w, n) => deckV178(state.player, w || {}, n || 3),
+    face: abFaceV193AB,
+    parse: abParseV193AB,
+    rar: abRarV193AB,
+    band: abBandV193AB,
+    hotRange: hotRangeV193AB,
+    spillRange: spillRangeV193AB,
+    hotCap: hotCapV193AB,
+    dblOdds: dblOddsV193AB,
+    hot: pl => hotListV193AB(pl || (state && state.player)),
+    buffs: pl => hotBuffsV193AB(pl || (state && state.player)),
+    lift: pl => hotPerfLiftV193AB(pl || (state && state.player)),
+    spill: pl => spillRecV193AB(pl || (state && state.player)),
+    keys: pl => spillKeysV193AB(pl || (state && state.player)),
+    aim: (i, k) => {
+      const ok = spillAimV193AB(state && state.player, i, k);
+      try {
+        ok && typeof document < "u" && document.getElementById("ptsLeft") && refreshAllocButtons(); /* the skill sheet is up */
+      } catch (_) {}
+      return ok;
+    },
+    aimCard: abAimCardV193AB,
+    dbl: pl => dblActiveV193AB(pl || (state && state.player)),
+    earn: (n, pl) => ptsEarnV193AB(pl || (state && state.player), n),
+    chips: pl => cardChipsV193AB(pl || (state && state.player)),
+    line: pl => spillLineV193AB(pl || (state && state.player)),
+    pregame: pl => abPregameRowsV193AB(pl || (state && state.player)),
+    seasonEnd: pl => abSeasonEndV193AB(pl || (state && state.player))
+  };
   const FLIPS_V178 = [
     { id: "pt1", w: 38, rar: "common", col: "#c8d0da", icon: "🪙", name: "+10% Upgrade Points" } /* v179 N: % of the week (min +1) */,
     { id: "pt2", w: 16, rar: "uncommon", col: "#6bbf59", icon: "💰", name: "+20% Upgrade Points" } /* min +2 */,
@@ -38197,6 +40713,7 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
   function deckV178(e, w, size) {
     const rng = seededRng(e.seasonSeed || 0, e.level || 0, e.totalSeasons || 0, w.week || 0, w.opp || "", w.playoff ? "p" : "r", "flipV178"),
       tot = FLIPS_V178.reduce((s, c) => s + c.w, 0);
+    if (flipOnV186() && abOnV193AB()) return abDeckV193AB(e, rng, size); /* v193 AB: Hot Streak, Spillover, 2× POINTS — no trust card */
     if (flipOnV186()) {
       const O = flipRarOddsV186(),
         order = ["legendary", "epic", "rare", "uncommon", "common"];
@@ -38213,11 +40730,13 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
       totL = FLIPS_V178.reduce((s, c) => s + wOf(c), 0);
     return Array.from({ length: Math.max(3, size | 0) }, () => {
       let r = rng() * (luck === 1 ? tot : totL);
-      for (const c of FLIPS_V178) if ((r -= luck === 1 ? c.w : wOf(c)) <= 0) return c.id;
+      for (const c of FLIPS_V178) if ((r -= luck === 1 ? c.w : wOf(c)) <= 0) return abOnV193AB() && abLegacyV193AB(c.id) ? abLegacyMapV193AB(e, c.id, rng) /* v193 AB: never the trust card */ : c.id;
       return "pt1";
     });
   }
   function flipCardV178(id) {
+    const ab = abOnV193AB() ? abFaceV193AB(id) : null; /* v193 AB: the new cards' faces say what they rolled */
+    if (ab) return ab;
     if (flipOnV186()) {
       const c6 = FLIPS_V186.find(x => x.id === id);
       if (c6) {
@@ -38243,6 +40762,16 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
     return c;
   }
   function applyFlipV178(e, id, w) {
+    applyFlipV178.abV193AB = null;
+    if (abOnV193AB()) {
+      /* v193 AB: no card touches coach trust — an old card is re-dealt as the new one of its rarity; the new ones land here */
+      if (abLegacyV193AB(id)) id = abLegacyMapV193AB(e, id, abLegacyRngV193AB(e, w, id, 100 + ((w && w.payV178 && w.payV178.flip && w.payV178.flip.picked.length) || 0)));
+      const ab = abApplyV193AB(e, id, w);
+      if (ab != null) {
+        applyFlipV178.pts = 0;
+        return ab;
+      }
+    }
     const keys = keyAttrsV178(e);
     let say = flipCardV178(id).name;
     if (flipOnV186()) {
@@ -38318,14 +40847,34 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
     const P = w && w.payV178,
       F = P && P.flip;
     if (!F || F.picked.length >= F.n || F.picked.some(p => p.i === i) || !F.deck[i]) return false;
+    abMigrateV193AB(e, w); /* v193 AB: an old card left in a saved deck is re-dealt first */
     applyFlipV178.pts = 0;
-    const say = applyFlipV178(e, F.deck[i], w);
-    F.picked.push({ i, id: F.deck[i], say, pts: applyFlipV178.pts }); /* v179 N: what a points card paid */
+    const say = applyFlipV178(e, F.deck[i], w),
+      ab = applyFlipV178.abV193AB;
+    F.picked.push(Object.assign({ i, id: F.deck[i], say, pts: applyFlipV178.pts }, ab ? { ab } : {}, pickFlipV178.autoV193AB ? { auto: true } : {})); /* v179 N: what a points card paid; v193 AB: which held card, picked for him or not */
+    try {
+      cardLogV193AB(e, w, F.picked[F.picked.length - 1]); /* v193 AB: the season's card log — nothing a simmed game deals is silent */
+    } catch (_) {}
     return true;
   }
   function autoFlipV178(e, w) {
     const F = w && w.payV178 && w.payV178.flip;
     if (!F) return;
+    if (abOnV193AB()) {
+      /* v193 AB: a game he did not see picks its card for him — the BEST by rarity (2× POINTS, then legendary … common;
+       * a tie goes to the first dealt), and the pick is marked `auto` in the season's card log */
+      abMigrateV193AB(e, w);
+      pickFlipV178.autoV193AB = true;
+      try {
+        for (const i of abBestOrderV193AB(F.deck)) {
+          if (F.picked.length >= F.n) break;
+          pickFlipV178(e, w, i);
+        }
+      } finally {
+        pickFlipV178.autoV193AB = false;
+      }
+      return;
+    }
     for (let i = 0; i < F.deck.length && F.picked.length < F.n; i++) pickFlipV178(e, w, i);
   }
   /* ---- G: the stock ticker ---- */
@@ -38481,7 +41030,8 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
       ordPts = orders ? hits * TU("orderPtsV178", 0.2) * worth + (orders.length && hits === orders.length ? TU("sweepPtsV178", 0.4) * worth : 0) : 0,
       pace = paceV178(e, w, stat),
       milePts = pace && pace.hit.length ? pace.hit.length * TU("milePtsV178", 0.75) * worth : 0,
-      raw = (pot.raw + ordPts + milePts) * wmul * heat.mult * (1 + treeFx("payMultV179")) * TU("betaPayV182", 1) /* v179 G: Golden Paycheck (the medal is inside treeFx); v193 E: Eternal Form and Glass Cannon too; v182: the beta paycheck dial */,
+      dbl193 = ptsEarnV193AB(e, 1) /* v193 AB: the 2× POINTS card — 2 while it holds */,
+      raw = ptsEarnV193AB(e, (pot.raw + ordPts + milePts) * wmul * Math.max(0, pathVal(watched ? "watchPayMult" : "simPayMult", 1)) /* v193 AD: The Showman / The Executive */ * heat.mult * (1 + treeFx("payMultV179")) * TU("betaPayV182", 1)) /* v179 G: Golden Paycheck (the medal is inside treeFx); v193 E: Eternal Form and Glass Cannon too; v182: the beta paycheck dial; v193 AB: ×2 on a 2× POINTS season */,
       bank0 = e.payBankV178 || 0,
       bank = bank0 + raw,
       whole = Math.floor(bank + 1e-9);
@@ -38504,6 +41054,7 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
       pace,
       milePts,
       raw,
+      dblV193AB: dbl193,
       whole,
       bank0,
       bank: e.payBankV178,
@@ -38806,7 +41357,8 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
     // 1 — the paycheck: the big number, the next-point bar that overflows once a point, the parts as chips
     const tags =
       (P.watched ? `<span class="rv-tag rv-stamp" style="color:var(--cyan)">×${P.wmul} WATCHED</span>` : "") +
-      (P.heat.tier ? `<span class="rv-tag rv-stamp" style="color:#ff9d4a"><span class="rv-flame">🔥</span> ${pctV178(P.heat.mult)}</span>` : "");
+      (P.heat.tier ? `<span class="rv-tag rv-stamp" style="color:#ff9d4a"><span class="rv-flame">🔥</span> ${pctV178(P.heat.mult)}</span>` : "") +
+      (P.dblV193AB > 1 ? `<span class="rv-tag rv-stamp" style="color:#ff7ad9">2× POINTS</span>` : ""); /* v193 AB */
     const chips = P.pot.items
       .map(i => `${escHtml(i.label)} <b>${fracV178(i.v)}</b>`)
       .concat(P.ordPts ? [`Orders ${P.hits}/${(P.orders || []).length} <b>${fracV178(P.ordPts)}</b>`] : [])
@@ -38821,6 +41373,7 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
     );
     // 2 — the cards, right under the paycheck: the slot machine is played while the rest lands
     if (P.flip) {
+      abMigrateV193AB(e, w); /* v193 AB */
       const F = P.flip,
         left = F.n - F.picked.length;
       rows.push(
@@ -38830,7 +41383,7 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
               pk = F.picked.find(p => p.i === i);
             return `<div class="rvc-v178${pk ? " flipped" : ""}" data-i="${i}" style="--rc:${c.col}" onclick="event.stopPropagation();window.__V178.pick(${i})"><div class="rv-in"><div class="f">?</div><div class="b"><i>${c.icon}</i>${escHtml(pk ? pk.say : c.name)}<small>${c.rar.toUpperCase()}</small></div></div></div>`;
           })
-          .join("")}</div></div>`
+          .join("")}</div><div id="rvAimV193AB">${spillAimHtmlV193AB(e, F) /* v193 AB: Spill Coach Lv 3 aims the Spillover */}</div></div>`
       );
     }
     // 3 — the orders: each one slides in, then its verdict is stamped
@@ -39161,12 +41714,17 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
       const b = el.querySelector(".b");
       b && (b.innerHTML = `<i>${c.icon}</i>${escHtml(pk.say)}<small>${c.rar.toUpperCase()}</small>`);
     }
-    playSfx(c.rar === "legendary" || c.rar === "epic" ? "big" : "good");
-    buzzV193O(c.rar === "legendary" || c.rar === "epic" ? "reward" : "select"); /* v193 O (was the save's haptic()) */
+    const big193 = c.rar === "legendary" || c.rar === "epic" || c.rar === "jackpot"; /* v193 AB: 2× POINTS is the jackpot */
+    playSfx(big193 ? "big" : "good");
+    buzzV193O(big193 ? "reward" : "select"); /* v193 O (was the save's haptic()) */
+    try {
+      const box = pk.ab && pk.ab.kind === "spill" ? document.getElementById("rvAimV193AB") : null;
+      box && (box.innerHTML = spillAimHtmlV193AB(e, F)); /* v193 AB: aim the Spillover (Spill Coach Lv 3) */
+    } catch (_) {}
     // v178 J: the rarity lands — the row glows the card's colour, a rare+ card throws confetti, an epic+ shakes it
     const row = document.getElementById("rvFlipV178");
     if (row) {
-      const big = c.rar === "legendary" || c.rar === "epic";
+      const big = big193;
       setTimeout(() => {
         glowV178(row, c.col, big);
         (big || c.rar === "rare") && confettiV178(row, big ? 40 : 18);
@@ -39658,6 +42216,7 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
     } catch (_) {}
   }
   function healNoteV193W(e, inj, how) {
+    legendComebackV193AD(inj); /* v193 AD: back from an injury */
     if (!injPopOnV193W() || !e || !inj || inj.knock) return;
     try {
       const Q = (e.injQV193W = Array.isArray(e.injQV193W) ? e.injQV193W : []),
@@ -39785,7 +42344,7 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
     try {
       if (window.ribDialog && window.ribDialog.isOpen) return !0;
       if (window.__RIB_COACH && window.__RIB_COACH.isOpen) return !0;
-      if (document.querySelector("#pgOverlayV13,#simCardV178,.decision-overlay,.gameplan-overlay,#pregameV1513,#growthV42,#growV132,.life-event-overlay-v12,#rib-vault-v137,.onboard,#personaV13")) return !0;
+      if (document.querySelector("#pgOverlayV13,#simCardV178,.decision-overlay,.gameplan-overlay,#pregameV1513,#growthV42,#growV132,.life-event-overlay-v12,#rib-vault-v137,.onboard,#personaV13,#rmV193AA")) return !0;
       const sp = document.getElementById("splash");
       if (sp && !sp.classList.contains("gone") && sp.getBoundingClientRect().height > 0) return !0;
     } catch (_) {}
@@ -39849,7 +42408,7 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
       sev = injSevV193W(q),
       col = q.se || q.sev >= 3 ? "#ff6b6b" : q.knock || q.sev < 2 ? "#ffb347" : "#ff8a5c";
     return `<div class="inj-pop-v193w" data-id="${escHtml(q.id)}" data-out="${H.out}" data-back-wi="${H.backWi}" data-sev="${escHtml(sev)}" style="font:13px/1.45 system-ui,sans-serif;color:#d6e0ea;white-space:normal">
-      <div style="display:flex;align-items:center;gap:12px;margin:2px 0 10px"><div style="flex:0 0 auto;width:54px;height:54px;border-radius:14px;display:flex;align-items:center;justify-content:center;font-size:30px;background:radial-gradient(circle at 50% 40%,${col}44,#0000 70%),#0b111a;border:1px solid ${col}88">${P.ic}</div>
+      <div style="display:flex;align-items:center;gap:12px;margin:2px 0 10px"><div style="flex:0 0 auto;width:54px;height:54px;border-radius:14px;display:flex;align-items:center;justify-content:center;font-size:30px;background:radial-gradient(circle at 50% 40%,${col}44,#0000 70%),#0b111a;border:1px solid ${col}88">${artV193Y(P.ic, 36, col) /* v193 Y */}</div>
       <div style="min-width:0"><div class="inj-name-v193w" style="font:700 20px/1.1 Oswald,Impact,sans-serif;letter-spacing:.6px;color:#fff">${escHtml(q.name)}</div><div style="margin-top:3px"><span style="font:700 10px Oswald,sans-serif;letter-spacing:1.6px;color:${col};border:1px solid ${col}88;border-radius:8px;padding:1px 6px">${sev}</span> <span style="font-size:11px;color:#9fb0c2">${escHtml(P.part.toUpperCase())}</span></div></div></div>
       <div style="font:700 10px Oswald,sans-serif;letter-spacing:1.6px;color:#f0bb45">WHAT HAPPENED</div>
       <div class="inj-what-v193w" style="margin:2px 0 9px">${escHtml(injWhatV193W(e, q))}</div>
@@ -39865,7 +42424,7 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
       missed = ws.filter(w => w && w.satOut && w.injName === q.name).length,
       wkL = q.wi >= 0 && ws[q.wi] ? injWeekLabelV193W(e, q.wi) : "next season";
     return `<div class="inj-heal-v193w" data-id="${escHtml(q.id)}" data-back-wi="${q.wi}" style="font:13px/1.45 system-ui,sans-serif;color:#d6e0ea;white-space:normal;text-align:center">
-      <div style="font-size:34px;line-height:1">${P.ic}✅</div>
+      <div style="font-size:34px;line-height:1">${artV193Y(P.ic, 36, "#7fe0a0")}${artV193Y("✅", 36, "#7fe0a0") /* v193 Y */}</div>
       <div style="font:700 19px/1.15 Oswald,Impact,sans-serif;letter-spacing:.6px;color:#7fe0a0;margin:6px 0 2px">CLEARED TO PLAY</div>
       <div class="inj-heal-txt-v193w">${escHtml(q.name)} has healed${q.how === "offseason" ? " over the offseason" : ""}. ${q.how === "offseason" ? "He starts the new season healthy." : "He is back for " + escHtml(wkL) + "."}</div>
       ${missed ? `<div style="margin-top:4px;font-size:11.5px;color:#9fb0c2">It cost him ${missed} game${missed === 1 ? "" : "s"} this season.</div>` : ""}
@@ -40195,6 +42754,8 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
         v = pot <= potBar ? 1 / (1 + Math.exp(-(pot - potBar) / soft)) : 0.5 + (vMax - 0.5) * (1 - Math.exp(-(pot - potBar) / (potBar * TU("verdictTauV179", 0.35))));
         // the GM overrules on a close call, not a long shot: only within `secondLookFloorV179` of the bar
         sl = pot >= potBar * TU("secondLookFloorV179", 0.8) ? Math.min(TU("secondLookCapV179", 50), TU("secondLookBaseV179", 10) + adv * TU("secondLookPerOddsV179", 1.5)) / 100 : 0;
+        const lsV193AD = pathVal("secondLook", 0); /* v193 AD: The Long Shot — the GM looks again at any distance from the bar */
+        lsV193AD > 0 && (sl = Math.min(TU("longShotCapV193AD", 0.8), sl + lsV193AD / 100));
       }
     }
     const vt = v + (1 - v) * sl;
@@ -40704,7 +43265,7 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
           (hasTrait(e, "showman") ? 1.15 : 1) *
           eraMult(),
         nn = nodeLvl("legacy") * (e.totalSeasons || 0),
-        ii = [1, 2, 4, 8, 15, 28, 45, 70, 120][Math.min(a, 8)] || 1;
+        ii = careerBaseV193AC(a);
       r = e._arrivedV154 && a >= 7 ? tailPPV154(e, e._arrivedV154, sm, a) : Math.max(1, Math.round(((ii + (e.totalSeasons || 0) * 0.35 + (e.titles || 0) * 4) * sm + nn) * chaosEarnedMult(a)));
     } catch (_) {
       r = 0;
@@ -40961,7 +43522,7 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
     const X = ppMultPartsV192B(e),
       a = e.level | 0,
       sm = X.career / chaosEarnedMult(a),
-      ii = [1, 2, 4, 8, 15, 28, 45, 70, 120][Math.min(a, 8)] || 1,
+      ii = careerBaseV193AC(a),
       seasons = (e.totalSeasons || 0) * 0.35,
       titles = (e.titles || 0) * 4,
       nn = nodeLvl("legacy") * (e.totalSeasons || 0),
@@ -41270,7 +43831,7 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
   };
   const choosePathV192B = choosePath;
   choosePath = function (k) {
-    if (!confirmOnV192B() || !PATHS[k] || state.path === k || !pathOpenV156A()) return choosePathV192B.apply(this, arguments);
+    if (!confirmOnV192B() || !PATHS[k] || state.path === k || !pathOpenV156A() || (legendsOnV193AD() && !pathUnlockedV193AD(k))) return choosePathV192B.apply(this, arguments); /* v193 AD: a locked legend is refused inside */
     const from = state.path && PATHS[state.path],
       cost = from && medalsOnV156A() ? pathSwitchCostV156A() : 0;
     if (from && medalsOnV156A() && (state.pp || 0) < cost) return choosePathV192B.apply(this, arguments); /* its own "need N PP" */
@@ -41320,7 +43881,7 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
     parts.push(`<b>${sg(Q.lift)}</b> team nodes${Q.liftPct ? ` (+${nf1V179(Q.liftPct)}% on every teammate)` : ""}`);
     parts.push(`<b>${sg(Q.locker)}</b> Locker Room${Q.lockerLv ? ` (${fmtBigV179(Q.lockerLv)} levels of +1s over the 22)` : ""}`);
     parts.push(`<b>${sg(Q.share)}</b> legacy share (medals, roster prestige, the tree)`);
-    return `<div class="card tight tq-v192b" id="teamQualV192B"><div class="eyebrow">👥 YOUR TEAM'S QUALITY · ${escHtml(LEVELS[e.level].name)}</div><div class="tq"><s>${Q.base}</s><span>→</span><em>${Q.full}</em></div><div class="tq-l">TEAM OVR WITHOUT → WITH YOUR PRESTIGE${Q.full !== Q.base ? ` · <b style="color:var(--good)">+${Q.full - Q.base}</b>` : ""}</div><div class="small">${parts.join(" · ")}</div></div>`;
+    return `<div class="card tight tq-v192b" id="teamQualV192B"><div class="eyebrow">👥 YOUR TEAM'S QUALITY · ${escHtml(LEVELS[e.level].name)}</div><div class="tq"><s>${Q.base}</s><span>→</span><em>${Q.full}</em></div><div class="tq-l">TEAM OVR WITHOUT → WITH YOUR PRESTIGE${Q.full !== Q.base ? ` · <b style="color:var(--good)">+${Q.full - Q.base}</b>` : ""}</div><div class="small">${parts.join(" · ")}</div>${rmTeamRowSafeV193AA(e) /* v193 AA: the latest roster delta, the locks, RECRUIT A PLAYER */}</div>`;
   }
   function teamCardV192B() {
     const e = state && state.player;
@@ -41473,7 +44034,7 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
       row("add", `+ ${plural193D(titles, "title")} × 6`, titles * 6, "a cut pays 4 a title");
       base = 85 + seasons * 0.75 + titles * 6;
     } else {
-      const ii = [1, 2, 4, 8, 15, 28, 45, 70, 120][Math.min(lv, 8)] || 1;
+      const ii = careerBaseV193AC(lv);
       row("base", `Reached ${levelName(lv)}`, ii, "the level's base");
       row("add", `+ ${plural193D(seasons, "season")} × 0.35`, seasons * 0.35, "a UFF arrival pays 0.75 a season");
       row("add", `+ ${plural193D(titles, "title")} × 4`, titles * 4, "a UFF arrival pays 6 a title");
@@ -41627,10 +44188,10 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
   }
   function payLedgerHtmlV193D(L) {
     if (!L || !L.rows) return "";
-    let h = `<div class="card pay-ledger-v193d" id="payLedgerV193D" data-total="${L.total}" data-kind="${L.kind}"><div class="pl-head">🧾 THE CAREER'S PAY<span>every number, top to bottom</span></div>`;
+    let h = `<div class="card pay-ledger-v193d" id="payLedgerV193D" data-total="${L.total}" data-kind="${L.kind}"><div class="pl-head"><rib-line class="ra-line-v193y">${artV193Y("🧾", 18) /* v193 Y */} THE CAREER'S PAY</rib-line><span>every number, top to bottom</span></div>`;
     L.rows.forEach(r => {
       if (r.kind === "head") {
-        h += `<div class="pl-row k-head${r.cls ? " " + r.cls : ""}"><span class="pl-l">${escHtml(r.label)}</span></div>`;
+        h += `<div class="pl-row k-head${r.cls ? " " + r.cls : ""}"><span class="pl-l">${artLeadV193Y(escHtml(r.label), 16) /* v193 Y */}</span></div>`;
         return;
       }
       const sub = r.detail && r.detail.length;
@@ -41833,7 +44394,7 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
     try {
       cssMedalV179();
     } catch (_) {}
-    return `<button class="medal-chip-v179" id="medalChipV179" onclick="window.__V179.medals.open()">🎁 <span><b>${n}</b> medal reward${n > 1 ? "s" : ""} to choose${majors ? ` · <b>${majors}</b> MYSTERY` : ""}</span><span style="margin-left:auto">OPEN ▸</span></button>`;
+    return `<button class="medal-chip-v179" id="medalChipV179" onclick="window.__V179.medals.open()">${artV193Y("🎁", 20) /* v193 Y */} <span><b>${n}</b> medal reward${n > 1 ? "s" : ""} to choose${majors ? ` · <b>${majors}</b> MYSTERY` : ""}</span><span style="margin-left:auto">OPEN ▸</span></button>`;
   }
   function openMedalPickV179() {
     medalSyncV179();
@@ -41848,7 +44409,7 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
       cssMedalV179();
     } catch (_) {}
     const card = (c, i) =>
-      `<div class="mp-card${P.major ? " down" : ""}" data-i="${i}" style="--mc:${RAR_COL_V179[c.rar] || "#c8d0da"}" onclick="window.__V179.medals.tap(${i})"><div class="mp-in"><div class="mp-face"><i>${c.icon}</i><b>${escHtml(c.name)}</b><small>${String(c.rar || "").toUpperCase()}${P.major ? " · PERMANENT" : ""}</small><em>${escHtml(c.ctx)}</em>${TU("v179L", 1) && fxLinesV179(c.fx).length ? `<span class="mp-fx">${fxLinesV179(c.fx).map(escHtml).join("<br>")}</span>` : ""}</div><div class="mp-back">?</div></div></div>`;
+      `<div class="mp-card${P.major ? " down" : ""}" data-i="${i}" style="--mc:${RAR_COL_V179[c.rar] || "#c8d0da"}" onclick="window.__V179.medals.tap(${i})"><div class="mp-in"><div class="mp-face"><i>${artV193Y(c.icon, 40, RAR_COL_V179[c.rar]) /* v193 Y */}</i><b>${escHtml(c.name)}</b><small>${String(c.rar || "").toUpperCase()}${P.major ? " · PERMANENT" : ""}</small><em>${escHtml(c.ctx)}</em>${TU("v179L", 1) && fxLinesV179(c.fx).length ? `<span class="mp-fx">${fxLinesV179(c.fx).map(escHtml).join("<br>")}</span>` : ""}</div><div class="mp-back">?</div></div></div>`;
     document.body.insertAdjacentHTML(
       "beforeend",
       `<div class="decision-overlay" id="medalPickV179"><div class="decision-panel" style="border-color:var(--gold)"><div class="decision-kicker">${P.era != null ? "NEW ERA · " + escHtml(P.eraName || "") : (P.major ? "MAJOR MEDAL · MYSTERY " : "LEGACY MEDAL ") + P.rank}</div><div class="decision-title">${P.major ? "🎁 Two sealed upgrades — tap to reveal, then choose one" : "Choose one"}</div><div class="small" style="color:var(--chalk-dim);margin-top:2px">${P.era != null ? "A new era pays a unique permanent upgrade — the same pool as the 10th-medal majors." : P.major ? "Every 10th medal: a unique permanent upgrade. The one you pass on can come back on a later major." : "Every medal pays one of two rewards. Permanent ones last every career from now on."}</div><div class="mp-cards">${P.opts.map(card).join("")}</div><div class="small center" style="margin-top:10px;color:var(--chalk-dim)">${M.pending.length > 1 ? M.pending.length - 1 + " more after this" : "the last one waiting"}</div><div class="btn-row" style="margin-top:10px"><button class="btn ghost" onclick="window.__V179.medals.close()">Later</button>${M.pending.length > 1 ? '<button class="btn ghost" onclick="medalAutoAskV192B()">Pick the rest for me</button>' : ""}</div></div></div>`
@@ -42106,7 +44667,7 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
       if (!TU("v179L", 1) || !TU("v179", 1) || !TREE[e]) return h;
       for (const n of TREE[e].nodes) {
         const g = nodePotGainV179(n.key),
-          bm = TU("v190F", 1) && !n.fx ? 1 : branchFxV186((TREE_NODES[n.key] && TREE_NODES[n.key].branch) || n.branch || e) /* v186 · v190 F: the ×N only reaches fx nodes — say it only on them */;
+          bm = (TU("v190F", 1) && !n.fx) || n.fxPaidV193AA /* v193 AA: its desc already states the paid numbers */ ? 1 : branchFxV186((TREE_NODES[n.key] && TREE_NODES[n.key].branch) || n.branch || e) /* v186 · v190 F: the ×N only reaches fx nodes — say it only on them */;
         if (g < 0.95 && bm <= 1) continue;
         const k = h.indexOf(`vaultBuy('${n.key}')`);
         if (k < 0) continue;
@@ -42162,6 +44723,14 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
     ["flipTrustCapV186", "Coach trust card stops at", 0, 100, 1, 70, "post"],
     ["flipRepsV182", "Reps card (attribute points)", 0, 5, 0.5, 0.5, "post"],
     ["flipAttrV182", "Permanent card (+attribute)", 0, 10, 1, 1, "post"],
+    ["hotPctMinV193AB", "Hot Streak: smallest boost %", 1, 50, 1, 5, "post"],
+    ["hotPctMaxV193AB", "Hot Streak: biggest boost %", 5, 100, 1, 50, "post"],
+    ["hotGamesMinV193AB", "Hot Streak: fewest games", 1, 10, 1, 1, "post"],
+    ["hotGamesMaxV193AB", "Hot Streak: most games", 1, 20, 1, 10, "post"],
+    ["hotStackCapV193AB", "Hot Streak: most one stat stacks (%)", 10, 200, 5, 60, "post"],
+    ["spillPctMinV193AB", "Spillover: smallest share %", 1, 50, 1, 5, "post"],
+    ["spillPctMaxV193AB", "Spillover: biggest share %", 5, 100, 1, 50, "post"],
+    ["doublePtsOddsV193AB", "2× POINTS card odds (1 in 50)", 0, 0.2, 0.005, 0.02, "post"],
     ["chaosBoostBaseV185", "Chaos: opponents' lift at the first point", 0, 60, 1, 22, "chaos"],
     ["chaosBoostPerV185", "Chaos: opponents' lift per point", 0, 5, 0.05, 1.05, "chaos"],
     ["chaosPPBaseV185", "Chaos: PP × at the first point", 1, 20, 0.5, 6, "chaos"],

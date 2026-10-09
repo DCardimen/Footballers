@@ -104,6 +104,7 @@ function continuePregame(){const q=pending;document.getElementById('pregameV1513
 function pregameTempStats(pl,wk){
   const out=[]; if(!pl) return out;
   (pl._tempStatBuffsV25||[]).forEach(b=>{const a=b.max?10:b.amt;out.push({l:(a<0?'Setback':'Boost')+' (this game)',v:window.__V193X?window.__V193X.buff(b):(a>0?'+'+a+' ':a+' ')+((window.__statLabelV25&&window.__statLabelV25(b.stat))||b.stat),good:a>=0});});   // v193 X: a percent, the points in brackets
+  try{(window.__V193AB?window.__V193AB.pregame(pl):[]).forEach(r=>out.push(r));}catch(e){}   // v193 AB: the Hot Streak cards (and a 2x POINTS game)
   if(pl.momentum103!=null&&Math.abs(pl.momentum103-50)>=3) out.push({l:'Momentum',v:Math.round(pl.momentum103)+'/100',good:pl.momentum103>=50});
   if(pl.composure103!=null&&Math.abs(pl.composure103-50)>=3) out.push({l:'Composure',v:Math.round(pl.composure103)+'/100',good:pl.composure103>=50});
   if(pl.coachTrust!=null&&Math.abs(pl.coachTrust-50)>=4) out.push({l:'Coach Trust',v:Math.round(pl.coachTrust)+'/100',good:pl.coachTrust>=50});
@@ -957,18 +958,19 @@ function v193TeamD(){const el=document.getElementById("v193Team");if(!el)return;
   const lab=k=>(window.__statLabelV25&&window.__statLabelV25(k))||k,ts=(window.pregameTempStats?window.pregameTempStats(pl,wk):[]).filter(t=>/Boost|Setback/.test(t.l||""));
   const sg=n=>(n>0?"+":n<0?"−":"±")+Math.abs(n),n1=n=>(Math.round(n*10)/10).toFixed(1).replace(/\.0$/,"");
   const head=Q?`<div class="v193-th" id="v193TeamHead"><b>Your prestige lifts this team from ${Q.base} → ${Q.full}</b><small>team nodes ${sg(Q.lift)}${Q.liftPct?` (+${n1(Q.liftPct)}% on every teammate)`:""} · Locker Room ${sg(Q.locker)}${Q.lockerLv?` (${Q.lockerLv} levels of +1s)`:""} · legacy share ${sg(Q.share)}</small></div>`:"";
+  let rmRow="";try{rmRow=window.__V193AA&&window.__V193AA.row?window.__V193AA.row("pregame"):""}catch(e){rmRow=""}   // v193 AA: the latest roster delta, the locks, RECRUIT A PLAYER
   const nudge=(!Q||(Q.lift<=0&&Q.locker<=0))?`<div class="v193-nudge" id="v193Nudge">Team nodes and the Locker Room in the Prestige tree raise these men — every level shows up here.</div>`:"";
-  if(!pv||!pv.us||!pv.us.players){el.innerHTML=head+nudge+`<div class="v135-none">The roster is drawn at kickoff.</div>`;return}
+  if(!pv||!pv.us||!pv.us.players){el.innerHTML=head+rmRow+nudge+`<div class="v135-none">The roster is drawn at kickoff.</div>`;return}
   const chip=(t,c)=>`<i class="${c||""}">${t}</i>`;
   const man=m=>{const chips=[];
     if(m.you){chips.push(chip("YOU","you"));if(foc)chips.push(chip(`×${mulTxtV193N((Number(foc.mul)||1.2))} ${esc(lab(foc.stat))} focus`,"g"));if(f)chips.push(chip(`${esc(f.icon||"📋")} ${esc(f.name)}`,"p"));ts.slice(0,3).forEach(t=>chips.push(chip(esc(t.v),t.good?"g":"r")))}
-    else{if(m.locker)chips.push(chip(`+${m.locker} Locker Room`,"g"));if(m.lift)chips.push(chip(`+${n1(m.lift)} team nodes`,"g"));if(tl)chips.push(chip(`${tl>0?"+":"−"}${n1(Math.abs(tl))}% plan`,tl>0?"g":"r"));if(m.star)chips.push(chip("⭐ STAR","s"));if(m.weak)chips.push(chip("WEAK LINK","r"))}
+    else{if(m.locker)chips.push(chip(`+${m.locker} Locker Room`,"g"));if(m.lift)chips.push(chip(`+${n1(m.lift)} team nodes`,"g"));if(tl)chips.push(chip(`${tl>0?"+":"−"}${n1(Math.abs(tl))}% plan`,tl>0?"g":"r"));if(m.star)chips.push(chip("⭐ STAR","s"));if(m.weak)chips.push(chip("WEAK LINK","r"));if(m.recruit)chips.push(chip(`🔒 RECRUIT · ${m.recruit} season${m.recruit===1?"":"s"}`,"s"))}
     return`<div class="v193-man${m.you?" you":""}" data-pos="${esc(m.pos)}"><span class="num">#${m.num!=null?m.num:"—"}</span><span class="pos">${esc(m.pos)}</span><span class="nm">${esc(m.name)}</span><span class="ovr">${m.ovr}</span><span class="chips">${chips.join("")}</span></div>`};
   const off=pv.us.players.filter(m=>m.off),def=pv.us.players.filter(m=>!m.off);
-  el.innerHTML=head+nudge+`<div class="v193-roster" id="v193Roster"><h5>OFFENSE · ${pv.us.ovr} TEAM OVR</h5>${off.map(man).join("")}<h5>DEFENSE</h5>${def.map(man).join("")}</div>
+  el.innerHTML=head+rmRow+nudge+`<div class="v193-roster" id="v193Roster"><h5>OFFENSE · ${pv.us.ovr} TEAM OVR</h5>${off.map(man).join("")}<h5>DEFENSE</h5>${def.map(man).join("")}</div>
     <div class="v112-imp-note">OVR is each man's rating this game, the Locker Room's +1s already in it. Team nodes lift every teammate by the percent shown; the plan's lift lands at kickoff with the roll.</div>`}
 window.__V193B={on:v193OnD,score:id=>v193ScoreD(id),odds:id=>{const V=window.__PREGAME_V51;return V&&V.band?V.band(id):null},reveal:rollPlanNowV193,revealed:v193RevealedD,locked:()=>!!v193RevealedD(),
-  pick:()=>{const V=window.__PREGAME_V51;return V&&V.oddsPick?V.oddsPick():null},pre:()=>v193PreD,team:v193TeamD,best:()=>{const h=v146HeldD();return h&&h.plans?v193BestD(h.plans):null}};
+  pick:()=>{const V=window.__PREGAME_V51;return V&&V.oddsPick?V.oddsPick():null},pre:()=>v193PreD,team:v193TeamD,repv:()=>{v193PvD=null;v193TeamD()} /* v193 AA: a recruit signed on this page — draw the elevens again */,best:()=>{const h=v146HeldD();return h&&h.plans?v193BestD(h.plans):null}};
 function v193StyleD(){if(document.getElementById("v193StyleEl"))return;document.head.insertAdjacentHTML("beforeend",`<style id="v193StyleEl">
   .v146-tile.odds-g{border-left:3px solid #8fe0a0;background:linear-gradient(100deg,rgba(143,224,160,.18),rgba(255,255,255,.04) 70%)}
   .v146-tile.odds-y{border-left:3px solid var(--gold);background:linear-gradient(100deg,rgba(240,187,69,.15),rgba(255,255,255,.04) 70%)}

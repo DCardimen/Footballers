@@ -86,8 +86,10 @@ const M = (page, fn, arg) => page.evaluate(fn, arg)
   ok(!api.has && api.until === 0 && api.s4 === true && api.grant === false && api.list === 0 && api.boost === 0 && api.hooks === 0, 'OFF: nothing is held, grant() refuses, every speed is allowed, the payout boost is 0, no hook installed', JSON.stringify(api))
   ok(api.ad.rewarded === false && api.ad.reason === 'disabled' && api.buy.ok === false && api.buy.reason === 'disabled' && api.keys.length === 0, 'OFF: an ad resolves {rewarded:false,reason:"disabled"}, a purchase {ok:false}, and still nothing is stored')
   // the career-end screens settle exactly as without the file
-  const seedEnd = (p, view) => p.evaluate((view) => { const A = window.__GRIDIRON_AUDIT__, S = A.getState(); S.tutorialSeen = true; S.pp = 100
-    S.player = A.newPlayer(); S.player.pos = 'RB'; S.player.level = 5; S.player.totalSeasons = 8; S.player.career = [{ level: 'College', ovr: 60, age: 21 }]; S.view = view; window.GridironStorage.save(S) }, view)
+  // ONE player for both pages: newPlayer() is random, and the payout reads him (v193 AC made College pay 2.5x, so the spread outgrew the 5%)
+  const endPlayer = await b.evaluate(() => { const P = window.__GRIDIRON_AUDIT__.newPlayer(); P.pos = 'RB'; P.level = 5; P.totalSeasons = 8; P.career = [{ level: 'College', ovr: 60, age: 21 }]; return JSON.parse(JSON.stringify(P)) })
+  const seedEnd = (p, view) => p.evaluate(([view, P]) => { const A = window.__GRIDIRON_AUDIT__, S = A.getState(); S.tutorialSeen = true; S.pp = 100
+    S.player = JSON.parse(JSON.stringify(P)); S.view = view; window.GridironStorage.save(S) }, [view, endPlayer])
   await seedEnd(a, 'gameover'); await seedEnd(b, 'gameover')
   await a.goto(U(), { waitUntil: 'networkidle' }); await booted(a)
   await b.goto(U(), { waitUntil: 'networkidle' }); await b.waitForFunction(() => !!window.__GRIDIRON_AUDIT__); await b.waitForTimeout(1500)
