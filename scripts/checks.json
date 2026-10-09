@@ -221,7 +221,8 @@
     "v151 D",
     "v153 A",
     "v177 A",
-    "v177 B"
+    "v177 B",
+    "v193 AJ"
    ],
    "files": [],
    "checks": [
@@ -239,7 +240,8 @@
     "v110check",
     "v151Dcheck",
     "v153Acheck",
-    "scrumcheck"
+    "scrumcheck",
+    "v193AJcheck"
    ]
   },
   "cuts": {
@@ -537,7 +539,8 @@
     "v151Dcheck",
     "blockcheck",
     "cmovecheck",
-    "teamdefcheck"
+    "teamdefcheck",
+    "v193AJcheck"
    ],
    "steps": [
     "`scoreneutralcheck` over several seeds, against the OFF spread (the aim roll changes sample paths)"
@@ -1173,7 +1176,8 @@
   "feel": {
    "desc": "anything in the live sim's FEEL (contact, possession, ball speed, catching, tackling, the clock) — v109",
    "anchors": [
-    "v109"
+    "v109",
+    "v193 AJ"
    ],
    "files": [],
    "checks": [
@@ -1184,7 +1188,8 @@
     "v109C2check",
     "v109Dcheck",
     "v109Echeck",
-    "v193Wcheck"
+    "v193Wcheck",
+    "v193AJcheck"
    ],
    "steps": [
     "run `scoreneutralcheck` FIRST and keep the before row; compare several seeds against the OFF spread"
@@ -5425,6 +5430,21 @@
    ],
    "runtimeSec": 150,
    "slow": false,
+   "needsServer": true,
+   "pureNode": false,
+   "flaky": [],
+   "loadSensitive": true
+  },
+  "v193AJcheck": {
+   "file": "scripts/v193AJcheck.mjs",
+   "desc": "v193 AJ — animation v2 + physics: presentation-only (seeded games identical on/off), the mass-scaled brake and cut, no dead stops (decelV193), the fall forward, the pass parabola under one gravity; on the live field the contact gap in drawn body widths, the stride against the ground, every move's own sequence in the lab (juke, spin, side step, swim, hurdle, stiff arm, whiff slide, grasp, layout catch, push-out, ankle/air/wrap/stick tackles), the whiff that stays down, the fall along both men's momentum, the parabolic hops, the decaying bounces, both kill switches, the per-frame cost",
+   "areas": [
+    "contact",
+    "tackle",
+    "animation"
+   ],
+   "runtimeSec": 420,
+   "slow": true,
    "needsServer": true,
    "pureNode": false,
    "flaky": [],
