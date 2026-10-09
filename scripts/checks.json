@@ -45,6 +45,7 @@
     "v193Ycheck",
     "v193Zcheck",
     "v193AAcheck",
+    "v193AHcheck",
     "v193AEcheck",
     "v193AFcheck"
    ]
@@ -208,7 +209,8 @@
     "combinecheck",
     "tiercheck",
     "scrollcheck",
-    "v193AAcheck"
+    "v193AAcheck",
+    "v193AHcheck"
    ]
   },
   "contact": {
@@ -280,7 +282,8 @@
     "walk",
     "v156Acheck",
     "v192Dcheck",
-    "v193AAcheck"
+    "v193AAcheck",
+    "v193AHcheck"
    ]
   },
   "plan": {
@@ -1736,7 +1739,8 @@
     "v147Ccheck",
     "v151Acheck",
     "coachcheck",
-    "v193AAcheck"
+    "v193AAcheck",
+    "v193AHcheck"
    ]
   },
   "thumb": {
@@ -5327,6 +5331,21 @@
    "pureNode": false,
    "flaky": [],
    "loadSensitive": true
+  },
+  "v193AHcheck": {
+   "file": "scripts/v193AHcheck.mjs",
+   "desc": "v193 AH — chemistry has a reason: every departure and arrival on the ROSTER MOVES card carries a reason chip decided by real state (paired seeded turnovers: a TOXIC personality loses more men than a neutral one and \"Can't stand you\" is among them; a 1-9 season brings \"Tired of losing\", a 9-1 never; a sour room brings \"Bad chemistry\"; the same turnover replayed gives the same reasons; arrivals Recruited / Transfer in / Came for YOU ★; v193 AA's ±N TEAM chips kept; the why-note); the follower roll measured over 10,000 rolls (1–10, never 0, 1–3 most of the time, 10 only at the maximum pull and under 2%, TOXIC < neutral < warm, Pied Piper shifts it up); a level up carries the followers into the new roster scaled to the new level (\"A NEW TEAM · N followed you from X\", Followed you ★ rows, Stayed behind / New teammate, the team row and MY TEAM say ★ N followers, src/10's list marks them); a UFF club change is a NEW FRANCHISE and a locked recruit who follows keeps his lock; the TOXIC trade-off (growthMulV192C ×1.15 at TOXIC 1.95, the arrival edge on the depth chart's score + coach trust, the card's note, the personality page); Pied Piper (Mental, 288 PP, v193 Y art, −25% Can't stand you a level, its desc's numbers measured); TU v193AH 0 = v193 AA as it was; 360 px; no page errors",
+   "areas": [
+    "v153b",
+    "league",
+    "impossible",
+    "smoke"
+   ],
+   "runtimeSec": 45,
+   "slow": false,
+   "needsServer": true,
+   "pureNode": false,
+   "flaky": []
   },
   "v193ADcheck": {
    "file": "scripts/v193ADcheck.mjs",
