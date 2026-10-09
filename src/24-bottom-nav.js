@@ -411,7 +411,8 @@
     spoon: { m: ["M12 2c2.6 0 4.4 2.2 4.4 5.2 0 2.6-1.4 4.6-3.2 5.2l.4 8.4c0 .8-.7 1.4-1.6 1.4s-1.6-.6-1.6-1.4l.4-8.4C9 11.8 7.6 9.8 7.6 7.2 7.6 4.2 9.4 2 12 2z"], hl: ["M10.4 5.4c.3-.9.8-1.4 1.5-1.6"] },
     turtle: { m: ["M4.6 15.4c0-4.4 3.4-7.6 7.4-7.6s7.4 3.2 7.4 7.6z", "M19 13.2c.4-1.6 1.6-2.6 3-2.4.6 1.4 0 3.2-1.6 3.6zM5.6 15.4h3v3H5.6zM15.4 15.4h3v3h-3z"], dl: ["M8 11.2l2 2.4h4l2-2.4M10 13.6 9.4 15.4M14 13.6l.6 1.8M12 7.8v2"] },
     sliders: { ml: [["M3 6h18M3 12h18M3 18h18", 1.8]], m: ["M6.6 3.6h3v4.8h-3zM13.8 9.6h3v4.8h-3zM8.2 15.6h3v4.8h-3z"] },
-    bell: { m: ["M12 2.4c3.6 0 6.2 2.8 6.2 6.6v4.6l2.2 3.2H3.6l2.2-3.2V9c0-3.8 2.6-6.6 6.2-6.6z", C(12, 19.6, 2.2)] }
+    bell: { m: ["M12 2.4c3.6 0 6.2 2.8 6.2 6.6v4.6l2.2 3.2H3.6l2.2-3.2V9c0-3.8 2.6-6.6 6.2-6.6z", C(12, 19.6, 2.2)] },
+    ticket: { m: ["M2.2 6.2h19.6v3.6a2.2 2.2 0 0 0 0 4.4v3.6H2.2v-3.6a2.2 2.2 0 0 0 0-4.4z"], dl: ["M15.6 7.4v1.8M15.6 11.1v1.8M15.6 14.8v1.8"], xl: ["M5.6 10h6.4M5.6 13.8h4.4"] }
   };
 
   /* a concept is either drawn here or one of v193 V's own glyphs */
@@ -463,7 +464,9 @@
     "\u{1F9B5}": "leg", "✋": "hand", "\u{1FA79}": "bandage", "\u{1F45F}": "cleat", "\u{1F3BD}": "jersey", "\u{1F455}": "jersey", "\u{1F3BE}": "football", "\u{1F50A}": "speaker", "\u{1F509}": "speaker", "\u{1F4F3}": "phone",
     "\u{1F422}": "turtle", "\u{1F514}": "bell", "\u{1F465}": "family", "\u{1F4C5}": "calendar", "\u{1F5D3}️": "calendar", "\u{1F4CA}": "chart", "\u{1F3E0}": "house", "\u{1F333}": "sprout",
     "★": "star", "\u{1F396}️": "medal", "\u{1F396}": "medal", "\u{1F4BE}": "disk", "\u{1F3AE}": "gear", "\u{1F512}": "lock", "\u{1F513}": "lock", "\u{1F511}": "key", "\u{1F4A1}": "bolt",
-    "\u{1F947}": "medal", "\u{1F948}": "medal", "\u{1F949}": "medal", "⏱️": "hourglass", "⏱": "hourglass", "\u{1F3A5}": "camera", "\u{1F4F9}": "camera", "\u{1F3B5}": "speaker", "\u{1F3B6}": "speaker"
+    "\u{1F947}": "medal", "\u{1F948}": "medal", "\u{1F949}": "medal", "⏱️": "hourglass", "⏱": "hourglass", "\u{1F3A5}": "camera", "\u{1F4F9}": "camera", "\u{1F3B5}": "speaker", "\u{1F3B6}": "speaker",
+    "✅": "check", "⏩": "skip", "⏭": "skip", "⏭️": "skip", "\u{1F39F}️": "ticket", "\u{1F39F}": "ticket", "\u{1F3D8}️": "house", "\u{1F3D8}": "house", "\u{1F504}": "cycle",
+    "\u{1F468}‍\u{1F466}": "family", "\u{1F9CD}": "figure", "\u{1F6F8}": "rocket", "\u{1FAAA}": "idcard", "\u{1F4C6}": "calendar", "\u{1F3CB}‍♂️": "barbell"
   };
   /* an emoji not in the table: the node's name / description says what it is */
   var KEYWORD_ART_V193Y = [
@@ -581,25 +584,74 @@
     var st = document.createElement("style");
     st.id = "raCssV193Y";
     st.textContent = [
-      ".ra-v193y{display:inline-flex;flex:none;align-items:center;justify-content:center;width:var(--ra,20px);height:var(--ra,20px);vertical-align:-.22em;line-height:0;font-size:0;position:relative}",
+      ".ra-v193y{display:inline-flex;flex:none;align-items:center;justify-content:center;width:var(--ra,20px);height:var(--ra,20px);vertical-align:middle;line-height:0;top:-.06em;font-size:0;position:relative}",
       ".ra-svg-v193y{display:block;width:100%;height:100%;overflow:visible;filter:drop-shadow(0 1.2px 1px rgba(0,0,0,.75));pointer-events:none}",
       ".ra-sm-v193y .ra-svg-v193y{--raFd:0;--raO:2.6;filter:drop-shadow(0 1px .6px rgba(0,0,0,.7))}",
       ".sr-only-v193y{position:absolute!important;width:1px!important;height:1px!important;padding:0!important;margin:-1px!important;overflow:hidden!important;clip:rect(0,0,0,0)!important;white-space:nowrap!important;border:0!important;font-size:12px}",
       /* the tree's node rows: the icon box holds a 34 px piece of metal */
       ".shop-item .ic:has(.ra-v193y){display:flex;align-items:center;justify-content:center;font-size:0}",
-      ".shop-item .ic .ra-v193y{--ra:34px}"
+      ".shop-item .ic .ra-v193y{--ra:34px}",
+      ".ra-line-v193y{display:inline-flex;align-items:center;gap:.28em}",
+      ".ra-sw-v193y{margin-right:.08em}"
     ].join("\n");
     (document.head || document.documentElement).appendChild(st);
   }
 
   window.ribArtV193Y = art;
   window.ribArtLeadV193Y = lead;
+
+  /* the cards' own headers and rows: a SWEEP, like the v139 bar — every screen builds its markup from scratch, so the
+   * lines that open with an emoji (the hub's player card, the card headers, the dock's buttons, Settings' rows) get
+   * their emoji drawn after each draw. Only a line's FIRST text, only an emoji the library knows; the emoji stays in
+   * the line as screen-reader text, so the line's textContent is what it was. Never the live broadcast or the menu. */
+  var SWEEP = [
+    ".player-hero .meta-row > .meta", ".player-hero .threshold-note", ".origin-icon-v11",
+    "#screen .card > .l", "#screen .card > .eyebrow", "#screen .card > details > summary .eyebrow", "#screen .card > details > summary > .l",
+    "#screen .card .sg-head .eyebrow", "#screen .sg-row > span", "#seasonMathBtnV193D", "#screen .card .lab", "#screen > .h2", "#screen .hubv75-sec > .h2",
+    "#dock .btn", "#dock > .small", "#dock .qa-chip-v146",
+    "#screen .toggle-label", "#screen .fx-label", ".rib-dialog h5", ".pb-v192b h5"
+  ].join(",");
+  var LEAD_SW = /^(\s*)(\p{Extended_Pictographic}(?:\uFE0F|\u200D(?:\p{Extended_Pictographic}|\p{Emoji_Component})|\p{Emoji_Modifier})*)/u;
+  var tpl = null;
+  function sweepOne(el) {
+    var n = el.firstChild;
+    while (n && n.nodeType === 3 && !n.data.trim()) n = n.nextSibling;
+    if (!n || n.nodeType !== 3) return;
+    var m = n.data.match(LEAD_SW);
+    if (!m || /^[⭐★]/.test(m[2]) || !concept(m[2])) return;   // a row of stars is a rating, not an icon
+    var fs = parseFloat(getComputedStyle(el).fontSize) || 14, size = Math.max(14, Math.min(44, Math.round(fs * (el.classList.contains("origin-icon-v11") ? 1.15 : 1.3))));
+    tpl = tpl || document.createElement("template");
+    tpl.innerHTML = art(m[2], { size: size, cls: "ra-sw-v193y" });
+    n.data = n.data.slice(m[0].length);
+    if (/flex|grid/.test(getComputedStyle(el).display)) {
+      // a flex box would lay the drawing and its words out as two items (a column chip stacks them): keep them one line
+      var w = document.createElement("span");
+      w.className = "ra-line-v193y";
+      el.insertBefore(w, n);
+      w.appendChild(tpl.content);
+      w.appendChild(n);
+    } else el.insertBefore(tpl.content, n);
+  }
+  var queued = false;
+  function sweep() {
+    queued = false;
+    try {
+      if (!on() || !document.body) return;
+      var v = window.S && window.S.view;
+      if (v === "live" || v === "menu") return;
+      var els = document.querySelectorAll(SWEEP);
+      for (var i = 0; i < els.length; i++) sweepOne(els[i]);
+    } catch (e) {}
+  }
+  function queue() { if (!queued) { queued = true; (window.requestAnimationFrame || setTimeout)(sweep) } }
+  try { new MutationObserver(queue).observe(document.documentElement, { childList: true, subtree: true }) } catch (e) {}
+  queue();
   window.NODE_ART_V193Y = NODE_ART_V193Y;
   // a save that boots onto the tree drew its nodes before this file loaded: draw them once more
   setTimeout(function () {
     try { if (on() && window.S && window.S.view === "shop" && document.querySelector(".shop-item .ic") && !document.querySelector(".shop-item .ra-v193y") && typeof window.render === "function") window.render() } catch (e) {}
   }, 0);
-  window.__V193Y = { on: on, art: art, lead: lead, concept: concept, data: data, library: function () { var k = Object.keys(A); Object.keys(SAME).forEach(function (s) { if (k.indexOf(SAME[s]) < 0 && data(s)) k.push(SAME[s]) }); return k.sort() }, map: NODE_ART_V193Y, keywords: KEYWORD_ART_V193Y, fallbacks: fallbacks, symbol: symbol, grad: grad };
+  window.__V193Y = { on: on, art: art, lead: lead, concept: concept, data: data, sweep: sweep, sweepSel: SWEEP, library: function () { var k = Object.keys(A); Object.keys(SAME).forEach(function (s) { if (k.indexOf(SAME[s]) < 0 && data(s)) k.push(SAME[s]) }); return k.sort() }, map: NODE_ART_V193Y, keywords: KEYWORD_ART_V193Y, fallbacks: fallbacks, symbol: symbol, grad: grad };
 })();
 
 /* ===== v139 THE BOTTOM OF THE SCREEN IS THE WAY AROUND =====

@@ -5656,7 +5656,7 @@ ${col(
   function scoutsExplainHtmlV193E() {
     const D = scoutsExplainDataV193E(),
       pc = v => (v == null ? "—" : Math.round(v * 10) / 10 + "%"),
-      block = (icon, t, body) => `<div class="sx-block-v193e" style="margin:0 0 10px;padding:8px 10px;border-radius:8px;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.12)"><div style="font-family:'Oswald';font-weight:700;letter-spacing:1.5px;font-size:12px;color:var(--gold);margin-bottom:3px">${icon} ${t}</div><div style="font-size:12.5px;line-height:1.4">${body}</div></div>`;
+      block = (icon, t, body) => `<div class="sx-block-v193e" style="margin:0 0 10px;padding:8px 10px;border-radius:8px;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.12)"><div style="font-family:'Oswald';font-weight:700;letter-spacing:1.5px;font-size:12px;color:var(--gold);margin-bottom:3px">${artV193Y(icon, 18) /* v193 Y */} ${t}</div><div style="font-size:12.5px;line-height:1.4">${body}</div></div>`;
     return `<div class="scouts-x-v193e" style="text-align:left">
 ${block("★", "RECRUIT STARS", `<b>${"★".repeat(Math.max(0, Math.min(5, D.stars))) || "—"}</b> (${D.stars} of 5) — the talent grade he was born with; the program tiers re-grade it. Coaches and the Recruiting Board rate him on sight by it. <b>It never rolls</b> — the declare does not read it.`)}
 ${block("🏅", "NATIONAL RANK", `${D.rank != null ? `<b>#${fmtInt(D.rank)}</b> of ${fmtInt(D.of)} at ${D.level} · <b>top ${D.topPct}%</b>` : `your place among the ${fmtInt(D.of)} at ${D.level}`} — THIS season's production and OVR against every peer at the level. It is the <b>floor under the declare roll</b>${D.rankCh != null ? ` (the rank alone: ${pc(D.rankCh)}; your declare odds now: <b>${pc(D.declare)}</b>)` : ""}. At ${D.level}: #1 rolls ≥ ${pc(D.num1)}, <b>top 1% ≥ ${pc(D.top1)}</b>, top 5% ≥ ${pc(D.top5)}, the last man inside the advancing ${D.half}% a coin flip, well outside it single digits. <b>One roll; a miss ends the career.</b>${D.floorOn ? ` A top-1% season rolls at ≥ ${TU("rankTop1FloorV193E", 99)}% now (v193 E) — before, 97%.` : ""}${D.lv >= 5 ? " From College on the season roll is followed by the scouts' verdict below." : ""}`)}
@@ -11796,7 +11796,7 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
         const i = t[n.key],
           r = i ? a(i.rarity) : null;
         return `<div class="eq-slot ${i ? "r-" + i.rarity : ""}"${i ? ` onclick="gearPickV147('${i.id}')"` : ""}>
-          <div class="eq-ic">${n.icon}</div>
+          <div class="eq-ic">${artV193Y(n.icon, 30, r ? r.color : "#7d8794") /* v193 Y */}</div>
           ${i ? `<div class="eq-name" style="color:${r.color}">${escHtml(i.name)}</div><div class="eq-eff">${r.name} · ${(i.mods || []).length} mod${(i.mods || []).length === 1 ? "" : "s"}</div>` : `<div class="eq-name" style="color:var(--chalk-dim)">Empty ${n.name}</div>`}
         </div>`;
       }).join("")}
@@ -11819,7 +11819,7 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
                 sel = _gearSelV147 === n.id;
               return `<div class="gear-row r-${n.rarity}${sel ? " sel" : ""}" data-gear="${escHtml(n.id)}">
         <div class="gr-main-v147">
-        <span class="gr-ic">${n.icon}</span>
+        <span class="gr-ic">${artV193Y(n.icon, 26, i.color) /* v193 Y */}</span>
         <div class="gr-info" onclick="gearPickV147('${n.id}')">
           <div class="gr-name" style="color:${i.color}">${escHtml(n.name)} ${r ? '<span style="color:#57e07a">✓ EQUIPPED</span>' : ""}</div>
           <div class="gr-eff"><b style="color:${i.color}">${i.name}</b> · ${s(n)} · <span class="gr-lv-v193">Lv ${gearLvlTxtV193G(n)} · +${gearLvlPctV193(n)}%</span>${gearMaxedV193G(n) ? ` · <span class="gr-max-v193g">maxed — a rarer piece grows further</span>` : ""} · <span class="gr-price-v193">💰 ${gearSellNowV193G(gearSellPriceV193(n))} PP</span></div>
@@ -26864,6 +26864,20 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
     } catch (e) {}
     return node ? node.icon : "";
   }
+  /* any emoji the cards show, drawn (`size` px, `tint` a colour for the metal); the emoji itself when off / unknown */
+  function artV193Y(icon, size, tint) {
+    try {
+      if (icon && TU("v193Y", 1) && typeof window.ribArtV193Y === "function") return window.ribArtV193Y(icon, { size: size || 20, tint: tint || null });
+    } catch (e) {}
+    return icon == null ? "" : String(icon);
+  }
+  /* a line that starts with an emoji: the emoji drawn, the rest kept as it is (markup allowed) */
+  function artLeadV193Y(str, size, tint) {
+    try {
+      if (TU("v193Y", 1) && typeof window.ribArtLeadV193Y === "function") return window.ribArtLeadV193Y(str, { size: size || 18, tint: tint || null });
+    } catch (e) {}
+    return str;
+  }
   /* a branch's own glyph, small (the SPEND NOW chips name the branch) */
   function branchArtV193Y(key, size) {
     const br = TREE[key];
@@ -39874,7 +39888,7 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
       sev = injSevV193W(q),
       col = q.se || q.sev >= 3 ? "#ff6b6b" : q.knock || q.sev < 2 ? "#ffb347" : "#ff8a5c";
     return `<div class="inj-pop-v193w" data-id="${escHtml(q.id)}" data-out="${H.out}" data-back-wi="${H.backWi}" data-sev="${escHtml(sev)}" style="font:13px/1.45 system-ui,sans-serif;color:#d6e0ea;white-space:normal">
-      <div style="display:flex;align-items:center;gap:12px;margin:2px 0 10px"><div style="flex:0 0 auto;width:54px;height:54px;border-radius:14px;display:flex;align-items:center;justify-content:center;font-size:30px;background:radial-gradient(circle at 50% 40%,${col}44,#0000 70%),#0b111a;border:1px solid ${col}88">${P.ic}</div>
+      <div style="display:flex;align-items:center;gap:12px;margin:2px 0 10px"><div style="flex:0 0 auto;width:54px;height:54px;border-radius:14px;display:flex;align-items:center;justify-content:center;font-size:30px;background:radial-gradient(circle at 50% 40%,${col}44,#0000 70%),#0b111a;border:1px solid ${col}88">${artV193Y(P.ic, 36, col) /* v193 Y */}</div>
       <div style="min-width:0"><div class="inj-name-v193w" style="font:700 20px/1.1 Oswald,Impact,sans-serif;letter-spacing:.6px;color:#fff">${escHtml(q.name)}</div><div style="margin-top:3px"><span style="font:700 10px Oswald,sans-serif;letter-spacing:1.6px;color:${col};border:1px solid ${col}88;border-radius:8px;padding:1px 6px">${sev}</span> <span style="font-size:11px;color:#9fb0c2">${escHtml(P.part.toUpperCase())}</span></div></div></div>
       <div style="font:700 10px Oswald,sans-serif;letter-spacing:1.6px;color:#f0bb45">WHAT HAPPENED</div>
       <div class="inj-what-v193w" style="margin:2px 0 9px">${escHtml(injWhatV193W(e, q))}</div>
@@ -39890,7 +39904,7 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
       missed = ws.filter(w => w && w.satOut && w.injName === q.name).length,
       wkL = q.wi >= 0 && ws[q.wi] ? injWeekLabelV193W(e, q.wi) : "next season";
     return `<div class="inj-heal-v193w" data-id="${escHtml(q.id)}" data-back-wi="${q.wi}" style="font:13px/1.45 system-ui,sans-serif;color:#d6e0ea;white-space:normal;text-align:center">
-      <div style="font-size:34px;line-height:1">${P.ic}✅</div>
+      <div style="font-size:34px;line-height:1">${artV193Y(P.ic, 36, "#7fe0a0")}${artV193Y("✅", 36, "#7fe0a0") /* v193 Y */}</div>
       <div style="font:700 19px/1.15 Oswald,Impact,sans-serif;letter-spacing:.6px;color:#7fe0a0;margin:6px 0 2px">CLEARED TO PLAY</div>
       <div class="inj-heal-txt-v193w">${escHtml(q.name)} has healed${q.how === "offseason" ? " over the offseason" : ""}. ${q.how === "offseason" ? "He starts the new season healthy." : "He is back for " + escHtml(wkL) + "."}</div>
       ${missed ? `<div style="margin-top:4px;font-size:11.5px;color:#9fb0c2">It cost him ${missed} game${missed === 1 ? "" : "s"} this season.</div>` : ""}
@@ -41652,10 +41666,10 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
   }
   function payLedgerHtmlV193D(L) {
     if (!L || !L.rows) return "";
-    let h = `<div class="card pay-ledger-v193d" id="payLedgerV193D" data-total="${L.total}" data-kind="${L.kind}"><div class="pl-head">🧾 THE CAREER'S PAY<span>every number, top to bottom</span></div>`;
+    let h = `<div class="card pay-ledger-v193d" id="payLedgerV193D" data-total="${L.total}" data-kind="${L.kind}"><div class="pl-head">${artV193Y("🧾", 18) /* v193 Y */} THE CAREER'S PAY<span>every number, top to bottom</span></div>`;
     L.rows.forEach(r => {
       if (r.kind === "head") {
-        h += `<div class="pl-row k-head${r.cls ? " " + r.cls : ""}"><span class="pl-l">${escHtml(r.label)}</span></div>`;
+        h += `<div class="pl-row k-head${r.cls ? " " + r.cls : ""}"><span class="pl-l">${artLeadV193Y(escHtml(r.label), 16) /* v193 Y */}</span></div>`;
         return;
       }
       const sub = r.detail && r.detail.length;
@@ -41858,7 +41872,7 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
     try {
       cssMedalV179();
     } catch (_) {}
-    return `<button class="medal-chip-v179" id="medalChipV179" onclick="window.__V179.medals.open()">🎁 <span><b>${n}</b> medal reward${n > 1 ? "s" : ""} to choose${majors ? ` · <b>${majors}</b> MYSTERY` : ""}</span><span style="margin-left:auto">OPEN ▸</span></button>`;
+    return `<button class="medal-chip-v179" id="medalChipV179" onclick="window.__V179.medals.open()">${artV193Y("🎁", 20) /* v193 Y */} <span><b>${n}</b> medal reward${n > 1 ? "s" : ""} to choose${majors ? ` · <b>${majors}</b> MYSTERY` : ""}</span><span style="margin-left:auto">OPEN ▸</span></button>`;
   }
   function openMedalPickV179() {
     medalSyncV179();
@@ -41873,7 +41887,7 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
       cssMedalV179();
     } catch (_) {}
     const card = (c, i) =>
-      `<div class="mp-card${P.major ? " down" : ""}" data-i="${i}" style="--mc:${RAR_COL_V179[c.rar] || "#c8d0da"}" onclick="window.__V179.medals.tap(${i})"><div class="mp-in"><div class="mp-face"><i>${c.icon}</i><b>${escHtml(c.name)}</b><small>${String(c.rar || "").toUpperCase()}${P.major ? " · PERMANENT" : ""}</small><em>${escHtml(c.ctx)}</em>${TU("v179L", 1) && fxLinesV179(c.fx).length ? `<span class="mp-fx">${fxLinesV179(c.fx).map(escHtml).join("<br>")}</span>` : ""}</div><div class="mp-back">?</div></div></div>`;
+      `<div class="mp-card${P.major ? " down" : ""}" data-i="${i}" style="--mc:${RAR_COL_V179[c.rar] || "#c8d0da"}" onclick="window.__V179.medals.tap(${i})"><div class="mp-in"><div class="mp-face"><i>${artV193Y(c.icon, 40, RAR_COL_V179[c.rar]) /* v193 Y */}</i><b>${escHtml(c.name)}</b><small>${String(c.rar || "").toUpperCase()}${P.major ? " · PERMANENT" : ""}</small><em>${escHtml(c.ctx)}</em>${TU("v179L", 1) && fxLinesV179(c.fx).length ? `<span class="mp-fx">${fxLinesV179(c.fx).map(escHtml).join("<br>")}</span>` : ""}</div><div class="mp-back">?</div></div></div>`;
     document.body.insertAdjacentHTML(
       "beforeend",
       `<div class="decision-overlay" id="medalPickV179"><div class="decision-panel" style="border-color:var(--gold)"><div class="decision-kicker">${P.era != null ? "NEW ERA · " + escHtml(P.eraName || "") : (P.major ? "MAJOR MEDAL · MYSTERY " : "LEGACY MEDAL ") + P.rank}</div><div class="decision-title">${P.major ? "🎁 Two sealed upgrades — tap to reveal, then choose one" : "Choose one"}</div><div class="small" style="color:var(--chalk-dim);margin-top:2px">${P.era != null ? "A new era pays a unique permanent upgrade — the same pool as the 10th-medal majors." : P.major ? "Every 10th medal: a unique permanent upgrade. The one you pass on can come back on a later major." : "Every medal pays one of two rewards. Permanent ones last every career from now on."}</div><div class="mp-cards">${P.opts.map(card).join("")}</div><div class="small center" style="margin-top:10px;color:var(--chalk-dim)">${M.pending.length > 1 ? M.pending.length - 1 + " more after this" : "the last one waiting"}</div><div class="btn-row" style="margin-top:10px"><button class="btn ghost" onclick="window.__V179.medals.close()">Later</button>${M.pending.length > 1 ? '<button class="btn ghost" onclick="medalAutoAskV192B()">Pick the rest for me</button>' : ""}</div></div></div>`
