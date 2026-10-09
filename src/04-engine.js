@@ -1674,7 +1674,8 @@ window.__visionRadiusV96 = visionRadiusV96;
     a._hardTurning=hardTurn;
     if(turn>.04){
       const loss=Math.max(.08,TU("turnLossBase",.30)-(agility-50)*TU("turnLossAgilityK",.0024))*massKV193(a,TU("massTurnPowV193",.3));   // v193 AJ PHYSICS: momentum fights the cut
-      frac*=Math.max(TU("turnRetentionFloor",.54),1-turn*loss);
+      const f0V193=frac; frac*=Math.max(TU("turnRetentionFloor",.54),1-turn*loss);
+      if (TU("v193AJphys",1) && f0V193 > .3) { const V=root.__V193AJP=root.__V193AJP||{falls:0,fwdPx:0,maxPx:0}; const T=V.turns=V.turns||[]; if (T.length<400) T.push([+turn.toFixed(3),+(1-frac/f0V193).toFixed(3),+massOfV193(a).toFixed(2)]); }   // v193 AJ PHYSICS: the check reads what a cut cost
     }
     const launchAge=Math.max(0,now-(a._launchAt==null?now:a._launchAt));
     let accelRate,rollingScale;
@@ -1699,7 +1700,9 @@ window.__visionRadiusV96 = visionRadiusV96;
     const target=cl(targetFrac,0,TU("fieldSpeedCap",1.35));
     const rolling=target>frac&&frac>.18&&launchAge>=TU("rollingReadyMs",132)?rollingScale:1;
     const rate=target>=frac?accelRate*rolling:brakeRate;
-    frac+=Math.sign(target-frac)*Math.min(Math.abs(target-frac),rate*dt/1000);
+    const fB193=frac; frac+=Math.sign(target-frac)*Math.min(Math.abs(target-frac),rate*dt/1000);
+    if (TU("v193AJphys",1) && target<fB193) { const V=root.__V193AJP=root.__V193AJP||{falls:0,fwdPx:0,maxPx:0}; const m=massOfV193(a), k=m>=.95?"heavy":m<=.62?"light":"mid";   // v193 AJ PHYSICS: the brake, by mass, for the check
+      const B=V.brake=V.brake||{}; const b=B[k]=B[k]||{n:0,rate:0,maxRatio:0}; b.n++; b.rate+=brakeRate; b.maxRatio=Math.max(b.maxRatio,+((fB193-frac)/Math.max(1e-9,brakeRate*dt/1000)).toFixed(3)); }
     a.vel=Math.max(0,frac);
     return a.vel;
   }
@@ -2011,7 +2014,7 @@ window.__visionRadiusV96 = visionRadiusV96;
       a._sidelineCross=null;
       if(d<0.5) {
         // v193 AJ PHYSICS: on the spot already, but not stopped — he runs on through it what his brakes cannot take off
-        if (TU("v193AJphys", 1) && TU("decelV193", 1) && a._mvT151 !== t && a._stepTV193 === t - TICK && a._stepV193 > 0 && a._dx != null) {
+        if (TU("v193AJphys", 1) && TU("decelV193", 0) && a._mvT151 !== t && a._stepTV193 === t - TICK && a._stepV193 > 0 && a._dx != null) {
           const carryStep = a._stepV193 - brakeStepV193(a);
           if (carryStep > .05) { a._mvT151 = t; a._mvUsed151 = carryStep; a._stepV193 = carryStep; a._stepTV193 = t;
             a.lx += a._dx * carryStep; a.y = clampY(a.y + a._dy * carryStep); evolveSpeed(a,0,TICK,t,0,1); return; }
@@ -2058,7 +2061,7 @@ window.__visionRadiusV96 = visionRadiusV96;
       // (0.0022→0.0026) so cuts are visibly cleaner for elite agility and sloppier
       // for low — an elite back keeps his speed through a hard plant, a stiff one
       // bleeds it. Mirrored in turnTest() so the unit hook stays honest.
-      const carry = Math.min(.6, Math.max(0.06, (0.28 - (a.agi-50)*0.0026) * (0.6 + (a.vel||0)*0.7)) * massKV193(a, TU("massCarryPowV193", .4)));   // v193 AJ PHYSICS: his heading carries his mass
+      const carry = Math.min(.6, Math.max(0.06, (0.28 - (a.agi-50)*0.0026) * (0.6 + (a.vel||0)*0.7)) * massKV193(a, TU("massCarryPowV193", 0)));   // v193 AJ PHYSICS: his heading carries his mass
       let turn=0;
       if(a._dx!=null){
         const dot = dx*a._dx + dy*a._dy;
@@ -2104,9 +2107,12 @@ window.__visionRadiusV96 = visionRadiusV96;
        * (x `decelKV193`), so he runs THROUGH a spot he cannot stop on and comes back to it — a drop, a set, a break.
        * Only the first command of a tick is bounded (a second is a correction inside the same stride). */
       const firstMvV193 = a._mvT151 !== t;
-      if (firstMvV193 && TU("v193AJphys", 1) && TU("decelV193", 1) && a._stepTV193 === t - TICK && a._stepV193 > 0) {
+      if (firstMvV193 && TU("v193AJphys", 1) && TU("decelV193", 0) && a._stepTV193 === t - TICK && a._stepV193 > 0) {
         const minStep = a._stepV193 - brakeStepV193(a);
         if (step < minStep) { step = minStep; const V = root.__V193AJP = root.__V193AJP || { falls: 0, fwdPx: 0, maxPx: 0 }; V.carried = (V.carried || 0) + 1; }
+        // the check reads it: the most stride any first move of a tick gave up, as a fraction of what his brakes allow
+        const V2 = root.__V193AJP = root.__V193AJP || { falls: 0, fwdPx: 0, maxPx: 0 }, bs = brakeStepV193(a);
+        V2.moves = (V2.moves || 0) + 1; V2.maxDrop = Math.max(V2.maxDrop || 0, +((a._stepV193 - step) / Math.max(1e-6, bs)).toFixed(3));
       }
       /* ===== v151 D ONE PAIR OF LEGS A TICK =====
        * `mv` is a steering command, and a few callers issue it twice in one tick for the same man —

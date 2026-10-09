@@ -6786,6 +6786,8 @@ class Ot extends mt.Scene {
    *     on the frame the contact resolves, instead of hitting him from across the grass or snapping onto him a frame later.
    * Kill switch `TU("v193AJ", 0)` = today's animations exactly. `window.__V193AJ` is the hook; `v193AJcheck`. */
   ajOnV193() { return !!TU("v193AJ", 1); }
+  // a rolling record for the check: every entry numbered, the oldest dropped past `max`
+  ajLogV193(arr, rec, max) { const H = this.hookAJV193(); if (rec && typeof rec === "object") rec.n = H.serial = (H.serial || 0) + 1; arr.push(rec); if (arr.length > max) arr.shift(); return rec; }
   // the contact frame, measured: centre to centre on screen in drawn body widths (22 sprite px x his drawn scale — the age
   // and the projection both backed out), and the sim's own gap in field px. Recorded whether the switch is on or off.
   ajGapProbeV193(e) {
@@ -6832,7 +6834,7 @@ class Ot extends mt.Scene {
     m._ajClip = null; m._ajRot = null; m._ajHideBall = false;
     if (m.body) { m.body.x = 0; m.body.y = 0; m.body.setScale(1, 1); }
     const H = this.hookAJV193(), L = H.seq[C.kind] || (H.seq[C.kind] = []);
-    if (L.length < 6 && C.rec.length) L.push(C.rec.slice(0, 30));
+    if (C.rec.length) { this.ajLogV193(L, C.rec.slice(0, 30), 8); this.ajLogV193(H.seqLog || (H.seqLog = []), { kind: C.kind, rec: C.rec.slice(0, 30) }, 300); }
     let st = null;
     if (done && C.end) st = C.end.call(this, m, C) || null;
     else if (!done && C.abort) C.abort.call(this, m, C);
@@ -7029,7 +7031,7 @@ class Ot extends mt.Scene {
     const S = this.ajScrXV193(m, ux, uy), fx = S.sgn, flat = S.k > .45;
     m._launchT0 = m.tms; m._launchUntil = m.tms + air; m._launchH = o.h != null ? o.h : 5;
     const rec = o.rec ? { kind: o.kind, air, slidePlan: +slide.toFixed(1), down, landT: null, slidPx: 0, groundMs: 0, lag: 0 } : null;
-    if (rec && H.whiffs.length < 60) H.whiffs.push(rec);
+    if (rec) this.ajLogV193(H.whiffs, rec, 60);
     let land = null, lastPuff = 0;
     this.ajAnchorV193(m, [{ t: 0, x: x0, y: y0 }, { t: air, x: lx, y: ly }, { t: air + slideMs, x: lx + ux * slide, y: ly + uy * slide, ease: "out" }],
       { hold: down + getMs, onRelease: function (mm, A, early) { if (early && mm._ajClip && mm._ajClip.kind === o.kind) mm._ajClip.ms = Math.min(mm._ajClip.ms, mm.tms - mm._ajClip.t0 + 1); } });
@@ -7055,7 +7057,7 @@ class Ot extends mt.Scene {
     const x0 = m.sx, y0 = m.sy, d1 = v * g1 * .8, d2 = d1 + v * g2 * .5, d3 = d2 + Math.min(4, v * g3 * .2);
     const fx = this.ajScrXV193(m, ux, uy).sgn;
     const rec = { kind: "grasp", air: 0, slidePlan: +(d3 - d2).toFixed(1), down, landT: null, slidPx: 0, groundMs: 0 };
-    if (H.whiffs.length < 60) H.whiffs.push(rec);
+    this.ajLogV193(H.whiffs, rec, 60);
     let fell = null;
     this.ajAnchorV193(m, [{ t: 0, x: x0, y: y0 }, { t: g1, x: x0 + ux * d1, y: y0 + uy * d1, ease: "out" }, { t: g1 + g2, x: x0 + ux * d2, y: y0 + uy * d2, ease: "out" },
       { t: g1 + g2 + g3, x: x0 + ux * d3, y: y0 + uy * d3, ease: "out" }], { hold: down + getMs });
@@ -7117,7 +7119,7 @@ class Ot extends mt.Scene {
       this.ajClipV193(tgt, "beaten", TU("ajBeatenMsV193", 420), function (k, m) {
         const a = PJ(m.sx, m.sy), b = PJ(rm.sx, rm.sy), dx = b.x - a.x, dy = b.y - a.y; if (Math.hypot(dx, dy) > 1) this.faceMarker(m, dx, dy);
         const s = Math.sign(dx) || 1;
-        if (k < .55) return { st: "grab", rot: s * .26 * Math.sin(Math.PI * k / .55 * .5), ox: s * 2.5 * Math.sin(Math.PI * k / .55) };
+        if (k < .55) return { st: "block" + (k < .3 ? 4 : 5), rot: s * .26 * Math.sin(Math.PI * k / .55 * .5), ox: s * 2.5 * Math.sin(Math.PI * k / .55) };   // hands still out for a man who is gone
         return { st: "hurt" + (Math.floor(k * 10) % 2), rot: s * .3 * (1 - (k - .55) / .45) };
       });
     }
@@ -7128,12 +7130,14 @@ class Ot extends mt.Scene {
     // where the hurdler's apex will be: his own script frames, half his hang from now
     const ci = this.actorIdx(e.carrier), A = P.script.actors[ci], T = Math.max(0, P.t - (P.delay || 0));
     const hang = (hm._launchUntil || (hm.tms + 460)) - (hm._launchT0 || hm.tms), tA = T + hang * .5;
-    let ax = hm.sx, ay = hm.sy;
-    if (A && A.frames && A.frames.length) { const fr = A.frames; let p = fr[fr.length - 1];
-      for (let i = 1; i < fr.length; i++) if (fr[i].t >= tA) { const a0 = fr[i - 1], b0 = fr[i], q = (tA - a0.t) / ((b0.t - a0.t) || 1); p = { x: a0.x + (b0.x - a0.x) * q, y: a0.y + (b0.y - a0.y) * q }; break; }
-      ax = p.x; ay = p.y; }
+    // his script frames say where he will be; if they do not agree with where he is now (a re-spotted or hand-driven man),
+    // his own velocity does
+    let ax = hm.sx + (hm._ajVx || 0) * hang * .5, ay = hm.sy + (hm._ajVy || 0) * hang * .5;
+    const fAt = (fr, t) => { let p = fr[fr.length - 1]; for (let i = 1; i < fr.length; i++) if (fr[i].t >= t) { const a0 = fr[i - 1], b0 = fr[i], q = (t - a0.t) / ((b0.t - a0.t) || 1); p = { x: a0.x + (b0.x - a0.x) * q, y: a0.y + (b0.y - a0.y) * q }; break; } return p; };
+    if (A && A.frames && A.frames.length) { const now = fAt(A.frames, T), sx0 = hm._ajSimX != null ? hm._ajSimX : hm.sx, sy0 = hm._ajSimY != null ? hm._ajSimY : hm.sy;
+      if (Math.hypot(now.x - sx0, now.y - sy0) < 6) { const p = fAt(A.frames, tA); ax = p.x; ay = p.y; } }
     let ux = ax - htk.sx, uy = ay - htk.sy; const d = Math.hypot(ux, uy) || 1; ux /= d; uy /= d;
-    if (H.hurdles.length < 30) H.hurdles.push({ apexDt: Math.round(hang * .5), under: +d.toFixed(1) });
+    this.ajLogV193(H.hurdles, { apexDt: Math.round(hang * .5), under: +d.toFixed(1) }, 30);
     htk._ajReach = null; htk._whiffed = true;
     return this.ajDiveSlideV193(htk, ux, uy, d, Math.max(120, hang * .5), Math.max(.06, d / Math.max(1, hang * .5)), { kind: "diveUnder", down: TU("ajHurdleDownMsV193", 380), h: 3 });
   }
@@ -7171,7 +7175,7 @@ class Ot extends mt.Scene {
     m.forceState = "diveCatchSeq"; m.seqT = m.tms;
     m._launchT0 = m.tms + plant; m._launchUntil = m.tms + lead + after; m._launchH = 8;
     const rec = { lead: Math.round(lead), arm: +arm.toFixed(1), slidePlan: +slide.toFixed(1), handsAt: null, slidPx: 0, frames: [] };
-    if (H.layouts.length < 30) H.layouts.push(rec);
+    this.ajLogV193(H.layouts, rec, 30);
     this.ajAnchorV193(m, [{ t: 0, x: x0, y: y0 }, { t: plant, x: x0 + ux * vf * plant * .5, y: y0 + uy * vf * plant * .5 }, { t: lead, x: hx, y: hy, ease: "lin" },
       { t: lead + after, x: Lx, y: Ly }, { t: lead + after + slideMs, x: Lx + ux * slide, y: Ly + uy * slide, ease: "out" }], { hold: down + getMs });
     let land = null, lastPuff = 0;
@@ -7233,8 +7237,8 @@ class Ot extends mt.Scene {
       this.ajClipV193(m, "wrapTwist", foldMs, function (k) { return { rot: fsx * .38 * k, keepBody: false }; });
     }
     const sl = this.ajPileSlideV193 ? this.ajPileSlideV193(P, e, m, tk, o, ux, uy, v0, fsx, flips, foldMs) : { d: 0, ms: 0 }, d = sl.d, ms = sl.ms;
-    if (H.falls.length < 80) H.falls.push({ kind, ux: +ux.toFixed(3), uy: +uy.toFixed(3), v0: +v0.toFixed(3), d: +d.toFixed(2), ms: Math.round(ms), mT: +mT.toFixed(2), mC: +mC.toFixed(2),
-      vT: vT.map(q => +q.toFixed(3)), vC: vC.map(q => +q.toFixed(3)), flip: flips ? (fsx < 0) : null, fsx, x0: m.sx, y0: m.sy, idx: this.markers.indexOf(m) });
+    this.ajLogV193(H.falls, { kind, ux: +ux.toFixed(3), uy: +uy.toFixed(3), v0: +v0.toFixed(3), d: +d.toFixed(2), ms: Math.round(ms), mT: +mT.toFixed(2), mC: +mC.toFixed(2),
+      vT: vT.map(q => +q.toFixed(3)), vC: vC.map(q => +q.toFixed(3)), flip: flips ? (fsx < 0) : null, fsx, x0: m.sx, y0: m.sy, idx: this.markers.indexOf(m) }, 80);
   }
   /* ===== v193 AJ THE PUSH =====
    * Pushed out of bounds: the tackler's arms extend into him (the stiff-arm row is the atlas's outstretched arm), the
@@ -7284,7 +7288,7 @@ class Ot extends mt.Scene {
       const g = Math.max(1e-5, TU("ajGravV193", .001)), D = Math.max(1, m._launchUntil - t0), h = Math.max(.3, m._launchH || 11);
       const D2 = Math.min(Math.sqrt(8 * h / g), D * TU("ajHopStretchV193", 1.15));
       m._launchUntil = t0 + D2; m._launchH = g * D2 * D2 / 8; m._ajHopKey = t0 + "/" + m._launchUntil + "/" + m._launchH;
-      const H = this.hookAJV193(); if (H.arcs.length < 40) { m._ajArc = { D: Math.round(D2), h: +m._launchH.toFixed(2), was: { D: Math.round(D), h: +h.toFixed(2) }, s: [] }; H.arcs.push(m._ajArc); } else m._ajArc = null;
+      const H = this.hookAJV193(); m._ajArc = this.ajLogV193(H.arcs, { D: Math.round(D2), h: +m._launchH.toFixed(2), was: { D: Math.round(D), h: +h.toFixed(2) }, s: [] }, 40);
       if (m.tms >= m._launchUntil) return 0;
     }
     const kk = Math.max(0, Math.min(1, (m.tms - t0) / Math.max(1, m._launchUntil - t0)));
@@ -7317,7 +7321,7 @@ class Ot extends mt.Scene {
     }
     const R = { segs, apex, end: t, xEnd: x };
     C[key] = R;
-    const H = this.hookAJV193(); if (H.bounces.length < 30) H.bounces.push({ key: String(key).slice(0, 24), apex: apex.slice(0, 8) });
+    const H = this.hookAJV193(); this.ajLogV193(H.bounces, { key: String(key).slice(0, 24), apex: apex.slice(0, 8) }, 30);
     return R;
   }
   ajBounceAtV193(R, age) {
