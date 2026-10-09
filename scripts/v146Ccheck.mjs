@@ -64,7 +64,7 @@ const br = await page.evaluate(() => {
   return T ? T.nodes.map(n => ({ k: n.key, cost: A.nodeCost(A.TREE_NODES[n.key]), top: Math.round(n.cost * Math.pow(n.mult, n.max - 1)), max: n.max, honors: n.req && n.req.honors, medals: window.__V156A ? window.__V156A.nodeReq(n.key) : null, onTree: !!A.TREE_NODES[n.key] })) : null
 })
 console.log('nodes:', JSON.stringify(br))
-ok(br && br.length >= 10 && br.length <= 14, 'the Impossible branch has 10–14 nodes', br && br.length)
+ok(br && br.length >= 10 && br.length <= 15, 'the Impossible branch has 10–15 nodes (v193 AA added The Franchise Recruiter)', br && br.length)
 ok(br && br.every(n => n.cost >= 100000 && n.onTree), 'every one of them starts at 100,000 PP or more and is on the tree', br && br.map(n => n.k + ':' + n.cost).join(' '))
 ok(br && br.every(n => n.honors >= 30), 'and every one is gated behind 30+ Honors')
 ok(br && br.every(n => n.medals == null || n.medals >= 260), 'v156 A: which is 260+ medals now (ruby and up)', br && br.map(n => n.medals).join(','))
