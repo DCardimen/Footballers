@@ -140,8 +140,11 @@ ok(S.xpScript && S.xpScript.fieldSim === true && S.xpScript.claimed && S.xpScrip
 ok(S.badStop === 0 && S.missingSecs === 0, 'every snap row carries clockStopped ∈ {incomplete,oob,timeout,score,turnover,penalty,null}, secs and runoff', `${S.snaps} snaps, ${S.badStop} bad, ${S.missingSecs} without secs`)
 ok(S.noToLeft === 0 && S.toLeftBad === 0 && S.noPeriod === 0, 'toLeft (0..3 a side) and the unclamped period ride every row', `${S.rows} rows, ${S.noToLeft} without toLeft, ${S.noPeriod} without period`)
 const pr = S.pass.n ? S.pass.oob / S.pass.n : 0, rr = S.run.n ? S.run.oob / S.run.n : 0
-ok(Math.abs(pr - .18) <= .03, 'completed passes go out of bounds 18% ±3 of the time', `${(pr * 100).toFixed(1)}% of ${S.pass.n} (sim said oob on ${(100 * S.pass.sim / Math.max(1, S.pass.n)).toFixed(1)}%)`)
-ok(Math.abs(rr - .12) <= .03, 'runs go out of bounds 12% ±3 of the time', `${(rr * 100).toFixed(1)}% of ${S.run.n}`)
+// v194 A: the hidden roll is gone — a row is out of bounds when FieldSim put the play over the sideline (the rates are
+// the sim's: ~20% of completions, ~6% of runs, see v194Acheck), so the rows must AGREE with the sim (the v109 roll is left
+// only for the odd play the sim did not resolve), and land in a band
+ok(pr > .12 && pr < .30 && S.pass.oob - S.pass.sim <= .02 * S.pass.n, 'completed passes go out of bounds when the sim put them out (v194 A: ~20%)', `${(pr * 100).toFixed(1)}% of ${S.pass.n} (sim said oob on ${(100 * S.pass.sim / Math.max(1, S.pass.n)).toFixed(1)}%)`)
+ok(rr > .03 && rr < .15 && S.run.oob - S.run.sim <= .02 * S.run.n, 'runs go out of bounds when the sim put them out (v194 A: ~6%)', `${(rr * 100).toFixed(1)}% of ${S.run.n} (sim ${S.run.sim})`)
 ok(S.pass.simInBounds === 0 && S.run.simInBounds === 0, 'a play the sim put out of bounds is never marked in bounds', `${S.pass.sim + S.run.sim} sim-oob plays`)
 ok(S.warnNeeded > 0 && S.warnFound === S.warnNeeded && S.warnBad === 0, 'the two-minute warning lands in Q2 and Q4 whenever the clock crossed 2:00', `${S.warnFound}/${S.warnNeeded} halves, ${S.warnBad} malformed`)
 ok(S.tossFirst === S.games && S.periodsOk === S.games, 'the coin toss opens every game and the periods turn on their own rows', `toss ${S.tossFirst}, periods ${S.periodsOk}`)

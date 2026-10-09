@@ -5123,7 +5123,7 @@ window.__visionRadiusV96 = visionRadiusV96;
                   - edgeV194A(c) / TU("pushOutZonePxV194A", 40) * TU("pushOutEdgeKV194A", .25)
                   + (want === "out" ? TU("pushOutWantV194A", .3) : want === "in" ? -TU("pushOutWantV194A", .3) : 0), 0, .95);
                 if (Math.random() < pPO) { G.poV194A = { dir: c.y < MIDY ? -1 : 1, t0: t, p: +pPO.toFixed(2) };
-                  emit("pushOutV194A", { who: dfd.id, carrier: c.id, x: c.lx, y: c.y, dir: G.poV194A.dir, cid: G.hit.cid }); }
+                  emit("pushOutV194A", { who: dfd.id, carrier: c.id, x: c.lx, y: c.y, dir: G.poV194A.dir, hitCid: G.hit.cid }); }   // not `cid`: v109 C1 reads every cid-bearing event as the contact's one resolution
               }
             }
             // ---- they travel together
@@ -5199,7 +5199,8 @@ window.__visionRadiusV96 = visionRadiusV96;
               if (G.fpLxV153A != null && (G.fpLxV153A - c.lx) * dsg > TU("fwdProgMinPxV153A", 2)) { c._fpSpotV153A = G.fpLxV153A; fp = { fpX: G.fpLxV153A, fpYd: +((G.fpLxV153A - c.lx) * dsg / YD).toFixed(2) }; }
               V194A.oob.out++; V194A.oob.push++;
               emit("tackle", { tackler: dfd.id, carrier: c.id, x: c.lx, y: c.y, ...(fp || null), oob: true, plane: "sideline", pushOut: true,
-                gang: !!G.gang, sup: G.sup.concat(G.joined), youIn, handsOn: G.handsOn + G.joined.length, dragMs: Math.round(age), cid: G.hit.cid });
+                gang: !!G.gang, sup: G.sup.concat(G.joined), youIn, handsOn: G.handsOn + G.joined.length, dragged: true, dragMs: Math.round(age),
+                ...G.hit, ix: Math.round((c.lx + dfd.lx) * 5) / 10, iy: Math.round((c.y + dfd.y) * 5) / 10 });   // a grip's landing: the hit's id and normal, as v109 C1 reads them
               c._grip = null; dfd._gripOn = null; c._wasGripped = true;
               endTackle(dfd);
               rec(); continue;
