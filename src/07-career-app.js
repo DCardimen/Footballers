@@ -22961,6 +22961,7 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
     ${hero168 /* v168: the season opens on its hero */}
     ${seasonModBanner(e)}
     ${cardChipsV193AB(e) /* v193 AB: the held cards — a Hot Streak, a Spillover, 2× POINTS */}
+    ${cardSummaryV193AB(e, "season") /* v193 AB: every card this season's games dealt, the simmed ones too */}
     <div class="sub${hero168 ? " sx-old-v168" : ""}">${d ? "All games played — finish the season to see your results." : `Record: <b style="color:var(--good)">${c}-${u}</b>`}${p && p.startsWith('<div class="threshold') ? p : ""}</div>
     ${p && !p.startsWith('<div class="threshold') ? p : ""}
     <div class="sched-list mt" style="margin-top:14px">
@@ -25577,6 +25578,7 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
 
     ${n ? "" : `<div class="small center" style="margin-top:4px">${d ? (c ? '<span class="miss">⚠ Final season at this level — you must declare now. Miss the roll and your career ends here.</span>' : `You have <b>${r}</b> season${r > 1 ? "s" : ""} left to raise your stats before you're forced to declare.`) : `<span style="color:var(--gold)">📚 You're still in ${a.grade.toLowerCase()} — play <b>${l - e.seasonsAtLevel}</b> more season${l - e.seasonsAtLevel > 1 ? "s" : ""} here before you can move up.</span>`}</div>`}
     ${finalTableV168(e) /* v168: where the year finished in the league — on the GRADE tab, beside the grade */}
+    ${cardSummaryV193AB(e, "result") /* v193 AB: the season's cards, the ones picked for him in simmed games too */}
     ${legacyCardV152("season")}
   `),
       n)
@@ -38795,7 +38797,14 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
       ".up-spillchip-v193ab{flex:none;display:inline-block;padding:1px 6px;border-radius:9px;font:700 10.5px Oswald,sans-serif;letter-spacing:.4px;white-space:nowrap;color:#a9d4ff;border:1px solid rgba(90,176,255,.45);background:rgba(90,176,255,.12)}",
       ".ab-aim-v193ab{display:flex;flex-wrap:wrap;align-items:center;gap:5px;margin-top:6px;font:600 12px 'Barlow Condensed',sans-serif;color:var(--chalk-dim)}",
       ".ab-aim-v193ab button{padding:3px 8px;border-radius:8px;border:1px solid rgba(90,176,255,.45);background:rgba(90,176,255,.08);color:var(--chalk);font:600 12px 'Barlow Condensed',sans-serif;cursor:pointer}",
-      ".ab-aim-v193ab button.on{background:rgba(90,176,255,.35);border-color:#a9d4ff;color:#fff}"
+      ".ab-aim-v193ab button.on{background:rgba(90,176,255,.35);border-color:#a9d4ff;color:#fff}",
+      ".ab-log-v193ab summary{cursor:pointer;font:500 14px 'Barlow Condensed',sans-serif;color:var(--chalk-dim);list-style-position:inside}",
+      ".ab-log-v193ab summary b{color:var(--gold)}",
+      ".ab-log-rows-v193ab{margin-top:6px;display:flex;flex-direction:column;gap:3px}",
+      ".ab-log-row-v193ab{display:flex;align-items:baseline;gap:8px;font:500 13px 'Barlow Condensed',sans-serif;line-height:1.3;min-width:0}",
+      ".ab-log-row-v193ab .wk{flex:0 0 auto;min-width:44px;color:var(--chalk-dim);font-family:Oswald,sans-serif;font-size:11px;letter-spacing:.5px}",
+      ".ab-log-row-v193ab .say{flex:1 1 auto;min-width:0;overflow-wrap:anywhere}",
+      ".ab-log-row-v193ab em{flex:0 0 auto;font:600 10px Oswald,sans-serif;letter-spacing:.6px;color:var(--chalk-dim);opacity:.8}"
     ].join("");
     (document.head || document.documentElement).appendChild(st);
     return "";
@@ -38905,8 +38914,57 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
     } catch (_) {}
     return true;
   }
+  /* ---- the auto-pick and the season's card log ---- */
+  function abRankV193AB(id) {
+    return { jackpot: 6, legendary: 5, epic: 4, rare: 3, uncommon: 2, common: 1 }[abRarV193AB(id)] || 0;
+  }
+  /* the deck's slots, best first: rarity (2× POINTS on top), then the order dealt */
+  function abBestOrderV193AB(deck) {
+    return (deck || [])
+      .map((id, i) => i)
+      .sort((a, b) => abRankV193AB(deck[b]) - abRankV193AB(deck[a]) || a - b);
+  }
+  function abWeekLabelV193AB(e, w) {
+    if (!w) return "";
+    if (w.playoff) return String(w.round || "Playoff");
+    const reg = ((e && e.weekResults) || []).filter(x => x && !x.playoff),
+      i = reg.indexOf(w);
+    return "WK " + (i >= 0 ? i + 1 : w.week || "?");
+  }
+  /* every card a game of this season dealt and what it gave: `player.cardLogV193AB = {season, career, list}` */
+  function cardLogV193AB(e, w, pk) {
+    if (!abOnV193AB() || !e || !pk) return;
+    const s = e.totalSeasons | 0,
+      car = state && state.careers != null ? state.careers : null;
+    let L = e.cardLogV193AB;
+    if (!L || L.season !== s || L.career !== car || !Array.isArray(L.list)) L = e.cardLogV193AB = { season: s, career: car, list: [] };
+    const c = flipCardV178(pk.id);
+    L.list.push({ wk: abWeekLabelV193AB(e, w), id: pk.id, say: String(pk.say || c.name || ""), icon: c.icon, rar: c.rar, auto: !!pk.auto });
+    L.list.length > 120 && L.list.splice(0, L.list.length - 120);
+  }
+  /* "🃏 Cards this season": the season screen (this season) and the season's result (the one just settled) */
+  function cardSummaryV193AB(e, where) {
+    if (!abOnV193AB() || !e) return "";
+    const L = e.cardLogV193AB,
+      s = e.totalSeasons | 0;
+    if (!L || !Array.isArray(L.list) || !L.list.length || L.season !== (where === "result" ? s - 1 : s)) return "";
+    abCssV193AB();
+    const auto = L.list.filter(x => x.auto).length,
+      whole = t => String(t).replace(/(\d+\.\d+)%/g, m => Math.round(parseFloat(m)) + "%");
+    return (
+      `<details class="card tight ab-log-v193ab" id="cardLogV193AB" data-where="${where}"><summary>🃏 <b>Cards this season</b> · ${L.list.length}${auto ? ` · ${auto} picked for you (the best rarity)` : ""}</summary><div class="ab-log-rows-v193ab">` +
+      L.list
+        .map(x => `<div class="ab-log-row-v193ab"><span class="wk">${escHtml(x.wk)}</span><span class="say" style="color:${abColV193AB(x.rar)}">${x.icon || ""} ${escHtml(whole(x.say))}</span>${x.auto ? "<em>auto</em>" : ""}</div>`)
+        .join("") +
+      `</div></details>`
+    );
+  }
   window.__V193AB = {
     on: abOnV193AB,
+    best: abBestOrderV193AB,
+    auto: w => autoFlipV178(state.player, w),
+    log: pl => (pl || (state && state.player) || {}).cardLogV193AB || null,
+    summary: (where, pl) => cardSummaryV193AB(pl || (state && state.player), where || "season"),
     deck: (w, n) => deckV178(state.player, w || {}, n || 3),
     face: abFaceV193AB,
     parse: abParseV193AB,
@@ -39104,12 +39162,30 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
     applyFlipV178.pts = 0;
     const say = applyFlipV178(e, F.deck[i], w),
       ab = applyFlipV178.abV193AB;
-    F.picked.push(Object.assign({ i, id: F.deck[i], say, pts: applyFlipV178.pts }, ab ? { ab } : {})); /* v179 N: what a points card paid; v193 AB: which held card */
+    F.picked.push(Object.assign({ i, id: F.deck[i], say, pts: applyFlipV178.pts }, ab ? { ab } : {}, pickFlipV178.autoV193AB ? { auto: true } : {})); /* v179 N: what a points card paid; v193 AB: which held card, picked for him or not */
+    try {
+      cardLogV193AB(e, w, F.picked[F.picked.length - 1]); /* v193 AB: the season's card log — nothing a simmed game deals is silent */
+    } catch (_) {}
     return true;
   }
   function autoFlipV178(e, w) {
     const F = w && w.payV178 && w.payV178.flip;
     if (!F) return;
+    if (abOnV193AB()) {
+      /* v193 AB: a game he did not see picks its card for him — the BEST by rarity (2× POINTS, then legendary … common;
+       * a tie goes to the first dealt), and the pick is marked `auto` in the season's card log */
+      abMigrateV193AB(e, w);
+      pickFlipV178.autoV193AB = true;
+      try {
+        for (const i of abBestOrderV193AB(F.deck)) {
+          if (F.picked.length >= F.n) break;
+          pickFlipV178(e, w, i);
+        }
+      } finally {
+        pickFlipV178.autoV193AB = false;
+      }
+      return;
+    }
     for (let i = 0; i < F.deck.length && F.picked.length < F.n; i++) pickFlipV178(e, w, i);
   }
   /* ---- G: the stock ticker ---- */
