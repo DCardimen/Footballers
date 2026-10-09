@@ -45,7 +45,8 @@
     "v193Ycheck",
     "v193Zcheck",
     "v193AAcheck",
-    "v193AEcheck"
+    "v193AEcheck",
+    "v193AFcheck"
    ]
   },
   "docs": {
@@ -1892,7 +1893,8 @@
     "v85check",
     "v146Ccheck",
     "v168check",
-    "v179check"
+    "v179check",
+    "v193AFcheck"
    ]
   },
   "board-and-frame": {
@@ -1940,7 +1942,8 @@
     "v192Ccheck",
     "v193Echeck",
     "v193Jcheck",
-    "v193ADcheck"
+    "v193ADcheck",
+    "v193AFcheck"
    ]
   }
  },
@@ -5354,6 +5357,19 @@
     "statinfo"
    ],
    "runtimeSec": 40,
+   "slow": false,
+   "needsServer": true,
+   "pureNode": false,
+   "flaky": []
+  },
+  "v193AFcheck": {
+   "file": "scripts/v193AFcheck.mjs",
+   "desc": "v193 AF — growth fills the points bar too: paired paychecks on one week — no bonus ×1; Eternal Growth ×5 + a Blue-Blood program multiply the raw pay by exactly the growth multiplier (the season's ua × 0.22 sum); the Phenom's −8% slows it; the season screen's next-point row names the bonus (🌱 +N% growth); 360 px; v193AF 0 restores the old paycheck.",
+   "areas": [
+    "goals",
+    "statinfo"
+   ],
+   "runtimeSec": 20,
    "slow": false,
    "needsServer": true,
    "pureNode": false,

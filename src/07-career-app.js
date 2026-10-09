@@ -6343,7 +6343,7 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
           key: "engine",
           name: "Twin Engines",
           icon: "🔋",
-          desc: "Attribute growth every season: about 1% a level, +5% at Lv 6 — the same unit as Eternal Growth.", /* v193: whole numbers (v92check) */
+          desc: "Attribute growth (and every game's upgrade points): about 1% a level, +5% at Lv 6 — the same unit as Eternal Growth.", /* v193: whole numbers (v92check) */
           cost: 12,
           mult: 1.65,
           max: 6,
@@ -6401,7 +6401,7 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
           key: "talent",
           name: "Natural Talent",
           icon: "⭐",
-          desc: "+6% attribute growth.",
+          desc: "+6% attribute growth (and upgrade points).",
           cost: 6,
           mult: 1.4,
           max: 12
@@ -6609,7 +6609,7 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
           key: "gym",
           name: "Private Trainer",
           icon: "🏟️",
-          desc: "+1.5% attribute growth every season, per level.",
+          desc: "+1.5% attribute growth (and upgrade points) every season, per level.",
           cost: 9,
           mult: 1.5,
           max: 6
@@ -7165,7 +7165,7 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
           key: "etGrowth",
           name: "Eternal Growth",
           icon: "🌌",
-          desc: "+2% attribute growth. FOREVER repeatable.",
+          desc: "+2% attribute growth (and upgrade points). FOREVER repeatable.",
           cost: 12,
           mult: 1.22,
           max: 999,
@@ -8095,7 +8095,7 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
     has("startMental") && add(P.startMental > 0, `${sg(P.startMental)} to starting Awareness, Vision and Discipline`);
     has("startStars") && add(!0, `Recruited as a ${P.startStars}★ prospect at worst`);
     has("startPrestige") && add(!0, `+${P.startPrestige} prestige counted when a career starts (≈ ${sg(P.startPrestige * 0.55)} to every starting attribute)`);
-    P.growthMult != null && P.growthMult !== 1 && add(P.growthMult > 1, `${pc(P.growthMult - 1)} attribute growth every season`);
+    P.growthMult != null && P.growthMult !== 1 && add(P.growthMult > 1, `${pc(P.growthMult - 1)} attribute growth (and upgrade points) every season`);
     const ceil = Math.round(pathCeilOfV193AD(k));
     ceil && add(ceil > 0, `${sg(ceil)} potential ceiling (how high attributes can grow)`);
     P.keyGrowthMult && P.keyGrowthMult !== 1 && add(P.keyGrowthMult > 1, `${pc(P.keyGrowthMult - 1)} growth on your position's three key attributes`);
@@ -41008,6 +41008,35 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
     }
     return { items, call, total };
   }
+  /* ===== v193 AF GROWTH FILLS THE POINTS BAR TOO =====
+   * The owner: "Can you apply attribute bonus to the upgrade exp bar as well?" The "+% attribute growth" bonuses (the tree's
+   * eGrowth nodes, chaos, gear, the school tier, the legend's growth) grew only the season-end attributes. Every game's
+   * paycheck toward the next upgrade point (`payWeekV178` → `payBankV178`, the season screen's "next point" bar) is
+   * multiplied by the same growth now: the season's sum (`ua` × 0.22, clamped 0.88–1.34, exactly as `simSeason` grows him)
+   * × the legend's `growthMult` (both ways: the Phenom's −8% slows the bar too). The bar's row says the bonus. Kill switch
+   * `v193AF` 0 = the old paycheck. */
+  function growthPayMultV193AF(e) {
+    if (!TU("v193AF", 1) || !e) return 1;
+    let ua = 0,
+      m = 1;
+    try {
+      ua = treeFx("eGrowth") + chaosGrowthV193E() + gearFx("growth") + Math.max(0, tierGrowth(e) - 1) + pathUaV193AD();
+    } catch (_) {}
+    m = clamp99(1 + ua * 0.22, 0.88, 1.34);
+    try {
+      legendsOnV193AD() && currentPath() && (m *= Math.max(0, pathVal("growthMult", 1)));
+    } catch (_) {}
+    return Math.max(0, m);
+  }
+  function growthPayTxtV193AF(e) {
+    const m = growthPayMultV193AF(e),
+      p = Math.round((m - 1) * 100);
+    return p ? ` · <span id="growPayV193AF" style="color:${p > 0 ? "var(--good)" : "#ff8a80"}" title="Your attribute growth bonus fills this bar too">🌱 ${p > 0 ? "+" : ""}${p}% growth</span>` : "";
+  }
+  window.__V193AF = {
+    mult: e => growthPayMultV193AF(e || (state && state.player)),
+    pay: (e, w, watched) => payWeekV178(JSON.parse(JSON.stringify(e)), JSON.parse(JSON.stringify(Object.assign({}, w, { payV178: null }))), { watched: !!watched })
+  };
   /* ---- the ledger ---- */
   function payWeekV178(e, w, ctx) {
     if (!on178() || !e || !w || !e.pos) return null;
@@ -41031,7 +41060,7 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
       pace = paceV178(e, w, stat),
       milePts = pace && pace.hit.length ? pace.hit.length * TU("milePtsV178", 0.75) * worth : 0,
       dbl193 = ptsEarnV193AB(e, 1) /* v193 AB: the 2× POINTS card — 2 while it holds */,
-      raw = ptsEarnV193AB(e, (pot.raw + ordPts + milePts) * wmul * Math.max(0, pathVal(watched ? "watchPayMult" : "simPayMult", 1)) /* v193 AD: The Showman / The Executive */ * heat.mult * (1 + treeFx("payMultV179")) * TU("betaPayV182", 1)) /* v179 G: Golden Paycheck (the medal is inside treeFx); v193 E: Eternal Form and Glass Cannon too; v182: the beta paycheck dial; v193 AB: ×2 on a 2× POINTS season */,
+      raw = ptsEarnV193AB(e, (pot.raw + ordPts + milePts) * wmul * Math.max(0, pathVal(watched ? "watchPayMult" : "simPayMult", 1)) /* v193 AD: The Showman / The Executive */ * heat.mult * (1 + treeFx("payMultV179")) * growthPayMultV193AF(e) /* v193 AF: attribute growth fills the bar too */ * TU("betaPayV182", 1)) /* v179 G: Golden Paycheck (the medal is inside treeFx); v193 E: Eternal Form and Glass Cannon too; v182: the beta paycheck dial; v193 AB: ×2 on a 2× POINTS season */,
       bank0 = e.payBankV178 || 0,
       bank = bank0 + raw,
       whole = Math.floor(bank + 1e-9);
@@ -41808,7 +41837,7 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
       pace = paceV178(e, null, null),
       rows = [];
     rows.push(
-      `<div class="wk-row"><span class="ic">💰</span><span>Paid this season <b style="color:var(--gold)">+${e.paidV178 || 0}</b> · next point ${Math.round(bank * 100)}%</span>${(e.points || 0) > 0 ? `<button class="btn secondary" style="margin-left:auto;width:auto;padding:4px 10px;font-size:12px" onclick="go('upgrade')">Spend ${e.points} ▸</button>` : ""}</div>` +
+      `<div class="wk-row"><span class="ic">💰</span><span>Paid this season <b style="color:var(--gold)">+${e.paidV178 || 0}</b> · next point ${Math.round(bank * 100)}%${growthPayTxtV193AF(e) /* v193 AF */}</span>${(e.points || 0) > 0 ? `<button class="btn secondary" style="margin-left:auto;width:auto;padding:4px 10px;font-size:12px" onclick="go('upgrade')">Spend ${e.points} ▸</button>` : ""}</div>` +
         `<div class="rv-bar" style="margin:0 0 4px"><i style="width:${Math.round(bank * 100)}%"></i></div>`
     );
     const hot = heatV178(st),
@@ -42976,7 +43005,7 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
     { id: "ppPct", w: 16, rar: "common", icon: "📈", name: "+1% Prestige Points", fx: { ppMult: 0.01 }, ctx: "Every PP you earn from now on, forever: career ends, titles, bounties." },
     { id: "start", w: 22, rar: "common", icon: "🧬", name: "+1 starting ATTR", ctx: "Every future player is born with it — your next career starts ahead." },
     { id: "trust", w: 10, rar: "common", icon: "🤝", name: "+2 starting coach trust", fx: { coachStart: 2 }, ctx: "Every new player starts with a little more of the coach's faith — more snaps early." },
-    { id: "growth", w: 8, rar: "uncommon", icon: "🌱", name: "+1% attribute growth", fx: { eGrowth: 0.05 }, ctx: "Every season's development is a little bigger, every career." },
+    { id: "growth", w: 8, rar: "uncommon", icon: "🌱", name: "+1% attribute growth", fx: { eGrowth: 0.05 }, ctx: "Every season's development — and every game's upgrade points — a little bigger, every career." },
     { id: "odds", w: 8, rar: "uncommon", icon: "🎯", name: "+1% declare odds", fx: { advFlat: 1 }, ctx: "Every declare roll — to the next level, the draft, the UFF — is a point likelier." },
     { id: "luck", w: 6, rar: "rare", icon: "🍀", name: "Luckier card flips", fx: { flipLuckV179: 0.1 }, ctx: "The post-game cards turn up rare, epic and legendary 10% more often." },
     { id: "points", w: 4, rar: "rare", icon: "⭐", name: "+1 upgrade point a season", fx: { pointsFlat: 1 }, ctx: "One more skill point at the end of every season, every career." },
@@ -42988,7 +43017,7 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
     { id: "scoutsEye", icon: "🔭", name: "The Scout's Eye", fx: { advFlat: 3 }, ctx: "+3% on every declare roll, forever." },
     { id: "fourthCard", icon: "🃏", name: "The Extra Card", fx: { flipPicksV179: 1 }, ctx: "One more card pick after EVERY game (two simmed, three watched)." },
     { id: "luckyDeck", icon: "🎲", name: "Loaded Deck", fx: { flipLuckV179: 1 }, ctx: "Rare, epic and legendary post-game cards turn up twice as often." },
-    { id: "prodigy", icon: "🌟", name: "Born for It", fx: { eGrowth: 0.25 }, ctx: "+5% to every season's attribute growth, every career." },
+    { id: "prodigy", icon: "🌟", name: "Born for It", fx: { eGrowth: 0.25 }, ctx: "+5% to every season's attribute growth and every game's upgrade points, every career." },
     { id: "ironBody", icon: "🦴", name: "Iron Body", fx: { injDown: 0.08 }, ctx: "8% fewer injuries, every game, every career." },
     { id: "pedigree", icon: "🏛️", name: "Program Pedigree", fx: { teamQual: 0.05, teamLiftV190: 1.5 }, ctx: "Every teammate is rated +1.5% higher, every game (on the team nodes' +15% cap)." },
     { id: "headStart", icon: "🚀", name: "Head Start", fx: { startPointsV179: 10 }, ctx: "Every new player starts with 10 upgrade points to spend." },
@@ -44555,7 +44584,7 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
       ppMult: () => `+${pct(v)} Prestige Points from every source`,
       startAll: () => `+${nf1V179(v)} to every starting attribute (all ${ATTR_KEYS.length})`,
       coachStart: () => `+${nf1V179(v)} starting coach trust`,
-      eGrowth: () => `+${pct(v * 0.22)} attribute growth every season`,
+      eGrowth: () => `+${pct(v * 0.22)} attribute growth every season (and upgrade points)`,
       advFlat: () => `+${nf1V179(v)}% declare odds · +${nf1V179(v * TU("verdictPerOddsV179", 1))} on the scouts' verdict ceiling · +${nf1V179(v * TU("secondLookPerOddsV179", 1.5))}% GM's second look`,
       flipLuckV179: () => `rare / epic / legendary post-game cards ${pct(v)} likelier`,
       flipPicksV179: () => (onV192A("extraCardV192A") ? "The Extra Card — retired as a medal (v192: an Impossible node now)" : `+${nf1V179(v)} card pick after every game`),
