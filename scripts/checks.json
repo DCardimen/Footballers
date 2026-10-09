@@ -2606,12 +2606,12 @@
     "pile",
     "plant"
    ],
-   "runtimeSec": 420,
+   "runtimeSec": 520,
    "slow": false,
    "needsServer": false,
    "pureNode": true,
    "flaky": [],
-   "note": "v150 B: play action vs dropback is judged on four seeded streams.",
+   "note": "v150 B: play action vs dropback is judged on pooled seeded streams (twelve since v194 A).",
    "timeoutSec": 1800
   },
   "refcheck": {
