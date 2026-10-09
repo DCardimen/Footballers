@@ -7933,6 +7933,20 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
         req: { honors: 30 }
       },
       {
+        /* v193 AA: the season's RECRUIT A PLAYER deal, upgraded — read through treeFx("recruiterV193AA"): fx 0.5 × the
+         * branch's ×2 is exactly 1 a level, so the numbers below are what it pays (`fxPaidV193AA` keeps the ×2 tag off) */
+        key: "recruiterV193AA",
+        name: "The Franchise Recruiter",
+        icon: "📇",
+        desc: "Every level makes the season's RECRUIT A PLAYER deal better: the price in your attributes is 25% smaller, the recruit rates +3 OVR higher, and he is locked to your team 1 season longer. At Lv 3: 75% off the price, +9 OVR, a 6-season lock.",
+        cost: 125e3,
+        mult: 2.5,
+        max: 3,
+        req: { honors: 30 },
+        fx: { recruiterV193AA: 0.5 },
+        fxPaidV193AA: !0
+      },
+      {
         key: "longBands",
         name: "Long Bands",
         icon: "📏",
@@ -17826,6 +17840,7 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
           t * 0.35 +
           teamPrestigeQV153B(_prF) +
           teamDecisionQV153B(state.player) +
+          rosterQV193AA(state.player) /* v193 AA: the men the program carried, over the roster's own target */ +
           clubQV146B(state.player) /* v146 B: the club he signed with · v153 B: prestige halved, decisions added */,
         0.3,
         1.65
@@ -17847,10 +17862,14 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
         attrs: youSimAttrs(),
         stat: a
       });
+    // v193 AA: a recruit he signed plays for him — his name, his number, his rating on the game's scale
+    try {
+      recruitPlantV193AA(P, u * (0.72 + C * 0.5), (pos, ovr) => h(pos, simOvrV178(ovr)));
+    } catch (_) {}
     (function () {
-      const seen = new Set();
+      const seen = new Set([...P.off, ...P.def].filter(x => x && x.recruitV193AA).map(x => x.name)); /* v193 AA: a recruit keeps his name */
       [...P.off, ...P.def, ...v.off, ...v.def].forEach(pl => {
-        if (!pl || pl.you) {
+        if (!pl || pl.you || pl.recruitV193AA) {
           pl && pl.name && seen.add(pl.name);
           return;
         }
@@ -21623,7 +21642,8 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
           off: !!x.isOff /* v193 B: the team page lists the two elevens */,
           num: x.num,
           locker: x.lockerV191 || 0 /* v193 B: the Locker Room's +1s on this man */,
-          lift: x.liftV193 || 0 /* v193 B: the team nodes' lift on this man, in OVR points */
+          lift: x.liftV193 || 0 /* v193 B: the team nodes' lift on this man, in OVR points */,
+          recruit: x.recruitV193AA || 0 /* v193 AA: a locked recruit — the seasons his lock has left */
         }));
       return { seed, us: { ovr: c.us.ovr, players: roster(c.us) }, opp: { ovr: c.opp.ovr, players: roster(c.opp) } };
     } catch (err) {
@@ -21820,6 +21840,7 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
           t * 0.35 +
           (opts.noShareV192B ? 0 : teamPrestigeQV153B(prF)) /* v192 B: the before/after card asks without it */ +
           teamDecisionQV153B(e) +
+          rosterQV193AA(e) /* v193 AA */ +
           (opts.clubQ != null ? opts.clubQ : clubQV146B(e)) /* v146 B · v153 B */,
         0.3,
         1.65
@@ -37136,7 +37157,7 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
       let cnt = 1 + (rnd() < (S.tox - 0.8) * 0.6 ? 1 : 0) + (rnd() < (S.tox - 1.4) * 0.6 ? 1 : 0);
       cnt = Math.min(cnt, Math.max(0, TU("v153BleaveMax", 3) - L.leaves), opts.count || 3);
       for (let i = 0; i < cnt; i++) {
-        const m = pickMateV153B(e, rnd);
+        const m = pickMateV153B(e, rnd, o => !lockLeftV193AA(e, o.p)) /* v193 AA: a locked recruit never walks */;
         if (!m) break;
         out.push(
           recordEventV153B(
@@ -37487,6 +37508,7 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
   window.sacrificeAskV153B = sacrificeAskV153B;
   function showLockerPopV153B(evs) {
     if (!evs || !evs.length) return;
+    if (rmOnV193AA() && rmPopOnV193AA()) return void rmLockerV193AA(evs); /* v193 AA: the moves are felt on the ROSTER MOVES card */
     document.getElementById("lockerPopV153B")?.remove();
     const bad = evs.some(v => v.kind === "leave");
     document.body.insertAdjacentHTML(
@@ -37497,6 +37519,1015 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
     );
     setTimeout(() => document.getElementById("lockerPopV153B")?.remove(), 5200);
   }
+
+  /* ===== v193 AA THE ROSTER MOVES, AND YOU FEEL IT =====
+   * The owner: "When players join or leave the team, I would like to see how the overall team rating goes up or down.
+   * Show it in a satisfying way — a daunting number decline for someone good leaving, a green boost bonus for someone
+   * new coming in, or team chemistry building. Do the same if you sacrifice your stats for a player gain, and lock in
+   * that player for 3 seasons or something like this. Add an Impossible prestige node that upgrades this at 1M PP."
+   * THE ROSTER CARRIES (src/10 → `rmCarryV193AA`, through `window.__V193AA.carry` when it builds a season's roster):
+   *   the same program (`rmProgV193AA`: the level, and the club in the UFF) keeps its men. At a new season key
+   *   (`rmTurnoverV193AA`, seeded per man — no Math.random): an amateur SR graduates (or ages out below JV), a JV-to-
+   *   college man transfers at `rmTransferPV193AA` (5%), a pro leaves at `rmProLeavePV193AA` (18%; 30% of those
+   *   retire) — the Roster Department's Retention and Facilities trim those odds; a man the locker room touched this
+   *   season (v153 B's events) and a LOCKED recruit never leave. Who stays is a year older and grows by his dev trait
+   *   (`RM_GROW_V193AA`, a share of the roster's target a season, Sports Science / Facilities +0.2% a level, never past
+   *   his potential); an empty slot gets a new face off src/09's own maker at `rmNewInKV193AA` (96%) of the fresh
+   *   man's OVR, a name off the career's name pool. A new program (a level up, another club) is a fresh roster.
+   *   The chemistry moves with it: +`rmChemBackV193AA` 0.3 a returning man, −`rmChemNewV193AA` 0.6 a new one (±5 at
+   *   most); a new team drifts half the way back to 50 (`rmChemNewTeamV193AA`).
+   * THE TEAM FEELS IT (`rosterQV193AA`, in BOTH `teamPairV76` and `buildGameRosters`, so the sim and the watched game
+   *   agree — v76): the carried men's mean OVR over the roster's own target, 1:1 in team OVR (Q = 2·dev / level
+   *   base), bounded ±`rosterQMaxV193AA` 0.12 quality. A fresh roster is exactly its target: 0. This season's v153 B
+   *   moves are kept out of it (`carryOvrV193AA`) — the locker room's own ledger counts them.
+   * THE CARD (`rmQV193AA` on the player, saved; `rmPumpV193AA` at the season screen or the hub once nothing is in the
+   *   way — v193 W's rule `injBlockedV193W`, the growth card, the locker pop; off under an automated browser unless
+   *   `v193AAprompt` 1, v189 B): ROSTER MOVES — the team OVR big; departures slide out with a red "−N TEAM" (what the man
+   *   was worth over a walk-on, `rmWalkOnKV193AA` 60% of the target, over the 22), a star (top 3 of the roster or 8+
+   *   over its mean) makes the number tick DOWN digit by digit in red with a shake and a heavy haptic; arrivals slide in
+   *   with a green "+N TEAM", the returners' growth beside them, the number climbs in green with a sparkle and success;
+   *   then CHEMISTRY fills and the rest (your own growth, the club, the level) lands on the real after-OVR —
+   *   "TEAM 61 → 64 (+3)". Tap to skip; reduced motion is the end state. A level / club change is A NEW TEAM (the men
+   *   you leave, the men you join, the number straight to the new team's). v153 B's mid-season moves ride the same card
+   *   (`rmLockerV193AA`, merged into the season's card while it is unseen). `e.rmLastV193AA` is the latest delta: the
+   *   season screen's team card (`teamQualityHtmlV192B`) and the pregame YOUR TEAM page show "▼ 4 since last season".
+   * RECRUIT A PLAYER (the same row, `openRecruitV193AA`): three recruits for the weakest units (`recruitOffersV193AA`
+   *   — src/09's maker at the roster's target, PROSPECT / STARTER / BLUE-CHIP at +10 / 17 / 25% of the target over the
+   *   man he replaces and at least 98 / 108 / 120% of it), each priced in YOUR attributes — a percent of the two or three
+   *   the position needs least (`POSITIONS[pos].w`; never Durability): 6+4 / 8+6 / 9+7+5%, the points in small. The
+   *   ribDialog confirm says what you lose, who you gain, the team OVR before → after, and the lock: `recruitLockSeasonsV193AA`
+   *   (3) seasons, this one counted (`lockedUntilV193AA` = totalSeasons + 3) — he never leaves in turnover, and the lock
+   *   ends when the career leaves the program (a level up, another club). Signing subtracts the points, puts him in the
+   *   replaced man's slot of src/10's roster (the pregame, `teamPairV76`, and `buildGameRosters` plants him by name on
+   *   the game's scale — `recruitPlantV193AA`), and plays the card. `recruitPerSeasonV193AA` (1) a season.
+   * THE FRANCHISE RECRUITER (`TREE.impossible`, `recruiterV193AA`, 125,000 × the branch's ×8 = 1,000,000 PP at Lv 1,
+   *   ×2.5 a level, max 3): `treeFx("recruiterV193AA")` (0.5 × the branch's ×2 = 1 a level) — the price −25% a level,
+   *   the recruit +3 OVR a level, the lock +1 season a level.
+   * Kill switch `TU("v193AA", 1)`: 0 = the old rebuild (no carry, no term, no card, no recruit, no planting).
+   * `window.__V193AA`; `scripts/v193AAcheck.mjs`. */
+  var RM_V193AA; // the card's record — a var: the boot can draw a screen that reads it before this line runs (v140)
+  function rmStV193AA() {
+    return RM_V193AA || (RM_V193AA = { open: null, shown: [], samples: [], last: null, skipped: !1, timers: [], soon: 0, seq: 0 });
+  }
+  function rmOnV193AA() {
+    return !!TU("v193AA", 1);
+  }
+  function rmPopOnV193AA() {
+    let auto = !1;
+    try {
+      auto = !!(typeof navigator < "u" && navigator.webdriver);
+    } catch (_) {}
+    return rmOnV193AA() && !!TU("v193AAprompt", auto ? 0 : 1);
+  }
+  function rmProgV193AA(e) {
+    const lv = (e && e.level) | 0;
+    return lv + "|" + (lv >= 7 ? String((e.clubV146B && e.clubV146B.name) || (e.teamIdentity && e.teamIdentity.dfl) || "") : "");
+  }
+  function rmTeamNameV193AA(e) {
+    try {
+      return e && e.teamIdentity ? teamName(e) : "";
+    } catch (_) {
+      return "";
+    }
+  }
+  function rmKeyV193AA(e) {
+    try {
+      return window.__V158_KEY ? window.__V158_KEY(e) : null;
+    } catch (_) {
+      return null;
+    }
+  }
+  // the seasons a man's lock has left, this one counted (0 = free to go)
+  function lockLeftV193AA(e, m) {
+    if (!m || !m.lockedUntilV193AA || !rmOnV193AA()) return 0;
+    return Math.max(0, (m.lockedUntilV193AA | 0) - ((e && e.totalSeasons) | 0));
+  }
+  // what a man is worth to the team: his OVR over a walk-on in his slot, over the 22 (team OVR is the roster's mean)
+  function rmChipV193AA(ovr, target) {
+    return ((Number(ovr) || 0) - target * TU("rmWalkOnKV193AA", 0.6)) / 22;
+  }
+  function rmDevOfV193AA(R, target) {
+    if (!Array.isArray(R) || !R.length) return 0;
+    let s = 0;
+    R.forEach(m => (s += m ? Number(m.carryOvrV193AA != null ? m.carryOvrV193AA : m.ovr) || 0 : 0));
+    return s / R.length - (Number(target) || 0);
+  }
+  function rmRefreshDevV193AA(e) {
+    const R = e && e.teamRosterV158,
+      M = e && e.rosterMetaV193AA;
+    if (Array.isArray(R) && M) M.dev = +rmDevOfV193AA(R, M.target).toFixed(3);
+    return M ? M.dev : 0;
+  }
+  /* the team term: the men the program carried, over the roster's target, in the quality factor both builders read */
+  function rosterQV193AA(e) {
+    if (!e || !rmOnV193AA()) return 0;
+    if (state && e === state.player && window.__V158_ROSTER) {
+      const k = rmKeyV193AA(e);
+      if (k && e.teamRosterSeasonV158 !== k)
+        try {
+          window.__V158_ROSTER(); // a new season's key: build (carry) the roster before the team is read
+        } catch (_) {}
+    }
+    const M = e.rosterMetaV193AA;
+    if (!M || !M.dev || M.key !== e.teamRosterSeasonV158) return 0;
+    const u = levelBaseV178(e.level),
+      mx = TU("rosterQMaxV193AA", 0.12);
+    return clamp99((2 * M.dev) / Math.max(1, u), -mx, mx);
+  }
+  // a share of the roster's target a season, by the man's dev trait
+  var RM_GROW_V193AA = { Generational: 0.06, Superstar: 0.045, Fast: 0.03, Normal: 0.02, Slow: 0.01, Bust: 0 };
+  var RM_ATTRS_V193AA = ["speed", "acceleration", "agility", "strength", "tackling", "throwing", "awareness", "catching", "blocking", "weight"];
+  function rmScaleV193AA(m, k) {
+    if (!m || !(k > 0) || k === 1) return m;
+    RM_ATTRS_V193AA.forEach(a => {
+      if (typeof m[a] === "number") m[a] = clamp99(Math.round(m[a] * k), 1, 999);
+      if (m.ratings && typeof m.ratings[a] === "number") m.ratings[a] = clamp99(Math.round(m.ratings[a] * k), 1, 999);
+    });
+    return m;
+  }
+  function rmNameV193AA(rnd, used) {
+    let nm = "";
+    for (let g = 0; g < 40; g++) {
+      nm = ROSTER_FIRST[Math.floor(rnd() * ROSTER_FIRST.length)] + " " + ROSTER_LAST[Math.floor(rnd() * ROSTER_LAST.length)];
+      if (!used.has(nm)) break;
+    }
+    used.add(nm);
+    return nm;
+  }
+  function rmTraitV193AA(rnd) {
+    const n = rnd() * 100;
+    return n < 5 ? "Generational" : n < 17 ? "Superstar" : n < 38 ? "Fast" : n < 82 ? "Normal" : n < 94 ? "Slow" : "Bust";
+  }
+  var RM_POT_V193AA = { Generational: 24, Superstar: 17, Fast: 11, Normal: 6, Slow: 3, Bust: 0 };
+  // a new face for slot i: src/09's man for that slot, at the new-face share of his OVR, with a name, a number, a trait
+  function rmNewManV193AA(f, i, T, rnd, used, nums, at, ovrOverride) {
+    const base = f && f.ovr ? f : { pos: "LB", ovr: T, ratings: {} },
+      ovr = clamp99(Math.round(ovrOverride != null ? ovrOverride : (base.ovr || T) * TU("rmNewInKV193AA", 0.96)), 1, 999),
+      m = rmScaleV193AA(JSON.parse(JSON.stringify(base)), ovr / Math.max(1, base.ovr || ovr));
+    m.ovr = m.overall = ovr;
+    m.name = rmNameV193AA(rnd, used);
+    m.id = "P" + i + "s" + at;
+    m.year = "FR";
+    let j = 1 + Math.floor(rnd() * 99);
+    for (let g = 0; g < 99 && nums.has(j); g++) j = (j % 99) + 1;
+    nums.add(j);
+    m.jersey = j;
+    m.devTrait = rmTraitV193AA(rnd);
+    m.potential = clamp99(ovr + (RM_POT_V193AA[m.devTrait] || 5), 1, 999);
+    m.hometown = ["Indiana", "Ohio", "Texas", "Florida", "Georgia", "California", "Michigan", "Pennsylvania"][Math.floor(rnd() * 8)];
+    m.star = m.tier === "star";
+    m.carryOvrV193AA = ovr;
+    m.newV193AA = at;
+    delete m.lockerV153B;
+    delete m.lockedUntilV193AA;
+    delete m.recruitV193AA;
+    return m;
+  }
+  /* src/10 asks this when it builds a season's roster: carry the program's men, or start fresh */
+  function rmCarryV193AA(p, players, prevR, key, target) {
+    if (!p || !Array.isArray(players)) return null;
+    const M0 = p.rosterMetaV193AA,
+      prog = rmProgV193AA(p),
+      fresh = why => {
+        players.forEach(m => m && (m.carryOvrV193AA = m.ovr));
+        p.rosterMetaV193AA = { key, prog, target, at: p.totalSeasons | 0, dev: 0, team: rmTeamNameV193AA(p) };
+        return { carried: !1, why };
+      };
+    if (!rmOnV193AA()) return fresh("off");
+    if (!Array.isArray(prevR) || prevR.length !== players.length) return fresh("first");
+    // a save from before v193 AA has no meta: the same level is the same program
+    const prevProg = M0 ? M0.prog : String(p.teamRosterSeasonV158 || "").split(":")[0] === String(p.level | 0) ? prog : null;
+    if (prevProg !== prog) {
+      const r = fresh("new team");
+      try {
+        rmQueueTeamV193AA(p, prevR, players, M0);
+      } catch (x) {
+        console.warn("[v193 AA team]", x);
+      }
+      return r;
+    }
+    const T = M0 && M0.target > 0 ? M0.target : target;
+    if (M0 && M0.key === key) {
+      // the same season, rebuilt (a club re-signed, a nulled key): the men stay exactly as they were
+      prevR.forEach((m, i) => (players[i] = m));
+      p.rosterMetaV193AA = Object.assign({}, M0, { key, prog });
+      p.rosterMetaV193AA.dev = +rmDevOfV193AA(players, T).toFixed(3);
+      return { carried: !0, skipLocker: !0, same: !0 };
+    }
+    return rmTurnoverV193AA(p, players, prevR, key, prog, T, M0);
+  }
+  function rmTurnoverV193AA(p, players, prevR, key, prog, T, M0) {
+    const lv = p.level | 0,
+      pro = lv >= 7,
+      at = p.totalSeasons | 0,
+      rp = (state && state.rosterPrestigeV158) || {},
+      ret = rp.retention | 0,
+      fac = rp.facilities | 0,
+      sci = rp.sportsScience | 0,
+      L = p.lockerV153B && p.lockerV153B.stamp === stampV153B(p) ? p.lockerV153B : null,
+      evD = {},
+      touched = {};
+    (L ? L.events || [] : []).forEach(v => {
+      touched[v.slot] = 1;
+      evD[v.slot] = (evD[v.slot] || 0) + ((v.ovrTo || 0) - (v.ovrFrom || 0));
+    });
+    const prevAvg = prevR.reduce((a, m) => a + ((m && m.ovr) || 0), 0) / prevR.length,
+      top3 = new Set(
+        prevR
+          .map((m, i) => ({ o: (m && m.ovr) || 0, i }))
+          .sort((a, b) => b.o - a.o)
+          .slice(0, 3)
+          .map(x => x.i)
+      ),
+      gen = window.__GRIDIRON_GENERATE_ROSTER_V157,
+      fr = gen ? gen(T, ((p.seasonSeed || 1) ^ 0x7a3c) + lv * 131 + at * 17).players : [],
+      used = new Set(prevR.map(m => m && m.name)),
+      nums = new Set(prevR.map(m => m && m.jersey)),
+      yearUp = { FR: "SO", SO: "JR", JR: "SR", SR: "SR" },
+      dep = [],
+      arr = [],
+      imp = [];
+    const before0 = p.teamSnapV193AA && p.teamSnapV193AA.prog === prog ? p.teamSnapV193AA.team : null;
+    prevR.forEach((m0, i) => {
+      if (!m0) return;
+      const rnd = seededRng("v193AA", p.name || "", at, lv, i, key),
+        m = JSON.parse(JSON.stringify(m0)),
+        locked = lockLeftV193AA(p, m) > 0;
+      delete m.lockerV153B;
+      let leave = null;
+      if (!locked && !touched[i]) {
+        if (!pro) {
+          if (m.year === "SR") leave = lv <= 2 ? "aged up — on to the next league" : lv >= 5 ? "out of eligibility — graduated" : "graduated";
+          else if (lv >= 3 && rnd() < TU("rmTransferPV193AA", 0.05) * (1 - 0.1 * ret)) leave = "entered the transfer portal";
+        } else {
+          const P = TU("rmProLeavePV193AA", 0.18) * Math.max(0, 1 - 0.1 * ret) * (top3.has(i) ? Math.max(0, 1 - 0.06 * fac) : 1);
+          if (rnd() < P) leave = rnd() < 0.3 ? "retired" : "signed elsewhere in free agency";
+        }
+      }
+      if (leave) {
+        const nw = rmNewManV193AA(fr[i], i, T, rnd, used, nums, at);
+        players[i] = nw;
+        dep.push({ name: m0.name, pos: m0.pos, ovr: Math.round(m0.ovr || 0), why: leave, star: top3.has(i) || (m0.ovr || 0) >= prevAvg + 8, slot: i, chip: -rmChipV193AA(m0.ovr, T) });
+        arr.push({ name: nw.name, pos: nw.pos, ovr: nw.ovr, why: pro ? "a rookie" : "a freshman", star: nw.star, slot: i, chip: rmChipV193AA(nw.ovr, T) });
+        return;
+      }
+      // he stays: a year older and better for it (this season's locker-room moves stay on the locker room's ledger)
+      const base = (m.ovr || 1) - (evD[i] || 0),
+        g = RM_GROW_V193AA[m.devTrait] != null ? RM_GROW_V193AA[m.devTrait] : 0.02,
+        grow = Math.max(0, Math.round(T * (g + 0.002 * (sci + fac)))),
+        room = m.potential != null ? Math.max(0, Math.round(m.potential - base)) : grow,
+        add = Math.min(grow, room);
+      if (add > 0) {
+        rmScaleV193AA(m, (m.ovr + add) / Math.max(1, m.ovr));
+        m.ovr = m.overall = m.ovr + add;
+        imp.push({ name: m.name, pos: m.pos, ovr: m.ovr, from: m0.ovr, to: m.ovr, why: "a year stronger", slot: i, chip: add / 22 });
+      }
+      if (!pro) m.year = yearUp[m.year] || m.year;
+      m.carryOvrV193AA = base + add;
+      players[i] = m;
+    });
+    p.rosterMetaV193AA = { key, prog, target: T, at, dev: 0, team: rmTeamNameV193AA(p) };
+    p.rosterMetaV193AA.dev = +rmDevOfV193AA(players, T).toFixed(3);
+    // the room: who came back, and who is new
+    const nNew = dep.length,
+      nBack = players.length - nNew,
+      c0 = chemOfV153B(p),
+      mx = TU("rmChemMaxV193AA", 5),
+      d = clamp99(nBack * TU("rmChemBackV193AA", 0.3) - nNew * TU("rmChemNewV193AA", 0.6), -mx, mx);
+    Math.abs(d) >= 0.1 && chemMoveV153B(p, Math.round(d * 10) / 10, "who came back, and who is new");
+    const c1 = chemOfV153B(p);
+    if (dep.length || imp.length)
+      rmQueueV193AA(p, { kind: "season", at, before: before0, dep, arr, imp, chem: [c0, c1], target: T, team: rmTeamNameV193AA(p) });
+    return { carried: !0, skipLocker: !0, dep: dep.length, imp: imp.length };
+  }
+  function rmQueueTeamV193AA(p, prevR, players, M0) {
+    const S0 = p.teamSnapV193AA,
+      T0 = (M0 && M0.target) || 50,
+      T1 = (p.rosterMetaV193AA && p.rosterMetaV193AA.target) || 50,
+      top = (R, T, why) =>
+        R.map((m, i) => ({ m, i }))
+          .filter(o => o.m && o.m.pos !== "K" && o.m.pos !== "P")
+          .sort((a, b) => (b.m.ovr || 0) - (a.m.ovr || 0))
+          .slice(0, 3)
+          .map(o => ({ name: o.m.name, pos: o.m.pos, ovr: Math.round(o.m.ovr || 0), why, star: !0, slot: o.i, chip: 0 })),
+      c0 = chemOfV153B(p);
+    if (teamOnV153B()) chemMoveV153B(p, Math.round((50 - c0) * TU("rmChemNewTeamV193AA", 0.5) * 10) / 10, "a new team");
+    const from = (S0 && S0.teamName) || (M0 && M0.team) || "your old team";
+    rmQueueV193AA(p, {
+      kind: "team",
+      at: p.totalSeasons | 0,
+      before: S0 ? S0.team : null,
+      fromName: from,
+      toName: rmTeamNameV193AA(p) || "your new team",
+      dep: top(prevR, T0, "stays with " + from),
+      arr: top(players, T1, "your new teammate"),
+      more: [Math.max(0, prevR.length - 3), Math.max(0, players.length - 3)],
+      imp: [],
+      chem: [c0, chemOfV153B(p)],
+      target: T1
+    });
+  }
+  function rmQueueV193AA(e, it) {
+    if (!e || !it) return null;
+    const Q = (e.rmQV193AA = Array.isArray(e.rmQV193AA) ? e.rmQV193AA : []),
+      last = Q[Q.length - 1],
+      R = rmStV193AA();
+    it.id = "rm" + (it.at | 0) + "_" + ++R.seq + "_" + Date.now().toString(36);
+    if (last && !last.opened && last.kind === "team" && it.kind === "team" && last.at === it.at) {
+      // a level's new roster, then the club he signs with: one card, the old team to the last new one
+      Object.assign(last, { toName: it.toName, arr: it.arr, more: [last.more ? last.more[0] : 0, it.more ? it.more[1] : 0], target: it.target, chem: [last.chem ? last.chem[0] : it.chem[0], it.chem[1]] });
+      return last;
+    }
+    Q.push(it);
+    Q.length > 6 && Q.splice(0, Q.length - 6);
+    rmSoonV193AA(700);
+    return it;
+  }
+  /* v153 B's moves (a teammate walks, grows, your sacrifice) ride the card: merged into the season's unseen card */
+  function rmLockerV193AA(evs) {
+    const e = state && state.player;
+    if (!e || !evs || !evs.length) return;
+    const T = (e.rosterMetaV193AA && e.rosterMetaV193AA.target) || levelBaseV178(e.level),
+      dep = [],
+      arr = [],
+      imp = [];
+    evs.forEach(v => {
+      if (v.kind === "leave") {
+        dep.push({ name: v.name, pos: v.pos, ovr: Math.round(v.ovrFrom || 0), why: (v.quit ? "quit the team" : "entered the transfer portal") + " — " + (v.why || ""), star: !1, slot: v.slot, chip: -rmChipV193AA(v.ovrFrom, T) });
+        arr.push({ name: v.newName, pos: v.pos, ovr: Math.round(v.ovrTo || 0), why: "his replacement", slot: v.slot, chip: rmChipV193AA(v.ovrTo, T) });
+      } else imp.push({ name: v.name, pos: v.pos, ovr: Math.round(v.ovrTo || 0), from: v.ovrFrom, to: v.ovrTo, why: v.kind === "sacrifice" ? "your sacrifice" : "grew beside you", slot: v.slot, chip: ((v.ovrTo || 0) - (v.ovrFrom || 0)) / 22 });
+    });
+    const Q = (e.rmQV193AA = Array.isArray(e.rmQV193AA) ? e.rmQV193AA : []),
+      last = Q[Q.length - 1];
+    if (last && !last.opened && last.at === (e.totalSeasons | 0) && (last.kind === "season" || last.kind === "locker")) {
+      last.dep = (last.dep || []).concat(dep);
+      last.arr = (last.arr || []).concat(arr);
+      last.imp = (last.imp || []).concat(imp);
+      return;
+    }
+    rmQueueV193AA(e, { kind: "locker", at: e.totalSeasons | 0, before: null, dep, arr, imp, chem: null, target: T });
+  }
+  /* the numbers the card walks through: before → departures → arrivals and growth → the real after */
+  function rmNumsV193AA(e, q) {
+    const after = q.after != null ? q.after : teamPairV76(e, {}).us,
+      sum = a => (a || []).reduce((s, m) => s + (Number(m.chip) || 0), 0),
+      depSum = q.kind === "team" ? 0 : sum(q.dep),
+      upSum = q.kind === "team" ? 0 : sum(q.arr) + sum(q.imp),
+      n0 = q.before != null ? Math.round(q.before) : Math.round(after - depSum - upSum);
+    let n1 = Math.round(n0 + depSum),
+      n2 = Math.round(n0 + depSum + upSum);
+    if (q.kind === "team") (n1 = n0), (n2 = after);
+    if (q.kind === "recruit") n2 = after;
+    return { n0, n1, n2, n3: after, rest: after - n2, star: q.kind !== "team" && (q.dep || []).some(m => m.star) };
+  }
+  function rmBlockedV193AA(q) {
+    if (!state || !state.player || state.view === "live" || state.view === "splash") return !0;
+    try {
+      if (window.ribDialog && window.ribDialog.isOpen) return !0;
+      if (window.__RIB_COACH && window.__RIB_COACH.isOpen) return !0;
+      if (document.querySelector("#pgOverlayV13,#simCardV178,#rib-vault-v137,.onboard,#personaV13")) return !0;
+    } catch (_) {}
+    if (q && q.kind === "recruit") return !1; // he just signed him: the card plays now (over the pregame too)
+    if (state.view !== "season" && state.view !== "hub") return !0;
+    try {
+      if (injBlockedV193W()) return !0;
+      if (INJ_W.open) return !0;
+    } catch (_) {}
+    try {
+      if (growCoveredV193O() || growBusyV193O()) return !0;
+    } catch (_) {}
+    return !!document.querySelector("#lockerPopV153B");
+  }
+  function rmSoonV193AA(ms) {
+    const R = rmStV193AA();
+    clearTimeout(R.soon);
+    R.soon = setTimeout(() => rmPumpV193AA(), ms != null ? ms : 500);
+  }
+  function rmPumpV193AA(force) {
+    const e = state && state.player,
+      Q = e && Array.isArray(e.rmQV193AA) ? e.rmQV193AA : null,
+      R = rmStV193AA();
+    if (!rmPopOnV193AA() || !Q || !Q.length || R.open || document.getElementById("rmV193AA")) return !1;
+    // a card from an earlier season is stale: drop it quietly
+    while (Q.length && (Q[0].at | 0) < (e.totalSeasons | 0) - 1) Q.shift();
+    const q = Q[0];
+    if (!q || (!force && rmBlockedV193AA(q)) || (force && rmBlockedV193AA({ kind: "recruit" }))) return !1;
+    rmOpenV193AA(e, q);
+    return !0;
+  }
+  function rmSgV193AA(n) {
+    return (n > 0 ? "+" : n < 0 ? "−" : "±") + Math.abs(n);
+  }
+  function rmHtmlV193AA(e, q, N) {
+    const MAXR = Math.max(1, TU("rmRowsV193AA", 6) | 0),
+      team = q.kind === "team",
+      chip = (c, up) => (team ? "" : `<i class="rm-chip ${up ? "g" : "r"}">${up ? "+" : "−"}${Math.max(1, Math.round(Math.abs(c)))} TEAM</i>`),
+      row = (m, cls, ch) =>
+        `<div class="rm-row ${cls}${m.star && cls === "dep" ? " star" : ""}" data-slot="${m.slot}"><span class="rm-pos">${escHtml(String(m.pos || ""))}</span><span class="rm-nm">${m.star && cls === "dep" && !team ? "⭐ " : ""}${escHtml(String(m.name || "—"))}<small>${escHtml(String(m.why || ""))}</small></span><b class="rm-ovr">${Math.round(m.ovr || 0)}</b>${ch}</div>`,
+      dep = (q.dep || []).slice().sort((a, b) => (b.star ? 1 : 0) - (a.star ? 1 : 0) || (b.ovr || 0) - (a.ovr || 0)),
+      arr = (q.arr || []).slice().sort((a, b) => (b.ovr || 0) - (a.ovr || 0)),
+      imp = (q.imp || []).slice().sort((a, b) => (b.to - b.from || 0) - (a.to - a.from || 0)),
+      more = (n, what) => (n > 0 ? `<div class="rm-more">+ ${n} more ${what}</div>` : ""),
+      title = { season: "A NEW SEASON", team: "A NEW TEAM", recruit: "YOU SIGNED A RECRUIT", locker: "THE LOCKER ROOM" }[q.kind] || "ROSTER MOVES",
+      c = q.chem,
+      chemShow = !!(c && Math.round(c[1]) !== Math.round(c[0])) || N.rest !== 0,
+      d = N.n3 - N.n0;
+    const depH = dep.length
+      ? `<div class="rm-sec rm-dep-s"><h6>${team ? "YOU LEFT · " + escHtml(String(q.fromName || "")).toUpperCase() : "LEFT THE TEAM"}</h6>${dep
+          .slice(0, MAXR)
+          .map(m => row(m, "dep", chip(m.chip, !1)))
+          .join("")}${team ? more(q.more && q.more[0], "stay behind") : more(dep.length - MAXR, "left")}</div>`
+      : "";
+    const arrH =
+      arr.length || imp.length
+        ? `<div class="rm-sec rm-arr-s"><h6>${team ? "YOUR NEW TEAM · " + escHtml(String(q.toName || "")).toUpperCase() : arr.length ? "JOINED" : "CAME BACK BETTER"}</h6>${arr
+            .slice(0, MAXR)
+            .map(m => row(m, "arr", chip(m.chip, !0) + (m.lock ? `<i class="rm-chip k">🔒 ${m.lock}</i>` : "")))
+            .join("")}${team ? more(q.more && q.more[1], "teammates") : more(arr.length - MAXR, "joined")}${imp
+            .slice(0, 3)
+            .map(m => row(m, "imp", `<i class="rm-chip g">+${Math.max(1, Math.round(m.to - m.from))} OVR</i>`))
+            .join("")}${imp.length > 3 ? `<div class="rm-more">+ ${imp.length - 3} more grew</div>` : ""}</div>`
+        : "";
+    const chemH = chemShow
+      ? `<div class="rm-sec rm-chem-s"><h6>CHEMISTRY${c ? ` · ${Math.round(c[0])} → <b>${Math.round(c[1])}</b>` : ""}</h6><div class="rm-bar"><i id="rmBarV193AA" style="width:${c ? clamp99(c[0], 0, 100) : 50}%"></i></div><small>${N.rest !== 0 ? `${rmSgV193AA(N.rest)} TEAM · chemistry, your own growth${team ? ", the new level" : ""} and the rest` : "the room settles"}</small></div>`
+      : "";
+    return `<div class="rm-card" id="rmCardV193AA" role="dialog" aria-label="Roster moves"><div class="rm-eye">🏈 ROSTER MOVES · ${title}</div>
+      <div class="rm-big"><b id="rmNumV193AA" data-n="${N.n0}">${N.n0}</b><span>TEAM OVR</span><em class="rm-spark"><i></i><i></i><i></i><i></i><i></i></em></div>
+      ${depH}${arrH}${chemH}
+      <div class="rm-end" id="rmEndV193AA">TEAM ${N.n0} → ${N.n3} <em class="${d > 0 ? "up" : d < 0 ? "dn" : ""}">(${rmSgV193AA(d)})</em></div>
+      <button type="button" class="btn rm-go" id="rmGoV193AA">CONTINUE</button><div class="rm-hint" id="rmHintV193AA">tap to skip</div></div>`;
+  }
+  function rmReducedV193AA() {
+    try {
+      return !!(window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches);
+    } catch (_) {
+      return !1;
+    }
+  }
+  function rmOpenV193AA(e, q) {
+    rmCssV193AA();
+    const R = rmStV193AA();
+    if (q.after == null) q.after = teamPairV76(e, {}).us; // frozen at the open: the number the season screen shows
+    const N = rmNumsV193AA(e, q);
+    q.opened = !0;
+    e.rmLastV193AA = { from: N.n0, to: N.n3, kind: q.kind, at: e.totalSeasons | 0 };
+    const root = document.createElement("div");
+    root.className = "rm-v193aa";
+    root.id = "rmV193AA";
+    root.innerHTML = rmHtmlV193AA(e, q, N);
+    document.body.appendChild(root);
+    R.open = q;
+    R.done = !1;
+    R.skipped = !1;
+    R.samples = [N.n0];
+    R.nums = N;
+    R.timers.forEach(clearTimeout);
+    R.timers = [];
+    R.last = { kind: q.kind, id: q.id, n: N, dep: (q.dep || []).length, arr: (q.arr || []).length, imp: (q.imp || []).length, at: Date.now() };
+    R.shown.push(R.last);
+    R.shown.length > 20 && R.shown.shift();
+    root.addEventListener("click", ev => {
+      if (ev.target && ev.target.closest && ev.target.closest("#rmGoV193AA")) return void rmCloseV193AA();
+      if (!R.done) {
+        R.skipped = !0;
+        rmFinishV193AA(root, q, N);
+      } else if (ev.target === root) rmCloseV193AA();
+    });
+    try {
+      saveGame();
+    } catch (_) {}
+    if (rmReducedV193AA()) return void rmFinishV193AA(root, q, N, !0);
+    rmPlayV193AA(root, q, N);
+  }
+  function rmTickV193AA(el, from, to, cls, R, done) {
+    const steps = Math.abs(to - from),
+      dir = to > from ? 1 : -1;
+    if (!steps) return void (done && done(0));
+    const ms = clamp99(steps * TU("rmTickMsV193AA", 90), 320, 1500),
+      per = ms / steps;
+    el.classList.remove("up", "dn");
+    el.classList.add(cls);
+    for (let k = 1; k <= steps; k++)
+      R.timers.push(
+        setTimeout(() => {
+          const v = from + dir * k;
+          el.textContent = String(v);
+          el.dataset.n = String(v);
+          R.samples.push(v);
+          el.classList.remove("pop");
+          void el.offsetWidth;
+          el.classList.add("pop");
+          if (k === steps && done) done(ms);
+        }, per * k)
+      );
+  }
+  function rmPlayV193AA(root, q, N) {
+    const R = rmStV193AA(),
+      at = (fn, ms) => R.timers.push(setTimeout(fn, ms)),
+      card = root.querySelector("#rmCardV193AA"),
+      num = root.querySelector("#rmNumV193AA"),
+      deps = [...root.querySelectorAll(".rm-row.dep")],
+      ups = [...root.querySelectorAll(".rm-row.arr,.rm-row.imp")],
+      stag = TU("rmStaggerMsV193AA", 200);
+    let t = 350;
+    deps.forEach((r, k) => at(() => r.classList.add("in"), t + k * stag));
+    t += deps.length * stag + (deps.length ? 250 : 0);
+    at(() => {
+      deps.forEach(r => r.classList.add("out"));
+      if (N.n1 !== N.n0 && N.star) {
+        card && card.classList.add("shake");
+        buzzV193O("heavy");
+      }
+      rmTickV193AA(num, N.n0, N.n1, "dn", R);
+    }, t);
+    t += (N.n1 !== N.n0 ? clamp99(Math.abs(N.n1 - N.n0) * TU("rmTickMsV193AA", 90), 320, 1500) : 0) + 380;
+    ups.forEach((r, k) => at(() => r.classList.add("in"), t + k * stag));
+    t += ups.length * stag + (ups.length ? 250 : 0);
+    at(() => {
+      card && card.classList.remove("shake");
+      rmTickV193AA(num, N.n1, N.n2, N.n2 >= N.n1 ? "up" : "dn", R, () => {
+        if (N.n2 > N.n1) {
+          root.querySelector(".rm-big") && root.querySelector(".rm-big").classList.add("spark");
+          buzzV193O("success");
+        }
+      });
+    }, t);
+    t += (N.n2 !== N.n1 ? clamp99(Math.abs(N.n2 - N.n1) * TU("rmTickMsV193AA", 90), 320, 1500) : 0) + 380;
+    at(() => {
+      const bar = root.querySelector("#rmBarV193AA");
+      bar && q.chem && (bar.style.width = clamp99(q.chem[1], 0, 100) + "%");
+      rmTickV193AA(num, N.n2, N.n3, N.n3 >= N.n2 ? "up" : "dn", R);
+    }, t);
+    t += (N.n3 !== N.n2 ? clamp99(Math.abs(N.n3 - N.n2) * TU("rmTickMsV193AA", 90), 320, 1500) : 0) + 700;
+    at(() => rmFinishV193AA(root, q, N), t);
+  }
+  // the end state: every row in, the number on the real after-OVR, the line under it — a tap, reduced motion or the end
+  function rmFinishV193AA(root, q, N, quiet) {
+    const R = rmStV193AA();
+    R.timers.forEach(clearTimeout);
+    R.timers = [];
+    R.done = !0;
+    root.querySelectorAll(".rm-row").forEach(r => r.classList.add("in"));
+    root.querySelectorAll(".rm-row.dep").forEach(r => r.classList.add("out"));
+    const num = root.querySelector("#rmNumV193AA"),
+      d = N.n3 - N.n0;
+    if (num) {
+      num.textContent = String(N.n3);
+      num.dataset.n = String(N.n3);
+      num.classList.remove("up", "dn", "pop");
+      d && num.classList.add(d > 0 ? "up" : "dn");
+    }
+    R.samples[R.samples.length - 1] !== N.n3 && R.samples.push(N.n3);
+    const bar = root.querySelector("#rmBarV193AA");
+    bar && q.chem && (bar.style.width = clamp99(q.chem[1], 0, 100) + "%");
+    root.querySelector("#rmCardV193AA") && root.querySelector("#rmCardV193AA").classList.remove("shake");
+    root.classList.add("done");
+    const h = root.querySelector("#rmHintV193AA");
+    h && (h.textContent = "");
+    R.last && (R.last.skipped = R.skipped, R.last.reduced = !!quiet);
+  }
+  function rmCloseV193AA() {
+    const e = state && state.player,
+      R = rmStV193AA(),
+      q = R.open;
+    R.timers.forEach(clearTimeout);
+    R.timers = [];
+    document.getElementById("rmV193AA")?.remove();
+    R.open = null;
+    if (e && q && Array.isArray(e.rmQV193AA)) {
+      const i = e.rmQV193AA.indexOf(q);
+      i >= 0 && e.rmQV193AA.splice(i, 1);
+    }
+    try {
+      saveGame();
+    } catch (_) {}
+    try {
+      if (state && state.view === "season") render();
+    } catch (_) {}
+    rmSoonV193AA(600);
+    try {
+      injSoonV193W(700);
+    } catch (_) {}
+  }
+  /* ---- RECRUIT A PLAYER ---- */
+  function recruitLvV193AA() {
+    return Math.max(0, Number(treeFx("recruiterV193AA")) || 0);
+  }
+  function recruitTermsV193AA() {
+    const lv = recruitLvV193AA();
+    return {
+      lv,
+      costK: Math.max(0, 1 - TU("recruitCutV193AA", 0.25) * lv),
+      ovrAdd: Math.round(TU("recruitOvrStepV193AA", 3) * lv),
+      lock: Math.max(1, Math.round(TU("recruitLockSeasonsV193AA", 3) + TU("recruitLockStepV193AA", 1) * lv))
+    };
+  }
+  function recruitsLeftV193AA(e) {
+    const r = e && e.recruitSeasonV193AA,
+      n = r && r.at === ((e.totalSeasons | 0)) ? r.n | 0 : 0;
+    return Math.max(0, TU("recruitPerSeasonV193AA", 1) - n);
+  }
+  function recruitWhyNotV193AA(e) {
+    if (!rmOnV193AA()) return "Recruiting is switched off.";
+    if (!e || !e.pos || !e.attrs) return "Start a career first.";
+    if (e._settled) return "The career is over.";
+    const R = rosterV153B(e);
+    if (!R || !R.length) return "Your roster is drawn when the season starts.";
+    if (!recruitsLeftV193AA(e)) return "One recruit a season — you signed " + ((e.recruitSeasonV193AA && e.recruitSeasonV193AA.name) || "yours") + " this season.";
+    return "";
+  }
+  var RM_UNITS_V193AA = { QB: ["QB"], SKILL: ["RB", "WR", "TE"], "O-LINE": ["LT", "LG", "C", "RG", "RT"], FRONT: ["EDGE", "DT", "LB"], SECONDARY: ["CB", "S"] };
+  function recruitTiersV193AA() {
+    return [
+      { key: "prospect", name: "PROSPECT", gain: TU("recruitGain0V193AA", 0.1), floor: 0.98, pct: [6, 4] },
+      { key: "starter", name: "STARTER", gain: TU("recruitGain1V193AA", 0.17), floor: 1.08, pct: [8, 6] },
+      { key: "blue", name: "BLUE-CHIP", gain: TU("recruitGain2V193AA", 0.25), floor: 1.2, pct: [9, 7, 5] }
+    ];
+  }
+  // the attributes his position needs least first (never Durability) — the ones a recruit costs
+  function recruitPayKeysV193AA(e) {
+    const w = (POSITIONS[e.pos] && POSITIONS[e.pos].w) || {};
+    return Object.keys(e.attrs)
+      .filter(k => typeof e.attrs[k] === "number" && k !== "injuryResist" && e.attrs[k] > 1 && ATTR_INFO[k])
+      .sort((a, b) => (w[a] || 0) - (w[b] || 0) || (e.attrs[b] || 0) - (e.attrs[a] || 0));
+  }
+  function recruitPriceV193AA(e, tier, terms, keys) {
+    return tier.pct.map((p, j) => {
+      const k = keys[j],
+        pct = Math.max(1, Math.round(p * terms.costK));
+      return k ? { k, name: (ATTR_INFO[k] && ATTR_INFO[k].name) || k, pct, pts: Math.max(1, Math.round(((e.attrs[k] || 0) * pct) / 100)) } : null;
+    }).filter(Boolean);
+  }
+  // the team OVR with this man in that slot and these points gone — measured, then put back
+  function recruitTryV193AA(e, slot, man, cost) {
+    const R = e.teamRosterV158,
+      old = R[slot],
+      was = {};
+    cost.forEach(c => ((was[c.k] = e.attrs[c.k]), (e.attrs[c.k] = Math.max(1, (e.attrs[c.k] || 0) - c.pts))));
+    R[slot] = man;
+    rmRefreshDevV193AA(e);
+    let v = 0;
+    try {
+      v = teamPairV76(e, {}).us;
+    } finally {
+      R[slot] = old;
+      for (const k in was) e.attrs[k] = was[k];
+      rmRefreshDevV193AA(e);
+    }
+    return v;
+  }
+  function recruitOffersV193AA(e) {
+    const R = rosterV153B(e);
+    if (!R || !R.length || !e.attrs) return { offers: [], weak: [] };
+    const M = e.rosterMetaV193AA,
+      T = M && M.target > 0 ? M.target : R.reduce((a, m) => a + (m.ovr || 0), 0) / R.length,
+      terms = recruitTermsV193AA(),
+      noPos = e.pos === "QB" ? ["QB"] : e.pos === "TE" ? ["TE"] : [] /* his own one-man slot */,
+      units = Object.entries(RM_UNITS_V193AA)
+        .map(([k, ps]) => {
+          const men = R.map((p, i) => ({ p, i })).filter(o => o.p && ps.includes(o.p.pos));
+          return { k, avg: men.length ? men.reduce((a, o) => a + (o.p.ovr || 0), 0) / men.length : 999, men: men.filter(o => !lockLeftV193AA(e, o.p) && !noPos.includes(o.p.pos)).sort((a, b) => (a.p.ovr || 0) - (b.p.ovr || 0)) };
+        })
+        .filter(u => u.men.length)
+        .sort((a, b) => a.avg - b.avg),
+      picks = [],
+      take = o => o && !picks.some(x => x.i === o.i) && picks.push(Object.assign({ unit: null }, o));
+    if (!units.length) return { offers: [], weak: [] };
+    const u1 = units[0],
+      u2 = units[1];
+    take(Object.assign({}, u1.men[0], { unit: u1.k }));
+    const alt = u1.men.find(o => o.p.pos !== u1.men[0].p.pos);
+    if (alt) take(Object.assign({}, alt, { unit: u1.k }));
+    if (u2) take(Object.assign({}, u2.men[0], { unit: u2.k }));
+    units.forEach(u => u.men.forEach(o => picks.length < 3 && take(Object.assign({}, o, { unit: u.k }))));
+    const rnd = seededRng("v193AA-rec", e.name || "", e.totalSeasons | 0, e.level | 0, (M && M.key) || ""),
+      gen = window.__GRIDIRON_GENERATE_ROSTER_V157,
+      fr = gen ? gen(Math.round(T), ((e.seasonSeed || 1) ^ 0x2b1d) + (e.totalSeasons | 0) * 7).players : [],
+      used = new Set(R.map(m => m && m.name)),
+      nums = new Set(R.map(m => m && m.jersey)),
+      keys = recruitPayKeysV193AA(e),
+      before = teamPairV76(e, {}).us,
+      tiers = recruitTiersV193AA();
+    const offers = picks.slice(0, 3).map((o, n) => {
+      const tier = tiers[n],
+        old = o.p,
+        ovr = Math.max((old.ovr || 0) + Math.max(2, Math.round(T * tier.gain)), Math.round(T * tier.floor)) + terms.ovrAdd,
+        man = rmNewManV193AA(fr[o.i] || old, o.i, T, rnd, used, nums, e.totalSeasons | 0, ovr);
+      man.devTrait = "Fast";
+      man.potential = clamp99(ovr + 11, 1, 999);
+      man.tier = ovr >= T * 1.25 ? "star" : "average";
+      man.star = man.tier === "star";
+      if ((e.level | 0) >= 7) man.year = "SO";
+      const cost = recruitPriceV193AA(e, tier, terms, keys),
+        after = recruitTryV193AA(e, o.i, Object.assign({}, man, { carryOvrV193AA: ovr }), cost);
+      return { i: n, slot: o.i, unit: o.unit, tier: tier.name, man, old: { name: old.name, pos: old.pos, ovr: Math.round(old.ovr || 0) }, cost, before, after, lock: terms.lock };
+    });
+    return { offers, weak: units.slice(0, 2).map(u => ({ k: u.k, avg: Math.round(u.avg) })), T, terms };
+  }
+  function recruitCostTxtV193AA(cost, small) {
+    return cost.map(c => `−${c.pct}% ${escHtml(c.name)}${small ? ` <small>(−${c.pts})</small>` : ` (−${c.pts})`}`).join(small ? " · " : ", ");
+  }
+  function recruitSheetHtmlV193AA(e, O) {
+    rmCssV193AA();
+    const lockTxt = `locked to your team for ${O.terms.lock} seasons`;
+    return `<div class="rc-v193aa"><div class="rc-weak">Your weakest units: ${O.weak.map(w => `<b>${escHtml(w.k)}</b> ${w.avg}`).join(" · ")}. Each recruit takes the weakest man's place there and is <b>${lockTxt}</b>. You pay in your own attributes — the ones your position needs least.</div>${O.offers
+      .map(o => {
+        const d = o.after - o.before;
+        return `<button type="button" class="rc-card" id="rcPickV193AA${o.i}" onclick="recruitPickV193AA(${o.i})"><span class="rc-top"><i class="rc-tier">${o.tier}</i><span class="rc-nm">${escHtml(o.man.name)} <small>${escHtml(o.man.pos)} · ${escHtml(o.unit || "")}</small></span><b class="rc-ovr">${o.man.ovr}</b></span><span class="rc-line">Replaces ${escHtml(o.old.name)} (${escHtml(o.old.pos)} ${o.old.ovr}) · TEAM ${o.before} → <b class="${d > 0 ? "up" : d < 0 ? "dn" : ""}">${o.after}</b> (${rmSgV193AA(d)})</span><span class="rc-cost">PRICE: ${recruitCostTxtV193AA(o.cost, !0)}</span></button>`;
+      })
+      .join("")}<div class="rc-foot">One recruit a season${O.terms.lv ? ` · The Franchise Recruiter Lv ${Math.round(O.terms.lv)}: ${Math.round((1 - O.terms.costK) * 100)}% off the price, +${O.terms.ovrAdd} OVR, a ${O.terms.lock}-season lock` : ""}.</div></div>`;
+  }
+  function recruitPickV193AA(i) {
+    try {
+      window.ribDialog && window.ribDialog.close("r" + i);
+    } catch (_) {}
+  }
+  window.recruitPickV193AA = recruitPickV193AA;
+  function openRecruitV193AA() {
+    const e = state && state.player,
+      why = recruitWhyNotV193AA(e);
+    if (why) return void showToast(why);
+    const O = recruitOffersV193AA(e);
+    if (!O.offers.length) return void showToast("No one to recruit this season.");
+    buzzV193O("tap");
+    const D = window.ribDialog,
+      go = v => {
+        if (typeof v === "string" && /^r\d$/.test(v)) recruitConfirmV193AA(+v.slice(1));
+      };
+    if (D && D.show) return D.show({ title: "RECRUIT A PLAYER", html: recruitSheetHtmlV193AA(e, O), buttons: [{ label: "Not now", value: null }], cancelValue: null }).then(go);
+  }
+  window.openRecruitV193AA = openRecruitV193AA;
+  function recruitConfirmV193AA(i) {
+    const e = state && state.player,
+      O = recruitOffersV193AA(e),
+      o = O.offers[i];
+    if (!o) return Promise.resolve(!1);
+    const d = o.after - o.before,
+      msg =
+        `YOU LOSE (for good): ${recruitCostTxtV193AA(o.cost)}.\n` +
+        `YOU GAIN: ${o.man.name} (${o.man.pos}, ${o.man.ovr} OVR, ${o.tier}) in place of ${o.old.name} (${o.old.pos}, ${o.old.ovr}).\n` +
+        `TEAM ${o.before} → ${o.after} (${rmSgV193AA(d)}).\n` +
+        `He is LOCKED to your team for ${o.lock} seasons (this one counted) — he won't leave in turnover. If you move up a level or sign with another club before then, he can't follow: the lock ends there.`;
+    return askV150(msg, { title: "Sign " + o.man.name + "?", ok: "Sign him" }).then(ok => {
+      if (!ok) return !1;
+      const r = recruitSignV193AA(i);
+      if (!r) return !1;
+      try {
+        render();
+      } catch (_) {}
+      try {
+        window.__V193B && window.__V193B.repv && window.__V193B.repv();
+      } catch (_) {}
+      rmPumpV193AA(!0);
+      return !0;
+    });
+  }
+  window.recruitConfirmV193AA = recruitConfirmV193AA;
+  function recruitSignV193AA(i) {
+    const e = state && state.player,
+      why = recruitWhyNotV193AA(e);
+    if (why) {
+      showToast(why);
+      return null;
+    }
+    const O = recruitOffersV193AA(e),
+      o = O.offers[i],
+      R = rosterV153B(e);
+    if (!o || !R) return null;
+    const at = e.totalSeasons | 0,
+      old = R[o.slot],
+      before = teamPairV76(e, {}).us,
+      took = {};
+    o.cost.forEach(c => {
+      const was = e.attrs[c.k] || 0;
+      e.attrs[c.k] = Math.max(1, was - c.pts);
+      took[c.k] = e.attrs[c.k] - was;
+    });
+    const man = o.man;
+    man.carryOvrV193AA = man.ovr;
+    man.lockedUntilV193AA = at + o.lock;
+    man.recruitV193AA = { at, tier: o.tier, from: old && old.name, cost: o.cost.map(c => ({ k: c.k, pct: c.pct, pts: c.pts })) };
+    R[o.slot] = man;
+    rmRefreshDevV193AA(e);
+    e.recruitSeasonV193AA = { at, n: ((e.recruitSeasonV193AA && e.recruitSeasonV193AA.at === at && e.recruitSeasonV193AA.n) | 0) + 1, name: man.name };
+    (e.recruitLogV193AA = e.recruitLogV193AA || []).push({ at, level: e.level | 0, name: man.name, pos: man.pos, ovr: man.ovr, slot: o.slot, until: man.lockedUntilV193AA, took });
+    e.recruitLogV193AA.length > 24 && e.recruitLogV193AA.shift();
+    const after = teamPairV76(e, {}).us,
+      T = O.T;
+    rmQueueV193AA(e, {
+      kind: "recruit",
+      at,
+      before,
+      after,
+      dep: [{ name: old ? old.name : "—", pos: man.pos, ovr: Math.round((old && old.ovr) || 0), why: "made room for " + man.name, star: !1, slot: o.slot, chip: -rmChipV193AA(old && old.ovr, T) }],
+      arr: [{ name: man.name, pos: man.pos, ovr: man.ovr, why: o.tier + " · paid " + recruitCostTxtV193AA(o.cost), star: man.star, slot: o.slot, chip: rmChipV193AA(man.ovr, T), lock: o.lock }],
+      imp: [],
+      chem: null,
+      target: T
+    });
+    buzzV193O("reward");
+    try {
+      saveGame();
+    } catch (_) {}
+    return { before, after, man, old, cost: o.cost, took, slot: o.slot };
+  }
+  /* the watched game: a locked recruit takes a slot at his position in the game's eleven, by name, on its scale */
+  var RM_GPOS_V193AA = { QB: "QB", RB: "RB", WR: "WR", TE: "TE", LT: "OL", LG: "OL", C: "OL", RG: "OL", RT: "OL", EDGE: "DL", DT: "DL", LB: "LB", CB: "CB", S: "S" };
+  function recruitPlantV193AA(P, teamScale, attrsOf) {
+    const e = state && state.player;
+    if (!e || !rmOnV193AA() || !P) return 0;
+    const R = Array.isArray(e.teamRosterV158) ? e.teamRosterV158 : null,
+      M = e.rosterMetaV193AA;
+    if (!R || !M || M.key !== e.teamRosterSeasonV158) return 0;
+    const T = M.target > 0 ? M.target : levelBaseV178(e.level);
+    let n = 0;
+    R.forEach(m => {
+      const left = lockLeftV193AA(e, m);
+      if (!left || !m.recruitV193AA) return;
+      const gp = RM_GPOS_V193AA[m.pos];
+      if (!gp) return;
+      const side = [...P.off, ...P.def],
+        slot = side.find(x => x && !x.you && !x.recruitV193AA && x.pos === gp);
+      if (!slot) return;
+      slot.name = m.name;
+      slot.num = m.jersey != null ? m.jersey : slot.num;
+      slot.ovr = clamp99(Math.round(((m.ovr || T) / Math.max(1, T)) * teamScale), 3, 999);
+      slot.attrs = attrsOf(gp, slot.ovr);
+      slot.recruitV193AA = left;
+      n++;
+    });
+    return n;
+  }
+  /* the row on the season screen's team card and the pregame YOUR TEAM page: the latest delta, the locks, the action */
+  function rmTeamRowHtmlV193AA(e, where) {
+    if (!rmOnV193AA() || !e || !e.pos) return "";
+    rmCssV193AA();
+    const L = e.rmLastV193AA,
+      d = L && (L.at | 0) === (e.totalSeasons | 0) ? L.to - L.from : null,
+      lab = L ? { season: "since last season", team: "from your last team", recruit: "from your recruit", locker: "from the locker room" }[L.kind] || "" : "",
+      chip = d == null ? "" : `<span class="rm-dchip ${d > 0 ? "up" : d < 0 ? "dn" : ""}" id="rmDeltaV193AA_${where}">${d > 0 ? "▲" : d < 0 ? "▼" : "="} ${Math.abs(d)} ${lab}</span>`,
+      R = Array.isArray(e.teamRosterV158) ? e.teamRosterV158 : [],
+      locks = R.filter(m => m && m.recruitV193AA && lockLeftV193AA(e, m) > 0),
+      left = recruitsLeftV193AA(e),
+      btn = e._settled
+        ? ""
+        : left > 0
+          ? `<button type="button" class="rm-recbtn" id="rmRecruitBtnV193AA_${where}" onclick="openRecruitV193AA()">${artV193Y("🤝", 16)} RECRUIT A PLAYER</button>`
+          : `<span class="rm-recdone">✓ Recruited this season</span>`;
+    return `<div class="rm-teamrow-v193aa" id="rmTeamRowV193AA_${where}">${chip}${btn}</div>${locks
+      .map(m => {
+        const n = lockLeftV193AA(e, m);
+        return `<div class="rm-lock-v193aa">🔒 <b>${escHtml(m.name)}</b> ${escHtml(m.pos)} ${Math.round(m.ovr)} · locked ${n} more season${n === 1 ? "" : "s"}</div>`;
+      })
+      .join("")}`;
+  }
+  function rmTeamRowSafeV193AA(e) {
+    try {
+      return rmTeamRowHtmlV193AA(e, "season");
+    } catch (_) {
+      return "";
+    }
+  }
+  function rmCssV193AA() {
+    if (typeof document > "u" || document.getElementById("rmCssV193AA")) return;
+    document.head.insertAdjacentHTML(
+      "beforeend",
+      `<style id="rmCssV193AA">
+.rm-v193aa{position:fixed;inset:0;z-index:100000;display:flex;align-items:center;justify-content:center;padding:calc(env(safe-area-inset-top) + 14px) 14px calc(env(safe-area-inset-bottom) + 14px);background:rgba(3,6,10,.8);-webkit-backdrop-filter:blur(3px);backdrop-filter:blur(3px);animation:rmFadeV193AA .2s ease-out}
+.rm-v193aa .rm-card{width:100%;max-width:420px;max-height:100%;overflow:auto;box-sizing:border-box;background:linear-gradient(180deg,#131c29,#0b1119);border:1px solid rgba(240,187,69,.45);border-radius:16px;box-shadow:0 18px 50px rgba(0,0,0,.6);padding:14px 14px 12px;color:#e9eef2;font:13px/1.4 system-ui,sans-serif}
+.rm-v193aa .rm-card.shake{animation:rmShakeV193AA .42s cubic-bezier(.36,.07,.19,.97) 2}
+.rm-v193aa .rm-eye{font:700 11px Oswald,sans-serif;letter-spacing:1.6px;color:#f0bb45}
+.rm-v193aa .rm-big{position:relative;display:flex;align-items:baseline;justify-content:center;gap:8px;margin:6px 0 4px}
+.rm-v193aa .rm-big b{font:700 54px/1 Oswald,Impact,sans-serif;color:#fff;letter-spacing:1px;min-width:2ch;text-align:center;transition:color .2s}
+.rm-v193aa .rm-big b.dn{color:#ff6b6b;text-shadow:0 0 18px rgba(255,80,80,.45)}
+.rm-v193aa .rm-big b.up{color:#7fe0a0;text-shadow:0 0 18px rgba(127,224,160,.45)}
+.rm-v193aa .rm-big b.pop{animation:rmPopV193AA .16s ease-out}
+.rm-v193aa .rm-big span{font:700 11px Oswald,sans-serif;letter-spacing:1.4px;color:#9fb0c2}
+.rm-v193aa .rm-spark{position:absolute;inset:0;pointer-events:none}
+.rm-v193aa .rm-spark i{position:absolute;width:6px;height:6px;border-radius:50%;background:#bff5cf;box-shadow:0 0 8px #7fe0a0;opacity:0;left:50%;top:50%}
+.rm-v193aa .rm-big.spark .rm-spark i{animation:rmSparkV193AA .8s ease-out forwards}
+.rm-v193aa .rm-big.spark .rm-spark i:nth-child(1){--dx:-60px;--dy:-22px}.rm-v193aa .rm-big.spark .rm-spark i:nth-child(2){--dx:58px;--dy:-26px;animation-delay:.06s}
+.rm-v193aa .rm-big.spark .rm-spark i:nth-child(3){--dx:-38px;--dy:20px;animation-delay:.1s}.rm-v193aa .rm-big.spark .rm-spark i:nth-child(4){--dx:42px;--dy:18px;animation-delay:.14s}.rm-v193aa .rm-big.spark .rm-spark i:nth-child(5){--dx:0;--dy:-34px;animation-delay:.04s}
+.rm-v193aa .rm-sec{margin-top:8px}
+.rm-v193aa .rm-sec h6{margin:0 0 4px;font:700 10px Oswald,sans-serif;letter-spacing:1.5px;color:#9fb0c2;overflow-wrap:anywhere}
+.rm-v193aa .rm-dep-s h6{color:#ff9a9a}.rm-v193aa .rm-arr-s h6{color:#9fe6b0}
+.rm-v193aa .rm-row{display:flex;align-items:center;gap:7px;padding:5px 7px;margin-top:3px;border-radius:9px;background:rgba(255,255,255,.04);opacity:0;transform:translateX(24px);transition:transform .32s ease-out,opacity .32s ease-out,background .3s}
+.rm-v193aa .rm-row.dep{transform:translateX(-24px)}
+.rm-v193aa .rm-row.in{opacity:1;transform:none}
+.rm-v193aa .rm-row.dep.out{opacity:.55;transform:translateX(-10px);background:rgba(255,90,90,.08)}
+.rm-v193aa .rm-row.dep.star{border:1px solid rgba(255,107,107,.55)}
+.rm-v193aa .rm-row.arr.in,.rm-v193aa .rm-row.imp.in{background:rgba(127,224,160,.08)}
+.rm-v193aa .rm-pos{flex:0 0 34px;font:700 11px Oswald,sans-serif;color:#9fb0c2}
+.rm-v193aa .rm-nm{flex:1;min-width:0;font:600 13px 'Barlow Condensed',system-ui,sans-serif;color:#fff;overflow-wrap:anywhere}
+.rm-v193aa .rm-nm small{display:block;font:400 10.5px system-ui,sans-serif;color:#9fb0c2}
+.rm-v193aa .rm-ovr{flex:0 0 auto;font:700 15px Oswald,sans-serif;color:#fff}
+.rm-v193aa .rm-chip{flex:0 0 auto;font:700 10px Oswald,sans-serif;font-style:normal;letter-spacing:.6px;padding:2px 6px;border-radius:8px;white-space:nowrap}
+.rm-v193aa .rm-chip.r{color:#ff8a80;border:1px solid rgba(255,138,128,.6);background:rgba(255,90,90,.12)}
+.rm-v193aa .rm-chip.g{color:#7fe0a0;border:1px solid rgba(127,224,160,.6);background:rgba(127,224,160,.12)}
+.rm-v193aa .rm-chip.k{color:#f0bb45;border:1px solid rgba(240,187,69,.6)}
+.rm-v193aa .rm-more{margin-top:3px;font-size:11px;color:#9fb0c2}
+.rm-v193aa .rm-bar{height:9px;border-radius:6px;background:rgba(255,255,255,.08);overflow:hidden;margin:3px 0}
+.rm-v193aa .rm-bar i{display:block;height:100%;background:linear-gradient(90deg,#f0bb45,#7fe0a0);transition:width .7s ease-out}
+.rm-v193aa .rm-chem-s small{font-size:11px;color:#9fb0c2}
+.rm-v193aa .rm-end{margin-top:10px;text-align:center;font:700 22px/1.15 Oswald,Impact,sans-serif;letter-spacing:.8px;color:#fff;opacity:0;transform:scale(.9);transition:opacity .3s,transform .3s}
+.rm-v193aa.done .rm-end{opacity:1;transform:none}
+.rm-v193aa .rm-end em{font-style:normal}.rm-v193aa .rm-end em.up{color:#7fe0a0}.rm-v193aa .rm-end em.dn{color:#ff6b6b}
+.rm-v193aa .rm-go{display:block;width:100%;margin:10px 0 0;min-height:44px}
+.rm-v193aa .rm-hint{text-align:center;font-size:10.5px;color:#7d8a99;margin-top:4px;min-height:14px}
+@keyframes rmFadeV193AA{from{opacity:0}to{opacity:1}}
+@keyframes rmShakeV193AA{10%,90%{transform:translateX(-2px)}20%,80%{transform:translateX(4px)}30%,50%,70%{transform:translateX(-6px)}40%,60%{transform:translateX(6px)}}
+@keyframes rmPopV193AA{from{transform:scale(1.12)}to{transform:none}}
+@keyframes rmSparkV193AA{0%{opacity:1;transform:translate(-50%,-50%) scale(.6)}100%{opacity:0;transform:translate(calc(-50% + var(--dx)),calc(-50% + var(--dy))) scale(1.2)}}
+@media (prefers-reduced-motion:reduce){.rm-v193aa *{animation:none!important;transition:none!important}}
+.rm-teamrow-v193aa{display:flex;flex-wrap:wrap;align-items:center;gap:6px 8px;margin-top:6px}
+.rm-dchip{font:700 11px Oswald,sans-serif;letter-spacing:.5px;padding:2px 7px;border-radius:9px;border:1px solid rgba(255,255,255,.2);color:var(--chalk-dim,#9fb0c2);white-space:nowrap}
+.rm-dchip.up{color:#7fe0a0;border-color:rgba(127,224,160,.55);background:rgba(127,224,160,.1)}
+.rm-dchip.dn{color:#ff8a80;border-color:rgba(255,138,128,.55);background:rgba(255,90,90,.1)}
+.rm-recbtn{min-height:36px;margin-left:auto;padding:4px 12px;border-radius:9px;border:1px solid rgba(240,187,69,.6);background:rgba(240,187,69,.12);color:#f0bb45;font:700 12px Oswald,sans-serif;letter-spacing:1px;cursor:pointer;display:inline-flex;align-items:center;gap:5px;max-width:100%}
+.rm-recdone{margin-left:auto;font:600 11px Oswald,sans-serif;letter-spacing:.6px;color:#9fb0c2}
+.rm-lock-v193aa{margin-top:4px;font:500 12px 'Barlow Condensed',system-ui,sans-serif;color:#f0bb45;overflow-wrap:anywhere}
+.rc-v193aa .rc-weak{font-size:12px;color:#c9d3db;margin-bottom:8px}
+.rc-v193aa .rc-card{display:block;width:100%;box-sizing:border-box;text-align:left;margin:0 0 7px;padding:8px 10px;border-radius:11px;border:1px solid rgba(255,255,255,.16);background:rgba(255,255,255,.04);color:#e9eef2;cursor:pointer;min-height:44px;font:12px/1.35 system-ui,sans-serif;text-transform:none;letter-spacing:0}
+.rc-v193aa .rc-card:hover,.rc-v193aa .rc-card:focus{border-color:rgba(240,187,69,.7)}
+.rc-v193aa .rc-top{display:flex;align-items:center;gap:7px}
+.rc-v193aa .rc-tier{font:700 9.5px Oswald,sans-serif;font-style:normal;letter-spacing:1.2px;color:#f0bb45;border:1px solid rgba(240,187,69,.55);border-radius:7px;padding:1px 5px;white-space:nowrap}
+.rc-v193aa .rc-nm{flex:1;min-width:0;font:700 14px 'Barlow Condensed',system-ui,sans-serif;color:#fff;overflow-wrap:anywhere}
+.rc-v193aa .rc-nm small{font:500 11px system-ui,sans-serif;color:#9fb0c2}
+.rc-v193aa .rc-ovr{font:700 20px Oswald,sans-serif;color:#7fe0a0}
+.rc-v193aa .rc-line,.rc-v193aa .rc-cost{display:block;margin-top:3px;color:#c9d3db;overflow-wrap:anywhere}
+.rc-v193aa .rc-line b.up{color:#7fe0a0}.rc-v193aa .rc-line b.dn{color:#ff8a80}
+.rc-v193aa .rc-cost{color:#ff9a9a;font-weight:600}.rc-v193aa .rc-cost small{color:#9fb0c2;font-weight:400}
+.rc-v193aa .rc-foot{font-size:11px;color:#9fb0c2}
+</style>`
+    );
+  }
+  // the render: keep the roster current, take the team's number for the next card's "before", pump the queue
+  const renderV193AA = render;
+  render = function () {
+    const r = renderV193AA.apply(this, arguments);
+    try {
+      const e = state && state.player;
+      if (rmOnV193AA() && e && e.pos && !e._settled && (state.view === "season" || state.view === "hub" || state.view === "training")) {
+        window.__V158_ROSTER && window.__V158_ROSTER();
+        e.teamSnapV193AA = { team: teamPairV76(e, {}).us, chem: chemOfV153B(e), prog: rmProgV193AA(e), at: e.totalSeasons | 0, teamName: rmTeamNameV193AA(e) };
+        if (state.view === "season" && !(onV192B() && TU("v192Bteam", 1))) {
+          const sc = byId("screen");
+          if (sc && !sc.querySelector("#rmTeamCardV193AA"))
+            sc.insertAdjacentHTML("beforeend", `<div class="card tight" id="rmTeamCardV193AA"><div class="eyebrow">👥 YOUR TEAM · ${e.teamSnapV193AA.team} OVR</div>${rmTeamRowHtmlV193AA(e, "season")}</div>`);
+        }
+      }
+      e && Array.isArray(e.rmQV193AA) && e.rmQV193AA.length && rmSoonV193AA(700);
+    } catch (x) {
+      console.warn("[v193 AA render]", x);
+    }
+    return r;
+  };
+  // the screens that close themselves (the post-game card, the Quick Play card) do not always re-render: look again now and then
+  typeof window < "u" &&
+    setInterval(() => {
+      try {
+        const e = state && state.player;
+        e && Array.isArray(e.rmQV193AA) && e.rmQV193AA.length && !rmStV193AA().open && rmPumpV193AA();
+      } catch (_) {}
+    }, 1500);
+  window.__V193AA = {
+    on: rmOnV193AA,
+    popOn: rmPopOnV193AA,
+    carry: (p, players, prevR, key, target) => rmCarryV193AA(p, players, prevR, key, target),
+    get queue() {
+      return (state && state.player && state.player.rmQV193AA) || [];
+    },
+    get rec() {
+      return rmStV193AA();
+    },
+    pump: f => rmPumpV193AA(f),
+    blocked: q => rmBlockedV193AA(q),
+    nums: q => rmNumsV193AA(state.player, q),
+    skip: () => {
+      const root = document.getElementById("rmV193AA"),
+        R = rmStV193AA();
+      if (root && R.open && !R.done) (R.skipped = !0), rmFinishV193AA(root, R.open, R.nums);
+    },
+    close: () => rmCloseV193AA(),
+    rosterQ: e => rosterQV193AA(e || state.player),
+    dev: e => rmRefreshDevV193AA(e || state.player),
+    lockLeft: m => lockLeftV193AA(state.player, m),
+    terms: () => recruitTermsV193AA(),
+    offers: () => recruitOffersV193AA(state.player),
+    sign: i => recruitSignV193AA(i),
+    open: () => openRecruitV193AA(),
+    confirm: i => recruitConfirmV193AA(i),
+    whyNot: () => recruitWhyNotV193AA(state && state.player),
+    left: () => recruitsLeftV193AA(state && state.player),
+    row: where => {
+      try {
+        return rmTeamRowHtmlV193AA(state && state.player, where || "pregame");
+      } catch (_) {
+        return "";
+      }
+    },
+    chip: (ovr, T) => rmChipV193AA(ovr, T)
+  };
 
   /* ===== v153 B ONE KEY STAT, OR TWO AND A RISK =====
    * The owner: "Training throughout a career tends to be the exact same suggestion … no training has more than 1
@@ -39824,7 +40855,7 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
     try {
       if (window.ribDialog && window.ribDialog.isOpen) return !0;
       if (window.__RIB_COACH && window.__RIB_COACH.isOpen) return !0;
-      if (document.querySelector("#pgOverlayV13,#simCardV178,.decision-overlay,.gameplan-overlay,#pregameV1513,#growthV42,#growV132,.life-event-overlay-v12,#rib-vault-v137,.onboard,#personaV13")) return !0;
+      if (document.querySelector("#pgOverlayV13,#simCardV178,.decision-overlay,.gameplan-overlay,#pregameV1513,#growthV42,#growV132,.life-event-overlay-v12,#rib-vault-v137,.onboard,#personaV13,#rmV193AA")) return !0;
       const sp = document.getElementById("splash");
       if (sp && !sp.classList.contains("gone") && sp.getBoundingClientRect().height > 0) return !0;
     } catch (_) {}
@@ -41359,7 +42390,7 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
     parts.push(`<b>${sg(Q.lift)}</b> team nodes${Q.liftPct ? ` (+${nf1V179(Q.liftPct)}% on every teammate)` : ""}`);
     parts.push(`<b>${sg(Q.locker)}</b> Locker Room${Q.lockerLv ? ` (${fmtBigV179(Q.lockerLv)} levels of +1s over the 22)` : ""}`);
     parts.push(`<b>${sg(Q.share)}</b> legacy share (medals, roster prestige, the tree)`);
-    return `<div class="card tight tq-v192b" id="teamQualV192B"><div class="eyebrow">👥 YOUR TEAM'S QUALITY · ${escHtml(LEVELS[e.level].name)}</div><div class="tq"><s>${Q.base}</s><span>→</span><em>${Q.full}</em></div><div class="tq-l">TEAM OVR WITHOUT → WITH YOUR PRESTIGE${Q.full !== Q.base ? ` · <b style="color:var(--good)">+${Q.full - Q.base}</b>` : ""}</div><div class="small">${parts.join(" · ")}</div></div>`;
+    return `<div class="card tight tq-v192b" id="teamQualV192B"><div class="eyebrow">👥 YOUR TEAM'S QUALITY · ${escHtml(LEVELS[e.level].name)}</div><div class="tq"><s>${Q.base}</s><span>→</span><em>${Q.full}</em></div><div class="tq-l">TEAM OVR WITHOUT → WITH YOUR PRESTIGE${Q.full !== Q.base ? ` · <b style="color:var(--good)">+${Q.full - Q.base}</b>` : ""}</div><div class="small">${parts.join(" · ")}</div>${rmTeamRowSafeV193AA(e) /* v193 AA: the latest roster delta, the locks, RECRUIT A PLAYER */}</div>`;
   }
   function teamCardV192B() {
     const e = state && state.player;
@@ -42145,7 +43176,7 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
       if (!TU("v179L", 1) || !TU("v179", 1) || !TREE[e]) return h;
       for (const n of TREE[e].nodes) {
         const g = nodePotGainV179(n.key),
-          bm = TU("v190F", 1) && !n.fx ? 1 : branchFxV186((TREE_NODES[n.key] && TREE_NODES[n.key].branch) || n.branch || e) /* v186 · v190 F: the ×N only reaches fx nodes — say it only on them */;
+          bm = (TU("v190F", 1) && !n.fx) || n.fxPaidV193AA /* v193 AA: its desc already states the paid numbers */ ? 1 : branchFxV186((TREE_NODES[n.key] && TREE_NODES[n.key].branch) || n.branch || e) /* v186 · v190 F: the ×N only reaches fx nodes — say it only on them */;
         if (g < 0.95 && bm <= 1) continue;
         const k = h.indexOf(`vaultBuy('${n.key}')`);
         if (k < 0) continue;

@@ -464,7 +464,7 @@
     "\u{1FA9C}": "ladder", "\u{1F9AE}": "chain", "\u{1F4DD}": "quill", "\u{1F501}": "cycle", "\u{1F6DF}": "buoy", "✍️": "quill", "✍": "quill", "\u{1F4A5}": "burst", "\u{1F52B}": "burst",
     "\u{1F4BC}": "briefcase", "\u{1F33E}": "sprout", "\u{1F621}": "fist", "\u{1F3B0}": "die", "☠️": "skull", "☠": "skull", "✨": "sparkle",
     // Impossible
-    "\u{1F528}": "hammer", "\u{1F3D7}️": "rise", "\u{1F3D7}": "rise", "\u{1F4D0}": "ruler", "\u{1FA7A}": "cross", "\u{1F409}": "coins", "\u{1F6D1}": "stop",
+    "\u{1F528}": "hammer", "\u{1F3D7}️": "rise", "\u{1F3D7}": "rise", "\u{1F4D0}": "ruler", "\u{1FA7A}": "cross", "\u{1F409}": "coins", "\u{1F6D1}": "stop", "\u{1F4C7}": "handshake" /* v193 AA: The Franchise Recruiter */,
     /* the cards around the career */
     "\u{1F381}": "gift", "\u{1F9FE}": "receipt", "\u{1F4B5}": "coins", "\u{1FA99}": "coins", "\u{1F331}": "sprout", "\u{1F944}": "spoon", "❤️‍\u{1FA79}": "bandage", "❤️": "heart", "❤": "heart", "\u{1F494}": "heart", "➕": "cross", "\u{1FAE1}": "chevron",
     "\u{1F9B5}": "leg", "✋": "hand", "\u{1FA79}": "bandage", "\u{1F45F}": "cleat", "\u{1F3BD}": "jersey", "\u{1F455}": "jersey", "\u{1F3BE}": "football", "\u{1F50A}": "speaker", "\u{1F509}": "speaker", "\u{1F4F3}": "phone",
