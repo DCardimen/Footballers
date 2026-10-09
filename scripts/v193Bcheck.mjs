@@ -253,7 +253,7 @@ const R = await page.evaluate(() => {
 ok(mid.rolling && mid.spin, 'the tap starts a dice spin', mid)
 ok(R.revealed === R.id && R.rv && R.rv.band === R.band && !R.applied, 'ROLL reveals the held band for the selected plan — and applies nothing yet', { id: R.id, band: R.band, applied: R.applied })
 const SAY = { green: 'IT CLICKS', neutral: "IT'LL DO", red: 'IT BACKFIRES' }[R.band]
-ok(new RegExp(SAY.replace(/'/g, "['’]")).test(R.out) && (R.band === 'neutral' ? /no swing/.test(R.out) : (R.out.match(/[+−]\d+ [A-Z]{2,4}/g) || []).length === R.rv.stats.length) && /locked/i.test(R.out), 'the result line names the band and every stat it moves (one "+N STAT" a stat), and says the pick is locked', R.out.slice(0, 140))
+ok(new RegExp(SAY.replace(/'/g, "['’]")).test(R.out) && (R.band === 'neutral' ? /no swing/.test(R.out) : (R.out.match(/[+−]\d+% [A-Z]{2,4} \([+−]\d+\)/g) || []).length === R.rv.stats.length) && /locked/i.test(R.out), 'the result line names the band and every stat it moves (one "+N% STAT (+pts)" a stat — v193 X), and says the pick is locked', R.out.slice(0, 140))
 ok(!R.roll, 'the ROLL button is gone', R.roll)
 ok(R.tiles.every(t => t.locked) && R.tiles.filter(t => t.on).length === 1 && R.tiles.find(t => t.on).id === R.id, 'the tiles are locked, the rolled plan still lit', R.tiles.filter(t => t.on).map(t => t.id).join(','))
 ok(R.tried === null && R.after === R.id && R.locked && /rolled/i.test(R.toast), 'pickPlanV146 refuses another plan with a toast — the plan stands', { tried: R.tried, after: R.after, toast: R.toast })

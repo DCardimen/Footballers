@@ -58,7 +58,7 @@
       const isPlan=!!panel.querySelector('[onclick*="chooseGamePlanV11"]');
       const kicker=isPlan?'PREGAME ROLL':'STORY ROLL';
       const fx=[];
-      const _bt=(buffs||[]).map(b=>{const a=b.max?10:b.amt;return(a>0?'+':'')+a+' '+(window.__statLabelV25?window.__statLabelV25(b.stat):b.stat)}).join(', ');
+      const _bt=(buffs||[]).map(b=>{if(window.__V193X)return window.__V193X.buff(b);const a=b.max?10:b.amt;return(a>0?'+':'')+a+' '+(window.__statLabelV25?window.__statLabelV25(b.stat):b.stat)}).join(', ');   // v193 X
       if(incident){
         const why=`His <b>character</b> got the better of him — a disciplined kid never lets this happen.`;
         fx.push(`<span class="rollfx dn">▼ ${incident.e} — ${_bt||(next+"% stats")} this game</span>`);
@@ -167,7 +167,7 @@
           // for a SINGLE game. Incidents dock one stat; positive edges stay modest.
           pl._nextGameBoost=0;
           pl._tempStatBuffsV25 = (window.__mkTempBuffsV25 ? window.__mkTempBuffsV25(pl, incident?-1:1, bold, good) : []);
-          const _buffTxt = pl._tempStatBuffsV25.map(b=>{const a=b.max?10:b.amt;return(a>0?'+':'')+a+' '+window.__statLabelV25(b.stat)}).join(' · ') || (next+'%');
+          const _buffTxt = pl._tempStatBuffsV25.map(b=>{if(window.__V193X)return window.__V193X.buff(b);const a=b.max?10:b.amt;return(a>0?'+':'')+a+' '+window.__statLabelV25(b.stat)}).join(' · ') || (next+'%');   // v193 X: a percent, the points in brackets
           try{ window.I && window.I(); }catch(e){}
           const tg=panel.querySelector('.wheel-note-v13');
           if(tg) tg.textContent = incident ? ('⚠️ '+incident.t+' — '+_buffTxt) : ('🎡 '+optName+' · '+_buffTxt);

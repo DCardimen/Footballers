@@ -58,7 +58,7 @@ ok(near(F.eGrowth, 0.24) && near(F.varDown, 0.5) && near(F.ppMult, 0.15) && near
 ok(near(F.pay, 0.8) && near(F.injDown, 0.4) && near(F.injUp, 0.9), 'Eternal Form ×50 + Glass Cannon ×5 = payMultV179 0.8; The Wall injDown 0.4; Glass Cannon injUp 0.9', F)
 const SRC = await M(async () => { const r = await fetch('src/07-career-app.js'); return await r.text() })
 const rawBlock = SRC.slice(SRC.indexOf('v111: the focus is a multiplier'), SRC.indexOf('v111: the focus is a multiplier') + 700)
-ok(!/perfPctV190|treeFx\(\s*"perfFlat"\s*\)/.test(rawBlock) && /gearAttrV147\(k\)/.test(rawBlock), 'the game accessor (_raw) carries no tree game-day term (the personality nudge and the gear stay)')
+ok(!/perfPctV190|treeFx\(\s*"perfFlat"\s*\)/.test(rawBlock) && /gearAttrV147\(k[,)]/.test(rawBlock), 'the game accessor (_raw) carries no tree game-day term (the personality nudge and the gear stay — v193 X: the gear off his own attribute)')
 ok(!/playerPower\(e\)\s*\*\s*\(1\s*\+\s*perfPctV190/.test(SRC) && /xi\(\(e - a\) \* 2\.4 \+ 50\), 1, 100\)/.test(SRC), 'rollGamePerf and mr carry no term')
 ok(/\(1 \+ treeFx\(\s*"payMultV179"\s*\)\)/.test(SRC) && !/medalFxV179\(\s*"payMultV179"\s*\)\s*\)\s*\*\s*TU\("betaPay/.test(SRC), 'the paycheck reads payMultV179 through treeFx (the medal inside it, Eternal Form and Glass Cannon beside it)')
 ok(!/key:\s*"perfFlat",\s*name:\s*"Conditioning"/.test(SRC) && !/perfFlat:\s*3,|perfFlat:\s*70,/.test(SRC), 'Conditioning is out of GEAR_EFFECTS and perfFlat out of prestigeCap')
@@ -109,17 +109,26 @@ const Q = await M(() => {
   const pages = L.pages(), tiles = strip ? [...strip.querySelectorAll('.qb-tile-v193l')] : []
   const distinct = pages.every((pg) => new Set(pg.map((x) => x.branch)).size === pg.length)
   const sortedFirsts = pages.every((pg, i) => !i || pg[0].cost >= pages[i - 1][0].cost)
-  const first = pages[0][0], pp0 = S.pp
+  const first = pages[0][0], pp0 = S.pp, keys0 = first.key
+  // v193 U: a tap opens the Vault on that node (the bridge's open is stubbed to read it); quickVaultV193U 0 buys at once
+  const VB = window.__RIB_VAULT_BRIDGE, vOpen = VB && VB.open; let opened = null
+  if (VB) VB.open = (o) => { opened = o && o.key }
   tiles[0].click()
+  const vault = { opened, lvAfterTap: S.tree[first.key] || 0, ppAfterTap: S.pp }
+  if (VB) VB.open = vOpen
+  window.RIB_TUNE.quickVaultV193U = 0
+  document.querySelector('#spendNowV193E .qb-tile-v193l').click()
+  delete window.RIB_TUNE.quickVaultV193U
   const bought = { lv: S.tree[first.key] || 0, paid: pp0 - S.pp, cost: first.cost }
   document.querySelector('#spendNowV193E .qb-nav-v193l button:last-child').click()
   const pg1 = L.page(), keys1 = [...document.querySelectorAll('#spendNowV193E .qb-tile-v193l')].map((b) => b.dataset.key)
   const off = document.querySelector('#spendNowV193E .qb-tile-v193l.off'), ppB = S.pp; off && off.click()
   document.querySelector('#spendNowV193E .qb-nav-v193l button:first-child').click()
-  return { top, n: tiles.length, distinct, sortedFirsts, bought, pg1, keys1, want1: pages[1].map((x) => x.key), offSafe: !off || S.pp === ppB, back: L.page() }
+  return { top, n: tiles.length, distinct, sortedFirsts, bought, vault, hasBridge: !!VB, keys0, pg1, keys1, want1: pages[1].map((x) => x.key), offSafe: !off || S.pp === ppB, back: L.page() }
 })
 ok(Q.top && Q.n === 4 && Q.distinct, 'QUICK BUY sits at the top (under the PP banner, above the branch tabs): four tiles, no branch twice on a page', Q)
-ok(Q.bought.lv === 1 && Q.bought.paid === Q.bought.cost, 'one tap buys the tile\'s node at once, at its price', Q.bought)
+ok(!Q.hasBridge || (Q.vault.opened === Q.keys0 && Q.vault.lvAfterTap === 0), 'v193 U: a tap opens the Vault on that node (nothing is bought until the vault spends it)', Q.vault)
+ok(Q.bought.lv === 1 && Q.bought.paid === Q.bought.cost, 'quickVaultV193U 0: one tap buys the tile\'s node at once, at its price', Q.bought)
 ok(Q.pg1 === 1 && Q.keys1.join() === Q.want1.join() && Q.back === 0 && Q.sortedFirsts, '▶ steps to the next four (pricier), ◀ steps back', Q)
 ok(Q.offSafe, 'a tile you cannot afford yet buys nothing')
 

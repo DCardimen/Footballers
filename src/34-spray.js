@@ -83,7 +83,7 @@
   // the current page's own sections, for the section bar's spray
   function pageTree() {
     return [].slice.call(document.querySelectorAll("#screen > .hubv75-tabs .hubv75-tab")).map(function (t) {
-      var icon = (t.querySelector("i") || {}).textContent || "•", name = (t.textContent || "").replace(icon, "").trim();
+      var iEl = t.querySelector("i"), icon = (iEl && iEl.innerHTML) || "•", name = (t.textContent || "").replace((iEl && iEl.textContent) || "", "").trim();   // v193 V: the icon's markup
       return N(icon, name, function () { t.click() });
     });
   }
@@ -95,7 +95,10 @@
   function bubble(node, p, cls, i) {
     var b = document.createElement("button");
     b.type = "button"; b.className = "spr-b " + (cls || "") + (node.kids ? " more" : "");
-    b.innerHTML = "<i>" + node.icon + "</i><b>" + node.label + "</b>";
+    // v193 V: a page named by its emoji wears the menu-style icon for it (src/24-bottom-nav.js); markup passes through
+    var ic = node.icon;
+    try { if (window.ribIconV193V && !/</.test(ic)) ic = window.ribIconV193V(ic, ic) } catch (e) {}
+    b.innerHTML = "<i>" + ic + "</i><b>" + node.label + "</b>";
     b.style.setProperty("--x", p.x + "px"); b.style.setProperty("--y", p.y + "px");
     b.style.transitionDelay = (i * 22) + "ms";
     b.__node = node; b.__p = p;
@@ -244,8 +247,9 @@
     if (!classes() || !tabsEl) { if (bar) bar.remove(); return }
     var all = [].slice.call(tabsEl.querySelectorAll(".hubv75-tab")), on = tabsEl.querySelector(".hubv75-tab.on") || all[0];
     if (!on) return;
-    var i = all.indexOf(on), icon = (on.querySelector("i") || {}).textContent || "", name = (on.textContent || "").replace(icon, "").trim();
-    var sig = view() + "|" + on.dataset.sec + "|" + all.length;
+    // v193 V: the tab's icon is markup now (the menu-style set's <img>/<svg>, or the emoji under TU v193V 0) — carry it whole
+    var i = all.indexOf(on), iEl = on.querySelector("i"), icon = iEl ? iEl.innerHTML : "", name = (on.textContent || "").replace((iEl && iEl.textContent) || "", "").trim();
+    var sig = view() + "|" + on.dataset.sec + "|" + all.length + "|" + icon.length;
     if (bar && bar.dataset.sig === sig) return;
     if (!bar) {
       bar = document.createElement("div"); bar.className = "secbar-v170";

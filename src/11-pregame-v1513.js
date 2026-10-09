@@ -103,7 +103,7 @@ function continuePregame(){const q=pending;document.getElementById('pregameV1513
 
 function pregameTempStats(pl,wk){
   const out=[]; if(!pl) return out;
-  (pl._tempStatBuffsV25||[]).forEach(b=>{const a=b.max?10:b.amt;out.push({l:(a<0?'Setback':'Boost')+' (this game)',v:(a>0?'+'+a+' ':a+' ')+((window.__statLabelV25&&window.__statLabelV25(b.stat))||b.stat),good:a>=0});});
+  (pl._tempStatBuffsV25||[]).forEach(b=>{const a=b.max?10:b.amt;out.push({l:(a<0?'Setback':'Boost')+' (this game)',v:window.__V193X?window.__V193X.buff(b):(a>0?'+'+a+' ':a+' ')+((window.__statLabelV25&&window.__statLabelV25(b.stat))||b.stat),good:a>=0});});   // v193 X: a percent, the points in brackets
   if(pl.momentum103!=null&&Math.abs(pl.momentum103-50)>=3) out.push({l:'Momentum',v:Math.round(pl.momentum103)+'/100',good:pl.momentum103>=50});
   if(pl.composure103!=null&&Math.abs(pl.composure103-50)>=3) out.push({l:'Composure',v:Math.round(pl.composure103)+'/100',good:pl.composure103>=50});
   if(pl.coachTrust!=null&&Math.abs(pl.coachTrust-50)>=4) out.push({l:'Coach Trust',v:Math.round(pl.coachTrust)+'/100',good:pl.coachTrust>=50});
@@ -736,7 +736,7 @@ function v135FinalD(){
     body+=row("The roll",d.band==="green"?"IT CLICKS":d.band==="neutral"?"IT'LL DO":"IT BACKFIRES",bandC(d.band));
     if(d.stats&&d.stats.length&&d.band!=="neutral"){
       d.stats.forEach(k=>{const a=before[k],b=eff&&eff[k];
-        body+=row(esc(lab(k)),`${a!=null&&b!=null?`${Math.round(a)} → ${Math.round(b)}`:""} <small style="font-weight:400;color:var(--chalk-dim)">rolled ${d.out.sign>0?"+":"−"}${d.out.amt}</small>`,d.out.sign>0?"#8fe0a0":"#e8938b")})}
+        body+=row(esc(lab(k)),`${a!=null&&b!=null?`${Math.round(a)} → ${Math.round(b)}`:""} <small style="font-weight:400;color:var(--chalk-dim)">rolled ${d.out.sign>0?"+":"−"}${v193XOnD()&&d.out.pct!=null?d.out.pct+"%":d.out.amt}</small>`,d.out.sign>0?"#8fe0a0":"#e8938b")})}
     else body+=row("Swing","None — no stat moves this game","var(--chalk-dim)");
   } else body+=row("The plan","The scout's pick stands");
   fin.innerHTML=`<div class="v112-imp v135-imp" id="v135ImpD"><h4>🎡 WHAT THE WHEEL DID</h4>${body}<div class="v112-imp-note">This game only. Your sheet on the last page already carries it.</div></div>`;
@@ -825,6 +825,9 @@ function v146FullD(){const el=document.getElementById("v146Full");if(!el)return;
     ${P.grade?row("Game grade",`${Math.round(P.grade.mean)}${gd} <small class="v146-rg">${Math.round(P.grade.lo)}–${Math.round(P.grade.hi)}</small>`):""}
     ${H&&H.pct!=null?row("Variance",`±${H.pct}% <small class="v146-rg">engine ±${H.sim}% · plan ±${H.plan}%</small>`,v146VarColD(H.pct)):""}
     <div class="v112-imp-note">${V146_VAR_LINE} Projected if he stays on the field — an injury in this game books it as a DNP. (${P.n} games of this week, run in the real engine.)</div></div>`}
+/* v193 X: the plan roll is a percent of each stat — the old flat +3..+5 / −3..−4 × the College calibration (src/07 rollPctV193X) */
+function v193XOnD(){const x=window.__V193X;return !!(x&&x.on())}
+function v193XPctD(n){const x=window.__V193X;return x?Math.abs(x.pct(n)):n}
 /* page 5: the board */
 /* v171 A: a tile says what THIS plan does — its game rating and its own swing — not the engine's variance, which is the same number on every tile */
 /* v193 B: a tile is shaded by its click odds (`odds-g` / `odds-y` / `odds-r`), prints them, and the best odds on the board get a badge */
@@ -840,7 +843,7 @@ function v146CardD(id){const X=window.__V146,f=X&&X.facts(null,id),V=window.__PR
   {const tl=v171TeamLiftD(f);if(tl!=null)h+=row("Team",`${tl>0?"+":tl<0?"−":"±"}${Math.abs(tl).toFixed(1)}% <small>to every teammate's ratings in this game</small>`,tl>0?"#8fe0a0":tl<0?"#e8938b":"")}   // v171 A: the rating reaches the team
   if(b){if(b.fixed)h+=row("The roll",`<span style="color:${b.band==="green"?"#8fe0a0":b.band==="red"?"#e8938b":"#cfd6a8"}">🎲 ROLLED — ${b.band==="green"?"IT CLICKS":b.band==="red"?"IT BACKFIRES":"IT'LL DO"}</span> <small>(it was ${Math.round(b.oddsG*100)}% / ${Math.round(b.oddsR*100)}%)</small>`);   // v193 B: revealed on this page
     else h+=row("The roll",`<span style="color:#8fe0a0">${Math.round(b.g*100)}% clicks</span> · <span style="color:#e8938b">${Math.round(b.r*100)}% backfires</span>`);
-    h+=row("Clicks / backfires",`+3–5 ${b.statsG.map(k=>esc(lab(k))).join(", ")} · −3–4 ${b.statsR.map(k=>esc(lab(k))).join(", ")}`)}
+    h+=row("Clicks / backfires",v193XOnD()?`+${v193XPctD(3)}–${v193XPctD(5)}% ${b.statsG.map(k=>esc(lab(k))).join(", ")} · −${v193XPctD(3)}–${v193XPctD(4)}% ${b.statsR.map(k=>esc(lab(k))).join(", ")} <small>of each stat</small>`:`+3–5 ${b.statsG.map(k=>esc(lab(k))).join(", ")} · −3–4 ${b.statsR.map(k=>esc(lab(k))).join(", ")}`)}   // v193 X: percents of each stat
   /* v192 A: the fate buff is a percent of the attribute (it may pass the cap) — the points it is today in brackets */
   const fPct=f.fate&&f.fate.pct!=null,fP=v=>(Math.abs(v-Math.round(v))<0.05?Math.round(v):(+v).toFixed(1))+"%";
   h+=row("Fate roll",f.fate?(fPct?`${Math.round(f.fate.odds*100)}% for +${fP(f.fate.pct)} ${esc(f.fate.name)} (+${f.fate.amount})${f.fate.hedge?` (miss: +${fP(f.fate.hedgePct||0)}, +${f.fate.hedge})`:""}`:`${Math.round(f.fate.odds*100)}% for +${f.fate.amount} ${esc(f.fate.name)}${f.fate.hedge?` (miss: +${f.fate.hedge})`:""}`):"none on this plan",f.fate?"":"var(--chalk-dim)");
@@ -1181,7 +1184,7 @@ function matchupNotes(oursR,theirsR,player){
   notes.sort((a,b)=>b.d-a.d);
   const out=notes.slice(0,3);
   if(!out.length)out.push({good:true,txt:'Even matchup across the board — execution and the bounce of the ball decide this one.'});
-  if(player&&player._tempStatBuffsV25&&player._tempStatBuffsV25.length)out.push({good:true,txt:`Temporary edge this game: ${player._tempStatBuffsV25.map(b=>{const a=b.max?10:b.amt;return(a>0?'+':'')+a+' '+(window.__statLabelV25?window.__statLabelV25(b.stat):b.stat)}).join(', ')}.`});
+  if(player&&player._tempStatBuffsV25&&player._tempStatBuffsV25.length)out.push({good:true,txt:`Temporary edge this game: ${player._tempStatBuffsV25.map(b=>{if(window.__V193X)return window.__V193X.buff(b);/* v193 X */const a=b.max?10:b.amt;return(a>0?'+':'')+a+' '+(window.__statLabelV25?window.__statLabelV25(b.stat):b.stat)}).join(', ')}.`});
   return out;
 }
 function showPregame(ctx,args){

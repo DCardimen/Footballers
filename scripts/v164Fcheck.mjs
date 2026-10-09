@@ -4,9 +4,8 @@
 //      hidden, the tag 📣), and hands the screen back after its time; a v95 badge (SACK, TOUCHDOWN…) is said there
 //      instead of drawn over the field (no `.rib-badge-v95` node, the badge log marks it `jumbo`); a toast on the live
 //      view goes there too; with the screen out of frame the line still goes on the screen (v175 B: the ribbon is gone); Settings › LIVE
-//      GAME › "Messages on the jumbotron" OFF draws the badges over the field again; the 🐢 slider is in the speed row,
-//      `setSlowV164F(30)` runs the loop at 0.30× (frames keep coming), the clock floor is `slowMinV164F`; TU v164Fslow 0
-//      hides the dial
+//      GAME › "Messages on the jumbotron" OFF draws the badges over the field again; the 🐢 slider is gone (v193 W),
+//      `setSlowV164F(30)` still runs the loop at 0.30× (frames keep coming), the clock floor is `slowMinV164F`
 //   G: `danceV164G(you, "sack")` fires the v161 A body (or the drawn celebrate cycle) after its delay — once a play,
 //      never on a man on the ground; the table picks by position; TU v164Gdance 0 does nothing
 //   H: the juke / stiff-arm / hurdle sequences take their TU frame times; a synthetic `swim` / `shed` event plays the
@@ -72,14 +71,16 @@ const off = await page.evaluate(async () => { const st = window.__getGridironSta
   const on = sc.jumboOnV164F(); B.show('sack', { sub: '-3 YDS', x: 300, y: 220, scene: sc, token: 'chk2:' + Date.now(), force: true }); await new Promise(r => setTimeout(r, 700))
   const dom = document.querySelectorAll('.rib-badge-v95').length; st.settings.jumboMsgV164F = true; return { on, dom, row: !!document.querySelector('.toggle-row') } })
 ok(!off.on && off.dom >= 1, 'Settings › "Messages on the jumbotron" OFF draws the badge over the field again', off)
-// ---- F: the slow dial
-const slow = await page.evaluate(async () => { const sc = window.__gridironScene, dial = document.querySelector('.slow-dial-v164f input'); if (!dial) return { dial: false }
+// ---- F: the slow dial — v193 W took it off the HUD (slow motion is automatic on big plays; its amount is a Settings
+// row, v193Wcheck); the renderer still runs below ½× when asked (setSlowV164F), the clock floor is slowMinV164F
+const slow = await page.evaluate(async () => { const sc = window.__gridironScene, dial = document.querySelector('.slow-dial-v164f')
   window.setSlowV164F(30); const f0 = sc.game.loop.frame; await new Promise(r => setTimeout(r, 1500)); const frames = sc.game.loop.frame - f0
-  const out = { dial: true, min: +dial.min, val: +dial.value, speed: window.__getGridironLiveSpeed(), label: document.getElementById('slowValV164F').textContent, frames, floor: null }
-  window.setSpeed(2); out.after = { val: +dial.value, label: document.getElementById('slowValV164F').textContent, speed: window.__getGridironLiveSpeed() }; return out })
+  const out = { dial: !!dial, speed: window.__getGridironLiveSpeed(), frames }
+  window.setSpeed(2); out.after = { speed: window.__getGridironLiveSpeed() }; return out })
 console.log('slow:', JSON.stringify(slow))
-ok(slow.dial && slow.min === 25 && slow.val === 30 && slow.speed === 0.3 && slow.label === '0.30×' && slow.frames > 20, 'the 🐢 slider runs the loop at 0.30× and the frames keep coming', slow)
-ok(slow.after && slow.after.val === 100 && slow.after.label === 'off' && slow.after.speed === 2, 'a speed button snaps the dial back', slow.after)
+ok(!slow.dial, 'v193 W: the 🐢 slider is gone from the live HUD', slow)
+ok(slow.speed === 0.3 && slow.frames > 20, 'setSlowV164F still runs the loop at 0.30× and the frames keep coming', slow)
+ok(slow.after && slow.after.speed === 2, 'a speed button sets the speed back', slow.after)
 // ---- G: the dance
 const dance = await page.evaluate(async () => { const sc = window.__gridironScene; let me = sc.markers.find(m => m && m.team === 'you'); if (!sc.play) return { me: !!me, play: !!sc.play }
   // he may be off the field this snap: borrow a linebacker for the test (the dance reads `team === "you"` alone)

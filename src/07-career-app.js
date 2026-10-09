@@ -622,11 +622,15 @@
           0,
           n.injury.weeksRemaining - (a === "recovery" || a === "recover" ? 2 : 1)
         )),
-        n.injury.weeksRemaining <= 0 && ((e.recentlyRecoveredV11 = n.injury.severity), (n.injury = null))),
+        n.injury.weeksRemaining <= 0 &&
+          (healNoteV193W(e, n.injury, "game") /* v193 W: back from it */,
+          (e.recentlyRecoveredV11 = n.injury.severity),
+          (n.injury = null))),
       (n.fatigue = clamp(n.fatigue - u * (1 + gearV147("recovery")), 0, 100)),
       t.injured &&
         !n.injury &&
-        (n.injury = rollInjury(e, seededRng(e.seasonSeed, e.level, t.week, t.opp, t.perf, "injury-roll"))),
+        ((n.injury = rollInjury(e, seededRng(e.seasonSeed, e.level, t.week, t.opp, t.perf, "injury-roll"))),
+        hurtNoteV193W(e, t, n.injury, "game") /* v193 W: hurt in the game itself — the pop-up */),
       { fatigueDelta: d - u, condition: n }
     );
   }
@@ -5386,7 +5390,7 @@
         return `<button type="button" class="sn-row-v193e qb-tile-v193l${can ? "" : " off"}" data-key="${x.key}" style="--qb-c:${b.color}" onclick="quickBuyV193L('${x.key}')" title="${escHtml(b.name)}"${can ? "" : ' aria-disabled="true"'}><span class="qb-n-v193l"><i>${x.icon}</i> ${escHtml(x.name)}</span><b class="qb-p-v193l">${ppFmtV146(x.cost)} PP${can ? "" : `<em> · ${ppFmtV146(x.cost - pp)} away</em>`}</b></button>`;
       };
     return `<div class="card tight spend-v193e qb-v193l" id="spendNowV193E">
-  <div class="qb-h-v193l"><div class="l sn-k-v193e">⚡ QUICK BUY <small>${n} affordable · tap to buy</small></div><div class="qb-nav-v193l"><button type="button" class="qb-arr-v193l" onclick="quickPageV193L(-1)" ${quickPageIxV193L ? "" : "disabled"} aria-label="Cheaper upgrades">◀</button><span>${quickPageIxV193L + 1}/${pages.length}</span><button type="button" class="qb-arr-v193l" onclick="quickPageV193L(1)" ${quickPageIxV193L < pages.length - 1 ? "" : "disabled"} aria-label="Pricier upgrades">▶</button></div></div>
+  <div class="qb-h-v193l"><div class="l sn-k-v193e">⚡ QUICK BUY <small>${n} affordable · tap to open the vault</small></div><div class="qb-nav-v193l"><button type="button" class="qb-arr-v193l" onclick="quickPageV193L(-1)" ${quickPageIxV193L ? "" : "disabled"} aria-label="Cheaper upgrades">◀</button><span>${quickPageIxV193L + 1}/${pages.length}</span><button type="button" class="qb-arr-v193l" onclick="quickPageV193L(1)" ${quickPageIxV193L < pages.length - 1 ? "" : "disabled"} aria-label="Pricier upgrades">▶</button></div></div>
   <div class="qb-grid-v193l">${page.map(tile).join("")}</div>
 </div>`;
   }
@@ -5406,6 +5410,13 @@
     const cost = nodeCost(n);
     if ((state.pp || 0) < cost) {
       showToast("🔒 " + n.name + " — " + ppFmtV146(cost - (state.pp || 0)) + " PP away");
+      return;
+    }
+    /* v193 U: the owner — "quick buy prestige should take you to the vault": a tap opens the Vault on that node, as the
+     * tree's own buttons do (`vaultBuy`: the hold-to-spend scene; it falls back to the plain purchase when the vault
+     * cannot open). `quickVaultV193U` 0 = the instant purchase. */
+    if (TU("quickVaultV193U", 1) && typeof vaultBuy === "function") {
+      vaultBuy(key);
       return;
     }
     (typeof window.buy === "function" ? window.buy : buyNode)(key); /* the tree's own purchase (v137: PP buys go through window.buy) */
@@ -11032,7 +11043,7 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
     return gearCatV147().find(c => c.k === k) || null;
   }
   function gearCapV147(c) {
-    return TU(c.capK, c.capD);
+    return gearAttrPctV193X(c) ? gearPctCapV193X() : TU(c.capK, c.capD); /* v193 X: a percent cap on the attributes */
   }
   function gearRngV147(id) {
     let h = 2166136261;
@@ -11077,17 +11088,21 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
       used[c.k] = 1;
       let v = c.base * rs * tm * (0.8 + 0.4 * r()) * TU("gearValueMulV147", 1);
       v = c.int ? Math.max(1, Math.round(v)) : +v.toFixed(c.pct ? 3 : 1);
-      mods.push({ k: c.k, v });
+      /* v193 X: an attribute modifier is a percent of the attribute, against the typical one at this tier (flat kept) */
+      if (c.kind === "attr" && rollPctOnV193X()) mods.push({ k: c.k, v: gearFlatToPctV193X(v, tier), flatV193X: v });
+      else mods.push({ k: c.k, v });
     }
     it.mods = mods;
     it.tierV147 = tier | 0;
     it.modsV147 = 1;
+    rollPctOnV193X() && (it.attrPctV193X = 1); /* v193 X */
     gearLevelEnsureV193(it); /* v193 A: the level it is received at rides the tier */
     return it;
   }
   function gearEnsureV147(it) {
     if (it && !it.modsV147) gearRollV147(it, it.tierV147 != null ? it.tierV147 : 0);
     gearLevelEnsureV193(it); /* v193 A: an old piece gets its level once, from its tier */
+    gearPctEnsureV193X(it); /* v193 X: its attribute modifiers become percents, once */
     /* v193 E: Conditioning ("+N to ALL stats every game") is retired — an old piece becomes Growth, its value rescaled
      * from Conditioning's base (0.8) to Growth's (0.03) so the rarity roll it carried is kept */
     if (it && it.eff === "perfFlat") {
@@ -11102,8 +11117,9 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
   function gearTotalsV147() {
     const eq = state && state.equipped;
     if (!eq) return {};
-    const c = _gtV147;
-    if (c && c.eq === eq && c.a === eq.cleats && c.b === eq.gloves && c.c === eq.chain) return c.t;
+    const c = _gtV147,
+      on193X = rollPctOnV193X(); /* v193 X: the switch changes what an attribute modifier reads */
+    if (c && c.eq === eq && c.a === eq.cleats && c.b === eq.gloves && c.c === eq.chain && c.x === on193X) return c.t;
     const raw = {},
       t = {};
     GEAR_SLOTS.forEach(s => {
@@ -11115,16 +11131,17 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
     gearCatV147().forEach(d => {
       if (raw[d.k]) t[d.k] = Math.min(raw[d.k], gearCapV147(d));
     });
-    _gtV147 = { eq, a: eq.cleats, b: eq.gloves, c: eq.chain, t, raw };
+    _gtV147 = { eq, a: eq.cleats, b: eq.gloves, c: eq.chain, x: on193X, t, raw };
     return t;
   }
   function gearV147(k) {
     return TU("v147C", 1) ? gearTotalsV147()[k] || 0 : 0;
   }
-  /* one attribute's flat gear bonus: its own modifier (v193 E: the old Conditioning piece — "+N to ALL stats every
-   * game" — is retired; an old piece is Growth now, see gearEnsureV147) */
-  function gearAttrV147(k) {
-    return gearV147("a_" + k);
+  /* one attribute's gear bonus in POINTS: its own modifier (v193 E: the old Conditioning piece — "+N to ALL stats every
+   * game" — is retired; an old piece is Growth now, see gearEnsureV147). v193 X: the modifier is a percent of `base`
+   * (the wearer's own attribute; the player's when omitted) — flat while TU("v193X") is 0 */
+  function gearAttrV147(k, base) {
+    return gearAttrPtsV193X(k, base);
   }
   /* a production modifier for one stat definition of Ne[pos].stats (lower-is-better lines are cut) */
   function gearProdV147(c) {
@@ -11136,6 +11153,12 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
   function gearTxtV147(k, v) {
     const c = gearDefV147(k);
     if (!c) return "";
+    /* v193 X: an attribute modifier is a whole percent, with what it is worth on his sheet today in brackets */
+    if (gearAttrPctV193X(c)) {
+      const p = Math.round(Math.abs(+v || 0)),
+        pl = state && state.player;
+      return "+" + p + "% " + c.name + (pl && pl.attrs ? " (+" + Math.abs(rollPtsV193X(pl, c.stat, p)) + ")" : "");
+    }
     const sg = c.sign < 0 ? "−" : "+",
       n = Math.abs(+v || 0);
     return (
@@ -11252,12 +11275,12 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
     if (!state) return 0;
     let n = 0;
     (state.inventory || []).forEach(it => {
-      it && (!it.modsV147 || it.eff === "perfFlat") && (gearEnsureV147(it), n++); /* v193 E: Conditioning migrates too */
+      it && (!it.modsV147 || it.eff === "perfFlat" || (!it.attrPctV193X && rollPctOnV193X())) && (gearEnsureV147(it), n++); /* v193 E: Conditioning migrates too; v193 X: the percents */
     });
     const eq = state.equipped || {};
     GEAR_SLOTS.forEach(s => {
       const it = eq[s.key];
-      it && (!it.modsV147 || it.eff === "perfFlat") && (gearEnsureV147(it), n++);
+      it && (!it.modsV147 || it.eff === "perfFlat" || (!it.attrPctV193X && rollPctOnV193X())) && (gearEnsureV147(it), n++);
     });
     return n;
   }
@@ -11333,7 +11356,7 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
   }
   /* one rolled modifier's value on this piece, at its level (an integer modifier stays an integer) */
   function gearModValV193(it, m) {
-    const v = (+m.v || 0) * gearLvlMultForV193S(it, m.k),
+    const v = gearModRawV193X(m) * gearLvlMultForV193S(it, m.k) /* v193 X: a converted attribute modifier reads flat while off */,
       d = gearDefV147(m.k);
     return d && d.int ? Math.round(v) : v;
   }
@@ -11609,6 +11632,143 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
     now: gearSellNowV193G,
     flat: why => flatWhyV192A(why),
     why: s => gearSellWhyV193G(s)
+  };
+  /* ===== v193 X ROLLS AND ITEMS IN PERCENT =====
+   * The owner: "Season stat rolls should be based on percents, not flat amounts — and with items." A flat "+3 Speed" is
+   * a fifth of a Pee Wee's sheet (attributes ~10–20) and a rounding error in the UFF (100–250+). Every ROLL that handed
+   * out flat attribute points now hands out a PERCENT of the attribute it lands on — applied to the attribute's value at
+   * the time (`rollPtsV193X`: round(attr × pct / 100), never less than 1 point either way) and shown as a whole percent
+   * with today's points in small ("+6% Speed (+4)", v193 N's whole-number rule).
+   *   CALIBRATION. The old flat numbers were tuned at College (level 5), so a roll's percent is its old flat amount ×
+   *     `rollPctPerPointV193X` = 100 ÷ the typical rolled attribute at College (`REF_KEY_V193X[5]` — the position's rated
+   *     stats, which every roll pool draws from; `refTablesV193X`; measured on scripts/careersim.mjs careers, the season-end sheets; each
+   *     level's number is a knob, `refKeyV193X_<lv>` / `refAllV193X_<lv>`). The average outcome at College is unchanged;
+   *     below it a roll is fewer points, above it more.
+   *   THE ROLLS. The season commitment / midseason crossroads (src/18 `rollOutcome` / `applyOutcome` / `compose`: each
+   *     effect carries `pct`, composed into points at kickoff), the weekly plan roll (src/17 `decidePlan`: a click's
+   *     +3..+5 and a backfire's −3..−4 on the pool stats → `out.pct`; the projection's expected click / backfire,
+   *     `projBandGV146` / `projBandRV146`, priced per stat through the same function — `bandForV146` carries `pctG` /
+   *     `pctR`), the story wheel's buffs (`__mkTempBuffsV25`), the legendary "+1 Permanent" flip and the Extra reps flip
+   *     (`applyFlipV178`), and the fate roll (v192 A's percent through the same calibration — `rollPctV193X(flat ×
+   *     fatePctMultV192A)`, whole, the House Money hedge too; with College at 100 it reads as v192 A's one-for-one).
+   *   THE ITEMS. A gear attribute modifier (`a_*`) is a percent of the attribute: a piece's flat roll is converted ONCE
+   *     against the typical attribute at the tier it dropped at (`refTablesV193X().all[tierV147]` — every attribute, since a piece
+   *     is not tied to a position), so it is as strong as before at the level it dropped and keeps pace afterwards — never
+   *     past the cap (`gearRefMinTierV193X` prices low tiers against a higher tier's sheet, if early drops crowd the late
+   *     ones out). The v193 A/G level multiplier rides on top (still a whole percent), the per-attribute cap is `gearAttrPctCapV193X`
+   *     (25%) instead of v147's flat 20, and the points land in `_raw` and `effAttrsV85` off the wearer's own attribute.
+   *     An old piece converts lazily (`gearPctEnsureV193X`, tagged `attrPctV193X`, the flat value kept as `flatV193X` so
+   *     the kill switch reads it back). The base effects (`power`, `startAll`) stay flat.
+   * Kill switch `TU("v193X", 1)` → 0: every roll and every piece reads its old flat number again. `window.__V193X`;
+   * `v193Xcheck.mjs`. */
+  /* the typical attribute by level (Pee Wee … Interstellar): KEY = the mean of the position's roll-pool stats (the
+   * growth wheel's POOLS, which the plan roll and the story wheel draw from too), ALL = the mean of every attribute.
+   * MEASURED, Pee Wee → College: the season-end sheets of scripts/careersim.mjs careers (smart policy, 2 accounts, 3
+   * careers each, 82 seasons) — key 17.6 · 30.6 · 48.1 · 56.5 · 76.4 · 102.9, all 16.5 · 22.9 · 31.8 · 36.3 · 46.5 · 61.8.
+   * EXTRAPOLATED above College (no probe career got there in the time): the Combine and the UFF on the same climb, the
+   * Interstellar League at v183's "a newcomer ~OVR 350". College's key is 100 → a flat point is exactly 1%. */
+  function refTablesV193X() {
+    return { key: [18, 31, 48, 57, 76, 100, 115, 140, 350], all: [16, 23, 32, 36, 46, 62, 70, 85, 210] }; /* a function, so a boot-time render can never outrun it (v140) */
+  }
+  function rollPctOnV193X() {
+    return !!TU("v193X", 1);
+  }
+  function refAttrV193X(lv, all) {
+    const i = Math.max(0, Math.min(8, lv | 0)),
+      T = refTablesV193X()[all ? "all" : "key"];
+    return Math.max(1, TU((all ? "refAllV193X_" : "refKeyV193X_") + i, T[i]));
+  }
+  /* percent per old flat point — 100 ÷ the typical rolled attribute at College, where the flat numbers were tuned */
+  function rollPerPointV193X() {
+    return TU("rollPctPerPointV193X", 100 / refAttrV193X(TU("rollRefLevelV193X", 5), false));
+  }
+  /* an old flat roll as a whole percent (signed; a non-zero roll is never 0%) */
+  function rollPctV193X(flat) {
+    const f = Number(flat) || 0;
+    if (!f) return 0;
+    return Math.sign(f) * Math.max(1, Math.round(Math.abs(f) * rollPerPointV193X()));
+  }
+  /* a percent of THIS attribute, in points (signed; at least one point when the percent is not zero) */
+  function rollPtsV193X(pl, k, pct) {
+    const p = Number(pct) || 0;
+    if (!p) return 0;
+    const cur = Math.max(1, Number(pl && pl.attrs && pl.attrs[k]) || 10);
+    return Math.sign(p) * Math.max(1, Math.round((cur * Math.abs(p)) / 100));
+  }
+  /* "+6% Speed (+4)" — the percent whole, today's points in brackets (`html`: the points in <small>) */
+  function rollTxtV193X(pl, k, pct, html, label) {
+    const p = Math.round(Number(pct) || 0),
+      n = rollPtsV193X(pl, k, p),
+      nm = label != null ? label : (ATTR_INFO[k] && ATTR_INFO[k].name) || k,
+      sg = v => (v < 0 ? "−" : "+") + Math.abs(v);
+    return sg(p) + "% " + nm + (html ? ` <small class="pct-pts-v193x">(${sg(n)})</small>` : ` (${sg(n)})`);
+  }
+  /* one `_tempStatBuffsV25` entry as a line: "+6% Speed (+4)" when it carries a percent, the old "+4 Speed" otherwise */
+  function buffTxtV193X(b) {
+    if (!b || !b.stat) return "";
+    const nm = (ATTR_INFO[b.stat] && ATTR_INFO[b.stat].name) || b.stat,
+      a = b.max ? 10 : Math.round(Number(b.amt) || 0);
+    if (b.pct != null && rollPctOnV193X()) {
+      const p = Math.round(b.pct);
+      return (p < 0 ? "−" : "+") + Math.abs(p) + "% " + nm + " (" + (a < 0 ? "−" : "+") + Math.abs(a) + ")";
+    }
+    return (a > 0 ? "+" : "") + a + " " + nm;
+  }
+  // ---- the items
+  function gearPctCapV193X() {
+    return TU("gearAttrPctCapV193X", 25);
+  }
+  /* a piece's flat attribute roll as the percent of the typical attribute at the tier it dropped at */
+  function gearFlatToPctV193X(v, tier) {
+    const f = Number(v) || 0;
+    /* never past the cap: one piece cannot carry more than the whole slot-set may (an early-tier roll against a small sheet) */
+    /* `gearRefMinTierV193X` (2, Middle School): a piece from below that tier is priced against that tier's sheet — a Pee
+     * Wee common's +3 is ~9%, not the 19% a Pee Wee sheet makes it, so early drops do not crowd the late ones out at the
+     * UFF (still +2 points at Pee Wee, ~+13 at the UFF). 0 = every tier against its own sheet. */
+    const t = Math.max(tier | 0, TU("gearRefMinTierV193X", 2) | 0);
+    return f > 0 ? Math.min(gearPctCapV193X(), Math.max(1, Math.round((f / refAttrV193X(t, true)) * 100))) : 0;
+  }
+  /* once per piece, while on: the a_* modifiers become percents (the flat value kept for the kill switch) */
+  function gearPctEnsureV193X(it) {
+    if (!it || it.attrPctV193X || !rollPctOnV193X() || !Array.isArray(it.mods)) return it;
+    const tier = it.tierV147 != null ? it.tierV147 | 0 : 0;
+    it.mods.forEach(m => {
+      if (m && /^a_/.test(m.k) && m.flatV193X == null) {
+        m.flatV193X = +m.v || 0;
+        m.v = gearFlatToPctV193X(m.v, tier);
+      }
+    });
+    it.attrPctV193X = 1;
+    return it;
+  }
+  /* the value a modifier is read at: a converted attribute modifier reads its old flat number while the switch is off */
+  function gearModRawV193X(m) {
+    return m && m.flatV193X != null && !rollPctOnV193X() ? +m.flatV193X || 0 : +(m && m.v) || 0;
+  }
+  /* an attribute modifier is a percent right now (its total is capped at gearAttrPctCapV193X, shown with a %) */
+  function gearAttrPctV193X(c) {
+    return !!c && c.kind === "attr" && rollPctOnV193X();
+  }
+  /* the wearer's points from his gear on one attribute: the capped percent of `base` (his own attribute) — flat when off */
+  function gearAttrPtsV193X(k, base) {
+    const v = gearV147("a_" + k);
+    if (!rollPctOnV193X() || !v) return v;
+    const b = base != null ? base : state && state.player && state.player.attrs ? state.player.attrs[k] : 0;
+    return rollPtsV193X({ attrs: { [k]: b } }, k, v);
+  }
+  window.__V193X = {
+    on: rollPctOnV193X,
+    ref: refAttrV193X,
+    refs: refTablesV193X,
+    perPoint: rollPerPointV193X,
+    pct: rollPctV193X,
+    pts: rollPtsV193X,
+    txt: rollTxtV193X,
+    buff: buffTxtV193X,
+    gearPct: gearFlatToPctV193X,
+    gearCap: gearPctCapV193X,
+    gearEnsure: gearPctEnsureV193X,
+    gearPts: gearAttrPtsV193X
   };
   function screenLocker() {
     gearMigrateV147();
@@ -15163,6 +15323,7 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
       ${TU("v156D", 1) ? myPlaysSettingV159B() : "" /* v156 D; v159 B: a member perk / the ad while the store is ON */}
       ${toggleRow("fastSim", "Faster live sim", "Speed up the default play animation")}
       ${jumboRowV164F() /* v164 F: the messages on the big screen */}
+      ${bigSlowRowV193W() /* v193 W: the 🐢 dial's amount, automatic on big plays */}
       ${TU("v193O", 1) ? "" : toggleRow("haptics", "Haptic feedback", "Vibration for touchdowns, setbacks, and major choices") /* v193 O: Settings › SOUND › Vibration */}
     </div>
     ${experienceRowV158B() /* v158 B: EXPERIENCE — Off (current build) · Free-to-play · Member (a preview); the GAME tab */}
@@ -16257,11 +16418,13 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
       picks.push(p.splice(idx, 1)[0]);
     }
     return picks.map(function (k) {
-      if (sign > 0) {
-        var amt = Math.round(3 + good * 4 + bold * 3 + Math.random() * 3);
-        return { stat: k, amt: amt, max: false };
+      var amt = sign > 0 ? Math.round(3 + good * 4 + bold * 3 + Math.random() * 3) : -Math.round(5 + (1 - good) * 8 + bold * 3);
+      /* v193 X: a percent of the stat (the old flat × the College calibration), in points off his sheet today */
+      if (rollPctOnV193X()) {
+        var pct = rollPctV193X(amt);
+        return { stat: k, amt: rollPtsV193X(pl, k, pct), pct: pct, flatV193X: amt, max: false };
       }
-      return { stat: k, amt: -Math.round(5 + (1 - good) * 8 + bold * 3), max: false };
+      return { stat: k, amt: amt, max: false };
     });
   };
   window.__statLabelV25 = function (k) {
@@ -16401,7 +16564,7 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
           Math.round(
             Math.round((Math.round(a * mult) + (out.buffs[k] || 0)) * mu) +
               (out.persona[k] = pf.by[k] || 0) /* OFF (v193N 0): the old sheet, which never drew perfFlat */ +
-              (out.gear[k] = gearAttrV147(k))
+              (out.gear[k] = gearAttrV147(k, a)) /* v193 X: a percent of his own attribute */
           )
         );
       /* v147 C: gear lands last, as in _raw */ out.eff[k] = v;
@@ -18418,7 +18581,7 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
           /* v111: the focus is a multiplier, and it lands AFTER the body's swing. v193 E: the tree's game-day percent is
            * gone; what remains is the personality page's own nudge (src/14 — v193 N: ONE attribute per pole) and the gear on him */ _v +=
             _pf193N.all + (_pf193N.by[k] || 0) +
-            gearAttrV147(k); /* v147 C: the gear on him */
+            gearAttrV147(k, w.attrs && w.attrs[k]); /* v147 C: the gear on him (v193 X: a percent of his attribute) */
         }
         /* v171 A: their face, the call's cuts and lifts, the plan's team lift — as rating POINTS (the fraction × `mulPtsV171`),
          * so a +20% star is the same edge at Pee Wee as in the UFF: as a multiplier it was +5 on a 25 sheet and +16 on an 80 */
@@ -22868,12 +23031,26 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
     // v54: a knock costs no games — it is a one-week wear penalty. Clear last week's
     // before rolling this one, or isWornV18 would keep -10% on the player all season.
     if (c.injury && c.injury.knock && (c.injury.weeksRemaining || 0) <= 0) c.injury = null;
+    const forceV193W = window.__forceInjV193W || null; /* dev: v193Wcheck forces an injury this week (name, weeks, severity, knock) */
+    if (forceV193W && !c.injury) wk.injured = !0;
     if (!wk.injured) return;
     if (c.injury) {
       c.injury.weeksRemaining = (c.injury.weeksRemaining || 0) + 1;
       return;
     }
     let inj = rollInjuryV18(e);
+    if (forceV193W) {
+      window.__forceInjV193W = forceV193W.keep ? forceV193W : null;
+      inj = {
+        name: forceV193W.name || "MCL sprain",
+        severity: forceV193W.knock ? 1 : forceV193W.severity || 2,
+        weeksRemaining: forceV193W.knock ? 0 : forceV193W.weeks != null ? forceV193W.weeks : 2,
+        recurrence: forceV193W.recurrence != null ? forceV193W.recurrence : 0.3
+      };
+      forceV193W.knock && (inj.knock = !0);
+      forceV193W.seasonEnding && ((inj.seasonEnding = !0), (inj.weeksRemaining = 99), (inj.severity = 4));
+    }
+    const rawWeeksV193W = inj ? inj.weeksRemaining : 0; /* v193 W: before Trainer's Room / Miracle Hands / gear */
     if (window.__forceSeasonEnderV134) {
       inj = inj || { name: "Torn ACL", severity: 3, weeksRemaining: 99, recurrence: 0.2 };
       inj.seasonEnding = !0;
@@ -22887,9 +23064,10 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
       e._trainerRoomUsedV134 = !0;
       wk.trainerRoomV134 = !0;
       try {
-        toast(
-          "🏥 TRAINER'S ROOM — " + inj.name + " was a season-ender. He is back in " + inj.weeksRemaining + " games."
-        );
+        injPopOnV193W() ||
+          toast(
+            "🏥 TRAINER'S ROOM — " + inj.name + " was a season-ender. He is back in " + inj.weeksRemaining + " games."
+          ); /* v193 W: the pop-up says it */
       } catch (x) {}
     }
     /* v146 C: Miracle Hands -- a 2+ game injury is shorter, never under one game; season-enders untouched */
@@ -22897,6 +23075,9 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
     if (inj) {
       c.injury = inj;
       wk.injName = inj.name;
+      inj.rawWeeksV193W = rawWeeksV193W;
+      hurtNoteV193W(e, wk, inj, "week"); /* v193 W: the pop-up, on the next screen */
+      if (injPopOnV193W()) return;
       try {
         toast(
           inj.seasonEnding
@@ -22935,8 +23116,9 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
       if (inj.weeksRemaining <= 0) {
         e.recentlyRecoveredV18 = inj.name;
         c.injury = null;
+        healNoteV193W(e, inj, "sat"); /* v193 W: the cleared pop-up */
         try {
-          toast("✅ Healed: " + inj.name + " — cleared to play");
+          injPopOnV193W() || toast("✅ Healed: " + inj.name + " — cleared to play");
         } catch (x) {}
       }
     }
@@ -23016,6 +23198,9 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
       w.played = !0;
       const g = state._liveGame;
       g && g.usScore != null && g.plays && bookLiveGameV85(e, w, g);
+      try {
+        g && g.plays && injPopOnV193W() && (w.hurtPlayV193W = hurtPlayOfV193W(g)); /* v193 W: the snap an in-game injury happened on */
+      } catch (_) {}
       uffTitleGameV156C(e, w) /* v156 C: winning the UFF title game unlocks 4× */;
     }
     ((state._oppName = null), goView("season"));
@@ -23029,7 +23214,10 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
     // v18: the offseason heals — season-enders clear, lingering knocks fade, fatigue resets
     {
       const c = cv18(e);
-      if (c.injury && (c.injury.seasonEnding || Math.random() < 0.7)) c.injury = null;
+      if (c.injury && (c.injury.seasonEnding || Math.random() < 0.7)) {
+        healNoteV193W(e, c.injury, "offseason"); /* v193 W */
+        c.injury = null;
+      }
       c.fatigue = Math.max(0, Math.min(30, (c.fatigue || 0) - 40));
     }
     const t = simSeason(e);
@@ -23758,10 +23946,44 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
   }
   window.toggleJumboV164F = toggleJumboV164F;
   function slowDialV164F() {
-    if (!TU("v164Fslow", 1)) return "";
+    if (!TU("v164Fslow", 1) || TU("v193Wslow", 1)) return ""; /* v193 W: the dial is gone — slow motion is automatic, its amount is a Settings row */
     const cur = Math.min(1, Math.max(0.25, (liveCtl && liveCtl.speed) || 1)), pct = Math.round(cur * 100);
     return `<div class="slow-dial-v164f"><span title="Slow motion">🐢</span><input type="range" min="${Math.round(TU("slowMinV164F", 0.25) * 100)}" max="100" step="5" value="${pct}" aria-label="Slow motion speed" oninput="setSlowV164F(this.value)"><b id="slowValV164F">${cur < 1 ? cur.toFixed(2) + "×" : "off"}</b></div>`;
   }
+  /* ===== v193 W BIG-PLAY SLOW MOTION (the Settings row) =====
+   * The owner: "Remove the turtle slide bar. I wanted that to be automatic during fast play to emphasize big plays.
+   * Move that to the menu." The live HUD's 🐢 dial is gone (`slowDialV164F` draws nothing); the renderer slows a big
+   * play on its own at 2×/4× (src/05 v193 W) and this row sets how much: Off · Subtle (1× for a beat, at 2× and up —
+   * the default) · Dramatic (½× for a longer beat, at 1× and up). Stored in `state.settings.bigSlowV193W` and drawn
+   * from it alone (v140: hoisted, no renderer read). Kill switch `TU("v193Wslow", 0)`: no row, the dial is back. */
+  function bigSlowModeV193W() {
+    const v = state && state.settings && state.settings.bigSlowV193W;
+    return v === "off" || v === "dramatic" ? v : "subtle";
+  }
+  function bigSlowRowV193W() {
+    if (!TU("v193Wslow", 1)) return "";
+    const cur = bigSlowModeV193W(),
+      M = [
+        ["off", "Off", "Big plays run at the speed you picked."],
+        ["subtle", "Subtle", "At 2× and 4× a big play drops to 1× for a beat, then speeds back up."],
+        ["dramatic", "Dramatic", "A big play drops to ½× for a longer beat — at 1× too."]
+      ],
+      row = M.find(m => m[0] === cur) || M[1];
+    return `<div class="fx-row" id="bigSlowRowV193W" style="margin:8px 0 2px">
+        <div class="fx-head"><span class="fx-label">🎬 Big-play slow motion</span><span class="fx-val" id="bigSlowValV193W">${row[1]}</span></div>
+        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin:2px 0 4px">${M.map(m => `<button class="btn bigslow-v193w ${m[0] === cur ? "secondary" : "ghost"}" data-mode="${m[0]}" style="padding:8px 2px;font-size:12px" onclick="setBigSlowV193W('${m[0]}')">${m[1]}</button>`).join("")}</div>
+        <div class="fx-desc" id="bigSlowDescV193W">${row[2]} Touchdowns, turnovers, sacks, big hits and 20+ yard gains.</div>
+      </div>`;
+  }
+  function setBigSlowV193W(m) {
+    if (m !== "off" && m !== "subtle" && m !== "dramatic") return;
+    state.settings || (state.settings = {});
+    state.settings.bigSlowV193W = m;
+    saveGame();
+    buzzV193O("select");
+    state.view === "settings" && screenSettings();
+  }
+  window.setBigSlowV193W = setBigSlowV193W;
   function setSlowV164F(v) {
     const s = Math.round(Math.max(TU("slowMinV164F", 0.25), Math.min(1, (+v || 100) / 100)) * 100) / 100;
     setSpeed(s);
@@ -26618,6 +26840,16 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
     }
   }
   let branchTab = "physical";
+  /* ===== v193 V ICONS IN THE MENU'S STYLE (07's share: the tree's branch tabs) =====
+   * each branch tab wears its glyph from the menu-style icon set (src/24-bottom-nav.js `ribIconV193V`) in the
+   * branch's own colour as the metal; the node icons in the lists stay emoji. Before 24 has loaded (the boot's
+   * first draw) and under `TU("v193V", 0)` it is the emoji. */
+  function branchIconV193V(key, branch) {
+    try {
+      if (TU("v193V", 1) && typeof window.ribIconV193V === "function") return window.ribIconV193V("branch:" + key, branch.icon, { tint: branch.color });
+    } catch (e) {}
+    return branch.icon;
+  }
   function screenPrestige() {
     const e = Object.values(state.tree || {}).reduce((n, i) => n + i, 0);
     byId("screen").innerHTML = `
@@ -26631,7 +26863,7 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
       ${Object.entries(TREE)
         .map(
           ([n, i]) =>
-            `<button class="branch-tab ${branchTab === n ? "active" : ""}" onclick="setBranch('${n}')" style="flex:1;min-width:70px;padding:9px 4px;border-radius:9px;border:1px solid ${branchTab === n ? i.color : "var(--line)"};background:${branchTab === n ? i.color + "22" : "transparent"};color:${branchTab === n ? i.color : "var(--chalk-dim)"};font-family:'Oswald';font-weight:600;font-size:13px;cursor:pointer">${i.icon} ${i.name}</button>`
+            `<button class="branch-tab ${branchTab === n ? "active" : ""}" onclick="setBranch('${n}')" style="flex:1;min-width:70px;padding:9px 4px;border-radius:9px;border:1px solid ${branchTab === n ? i.color : "var(--line)"};background:${branchTab === n ? i.color + "22" : "transparent"};color:${branchTab === n ? i.color : "var(--chalk-dim)"};font-family:'Oswald';font-weight:600;font-size:13px;cursor:pointer">${branchIconV193V(n, i)} ${i.name}</button>`
         )
         .join("")}
     </div>
@@ -32009,18 +32241,19 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
     const B = st.band || null,
       sc = [],
       kS = kseedV146(e.pos);
-    const one = (ks, a) => {
+    const one = (ks, a, pct) => {
       const d = {};
       (ks || []).forEach(k => {
-        d[k] = (d[k] || 0) + a;
+        /* v193 X: a percent of each stat (the expected roll — unrounded, at least a point), flat while off */
+        d[k] = (d[k] || 0) + (pct != null && rollPctOnV193X() ? Math.sign(pct) * Math.max(1, (Math.abs(pct) * ((e.attrs && e.attrs[k]) || 10)) / 100) : a);
       });
       return projPtsV146(e, d);
     };
     const bands = B
       ? [
-          [B.g || 0, one(B.statsG, B.amtG != null ? B.amtG : TU("projBandGV146", 4))] /* v193 B: a revealed roll passes its own amount */,
+          [B.g || 0, one(B.statsG, B.amtG != null ? B.amtG : TU("projBandGV146", 4), B.pctG)] /* v193 B: a revealed roll passes its own amount (v193 X: percent) */,
           [B.n || 0, 0],
-          [B.r || 0, one(B.statsR, -(B.amtR != null ? B.amtR : TU("projBandRV146", 3.5)))]
+          [B.r || 0, one(B.statsR, -(B.amtR != null ? B.amtR : TU("projBandRV146", 3.5)), B.pctR != null ? -B.pctR : null)]
         ]
       : [[1, 0]];
     const fz =
@@ -34626,9 +34859,10 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
         };
         /* v192 A: the plan's number is a PERCENT of the attribute (+12% Speed), not flat points — see fatePctOnV192A */
         if (fatePctOnV192A()) {
-          out.pct = amount * TU("fatePctMultV192A", 1);
+          /* v193 X: re-based on the rolls' College calibration (a flat point = rollPctPerPointV193X %), whole percents */
+          out.pct = rollPctOnV193X() ? rollPctV193X(amount * TU("fatePctMultV192A", 1)) : amount * TU("fatePctMultV192A", 1);
           out.amount = fatePtsV192A(p, attr, out.pct);
-          out.hedgePct = out.pct * 0.3;
+          out.hedgePct = rollPctOnV193X() ? Math.max(1, Math.round(out.pct * 0.3)) : out.pct * 0.3;
           out.hedge = fatePtsV192A(p, attr, out.hedgePct);
         }
         return out;
@@ -34991,6 +35225,7 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
           "</div></div>"
         );
       }
+      window.__pgGridV193W = (pos, statObj, gameObj) => pgGrid(pos, statObj, gameObj); /* v193 W: the Quick Play card's folded box */
       function pgGrid(pos, statObj, gameObj) {
         var rows = typeof liveBoxLine === "function" ? liveBoxLine(pos, statObj) : [];
         var gmap = null;
@@ -35607,17 +35842,22 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
           // the year now stands — the single-game box is the detail underneath it.
           // The green deltas still show what this game contributed, so leading with
           // the season total loses nothing.
-          '<div class="stat-sec-label">SEASON TOTALS' +
-          seasonThru +
-          ' <small style="color:var(--good);letter-spacing:0">+ from this game</small></div>' +
-          '<div class="fullbox">' +
-          pgGrid(p.pos, TU("v189A", 1) ? seasonBoxV189(p, g.stat, wr).box : seasonBox, g.stat) /* v189 A: every played week, watched or simmed */ +
-          "</div>" +
-          gradeCardHtml(p.pos, grade) +
-          '<div class="stat-sec-label" style="margin-top:12px">THIS GAME</div>' +
-          '<div class="fullbox">' +
-          pgGrid(p.pos, g.stat, null) +
-          "</div>" +
+          recapFoldV193W(
+            "pg",
+            "grade " + grade.grade + " " + Math.round(grade.score) + (snaps > 0 ? " · " + snaps + " snaps" : ""),
+            playByPlayV193W(g, p) /* v193 W: the snaps he was in and the scores, in order */ +
+              '<div class="stat-sec-label">SEASON TOTALS' +
+              seasonThru +
+              ' <small style="color:var(--good);letter-spacing:0">+ from this game</small></div>' +
+              '<div class="fullbox">' +
+              pgGrid(p.pos, TU("v189A", 1) ? seasonBoxV189(p, g.stat, wr).box : seasonBox, g.stat) /* v189 A: every played week, watched or simmed */ +
+              "</div>" +
+              gradeCardHtml(p.pos, grade) +
+              '<div class="stat-sec-label" style="margin-top:12px">THIS GAME</div>' +
+              '<div class="fullbox">' +
+              pgGrid(p.pos, g.stat, null) +
+              "</div>"
+          ) /* v193 W: the recap is folded by default (the YOUR GAME tiles and the reel stay up) */ +
           '<button class="btn" style="margin-top:14px" onclick="window.__pgContinueV13&&window.__pgContinueV13()">Continue \u203A</button>' +
           "</div></div>";
         var old = document.getElementById("pgOverlayV13");
@@ -37986,6 +38226,7 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
           return Object.assign({}, c6, { name: "+" + (Math.abs(v - Math.round(v)) < 0.05 ? Math.round(v) : v.toFixed(1)) + "% " + (c6.kind === "up" ? "Upgrade Points · season end" : "Prestige · career end") });
         }
         if (c6.id === "trust" && TU("flipTrustV186", 1) !== 1) return Object.assign({}, c6, { name: "+" + TU("flipTrustV186", 1) + " Coach Trust" });
+        if (c6.id === "attr" && rollPctOnV193X()) return Object.assign({}, c6, { name: "+" + rollPctV193X(TU("flipAttrV182", 1)) + "% Permanent" }); /* v193 X */
         return c6;
       }
     }
@@ -38040,10 +38281,12 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
       applyFlipV178.pts = n;
     } else if (id === "reps") {
       /* v192 A: a quarter point, on a stat drawn from the position's (Focused Reps leans it to the key ones) */
-      const g = flipRepsV192A(),
-        k192 = onV192A("flipStatV192A") ? flipStatV192A(e, w, "reps") : null,
-        r = repAttrV178(e, k192 || keys[0] || "speed", g);
-      say = "Extra reps · " + r.name + (r.up ? " +1!" : " +" + g);
+      const k192 = onV192A("flipStatV192A") ? flipStatV192A(e, w, "reps") : null,
+        kR = k192 || keys[0] || "speed",
+        /* v193 X: the card's quarter point is a percent of the stat (×rollPctPerPointV193X) — a share of a point, banked */
+        g = rollPctOnV193X() ? (flipRepsV192A() * rollPerPointV193X() * Math.max(1, (e.attrs && e.attrs[kR]) || 10)) / 100 : flipRepsV192A(),
+        r = repAttrV178(e, kR, g);
+      say = "Extra reps · " + r.name + (r.up ? " +1!" : rollPctOnV193X() ? " · " + Math.max(1, Math.round(g * 100)) + "% of a point banked" : " +" + g);
     } else if (id === "trust") e.coachTrust = clamp99((e.coachTrust != null ? e.coachTrust : 50) + TU("flipTrustV182", 3), 0, 100);
     else if (id === "pp") bankPPV136(flatFaceV192A(TU("flipPPV182", 3)), "flipV178"); /* v192 A */
     else if (id === "gear") {
@@ -38057,8 +38300,16 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
         keys.slice().sort((a, b) => (e.attrs[a] || 0) - (e.attrs[b] || 0))[0] ||
         "speed";
       const a182 = TU("flipAttrV182", 1);
-      e.attrs[k] = clamp99((e.attrs[k] || 1) + a182, 1, attrCap());
-      say = "+" + a182 + " " + ((ATTR_INFO[k] && ATTR_INFO[k].name) || k) + " · permanent";
+      if (rollPctOnV193X()) {
+        /* v193 X: a percent of the stat, in whole points off his sheet (at least one) */
+        const p193 = rollPctV193X(a182),
+          n193 = rollPtsV193X(e, k, p193);
+        say = rollTxtV193X(e, k, p193) + " · permanent"; /* read before the points land: "+1% Speed (+2)" */
+        e.attrs[k] = clamp99((e.attrs[k] || 1) + n193, 1, attrCap());
+      } else {
+        e.attrs[k] = clamp99((e.attrs[k] || 1) + a182, 1, attrCap());
+        say = "+" + a182 + " " + ((ATTR_INFO[k] && ATTR_INFO[k].name) || k) + " · permanent";
+      }
     }
     return say;
   }
@@ -39228,7 +39479,7 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
         : `<div class="decision-kicker">${w.playoff ? escHtml(w.round || "PLAYOFFS") : "WEEK " + (wk + 1)} FINAL · ${escHtml(String(w.opp || "OPPONENT"))} · SIMMED</div><div class="decision-title">${TU("v168season", 1) ? myCrestV168(e, 34) : ""}${w.won ? "✅ WIN" : "❌ LOSS"} · ${w.us} – ${w.them}${TU("v168season", 1) ? crestV168(String(w.opp || "").replace(/^.*'s /, ""), 34) : ""}</div><div class="small center" style="color:var(--chalk-dim);margin:2px 0 4px">Game grade ${Math.round(w.perf || 0)}${w.gameGrade ? " · " + escHtml(w.gameGrade) : ""}</div>`;
     document.body.insertAdjacentHTML(
       "beforeend",
-      `<div class="decision-overlay" id="simCardV178"><div class="decision-panel" style="border-color:var(--gold)">${head}${simStatsV189(e, w)}${reelHtmlV178(e, w)}<div class="small center watch-hint-v178" style="margin-top:8px;color:var(--cyan)">📺 Watch next week live: ×${TU("watchPayV178", 2)} points, ×2 reps, two card picks</div><button class="btn" style="margin-top:12px" onclick="window.__V178.closeCard()">Continue ›</button></div></div>`
+      `<div class="decision-overlay" id="simCardV178"><div class="decision-panel" style="border-color:var(--gold)">${head}${simStatsV189(e, w)}${reelHtmlV178(e, w)}${simRecapV193W(e, w) /* v193 W: the folded box */}<div class="small center watch-hint-v178" style="margin-top:8px;color:var(--cyan)">📺 Watch next week live: ×${TU("watchPayV178", 2)} points, ×2 reps, two card picks</div><button class="btn" style="margin-top:12px" onclick="window.__V178.closeCard()">Continue ›</button></div></div>`
     );
     requestAnimationFrame(() => {
       try {
@@ -39249,6 +39500,423 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
     } catch (_) {}
     return h;
   }
+  /* ===== v193 W THE RECAP FOLDS =====
+   * The owner: "Hide the recap of the post-game play-by-play by default." The post-game card (`showPostGame`) kept
+   * its whole recap open under the reel — the season totals, the grade's line-by-line tally, the single-game box — and
+   * the card ran three screens long. It is one folded section now, `▸ PLAY-BY-PLAY RECAP`, under the YOUR GAME tiles,
+   * the season race and the reel (which stay up); a tap opens it, and the choice is remembered on the device
+   * (localStorage `rib.recapOpen.v193`, "1" open / "0" folded; folded by default). Inside, first, the play-by-play
+   * itself: the snaps he was in and every score and turnover, quarter and clock, in order (`playByPlayV193W`, off the
+   * live game's own rows — `recapMaxV193W` 40 at most). The Quick Play card (`simCardV178`) folds its box the same way
+   * (a simmed week has no plays to list). Kill switch `TU("v193Wrecap", 0)`: the recap is drawn open, as before. */
+  function recapOpenV193W() {
+    if (!TU("v193Wrecap", 1)) return !0;
+    try {
+      return localStorage.getItem("rib.recapOpen.v193") === "1";
+    } catch (_) {
+      return !1;
+    }
+  }
+  function recapFoldV193W(id, summary, inner) {
+    if (!TU("v193Wrecap", 1)) return inner;
+    const open = recapOpenV193W();
+    if (!document.getElementById("recapCssV193W"))
+      document.head.insertAdjacentHTML(
+        "beforeend",
+        `<style id="recapCssV193W">
+    .recap-v193w{margin:10px 0 2px;border-radius:11px;background:#00000040;border:1px solid rgba(255,255,255,.08)}
+    .recap-v193w>.recap-head-v193w{display:flex;align-items:center;gap:8px;width:100%;min-height:40px;padding:8px 11px;border:0;background:none;color:var(--gold);font:700 11px Oswald,sans-serif;letter-spacing:1.6px;cursor:pointer;text-align:left}
+    .recap-v193w>.recap-head-v193w small{margin-left:auto;font:500 11px 'Barlow Condensed',sans-serif;letter-spacing:.3px;color:var(--chalk-dim)}
+    .recap-v193w>.recap-body-v193w{padding:0 11px 10px}
+    .recap-v193w:not(.open)>.recap-body-v193w{display:none}
+    .pbp-v193w{display:flex;flex-direction:column;gap:3px;margin:0 0 8px;max-height:260px;overflow-y:auto}
+    .pbp-row-v193w{display:flex;gap:8px;align-items:baseline;padding:4px 6px;border-radius:7px;background:rgba(255,255,255,.03);font:400 12px/1.3 system-ui,sans-serif;color:#cdd8e8}
+    .pbp-row-v193w .t{flex:0 0 auto;min-width:56px;font:700 10px Oswald,sans-serif;letter-spacing:.8px;color:var(--chalk-dim)}
+    .pbp-row-v193w.me{border-left:2px solid var(--cyan)}
+    .pbp-row-v193w.score .d{color:var(--gold)}
+    .pbp-row-v193w.bad .d{color:#ff9f9a}
+  </style>`
+      );
+    return `<div class="recap-v193w${open ? " open" : ""}" id="recapV193W_${id}" data-fold="${id}"><button type="button" class="recap-head-v193w" aria-expanded="${open ? "true" : "false"}" onclick="toggleRecapV193W(this)"><span class="recap-arrow-v193w">${open ? "▾" : "▸"}</span> PLAY-BY-PLAY RECAP<small>${escHtml(String(summary || ""))}</small></button><div class="recap-body-v193w">${inner}</div></div>`;
+  }
+  function toggleRecapV193W(btn) {
+    const box = btn && btn.closest ? btn.closest(".recap-v193w") : null;
+    if (!box) return;
+    const open = !box.classList.contains("open");
+    box.classList.toggle("open", open);
+    btn.setAttribute("aria-expanded", open ? "true" : "false");
+    const a = box.querySelector(".recap-arrow-v193w");
+    a && (a.textContent = open ? "▾" : "▸");
+    try {
+      localStorage.setItem("rib.recapOpen.v193", open ? "1" : "0");
+    } catch (_) {}
+    buzzV193O("tick");
+  }
+  window.toggleRecapV193W = toggleRecapV193W;
+  // the plays he was in, and every score and turnover, off the live game's own rows
+  function playByPlayV193W(g, p) {
+    const rows = [];
+    try {
+      for (const t of (g && g.plays) || []) {
+        if (!t || t.header || /^(drive|period|toss|timeout|warning)$/.test(String(t.event || ""))) continue;
+        const d = String(t.desc || "").replace(/<[^>]*>/g, "").trim(),
+          D = d.toUpperCase(),
+          to = /INTERCEPT|FUMBLE|TURNOVER|SAFETY/.test(D),
+          sc = !!t.scored;
+        if (!t.involved && !sc && !to) continue;
+        const cls = (t.involved ? " me" : "") + (sc ? (t.offense === "us" ? " score" : " bad") : to ? " bad" : "");
+        rows.push(`<div class="pbp-row-v193w${cls}"><span class="t">${t.quarter > 4 ? "OT" : "Q" + (t.quarter || 1)}${t.clock ? " " + escHtml(String(t.clock)) : ""}</span><span class="d">${escHtml(d)}</span></div>`);
+      }
+    } catch (_) {}
+    const cap = Math.max(1, TU("recapMaxV193W", 40)),
+      more = rows.length > cap ? rows.length - cap : 0;
+    return `<div class="stat-sec-label" style="margin-top:4px">PLAY-BY-PLAY <small style="color:var(--chalk-dim);letter-spacing:0">${escHtml(String((p && p.name) || "his"))}'s snaps · every score and turnover</small></div><div class="pbp-v193w">${rows.length ? rows.slice(0, cap).join("") + (more ? `<div class="small" style="color:var(--chalk-dim)">+${more} more</div>` : "") : '<div class="small" style="color:var(--chalk-dim)">No snaps for him this game.</div>'}</div>`;
+  }
+  function simRecapV193W(e, w) {
+    if (!e || !w || w.satOut || !w.statLine || typeof window.__pgGridV193W !== "function") return "";
+    let box = "";
+    try {
+      box = window.__pgGridV193W(e.pos, w.statLine, null);
+    } catch (_) {
+      return "";
+    }
+    return recapFoldV193W(
+      "sim",
+      "grade " + (w.gameGrade || "") + " " + Math.round(w.perf || 0) + (w.snaps ? " · " + w.snaps + " snaps" : ""),
+      `<div class="small" style="color:var(--chalk-dim);margin:0 0 6px">Simmed — no snaps to replay. Watch a week live to see every play.</div><div class="stat-sec-label">THIS GAME</div><div class="fullbox">${box}</div>`
+    );
+  }
+  /* ===== v193 W INJURIES SAY WHAT AND HOW LONG =====
+   * The owner: "Pop up notifications on injury: what happened, how long you'll be out for." An injury was a toast
+   * ("🩹 MCL sprain — out 2 games") that went by in two seconds, often over a screen change. Every NEW injury to him
+   * now opens a pop-up, once, on the first screen after it happens — never on the live view, never over the post-game
+   * card, the Quick Play card, a pregame / growth screen, a decision, the coach or another dialog (`injBlockedV193W`).
+   * It is made where the injury is: `materializeInjuryV18` (the week's roll — the injury he takes into the week, which
+   * sits that game) and `updateConditionAfterGame` (the knock that turned into an injury in the game itself — on a
+   * watched week, the play it happened on: `hurtPlayOfV193W`, his last contact snap, kept on the week by
+   * `finishWeekGame`). Each is a note on `player.injQV193W` (the save carries it, so a reload still shows it), in
+   * order: a quick-simmed run with two injuries shows both, one after the other, with each one's own numbers.
+   *   the card: an icon by body part, the name and the severity; WHAT HAPPENED (the play — "Hit low on a 7-yard run,
+   *   2nd quarter" — or the week and the opponent); HOW LONG, read off the live injury when it is shown
+   *   (`weeksRemaining`, `mustSitV18`, the schedule: "Out 3 games — back for Week 9 vs Rivals"; once healed, the
+   *   games it actually cost); WHAT IT MEANS, every number from the code that applies it — the snaps
+   *   (`conditionModifiers`: none while out, −11% a severity point while hurt), −10% to every attribute while hurt
+   *   (`fatigueMulV120`'s `condWorn`), the game-rating cost, the re-injury risk (the recurrence through
+   *   `injPlanMultV54`), and what shortens it (Miracle Hands `healWeeksV146`, Trainer's Room `trainerWeeksV153B`, the
+   *   Injury Time Out gear, a Recovery week) — and a button to the body (the condition card).
+   * Haptic `error` then `heavy`. `injury.seenV193W` marks it shown. When it heals (`sitOutWeekV18`, the week's
+   * condition update, the offseason) a smaller "Back from injury — cleared to play" pop-up follows (haptic `success`).
+   * The old toasts stand down while it is on (off under an automated browser unless `v193WinjPrompt` is 1, v189 B's
+   * rule). Kill switch `TU("v193Winj", 0)`: the toasts, no pop-ups.
+   * `window.__V193W` (`queue`, `shown`, `pump`, `force`); `v193Wcheck`. */
+  // on by default; off under an automated browser (v189 B's rule), so the checks and the simulator that click through
+  // weeks are not interrupted (they keep the old toasts) — a check that wants it sets `v193WinjPrompt` to 1
+  function injPopOnV193W() {
+    let auto = !1;
+    try {
+      auto = !!(typeof navigator < "u" && navigator.webdriver);
+    } catch (_) {}
+    return !!TU("v193Winj", 1) && !!TU("v193WinjPrompt", auto ? 0 : 1);
+  }
+  const INJ_W = { shown: [], last: null, timer: 0 };
+  // no Math.random() here: this runs inside the week's sim, and an extra draw would move every sample path after it
+  function injIdV193W(e) {
+    e.injSeqV193W = (e.injSeqV193W | 0) + 1;
+    return "i" + (e.totalSeasons | 0) + "_" + e.injSeqV193W + "_" + Date.now().toString(36);
+  }
+  function hurtNoteV193W(e, wk, inj, src) {
+    if (!injPopOnV193W() || !e || !inj) return;
+    try {
+      inj.idV193W || (inj.idV193W = injIdV193W(e));
+      inj.seenV193W = !1;
+      const Q = (e.injQV193W = Array.isArray(e.injQV193W) ? e.injQV193W : []),
+        wi = e.weekResults && wk ? e.weekResults.indexOf(wk) : -1;
+      // the knock he took into the week became this injury in the game: one pop-up, the injury's
+      if (src === "game") for (let k = Q.length - 1; k >= 0; k--) if (Q[k].k === "hurt" && Q[k].knock && Q[k].wi === wi) Q.splice(k, 1);
+      const play = src === "game" && wk && wk.liveBookedV85 && wk.hurtPlayV193W ? wk.hurtPlayV193W : null;
+      Q.push({
+        k: "hurt",
+        id: inj.idV193W,
+        name: String(inj.name || "Injury"),
+        sev: inj.severity || 1,
+        knock: !!inj.knock,
+        se: !!inj.seasonEnding,
+        rec: Number(inj.recurrence) || 0,
+        wk0: inj.weeksRemaining || 0,
+        raw: inj.rawWeeksV193W != null ? inj.rawWeeksV193W : inj.weeksRemaining || 0,
+        trainer: !!(wk && wk.trainerRoomV134),
+        src,
+        wi,
+        opp: wk ? String(wk.opp || "") : "",
+        live: !!(wk && wk.liveBookedV85),
+        play,
+        lvl: e.level | 0,
+        season: e.totalSeasons | 0
+      });
+      while (Q.length > 12) Q.shift();
+      injSoonV193W();
+    } catch (_) {}
+  }
+  function healNoteV193W(e, inj, how) {
+    if (!injPopOnV193W() || !e || !inj || inj.knock) return;
+    try {
+      const Q = (e.injQV193W = Array.isArray(e.injQV193W) ? e.injQV193W : []),
+        ws = e.weekResults || [],
+        nx = ws.findIndex(w => w && !w.played),
+        hurt = Q.find(q => q.k === "hurt" && q.id && q.id === inj.idV193W);
+      // the week he is back for: the next one on the schedule — but a heal booked while this week is being processed is back for the one after it
+      hurt && (hurt.healedWi = nx);
+      Q.push({ k: "heal", id: inj.idV193W || "", name: String(inj.name || "Injury"), how: how || "", wi: how === "offseason" ? -1 : nx, lvl: e.level | 0, season: e.totalSeasons | 0 });
+      while (Q.length > 12) Q.shift();
+      injSoonV193W();
+    } catch (_) {}
+  }
+  // his last contact snap in a watched game: the play an in-game injury happened on
+  function hurtPlayOfV193W(g) {
+    const ps = ((g && g.plays) || []).filter(t => t && t.involved && !t.header && !t.penalty && /^(run|pass)$/.test(String(t.event || "")));
+    if (!ps.length) return null;
+    const contact = ps.filter(t => {
+      const d = String(t.desc || "").toUpperCase();
+      return t.offense === "us" ? !t.oob && !t.scored && !/INCOMPLETE|INTERCEPT|THROWS IT AWAY/.test(d) : /TACKLE|BRING|DOWN|STOP|SACK|HIT/.test(d);
+    });
+    const t = (contact.length ? contact : ps)[(contact.length ? contact : ps).length - 1];
+    return { q: t.quarter || 1, clock: String(t.clock || ""), yd: Number(t.yards) || 0, ev: String(t.event), off: t.offense === "us", sack: /SACK/i.test(String(t.desc || "")) };
+  }
+  function injPartV193W(name) {
+    const n = String(name || "").toLowerCase();
+    if (/concussion|head/.test(n)) return { ic: "🧠", part: "head", verb: "Took a shot to the head", hurt: "Took a hit to the head" };
+    if (/ankle|turf toe|achilles|foot/.test(n)) return { ic: "🦶", part: /toe/.test(n) ? "foot" : "ankle", verb: /achilles/.test(n) ? "Felt the Achilles go" : /toe/.test(n) ? "Jammed his toe in the turf" : "Rolled his ankle", hurt: /achilles/.test(n) ? "Felt the Achilles go" : /toe/.test(n) ? "Jammed his toe" : "Rolled his ankle" };
+    if (/knee|mcl|acl/.test(n)) return { ic: "🦵", part: "knee", verb: "Hit low — the knee buckled", hurt: "Hurt his knee" };
+    if (/hamstring|muscle|groin|quad|calf/.test(n)) return { ic: "🦵", part: "leg", verb: "Felt the " + (/hamstring/.test(n) ? "hamstring" : "muscle") + " grab", hurt: "Tweaked his " + (/hamstring/.test(n) ? "hamstring" : "leg") };
+    if (/shoulder|labrum|collarbone/.test(n)) return { ic: "💪", part: /collarbone/.test(n) ? "collarbone" : "shoulder", verb: "Landed hard on his shoulder", hurt: "Hurt his shoulder" };
+    if (/hand|wrist|finger|thumb/.test(n)) return { ic: "✋", part: "hand", verb: "Jammed his hand", hurt: "Hurt his hand" };
+    if (/rib/.test(n)) return { ic: "🫁", part: "ribs", verb: "Took a helmet in the ribs", hurt: "Bruised his ribs" };
+    return { ic: "🩹", part: "body", verb: "Went down", hurt: "Got hurt" };
+  }
+  function injSevV193W(q) {
+    return q.se ? "SEASON-ENDING" : q.knock ? "KNOCK" : q.sev >= 3 ? "SEVERE" : q.sev >= 2 ? "MODERATE" : "MINOR";
+  }
+  function injWeekLabelV193W(e, i) {
+    const ws = (e && e.weekResults) || [],
+      w = ws[i];
+    if (!w) return "next season";
+    const reg = ws.filter(x => !x.playoff),
+      lab = w.playoff ? String(w.round || "the playoffs") : "Week " + (reg.indexOf(w) + 1);
+    return lab + (w.opp ? (homeWeekV93(w, i) ? " vs " : " @ ") + w.opp : "");
+  }
+  // what happened, in a sentence
+  function injWhatV193W(e, q) {
+    const P = injPartV193W(q.name),
+      wkL = q.wi >= 0 ? injWeekLabelV193W(e, q.wi) : "this week";
+    if (q.play) {
+      const p = q.play,
+        ord = p.q > 4 ? "in overtime" : ["", "1st", "2nd", "3rd", "4th"][p.q] + " quarter",
+        yd = p.yd,
+        what = p.ev === "pass" ? (p.sack ? "sack" : "pass") : "run",
+        gain = yd > 0 ? "a " + yd + "-yard " + (p.off && p.ev === "pass" ? "catch" : what) : yd < 0 ? "a " + what + " for a loss of " + Math.abs(yd) : "a " + what + " that went nowhere";
+      return `${P.verb} ${p.off ? "on " + gain : "making the stop on " + gain}, ${ord}${p.clock ? " (" + p.clock + ")" : ""} — ${wkL}.`;
+    }
+    if (q.src === "game") return `${P.verb} in the game — ${wkL}.`;
+    if (q.knock) return `${P.hurt} going into ${wkL} — a knock; he plays through it.`;
+    return `${P.hurt} in practice before ${wkL} — he did not dress for the game.`;
+  }
+  // how long — read off the live injury and the schedule when it is shown
+  function injHowLongV193W(e, q) {
+    const c = cv18(e),
+      ws = e.weekResults || [],
+      cur = c.injury && c.injury.idV193W === q.id ? c.injury : null,
+      unplayed = ws.map((w, i) => (w && !w.played ? i : -1)).filter(i => i >= 0),
+      missed = q.wi >= 0 ? ws.filter((w, i) => i >= q.wi && w && w.satOut && w.injName === q.name).length : 0;
+    if (cur && cur.seasonEnding) return { out: missed + unplayed.length, backWi: -1, txt: `Out for the season${missed ? " — " + missed + " game" + (missed > 1 ? "s" : "") + " so far" : ""}. He is back next season.`, sitting: !0, season: !0 };
+    if (cur && mustSitV18(e)) {
+      const left = cur.weeksRemaining || 0,
+        out = missed + left,
+        bw = unplayed[left] != null ? unplayed[left] : -1;
+      return { out, left, backWi: bw, sitting: !0, txt: `Out ${out} game${out === 1 ? "" : "s"}${missed && left ? " (" + missed + " missed, " + left + " to go)" : ""} — back for ${bw >= 0 ? injWeekLabelV193W(e, bw) : "next season"}.` };
+    }
+    if (cur) {
+      const left = cur.weeksRemaining || 0,
+        bw = unplayed[left] != null ? unplayed[left] : -1;
+      return left > 0
+        ? { out: missed, left, backWi: bw, hurt: !0, txt: `Plays hurt for the next ${left} game${left === 1 ? "" : "s"} — full strength for ${bw >= 0 ? injWeekLabelV193W(e, bw) : "next season"}.` }
+        : { out: missed, left: 0, backWi: unplayed[0] != null ? unplayed[0] : -1, hurt: !0, txt: "Plays through it — gone by next week." };
+    }
+    // healed already (a quick-simmed run): what it cost
+    const bw = q.healedWi != null ? q.healedWi : unplayed[0] != null ? unplayed[0] : -1;
+    return { out: missed, left: 0, backWi: bw, healed: !0, txt: missed ? `Missed ${missed} game${missed === 1 ? "" : "s"} — back for ${bw >= 0 ? injWeekLabelV193W(e, bw) : "next season"}.` : `Played through it — healed by ${bw >= 0 ? injWeekLabelV193W(e, bw) : "next season"}.` };
+  }
+  // what it means — every number read from the code that applies it
+  function injMeansV193W(e, q, H) {
+    const rows = [],
+      worn = Math.round((1 - TU("condWorn", 0.9)) * 100),
+      cur = cv18(e).injury,
+      sevN = q.knock ? 1 : Math.min(3, q.sev || 1),
+      perf = sevN * 5 + Math.min(8, (cur && cur.idV193W === q.id ? cur.weeksRemaining : q.wk0) || 0);
+    if (H.sitting) rows.push(["SNAPS", "None while he is out — every week he sits is a DNP on the schedule."]);
+    else if (H.healed) rows.push(["SNAPS", H.out ? `None for the ${H.out} game${H.out === 1 ? "" : "s"} he sat — DNPs on the schedule.` : "He played through it."]);
+    else rows.push(["SNAPS", `−${Math.round(sevN * 11)}% of his snaps while it heals.`]);
+    if (H.healed) rows.push(["BODY", `Back to full strength — the −${worn}% to every attribute ended with it.`]);
+    else if (H.sitting) rows.push(["BODY", `He sits until it heals, and comes back whole — the −${worn}% to every attribute a hurt man plays at is gone when it is.`]);
+    else rows.push(["BODY", `−${worn}% to every attribute while he plays on it, and about −${perf} game rating.`]);
+    if (!H.sitting && !H.healed && q.rec > 0) {
+      let k = 1;
+      try {
+        const r = conditionModifiers(e).injuryRisk || 0,
+          r0 = Math.max(0, r - q.rec * 0.18);
+        k = injPlanMultV54({ injury: r }) / Math.max(0.01, injPlanMultV54({ injury: r0 }));
+      } catch (_) {}
+      rows.push(["RE-INJURY", `${k >= 1.05 ? "×" + (Math.round(k * 10) / 10).toFixed(1) + " injury risk each game he plays on it" : "a little likelier while it heals"} (${Math.round(q.rec * 100)}% recurrence).`]);
+    } else rows.push(["RE-INJURY", "None once it heals — the risk goes with the injury."]);
+    const fh = nodeLvl("fastHeal"),
+      fhPct = Math.round(TU("fastHealStepV146", 0.25) * injNodeKV153B() * 1000) / 10,
+      gr = Math.round(gearV147("injDur") * injGearKV153B() * 100),
+      tr = nodeLvl("trainerRoom") > 0,
+      bits = [];
+    bits.push(fh ? `Miracle Hands ${fh} (−${Math.round(fhPct * fh * 10) / 10}% layoff)` : `Miracle Hands (−${fhPct}% layoff a level, in the Vault)`);
+    bits.push(tr ? (e._trainerRoomUsedV134 && !q.trainer ? "Trainer's Room (used this career)" : `Trainer's Room (a season-ender becomes ${trainerWeeksV153B()} games, once a career)`) : `Trainer's Room (a season-ender becomes ${trainerWeeksV153B()} games, once a career — in the Vault)`);
+    bits.push(gr ? `your Injury Time Out gear (−${gr}%)` : "Injury Time Out gear");
+    if (!H.sitting && !H.healed) bits.push("a Recovery week (heals two games a game)");
+    const applied = q.trainer ? ` Trainer's Room turned a season-ender into ${q.wk0} games.` : q.raw > q.wk0 ? ` They cut this one from ${q.raw} to ${q.wk0} games.` : "";
+    rows.push(["SHORTER", bits.join(" · ") + "." + applied]);
+    return rows;
+  }
+  function injBlockedV193W() {
+    if (!state || !state.player || state.view === "live" || state.view === "splash") return !0;
+    try {
+      if (window.ribDialog && window.ribDialog.isOpen) return !0;
+      if (window.__RIB_COACH && window.__RIB_COACH.isOpen) return !0;
+      if (document.querySelector("#pgOverlayV13,#simCardV178,.decision-overlay,.gameplan-overlay,#pregameV1513,#growthV42,#growV132,.life-event-overlay-v12,#rib-vault-v137,.onboard,#personaV13")) return !0;
+      const sp = document.getElementById("splash");
+      if (sp && !sp.classList.contains("gone") && sp.getBoundingClientRect().height > 0) return !0;
+    } catch (_) {}
+    return !1;
+  }
+  function injSoonV193W(ms) {
+    clearTimeout(INJ_W.timer);
+    INJ_W.timer = setTimeout(injPumpV193W, ms != null ? ms : 450);
+  }
+  function injPumpV193W() {
+    const e = state && state.player,
+      Q = e && Array.isArray(e.injQV193W) ? e.injQV193W : null;
+    if (!injPopOnV193W() || !Q || !Q.length || INJ_W.open) return !1;
+    if (injBlockedV193W()) return !1;
+    const q = Q[0];
+    // a note from an earlier season is stale (its week numbers are last year's): drop it quietly — the offseason's own
+    // "healed over the winter" excepted
+    if ((q.season | 0) !== (e.totalSeasons | 0) && !(q.k === "heal" && q.how === "offseason")) {
+      Q.shift();
+      return injPumpV193W();
+    }
+    INJ_W.open = q;
+    const D = window.ribDialog,
+      html = q.k === "heal" ? injHealHtmlV193W(e, q) : injHtmlV193W(e, q);
+    INJ_W.last = { k: q.k, id: q.id, name: q.name, at: Date.now() };
+    INJ_W.shown.push(INJ_W.last);
+    INJ_W.shown.length > 40 && INJ_W.shown.shift();
+    try {
+      if (q.k === "heal") buzzV193O("success");
+      else {
+        buzzV193O("error");
+        setTimeout(() => buzzV193O("heavy"), 260);
+      }
+    } catch (_) {}
+    const done = v => {
+      INJ_W.open = null;
+      const i = Q.indexOf(q);
+      i >= 0 && Q.splice(i, 1);
+      try {
+        const cur = cv18(e).injury;
+        cur && cur.idV193W === q.id && q.k === "hurt" && (cur.seenV193W = !0);
+        saveGame();
+      } catch (_) {}
+      if (v === "body") injToBodyV193W();
+      injSoonV193W(500);
+    };
+    const btns = q.k === "heal" ? [{ label: "Back to work", value: "ok", kind: "primary" }] : [{ label: "🩺 His body", value: "body" }, { label: "Got it", value: "ok", kind: "primary" }];
+    if (D && D.show) D.show({ title: q.k === "heal" ? "BACK FROM INJURY" : "INJURY", html, buttons: btns, cancelValue: "ok" }).then(done, done);
+    else {
+      try {
+        window.alert((q.k === "heal" ? "Back from injury: " : "Injury: ") + q.name);
+      } catch (_) {}
+      done("ok");
+    }
+    return !0;
+  }
+  function injHtmlV193W(e, q) {
+    const P = injPartV193W(q.name),
+      H = injHowLongV193W(e, q),
+      M = injMeansV193W(e, q, H),
+      sev = injSevV193W(q),
+      col = q.se || q.sev >= 3 ? "#ff6b6b" : q.knock || q.sev < 2 ? "#ffb347" : "#ff8a5c";
+    return `<div class="inj-pop-v193w" data-id="${escHtml(q.id)}" data-out="${H.out}" data-back-wi="${H.backWi}" data-sev="${escHtml(sev)}" style="font:13px/1.45 system-ui,sans-serif;color:#d6e0ea;white-space:normal">
+      <div style="display:flex;align-items:center;gap:12px;margin:2px 0 10px"><div style="flex:0 0 auto;width:54px;height:54px;border-radius:14px;display:flex;align-items:center;justify-content:center;font-size:30px;background:radial-gradient(circle at 50% 40%,${col}44,#0000 70%),#0b111a;border:1px solid ${col}88">${P.ic}</div>
+      <div style="min-width:0"><div class="inj-name-v193w" style="font:700 20px/1.1 Oswald,Impact,sans-serif;letter-spacing:.6px;color:#fff">${escHtml(q.name)}</div><div style="margin-top:3px"><span style="font:700 10px Oswald,sans-serif;letter-spacing:1.6px;color:${col};border:1px solid ${col}88;border-radius:8px;padding:1px 6px">${sev}</span> <span style="font-size:11px;color:#9fb0c2">${escHtml(P.part.toUpperCase())}</span></div></div></div>
+      <div style="font:700 10px Oswald,sans-serif;letter-spacing:1.6px;color:#f0bb45">WHAT HAPPENED</div>
+      <div class="inj-what-v193w" style="margin:2px 0 9px">${escHtml(injWhatV193W(e, q))}</div>
+      <div style="font:700 10px Oswald,sans-serif;letter-spacing:1.6px;color:#f0bb45">HOW LONG</div>
+      <div class="inj-how-v193w" style="margin:2px 0 9px;font:700 16px/1.3 Oswald,sans-serif;letter-spacing:.3px;color:${col}">${escHtml(H.txt)}</div>
+      <div style="font:700 10px Oswald,sans-serif;letter-spacing:1.6px;color:#f0bb45">WHAT IT MEANS</div>
+      <div class="inj-means-v193w" style="margin-top:3px;display:flex;flex-direction:column;gap:4px">${M.map(r => `<div style="display:flex;gap:8px;align-items:baseline"><b style="flex:0 0 74px;font:700 9.5px Oswald,sans-serif;letter-spacing:1.2px;color:#9fb0c2">${r[0]}</b><span style="flex:1;font-size:12px">${escHtml(r[1])}</span></div>`).join("")}</div>
+    </div>`;
+  }
+  function injHealHtmlV193W(e, q) {
+    const P = injPartV193W(q.name),
+      ws = e.weekResults || [],
+      missed = ws.filter(w => w && w.satOut && w.injName === q.name).length,
+      wkL = q.wi >= 0 && ws[q.wi] ? injWeekLabelV193W(e, q.wi) : "next season";
+    return `<div class="inj-heal-v193w" data-id="${escHtml(q.id)}" data-back-wi="${q.wi}" style="font:13px/1.45 system-ui,sans-serif;color:#d6e0ea;white-space:normal;text-align:center">
+      <div style="font-size:34px;line-height:1">${P.ic}✅</div>
+      <div style="font:700 19px/1.15 Oswald,Impact,sans-serif;letter-spacing:.6px;color:#7fe0a0;margin:6px 0 2px">CLEARED TO PLAY</div>
+      <div class="inj-heal-txt-v193w">${escHtml(q.name)} has healed${q.how === "offseason" ? " over the offseason" : ""}. ${q.how === "offseason" ? "He starts the new season healthy." : "He is back for " + escHtml(wkL) + "."}</div>
+      ${missed ? `<div style="margin-top:4px;font-size:11.5px;color:#9fb0c2">It cost him ${missed} game${missed === 1 ? "" : "s"} this season.</div>` : ""}
+    </div>`;
+  }
+  // the body: the condition card on the season screen (the hub carries it too)
+  function injToBodyV193W() {
+    try {
+      if (state.view !== "season" && state.view !== "hub") window.go(state.player && state.player.weekResults ? "season" : "hub");
+      setTimeout(() => {
+        const c = document.querySelector("#screen .condition-card-v11");
+        if (c) {
+          c.scrollIntoView({ block: "center", behavior: "smooth" });
+          c.classList.add("inj-flash-v193w");
+          c.style.boxShadow = "0 0 0 2px #ff8a5c, 0 0 22px #ff8a5c66";
+          setTimeout(() => (c.style.boxShadow = ""), 2200);
+        }
+      }, 120);
+    } catch (_) {}
+  }
+  const decV193W = decorateScreen;
+  decorateScreen = function () {
+    decV193W();
+    try {
+      const e = state && state.player;
+      e && Array.isArray(e.injQV193W) && e.injQV193W.length && injSoonV193W(700);
+    } catch (_) {}
+  };
+  // the screens that close themselves (the post-game card, the Quick Play card) do not always re-render: look again now and then
+  setInterval(() => {
+    try {
+      const e = state && state.player;
+      e && Array.isArray(e.injQV193W) && e.injQV193W.length && !INJ_W.open && injPumpV193W();
+    } catch (_) {}
+  }, 1500);
+  window.__V193W = {
+    get queue() {
+      return (state && state.player && state.player.injQV193W) || [];
+    },
+    get shown() {
+      return INJ_W.shown;
+    },
+    get open() {
+      return INJ_W.open;
+    },
+    pump: () => injPumpV193W(),
+    blocked: () => injBlockedV193W(),
+    force: o => (window.__forceInjV193W = o || { name: "MCL sprain", weeks: 2, severity: 2 }),
+    howLong: q => injHowLongV193W(state.player, q),
+    play: g => hurtPlayOfV193W(g)
+  };
   function closeCardV178() {
     const el = document.getElementById("simCardV178");
     el && el.remove();
