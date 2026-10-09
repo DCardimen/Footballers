@@ -53,7 +53,7 @@ async function measure (tune) {
       for (const p of r.plays) {
         if (p.event === 'run' && !/KICKOFF|PUNT/.test(p.desc || '') && Math.abs(p.yards) <= 99) { o.rushN++; o.rushYd += p.yards }
         if (p.event !== 'run' && p.event !== 'pass') continue
-        if (p.oobSim && !/touchdown/i.test(p.desc || '')) { o.rows.simOob++; if (p.oob) o.rows.simOobClock++; if (/out of bounds/i.test(p.desc || '')) o.rows.simOobSaid++; else if (o.rows.said.length < 3) o.rows.said.push(p.desc) }
+        if (p.oobSim && !/touchdown|end zone/i.test(p.desc || '')) { o.rows.simOob++; if (p.oob) o.rows.simOobClock++; if (/out of bounds/i.test(p.desc || '')) o.rows.simOobSaid++; else if (o.rows.said.length < 3) o.rows.said.push(p.desc) }
       }
       for (const { sig, log, play } of logs) {
         if (!log || !log.events || (sig.kind !== 'run' && sig.kind !== 'pass')) continue

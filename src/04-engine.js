@@ -5355,9 +5355,11 @@ window.__visionRadiusV96 = visionRadiusV96;
         /* v194 A THE BOUNCE: an outside run (C or D gap) whose inside is crowded — more live men inside him than
          * outside — is bounced to the boundary (`bounceP194A`): he aims `bounceEdgePxV194A` off the paint and turns it
          * up the sideline, which is where a strung-out run ends — out of bounds, pushed out, or run down at the paint.
-         * Read once a carry, past `bounceFromLxV194A`. Without it a run never got within 100 px of a sideline. */
-        if (oobOnV194A && kind === "run" && c.side === "off" && TU("bounceV194A", 1)) {
-          if (!c._bounceV194A && t >= (c._bounceReadV194A || 0) && c.lx > TU("bounceFromLxV194A", 6) && c.lx < TU("bounceToLxV194A", 90)) {
+         * Read once a carry, past `bounceFromLxV194A`. Without it a run never got within 100 px of a sideline.
+         * OFF by default (`bounceV194A` 1 turns it on): measured, it added ~6 yards to the runs it bounced and made v194 D's
+         * stiff arms at the edge mostly "sick" — the PITCH (`sweepV194A`) carries the perimeter instead. */
+        if (oobOnV194A && kind === "run" && c.side === "off") {
+          if (TU("bounceV194A", 0) && !c._bounceV194A && t >= (c._bounceReadV194A || 0) && c.lx > TU("bounceFromLxV194A", 6) && c.lx < TU("bounceToLxV194A", 90)) {
             const wide = holeGapKey === "C" || holeGapKey === "D";
             c._bounceReadV194A = t + TU("bounceReadMsV194A", 300);
             const s = Math.sign(c.y - MIDY) || (holeY >= MIDY ? 1 : -1);
@@ -5376,8 +5378,8 @@ window.__visionRadiusV96 = visionRadiusV96;
           // he attacks the boundary at a steep angle (aiming `bounceOverPxV194A` past the paint) and turns it up the
           // sideline once he is inside `bounceTurnPxV194A` of it
           // a PITCH is a perimeter play: the back runs for the numbers before he turns it up (`sweepEdgePxV194A` off the paint)
-          if (pitchV194A && !c._bounceV194A && c.lx < TU("sweepTurnLxV194A", 8)) {
-            laneY = holeY < MIDY ? SIDELINE_TOP + TU("sweepEdgePxV194A", 50) : SIDELINE_BOT - TU("sweepEdgePxV194A", 50);
+          if (pitchV194A && TU("sweepV194A", 1) && !c._bounceV194A && c.lx < TU("sweepTurnLxV194A", 8)) {
+            laneY = holeY < MIDY ? SIDELINE_TOP + TU("sweepEdgePxV194A", 35) : SIDELINE_BOT - TU("sweepEdgePxV194A", 35);
             c._sweepV194A = t; }
           if (c._bounceV194A) laneY = edgeV194A(c) < TU("bounceTurnPxV194A", 22) ? c._bounceV194A.y
             : c._bounceV194A.y + c._bounceV194A.s * TU("bounceOverPxV194A", 40);
@@ -5414,7 +5416,7 @@ window.__visionRadiusV96 = visionRadiusV96;
             // v194 A THE STEP-OUT: inside the zone with a man closing on the inside, he takes it out — re-read every
             // `oobReadMsV194A`; the clock widens the zone and drops the threat test when he needs it stopped
             const want = oobWantV194A(c), edge = edgeV194A(c);
-            const zone = want === "out" ? TU("oobEdgeOutPxV194A", 110) : TU("oobEdgePxV194A", 80);
+            const zone = want === "out" ? TU("oobEdgeOutPxV194A", 110) : TU("oobEdgePxV194A", 100);
             if (!c._oobBail && t >= (c._oobReadV194A || 0) && edge < zone && (c.side !== "off" || c.lx > 6)) {
               c._oobReadV194A = t + TU("oobReadMsV194A", 330);
               const threat = !!nb && (want === "out" ? nd < TU("oobGapOutV194A", 90)
