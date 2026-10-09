@@ -7933,7 +7933,7 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
         req: { honors: 30 }
       },
       {
-        /* v193 AA: the season's RECRUIT A PLAYER deal, upgraded — read through treeFx("recruiterV193AA"): fx 0.5 × the
+        /* v193 AA THE FRANCHISE RECRUITER: the season's RECRUIT A PLAYER deal, upgraded — read through treeFx("recruiterV193AA"): fx 0.5 × the
          * branch's ×2 is exactly 1 a level, so the numbers below are what it pays (`fxPaidV193AA` keeps the ×2 tag off) */
         key: "recruiterV193AA",
         name: "The Franchise Recruiter",
@@ -37490,7 +37490,7 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
           ? `🤝 Your sacrifice this season: you gave up <b>${cost}</b> point${cost === 1 ? "" : "s"}; your unit gained <b>+${given} OVR</b>. `
           : `🤝 No sacrifice this season${L.sacrificed ? "" : " — the offseason board offers one"}. `) +
         (L.ovrDelta ? `This season's moves put the team rating <b>${L.ovrDelta > 0 ? "+" : ""}${L.ovrDelta.toFixed(1)}</b>. ` : "") +
-        `</div><div class="small" style="margin-top:4px;color:var(--chalk-dim)">⏳ <b>How long it lasts:</b> roster moves (lifts, sacrifices, departures) last <b>this season</b> — the roster turns over when it ends. Chemistry carries over: it drifts ${Math.round(fade * 100)}% of the way back to 50 each season, so ${
+        `</div><div class="small" style="margin-top:4px;color:var(--chalk-dim)">⏳ <b>How long it lasts:</b> ${rmOnV193AA() ? `the men carry into next season with what they gained (v193 AA: seniors graduate, a few move on, new faces fill the slots; a 🔒 recruit stays until his lock runs out)` : `roster moves (lifts, sacrifices, departures) last <b>this season</b> — the roster turns over when it ends`}. Chemistry carries over: it drifts ${Math.round(fade * 100)}% of the way back to 50 each season, so ${
           Math.abs(gap) < 1 ? "it is at neutral now" : `your ${gap > 0 ? "+" : ""}${Math.round(gap)} keeps ${gap > 0 ? "paying" : "costing"} for about <b>${lastS} season${lastS === 1 ? "" : "s"}</b>`
         } (it moves the team's strength ${q >= 0 ? "+" : ""}${Math.round(q * 100)}% today).${careerSac ? ` Career: ${careerSac} sacrifice${careerSac === 1 ? "" : "s"} on record.` : ""}</div></details></div>`
     );
