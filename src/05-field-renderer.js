@@ -2906,6 +2906,7 @@ class Ot extends mt.Scene {
         marker._ageKV144 = AGE_K_THIS_PLAY_V144;   // v144: one state read a snap, not 22 a frame
         marker.skinTone = skinToneForV151D(actor, marker, idx);   // v151 D: his own skin, whoever he is
         marker._idleHomeV144 = null; marker._idleToV144 = null; marker._idleNextV144 = null;   // v144 C: the shuffle's leash belongs to ONE gap
+        this.idleResetV194D(marker);   // v194 D: the last whistle's poses end with the new snap
         if (window.__RIB20_applyAppearance) window.__RIB20_applyAppearance(this, marker, actor.label, idx);
       });
       const feat = script.meta.featured || pickFeaturedIndex(et, this.offLabels, this.defLabels);
@@ -3155,11 +3156,12 @@ class Ot extends mt.Scene {
          * could not still make the line at a jog afterwards goes straight to the jog. */
         if (H && m._hud && (P.t < H.b || (m._hudBreakAt != null && P.t < m._hudBreakAt))) {
           if (P.t >= H.a) {   // the hold: stand in the ring and face the middle
+            if (this.hudFaceInV194D(m, H)) { this.placeMarker(m, m.sx, m.sy, delta); return; }   // v194 D: every frame, and the QB to his men
             if (!m._hudFaced) { m._hudFaced = true; const a0 = PJ(m.sx, m.sy), a1 = PJ(H.cx[m._hud.side], H.cy); this.faceMarker(m, a1.x - a0.x, a1.y - a0.y); if (m.isLine) m.forceState = "idle"; }
             this.placeMarker(m, m.sx, m.sy, delta); return; }
           gx = m._hud.x; gy = m._hud.y;
           const hdx = gx - m.sx, hdy = gy - m.sy, hd = Math.hypot(hdx, hdy);
-          if (hd < 2) { this.placeMarker(m, m.sx, m.sy, delta); return; }
+          if (hd < 2) { this.hudFaceInV194D(m, H); this.placeMarker(m, m.sx, m.sy, delta); return; }   // v194 D: in his spot, he turns in at once
           const hs = Math.min(hd, js9 * (delta * spd) / 1000);
           this.placeMarker(m, m.sx + hdx / hd * hs, m.sy + hdy / hd * hs, delta * spd * 2); return;
         }
@@ -3744,6 +3746,7 @@ class Ot extends mt.Scene {
    * Reduced motion keeps the pose and drops the motion, the way the crowd does. */
   idleBetweenV144(delta) {
     if (!TU("idleBetweenV144", 1) || REDUCED_MOTION) return;
+    if (this.idleBetweenV194D(delta)) return;   // v194 D IDLE V2: the poses and each man's own clock (the same leash)
     const M = this.markers; if (!M || !M.length) return;
     const now = this._idleClockV144 = (this._idleClockV144 || 0) + delta;   // not `tms` — that name is the MARKER's own clock
     const sp = TU("idleShuffleSpeed", 26) * (delta / 1000);
@@ -3785,6 +3788,345 @@ class Ot extends mt.Scene {
       }
     }
     try { (window.__V144 = window.__V144 || {}).idleTicks = (window.__V144.idleTicks || 0) + 1; } catch (e) {}
+  }
+  /* ===== v194 D IDLE V2 =====
+   * The owner: "V2 the idle motions after the plays are over." After the whistle every free man jogged to his side's
+   * gather spot at one speed on the same frame, and between the plays he shuffled on a timer. Now each man gets a PLAN
+   * at the whistle (`idlePlanV194D`), from his position and from who won the play (`idleOutcomeV194D`: a sack, a pick, an
+   * incompletion or a stuff is the defense's; a first down or a big gain the offense's):
+   *   - his own START (`idleStaggerMsV194D`, staggered, linemen later) and his own PACE and GAIT: a jog, a walk, the
+   *     linemen's TRUDGE, a DB's BACKPEDAL (facing the ball), the winners' SWAGGER (a strut with a bob), the losers' DROOP;
+   *   - a GESTURE before he goes: a fist pump, a point at the scoreboard, shaking out his arms; a winner may go and PAT a
+   *     teammate first; a v109 helper now holds his HAND OUT to the man on the turf until he is up;
+   *   - a POSE when he gets there: hands on hips, hands on knees, head down, or turned to watch the spot.
+   * Between the plays (`idleBetweenV194D`, in place of v144 C's shuffle) each man holds his pose and, on his own clock,
+   * now and then takes a few steps, shakes out, or turns to look somewhere else — every step still a step from where the
+   * WHISTLE left him (`_idleHomeV144`, v144 C's leash: never from where he wandered, or the twenty-two converge).
+   * Presentation only: the poses are v193 AJ clips (`ajClipV193`, so a tackle, a get-up or a celebration outranks them),
+   * every choice comes from this block's own seeded stream (`rngV194D`, never Math.random — the sim draws from that in
+   * this page), and the next snap clears it all (`idleResetV194D`). Kill switch `TU("v194Didle", 0)` (or `v194D` 0).
+   * `window.__V194D.idle`; `v194Dcheck`. */
+  idleOnV194D() { return !!TU("v194D", 1) && !!TU("v194Didle", 1) && !REDUCED_MOTION; }
+  hookV194D() {
+    const H = window.__V194D = window.__V194D || { idle: { plans: 0, men: 0, kinds: {}, poses: {}, ends: {}, starts: [], spds: [], outcomes: {}, pats: 0, offers: 0, gapActs: 0, steps: 0, spread: [] },
+      huddle: { n: 0, maxErr: 0, sumErr: 0, qb: 0, men: {} }, stiff: { n: 0, sick: 0, drop: 0, truck: 0, log: [] }, paint: { n: 0, kinds: {}, last: null } };
+    if (!H.paintAt) { H.paintAt = (x, y) => { const sc = window.__gridironScene; return sc && sc.turfPaintAtV194D ? sc.turfPaintAtV194D(x, y) : null; };
+      H.geo = { PLAY_L, PLAY_W, F_TOP, F_BOT, FW, EZ }; }
+    return H;
+  }
+  // a small seeded stream (mulberry32): the picture's choices never touch the Math.random the sim draws from
+  rngV194D(seed) { let s = (seed >>> 0) || 1; return () => { s = (s + 0x6D2B79F5) | 0; let t = Math.imul(s ^ (s >>> 15), 1 | s); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }; }
+  // who won the play: "off", "def" or null (a modest gain is nobody's)
+  idleOutcomeV194D(P) {
+    const pay = P.payload || {}, ev = String(pay.event || ""), yd = Number(pay.yards) || 0;
+    if (P.turnoverV95 || /sack|int|pick|fumble|safety|turnover/i.test(ev) || pay.safety) return "def";
+    if (/incomplete/i.test(ev)) return "def";
+    if (P.fdConverted || yd >= TU("idleWinYdV194D", 7)) return "off";
+    if (yd <= TU("idleStuffYdV194D", 0)) return "def";
+    return null;
+  }
+  idlePlanV194D(P) {
+    if (!this.idleOnV194D() || !P || !P.post) return;
+    const H = this.hookV194D().idle, spot = P.post.spot, win = this.idleOutcomeV194D(P);
+    const R = this.rngV194D((Math.round(spot.x * 131 + spot.y * 977) ^ Math.imul((this._idleNV194D = (this._idleNV194D | 0) + 1), 2654435761)) >>> 0);
+    this._lastSpotV194D = { x: spot.x, y: spot.y };
+    H.plans++; H.outcomes[win || "none"] = (H.outcomes[win || "none"] || 0) + 1;
+    const plan = [], jog = TU("postJogSpeed", 150), stag = TU("idleStaggerMsV194D", 420);
+    this.markers.forEach((m, i) => {
+      if (!m || !m.root || !m._post) return;
+      const side = i < 11 ? "off" : "def", lab = String(m.posLabel || m._ajLabel || ""), won = win === side, lost = !!win && !won;
+      const line = !!m.isLine || /^(OL|C|G|T|DL|DE|DT|NT)$/.test(lab), db = /^(CB|S|FS|SS|DB)$/.test(lab);
+      const r = R(), pick = (a) => a[Math.min(a.length - 1, Math.floor(R() * a.length))];
+      const I = { gait: "jog", spd: jog, walk: false, pre: null, end: "look", at: R() * stag, phase: R() * 6.283, patTo: null, side };
+      if (line) {
+        I.gait = lost || r < .55 ? "trudge" : "walk"; I.walk = true; I.spd = TU("idleTrudgeSpdV194D", 52) * (.8 + R() * .45);
+        I.end = lost ? pick(["knees", "knees", "hips", "headDown"]) : pick(["hips", "look", "knees", "look"]);
+        I.at += TU("idleLineLagMsV194D", 160);
+      } else if (db && side === "def" && r < TU("idleBackpedalPV194D", .5)) {
+        I.gait = "back"; I.walk = true; I.spd = TU("idleBackSpdV194D", 55) * (.85 + R() * .3); I.end = lost ? pick(["hips", "headDown"]) : pick(["look", "hips"]);
+      } else if (won) {
+        if (r < .36) { I.gait = "swagger"; I.walk = true; I.spd = TU("idleSwaggerSpdV194D", 78) * (.9 + R() * .2); I.pre = R() < .6 ? "fistpump" : null; }
+        else if (r < .56) { I.gait = "jog"; I.spd = jog * (.9 + R() * .25); I.pre = "point"; }
+        else if (r < .78) { I.gait = "walk"; I.walk = true; I.spd = TU("walkSpeed", 100) * (.75 + R() * .25); I.patTo = -1; }
+        else { I.gait = "jog"; I.spd = jog * (1 + R() * .2); }
+        I.end = pick(["look", "hips", "look"]);
+      } else if (lost) {
+        I.gait = r < .62 ? "droop" : "walk"; I.walk = true; I.spd = TU("idleDroopSpdV194D", 56) * (.85 + R() * .35); I.pre = R() < .3 ? "shake" : null;
+        I.end = pick(["hips", "knees", "headDown", "headDown"]);
+      } else {
+        I.gait = r < .5 ? "jog" : "walk"; I.walk = I.gait === "walk";
+        I.spd = I.walk ? TU("walkSpeed", 100) * (.65 + R() * .35) : jog * (.85 + R() * .35);
+        I.pre = R() < .22 ? "shake" : null; I.end = pick(["hips", "look", "look", "shake"]);
+        if (I.end === "shake") { I.pre = I.pre || "shake"; I.end = "hips"; }
+      }
+      if (i === P.carrierId && won && R() < .7) { I.pre = pick(["fistpump", "point"]); I.at = Math.min(I.at, 120); }   // the man who made it
+      m._idleV194 = I; plan.push(I);
+      H.men++; H.kinds[I.gait] = (H.kinds[I.gait] || 0) + 1; H.ends[I.end] = (H.ends[I.end] || 0) + 1;
+      if (H.starts.length < 400) { H.starts.push(Math.round(I.at)); H.spds.push(Math.round(I.spd)); }
+    });
+    // the pats: a winner who walks goes to the nearest free teammate first
+    this.markers.forEach((m, i) => { const I = m && m._idleV194; if (!I || I.patTo !== -1) return;
+      let best = null, bd = TU("idlePatReachPx", 110);
+      this.markers.forEach((o, j) => { if (j === i || !o || !o._post || o._post.grounded || o._post.help || o._late || (j < 11) !== (i < 11)) return;
+        const d = Math.hypot(o.sx - m.sx, o.sy - m.sy); if (d < bd) { bd = d; best = j; } });
+      I.patTo = best; });
+    // the spread the field starts the gap with (the check holds the gather to it)
+    const ys = this.markers.filter(m => m && m.root).map(m => m.sy);
+    if (ys.length && H.spread.length < 80) H.spread.push({ at: "whistle", y: Math.round(Math.max(...ys) - Math.min(...ys)) });
+  }
+  // one man's frame in the post-whistle gather; false hands him back to the v86 jog
+  idleGatherV194D(m, i, q, P, k, dt) {
+    const I = m._idleV194; if (!I || !this.idleOnV194D()) return false;
+    if (k < I.at) { this.placeMarker(m, m.sx, m.sy, dt); return true; }   // his own clock: not everyone turns away on the same frame
+    if (!I.started) { I.started = true; if (I.pre) I.preUntil = k + this.idlePoseV194D(m, I.pre, P); }
+    if (I.preUntil && k < I.preUntil) { this.placeMarker(m, m.sx, m.sy, dt); return true; }
+    let tx = q.tx, ty = q.ty;
+    if (I.patTo != null && I.patTo >= 0 && !I.patted) {   // to a teammate first, a hand on his shoulder pads
+      const o = this.markers[I.patTo];
+      if (!o || !o.root || (o._post && o._post.grounded && !o._post.rose) || /^(getupSeq|down|tackleSeq|fallAJ|downAJ)$/.test(String(o.forceState || ""))) I.patted = true;
+      else {
+        const sd = Math.sign(m.sx - o.sx) || 1; tx = o.sx + sd * TU("idlePatStandPx", 9); ty = o.sy;
+        if (Math.hypot(tx - m.sx, ty - m.sy) < 4 || k - I.at > TU("idlePatGiveUpMs", 900)) {
+          I.patted = true;
+          if (k - I.at <= TU("idlePatGiveUpMs", 900)) { this.hookV194D().idle.pats++; o._patHopV194 = o.tms + 240; m._walk = false; I.gaitOn = false;
+            I.preUntil = k + this.idlePoseV194D(m, "pat", P, { to: o }); this.placeMarker(m, m.sx, m.sy, dt); return true; }
+        }
+      }
+    }
+    const dx = tx - m.sx, dy = ty - m.sy, d = Math.hypot(dx, dy);
+    if (d < 3) {
+      if (!I.arrived) { I.arrived = true; m._walk = false; this.idlePoseV194D(m, I.end, P); }
+      this.placeMarker(m, m.sx, m.sy, dt); return true;
+    }
+    if (I.arrived) { I.arrived = false; }
+    if (!I.gaitOn) { I.gaitOn = true; if (/^(swagger|droop|back|trudge)$/.test(I.gait)) this.idlePoseV194D(m, I.gait, P); else if (m._ajClip && m._ajClip.idle194) this.ajClipEndV193(m, false); }
+    m._walk = !!I.walk;
+    const sp = I.spd * (1 + Math.sin(k / 260 + I.phase) * .08), stp = Math.min(d, sp * dt / 1000);   // nobody keeps a metronome's pace
+    this.placeMarker(m, m.sx + dx / d * stp, m.sy + dy / d * stp, dt);
+    return true;
+  }
+  /* the poses: a v193 AJ clip each. Returns how long a GESTURE holds him in place (0 for a gait or a standing pose,
+   * which ride until the next snap or until something outranks them). */
+  idlePoseV194D(m, kind, P, o) {
+    if (!m || !m.root || !this.ajOnV193()) return 0;
+    const H = this.hookV194D().idle; H.poses[kind] = (H.poses[kind] || 0) + 1;
+    const ph = (m._idleV194 && m._idleV194.phase) || 0, sp = (P && P.post && P.post.spot) || this._lastSpotV194D || null;
+    const faceTo = (mm, x, y) => { const a = PJ(mm.sx, mm.sy), b = PJ(x, y); if (Math.hypot(b.x - a.x, b.y - a.y) > 1) this.faceMarker(mm, b.x - a.x, b.y - a.y); return [mm.dirKey, mm.flip]; };
+    const look = (o && o.to) ? faceTo(m, o.to.sx, o.to.sy) : sp ? faceTo(m, sp.x, sp.y) : [m.dirKey, m.flip];
+    const knees = RIB.v91img ? "getup6" : "stance";
+    const LONG = 60000;
+    let ms = LONG, hold = 0, pose;
+    switch (kind) {
+      case "swagger": pose = function (k, mm) { const t = mm.tms / 1000 * TU("idleSwaggerHzV194D", 6.2) + ph; return { oy: -Math.abs(Math.sin(t)) * 1.7, rot: Math.sin(t * .5) * .1 }; }; break;   // the strut
+      case "droop": pose = function (k, mm) { return { oy: 1.1, sy: .94, rot: Math.sin(mm.tms / 420 + ph) * .04 }; }; break;   // head down, shoulders down
+      case "trudge": pose = function (k, mm) { return { sy: .97, rot: Math.sin(mm.tms / 300 + ph) * .05 }; }; break;   // a big man's heavy rock side to side
+      case "back": pose = function (k, mm) { return { face: sp ? faceTo(mm, sp.x, sp.y) : null }; }; break;   // backpedalling, eyes on the ball
+      case "fistpump": hold = ms = TU("idleFistPumpMsV194D", 440); pose = function (k) { const n = Math.floor(k * 4); return { st: "celebrate" + (n % 2 ? 3 : 2), oy: -Math.abs(Math.sin(k * Math.PI * 2)) * 2.2 }; }; break;
+      case "point": hold = ms = TU("idlePointMsV194D", 760); pose = function (k) { return { st: k < .12 ? "celebrate1" : "celebrate0", face: ["up", false], oy: -.6 }; }; break;   // up at the board
+      case "shake": hold = ms = TU("idleShakeMsV194D", 480); pose = function (k) { const w = Math.sin(k * Math.PI * 9); return { st: "idle", face: look, rot: w * .11, sx: 1 + Math.abs(w) * .05 }; }; break;   // shaking out the arms
+      // the stiff-arm row is mirrored against the run cells in the atlas: flipped the other way, the hand goes out AT him
+      case "pat": hold = ms = TU("idlePatMsV194D", 320); pose = function (k) { return { st: "stiff1", face: [look[0], !look[1]], ox: (look[1] ? 1 : -1) * 1.2 * Math.sin(Math.PI * k) }; }; break;
+      case "offer": ms = (o && o.ms) || 1600; pose = function (k) { return { st: "stiff1", face: [look[0], !look[1]], oy: .5 }; }; break;   // a hand down to the man on the turf
+      case "hips": pose = function (k, mm) { return { st: "idle", face: look, sx: 1.09, sy: .98, oy: Math.sin(mm.tms / 520 + ph) * .4 }; }; break;   // hands on hips, breathing
+      case "knees": pose = function (k, mm) { return { st: knees, face: look, sy: 1 + Math.sin(mm.tms / 380 + ph) * .025 }; }; break;   // hands on knees, sucking wind
+      case "headDown": pose = function (k, mm) { return { st: "idle", face: look, oy: 1.3, sy: .93 }; }; break;
+      default: pose = function () { return { st: "idle", face: look }; };   // "look": turned to watch the spot
+    }
+    const base = pose;
+    const C = this.ajClipV193(m, "idle194_" + kind, ms, function (k, mm, CC, st) {
+      const r = base.call(this, k, mm, CC, st) || {};
+      if (mm._patHopV194 && mm.tms < mm._patHopV194) r.oy = (r.oy || 0) - 1.4;   // a teammate's hand on him
+      return r;
+    });
+    if (C) C.idle194 = kind;
+    return C ? hold : 0;
+  }
+  // a v109 helper at the downed man's side: the hand goes out and stays out until he is up
+  idleOfferV194D(m, g) {
+    if (!this.idleOnV194D() || !g) return false;
+    if (!this.idlePoseV194D(m, "offer", this.play, { to: g, ms: 2400 }) && !(m._ajClip && m._ajClip.idle194 === "offer")) return false;
+    this.hookV194D().idle.offers++; return true;
+  }
+  idleClipEndV194D(m) { if (m && m._ajClip && m._ajClip.idle194) this.ajClipEndV193(m, false); }
+  idleResetV194D(m) { if (!m) return; this.idleClipEndV194D(m); m._idleV194 = null; m._patHopV194 = 0; }
+  // between the plays: hold the pose; now and then a few steps, a shake, a look elsewhere — each on his own clock
+  idleBetweenV194D(delta) {
+    if (!this.idleOnV194D()) return false;
+    const M = this.markers; if (!M || !M.length) return true;
+    const now = this._idleClockV144 = (this._idleClockV144 || 0) + delta, H = this.hookV194D().idle;
+    const R = this._idleRngV194D || (this._idleRngV194D = this.rngV194D(0x194d1d1e));
+    const sp = TU("idleShuffleSpeed", 26) * (delta / 1000), dt144 = Math.max(1, delta * TU("idleCycleK", .5));
+    for (let i = 0; i < M.length; i++) {
+      const m = M[i]; if (!m || !m.root || m.root.visible === false) continue;
+      if (m.forceState && m.forceState !== "idle") { continue; }   // a celebration, a get-up: busy (v144 C's rule)
+      if (m._idleHomeV144 == null) m._idleHomeV144 = { x: m.sx, y: m.sy };
+      let I = m._idleV194;
+      if (!I) { I = m._idleV194 = { gap: true, phase: R() * 6.283, end: (m.isLine && R() < .4) ? "knees" : ["hips", "look", "look", "headDown"][Math.floor(R() * 4)] }; }
+      if (!I.gapIn) { I.gapIn = true; I.stopAt = now + R() * TU("idleGapStopMsV194D", 320); I.nextAct = now + TU("idleActFirstMsV194D", 220) + R() * TU("idleActJitterMsV194D", 1300); I.to = null;
+        // a man still on his way when the whistle's gather ran out (or one in three who simply cannot stand still) walks it off
+        if ((I.started && !I.arrived) || R() < TU("idleGapWalkPV194D", .35)) { const h = m._idleHomeV144;
+          I.to = { x: h.x + (R() * 2 - 1) * TU("idleShuffleR", 18), y: h.y + (R() * 2 - 1) * TU("idleShuffleSpread", 26) }; this.idleClipEndV194D(m); H.steps++; } }
+      if (!I.inPose && now >= I.stopAt && !I.to) { I.inPose = true; m._walk = false; this.idlePoseV194D(m, I.end, null); }
+      if (now > I.nextAct) {
+        I.nextAct = now + TU("idleActEveryMsV194D", 900) + R() * TU("idleActJitterMsV194D", 1300);
+        const q = R(); H.gapActs++;
+        if (q < TU("idleStepPV194D", .38)) {   // a few steps — off the WHISTLE's spot, never off where he wandered (v144 C)
+          const h = m._idleHomeV144, r = TU("idleShuffleR", 18);
+          I.to = { x: h.x + (R() * 2 - 1) * r, y: h.y + (R() * 2 - 1) * TU("idleShuffleSpread", 26) }; I.inPose = false; this.idleClipEndV194D(m); H.steps++;
+        } else if (q < .58 && I.end !== "knees") { this.idlePoseV194D(m, "shake", null); I.inPose = false; I.stopAt = now + TU("idleShakeMsV194D", 480) * 2; }
+        else if (q < .8) {   // a look somewhere else: a teammate, or back at the spot
+          const o = M[(i + 1 + Math.floor(R() * 10)) % M.length]; this.idlePoseV194D(m, I.end, null, o && o !== m && o.root ? { to: o } : null); I.inPose = true;
+        }
+      }
+      const T = I.to;
+      if (T) {
+        const dx = T.x - m.sx, dy = T.y - m.sy, d = Math.hypot(dx, dy);
+        if (d > TU("idleShuffleStopPx", 4)) { const st = Math.min(d, sp); if (m.forceState === "idle") m.forceState = null; this.placeMarker(m, m.sx + dx / d * st, m.sy + dy / d * st, dt144); continue; }
+        I.to = null; I.stopAt = now + R() * 200;
+      }
+      this.placeMarker(m, m.sx, m.sy, dt144);
+    }
+    try { (window.__V144 = window.__V144 || {}).idleTicks = (window.__V144.idleTicks || 0) + 1; } catch (e) {}
+    return true;
+  }
+  /* ===== v194 D THE HUDDLE FACES IN =====
+   * The owner: "Have players facing inward for the huddle." v87 turned the ring to the middle once, on the first frame
+   * of the hold (a few hundred ms before the break), so the men who got there early stood facing the way they had jogged
+   * in — half the ring with its back to the huddle, the QB looking at the line. Now every man faces the middle of his
+   * huddle-mates' spots the moment he is in his spot and on every frame of the hold: the ring's centre for a man in it,
+   * the ring itself for the QB in the middle (he faces his men, his back to the line). Both huddles. A lineman is held
+   * in "idle" there, or his stand turns him back to his line (`lineLocked`). Kill switch `TU("v194Dhuddle", 0)`.
+   * `window.__V194D.huddle` (frames, the worst and the mean bearing error); `v194Dcheck`. */
+  hudFaceInV194D(m, H) {
+    if (!TU("v194D", 1) || !TU("v194Dhuddle", 1) || !m || !m._hud || !H) return false;
+    const side = m._hud.side; let sx = 0, sy = 0, n = 0;
+    for (const o of this.markers) if (o && o !== m && o._hud && o._hud.side === side) { sx += o._hud.x; sy += o._hud.y; n++; }
+    if (!n) return false;
+    const a = PJ(m.sx, m.sy), b = PJ(sx / n, sy / n), dx = b.x - a.x, dy = b.y - a.y;
+    if (Math.hypot(dx, dy) < .5) return false;
+    this.faceMarker(m, dx, dy); m._hudFaced = true;
+    if (m.isLine && !m.forceState) m.forceState = "idle";
+    let err = Math.abs(this.faceAngV109(m) - Math.atan2(dy, dx)); if (err > Math.PI) err = 2 * Math.PI - err;
+    const K = this.hookV194D().huddle; K.n++; K.sumErr += err; K.maxErr = Math.max(K.maxErr, +err.toFixed(3));
+    const idx = this.markers.indexOf(m); K.men[idx] = { d: m.dirKey, f: m.flip ? 1 : 0, err: +err.toFixed(3), side };
+    if (idx === 8) K.qb++;
+    return true;
+  }
+  /* ===== v194 D THE STIFF ARM =====
+   * The owner: "Add SICK stiff arm animation." FieldSim grades every stiff arm (`pow`, `drop`, `sick` — v194 D in
+   * contact()) and a truck by a back who chose the arm arrives as a brokenTackle with `stiffArm`. Here:
+   *   THE ARM — the carrier turns into the man, the arm goes out (stiff1) and LOCKS straight (stiff3) with his weight
+   *     leaning into it for `stiffLockMsV194D` (longer on a sick one), then comes back (stiff2);
+   *   THE MAN — his head snaps back off the hand (rotated away, up on his heels), then either he staggers back three
+   *     steps on his heels and recovers, or (`drop`) he goes over backward, lands in a puff of turf, lies a beat and gets
+   *     up. His drawn spot leaves the sim's for the shove (`ajAnchorV193`) and catches back up;
+   *   THE HIT — a white flash and a starburst on the facemask, a shake, a short freeze; a SICK one freezes for
+   *     `stiffSickFreezeMsV194D`, punches the zoom, slows the clock and calls "SICK STIFF ARM!".
+   * The stiff-armed man is the sim's `beaten` man and never its tackler; nothing here books a stat. The FX draw from
+   * their own seeded stream. Only sim-graded events (`pow` present) take this path; an ungraded one keeps v193 AJ's
+   * shove. Kill switch `TU("v194Dstiff", 0)` (or `v194D` 0). `window.__V194D.stiff`; `v194Dcheck`. */
+  stiffOnV194D() { return !!TU("v194D", 1) && !!TU("v194Dstiff", 1); }
+  stiffArmV194D(P, e, cm, tk, truck) {
+    if (!this.stiffOnV194D() || !this.ajOnV193() || !e || e.pow == null) return null;
+    const S = this.hookV194D().stiff, pow = Math.max(0, Math.min(1, Number(e.pow) || 0)), sick = !!e.sick, drop = !!e.drop || !!truck;
+    S.n++; if (sick) S.sick++; if (drop) S.drop++; if (truck) S.truck++;
+    S.log.push({ t: Math.round(P ? P.t : 0), who: e.who, carrier: e.carrier, pow, sick, drop, truck: !!truck }); if (S.log.length > 80) S.log.shift();
+    const R = this.rngV194D((Math.round((Number(e.x) || 0) * 131 + (Number(e.y) || 0) * 977) ^ Math.imul(S.n, 2654435761)) >>> 0);
+    const out = { cm: false, tk: false }, scene = this;
+    /* THE SIDE: the stiff-arm cells hold the arm out to the screen side only (there is no arm up or down the screen), so
+     * the arm goes out on the side the man is on — or, head on, the side the carrier faces — and the man is drawn INTO
+     * the hand: his drawn spot is glued to the carrier's palm (`G`, re-read off the carrier every frame while the arm is
+     * locked, so a back who runs on drives him along) and then thrown off it. */
+    const cm0 = cm && cm.root ? cm : null, a0 = cm0 ? PJ(cm0.sx, cm0.sy) : null, b0 = tk && tk.root ? PJ(tk.sx, tk.sy) : null;
+    const side = (a0 && b0 && Math.abs(b0.x - a0.x) >= TU("stiffHeadOnPxV194D", 3)) ? Math.sign(b0.x - a0.x) : (cm0 && cm0.flip ? 1 : -1);
+    const dirOf = (m) => {   // the field direction that is "screen-sideways toward the side" at his spot (the projection's inverse, locally)
+      const a = PJ(m.sx, m.sy), bx = PJ(m.sx + 1, m.sy), by = PJ(m.sx, m.sy + 1);
+      const j11 = bx.x - a.x, j12 = by.x - a.x, j21 = bx.y - a.y, j22 = by.y - a.y, det = j11 * j22 - j12 * j21;
+      if (Math.abs(det) < 1e-9) return { x: 0, y: side };
+      let x = (j22 * side) / det, y = (-j21 * side) / det; const n = Math.hypot(x, y) || 1; return { x: x / n, y: y / n };
+    };
+    const G = { x: 0, y: 0 };
+    const handAt = (m) => { const u = dirOf(m), r = scene.ajCellToSimV193(m, TU("stiffReachCellV194D", 21), u.x, u.y); G.x = m.sx + u.x * r; G.y = m.sy + u.y * r; G.ux = u.x; G.uy = u.y; return G; };
+    if (cm0) handAt(cm0); else if (tk && tk.root) { G.x = tk.sx; G.y = tk.sy; const u = dirOf(tk); G.ux = u.x; G.uy = u.y; }
+    const lock = TU("stiffLockMsV194D", 300) + (sick ? TU("stiffSickLockMsV194D", 140) : 0), relMs = lock * .82;
+    let syncKf = null;
+    // ---- the arm: out, locked into him, back
+    if (cm0) {
+      const C = this.ajClipV193(cm, "stiffArm", lock, function (k, mm) {
+        // facing: side-on for a man beside him, a three-quarter cell for one ahead or behind (the arm still on HIS side)
+        let dk = "sd";
+        if (tk && tk.root) { const a = PJ(mm.sx, mm.sy), b = PJ(tk.sx, tk.sy), dx = Math.abs(b.x - a.x), dy = b.y - a.y; if (Math.abs(dy) > dx * 1.2) dk = dy > 0 ? "dr" : "ur"; }
+        if (k < .82 && syncKf) { handAt(mm); syncKf(); }   // the man stays on the hand while it is locked
+        const st = k < .16 ? "stiff1" : k < .82 ? "stiff3" : "stiff2";
+        if (k < .16) return { st, face: [dk, side < 0], rot: side * .05 };
+        if (k < .82) { const q = (k - .16) / .66; return { st, face: [dk, side < 0], rot: side * (.1 + .08 * pow), ox: side * (1 + 1.5 * pow) * Math.min(1, q * 3), sx: 1.05, sy: .97 }; }   // locked out, his weight behind it
+        return { st, face: [dk, side < 0], rot: side * .05 * (1 - k) };
+      });
+      if (C) out.cm = true; else { cm.forceState = "stiffSeq"; cm.seqT = cm.tms; }
+    }
+    // ---- the man on the end of it (a truck that flies him or levels him keeps v112's flight / v25's stick)
+    const flies = truck && (e.hitStick || (TU("flyV112", 1) && e.flyWho && e.flyWho === e.who && Number(e.flyVz) > 0));
+    if (tk && tk.root && !flies) {
+      tk._ajReach = null;
+      const push = TU("stiffPushPxV194D", 7) * (.8 + pow * 1.2) + (truck ? Math.min(10, Number(e.kb) || 0) * .4 : 0);
+      const grab = TU("stiffGrabMsV194D", 70), snap = TU("stiffSnapMsV194D", 130), stag = drop ? TU("stiffFallMsV194D", 150) : TU("stiffStaggerMsV194D", 420), down = drop ? TU("stiffDownMsV194D", 420) : 0, getMs = 8 * TU("getupFrameMs", 85);
+      const fx = side, sink = TU("stiffSinkCellV194D", 4);
+      // the keyframes after the release are offsets off the hand: rebuilt from `G` every frame the arm is locked
+      const offs = [];
+      if (drop) offs.push({ t: relMs + stag, q: 1, w: 0, ease: "out" });
+      else for (let j = 1; j <= 3; j++) { const q = j / 3; offs.push({ t: relMs + stag * q, q, w: (j % 2 ? 1 : -1) * 1.6 * (1 - q * .5), ease: "out" }); }   // three steps back on his heels, swaying
+      const kf = [{ t: 0, x: tk.sx, y: tk.sy }, { t: grab, x: 0, y: 0, ease: "out" }, { t: relMs, x: 0, y: 0 }].concat(offs.map(o => ({ t: o.t, x: 0, y: 0, ease: o.ease })));
+      syncKf = () => {
+        const sk = scene.ajCellToSimV193(tk, sink, G.ux, G.uy), hx = G.x + G.ux * sk, hy = G.y + G.uy * sk;   // his facemask on the palm
+        kf[1].x = kf[2].x = hx; kf[1].y = kf[2].y = hy;
+        offs.forEach((o, i) => { const K = kf[3 + i]; K.x = hx + G.ux * push * o.q - G.uy * o.w; K.y = hy + G.uy * push * o.q + G.ux * o.w; });
+      };
+      syncKf();
+      this.ajAnchorV193(tk, kf, { hold: down + (drop ? getMs : 120) });
+      let fell = false;
+      this.ajClipV193(tk, "stiffArmed", relMs + stag + down, function (k, mm, CC) {
+        const age = k * CC.ms;
+        if (age < relMs) { const q = Math.min(1, age / snap);   // caught on the hand: the head snaps back off it and stays back, up on his heels
+          return { st: "idle", face: ["sd", fx < 0], rot: fx * (.35 + .25 * pow) * Math.sin(Math.PI / 2 * Math.min(1, q * 1.6)), oy: -1.5 * Math.sin(Math.PI * Math.min(1, age / (snap * 2))), ox: fx * 1.2 * q }; }
+        if (!drop) { const q = (age - relMs) / stag; return { st: "walk" + (Math.floor(age / 95) % 2), face: ["sd", fx < 0], rot: fx * .3 * (1 - q) + Math.sin(age / 60) * .06 * (1 - q), oy: -Math.abs(Math.sin(age / 95 * Math.PI)) }; }   // stumbling back on his heels
+        if (!fell) { fell = true; scene.puffFx(mm.sx, mm.sy + 3, 3, 0x8a7a55, .5); scene.dirtHitV193AG(mm.sx, mm.sy, .2 + .3 * pow, Math.atan2(G.uy, G.ux)); }
+        if (age < relMs + stag) return { st: "fall", rot: fx * .5, ground: true };
+        return { st: "down", flip: fx < 0, ground: true };
+      }, drop ? { fs: "fallAJ", grounded: function (mm, CC) { return mm.tms - CC.t0 > relMs; }, end: function (mm) { mm.forceState = "getupSeq"; mm.seqT = mm.tms; return "getup0"; } } : {});
+      out.tk = true;
+    }
+    // ---- the hit, on the facemask
+    const hx = Number(e.x) || (tk ? tk.sx : 0), hy = Number(e.y) || (tk ? tk.sy : 0);
+    if (!REDUCED_MOTION) this.stiffFlashV194D(tk, cm, hx, hy, sick, pow, R);
+    const fz = sick ? TU("stiffSickFreezeMsV194D", 170) : TU("stiffFreezeMsV194D", 45);
+    if (sick) this.time.delayedCall(TU("stiffSickFreezeAtMsV194D", 50), () => { this.hitStop = Math.max(this.hitStop || 0, fz); this.zoomPunch = Math.max(this.zoomPunch || 0, TU("stiffSickPunchV194D", .14)); });
+    else this.hitStop = Math.max(this.hitStop || 0, fz);
+    REDUCED_MOTION || this.cameras.main.shake(sick ? 220 : 110, sick ? .012 : .005);
+    this.slowMoment(P, sick ? TU("stiffSickSlowV194D", .35) : TU("cinematicScale", 0.5));
+    this.popText(Number(e.x) || hx, (Number(e.y) || hy) - 22, sick ? "SICK STIFF ARM!" : "STIFF ARM!", sick ? "#ffe36a" : "#ffd97a", sick ? 17 : 14);
+    if (sick && (!truck || out.tk)) try { BADGE_V95.show("bighit", { sub: "STIFF-ARMED HIM", x: Number(e.x) || hx, y: Number(e.y) || hy, scene: this }); } catch (er) {}
+    vib(sick ? 40 : 18);
+    return out;
+  }
+  // the flash and the starburst where the hand lands (head height over the man), from the stiff arm's own stream
+  stiffFlashV194D(tk, cm, x, y, sick, pow, R) {
+    try {
+      // on HIS facemask: three quarters of the way from the carrier's hand to him, at head height on his drawn sprite
+      let cx, cy, s;
+      if (tk && tk.root) { const k = TU("stiffFlashAtV194D", .75), sc0 = Math.abs(tk.root.scaleY || 1);
+        cx = cm && cm.root ? cm.root.x + (tk.root.x - cm.root.x) * k : tk.root.x; cy = (cm && cm.root ? cm.root.y + (tk.root.y - cm.root.y) * k : tk.root.y) - TU("stiffFlashHeadV194D", 13) * sc0; s = sc0 * .55; }
+      else { const p = PJ(x, y); cx = p.x; cy = p.y - 8 * p.s; s = p.s; }
+      const f = this.trackFx(this.add.circle(cx, cy, (sick ? 5 : 3.5) * s, 0xffffff, .95).setDepth(21));
+      this.tweens.add({ targets: f, scale: sick ? 2.8 : 2, alpha: 0, duration: sick ? 200 : 130, onComplete: () => this.dropFx(f) });
+      const ring = this.trackFx(this.add.circle(cx, cy, 6 * s).setStrokeStyle(2, sick ? 0xffe36a : 0xfff2c8, 1).setDepth(21));
+      this.tweens.add({ targets: ring, scale: sick ? 3.2 : 2.2, alpha: 0, duration: sick ? 300 : 200, onComplete: () => this.dropFx(ring) });
+      const n = sick ? 9 : 5, a0 = R() * 6.283;
+      for (let i = 0; i < n; i++) {
+        const a = a0 + i / n * 6.283 + (R() - .5) * .4, len = (5 + R() * 4 + pow * 3) * s, dist = (8 + R() * 8) * s * (sick ? 1.4 : 1);
+        const ray = this.trackFx(this.add.rectangle(cx + Math.cos(a) * 4 * s, cy + Math.sin(a) * 4 * s, len, Math.max(1, 1.4 * s), i % 2 ? 0xffffff : 0xffe36a, 1).setRotation(a).setDepth(21));
+        this.tweens.add({ targets: ray, x: cx + Math.cos(a) * dist, y: cy + Math.sin(a) * dist, alpha: 0, scaleX: .4, duration: 170 + R() * 90, ease: "Quad.easeOut", onComplete: () => this.dropFx(ray) });
+      }
+    } catch (e) {}
   }
   postPlayMsV86(P) {
     const pay = P.payload || {};
@@ -3875,6 +4217,7 @@ class Ot extends mt.Scene {
       if (P.fdConverted) this.chainWalkV109(spot.x, dir);        // a new set of downs: the chain crew walks to the new line
       if (pay9.measure) this.measureV109(spot, dir);            // another system may flag a measurement on the row — read defensively
     }
+    try { this.idlePlanV194D(P); } catch (e) {}   // v194 D IDLE V2: every man's own start, pace, gesture and pose
     // the ball is dead: it stays at the spot for the crew, nobody jogs off with it
     P.ballHolderId = null; P.ballMode = "ground"; P.__looseBall = false;
     try { if (this.ballSpr) { const bp = PJ(spot.x, spot.y); this.ballSpr.setPosition(bp.x, bp.y - 2 * bp.s).setScale(0.40 * bp.s, 0.36 * bp.s).setDepth(9).setRotation(0.2);
@@ -3940,13 +4283,13 @@ class Ot extends mt.Scene {
       if (q.late && k < lateMs) return;                // still arriving
       if (q.help && !q.help.done) {                    // v109: the helper walks over and stands by him until he is up
         const Hh = q.help, g = this.markers[Hh.to], gq = g && g._post;
-        if (!gq || (gq.rose && String(g.forceState || "") !== "getupSeq")) { Hh.done = true; m._walk = false; if (m.forceState === "idle") m.forceState = null; }
+        if (!gq || (gq.rose && String(g.forceState || "") !== "getupSeq")) { Hh.done = true; m._walk = false; if (m.forceState === "idle") m.forceState = null; this.idleClipEndV194D(m); }
         else if (k < Hh.at) { this.placeMarker(m, m.sx, m.sy, delta); return; }
         else {
           const dx = Hh.tx - m.sx, dy = Hh.ty - m.sy, d = Math.hypot(dx, dy);
           if (d > 3 && !Hh.there) { m._walk = true; const stp = Math.min(d, TU("walkSpeed", 100) * dt / 1000); this.placeMarker(m, m.sx + dx / d * stp, m.sy + dy / d * stp, dt); V9.walkFrames++; }
           else { if (!Hh.there) { Hh.there = true; m._walk = false; const a = PJ(m.sx, m.sy), b = PJ(g.sx, g.sy); this.faceMarker(m, b.x - a.x, b.y - a.y); m.forceState = "idle";
-              if (m.body) this.tweens.add({ targets: m.body, x: (b.x > a.x ? 1 : -1) * TU("helpUpReachPx", 3), y: 1, yoyo: true, duration: 260, repeat: 1 });   // the hand goes out
+              if (!this.idleOfferV194D(m, g) && m.body) this.tweens.add({ targets: m.body, x: (b.x > a.x ? 1 : -1) * TU("helpUpReachPx", 3), y: 1, yoyo: true, duration: 260, repeat: 1 });   // the hand goes out (v194 D: and stays out)
               V9.helpUpArrivals++; }
             this.placeMarker(m, m.sx, m.sy, delta); }
           return;
@@ -3959,6 +4302,7 @@ class Ot extends mt.Scene {
         if (i !== P.carrierId && m.body) this.tweens.add({ targets: m.body, x: (m.flip ? -1 : 1) * TU("pushOffPx", 4), yoyo: true, duration: 150 });
       }
       if (/^(getupSeq|tackleSeq|down|dive|pancakeSeq)$/.test(String(m.forceState || ""))) { this.placeMarker(m, m.sx, m.sy, delta); return; }
+      if (this.idleGatherV194D(m, i, q, P, k, dt)) return;   // v194 D IDLE V2: his own clock, pace, gait and pose
       const dx = q.tx - m.sx, dy = q.ty - m.sy, d = Math.hypot(dx, dy);
       if (d < 3) { this.placeMarker(m, m.sx, m.sy, delta); return; }
       const stp = Math.min(d, TU("postJogSpeed", 150) * dt / 1000);
@@ -4390,13 +4734,14 @@ class Ot extends mt.Scene {
     const M = TU("dirtMergeV193AG", 6);
     for (const d of D) if (Math.abs(d.x - x) < M && Math.abs(d.y - y) < M) {
       d.s = Math.min(1, d.s + s * 0.5); d.n++; d.snap = this._snapV193AG | 0; d.dig = 1;
-      this.paintMarkV193AG(d, "scuff"); this.dirtBurstV193AG(x, y, a, s); return d;
+      this.paintMarkV193AG(d, "scuff"); this.dirtBurstV193AG(x, y, a, s, d.paint); return d;   // v194 D: the paint it first tore up
     }
-    const d = { x, y, s, ang: a, n: 1, seed: (Math.abs(Math.round(x * 7.31 + y * 13.7)) % 997) / 997, snap: this._snapV193AG | 0, dig: 1 };
+    const paint = this.turfPaintAtV194D(x, y);   // v194 D: what is painted where it lands — read BEFORE the scuff covers it
+    const d = { x, y, s, ang: a, n: 1, seed: (Math.abs(Math.round(x * 7.31 + y * 13.7)) % 997) / 997, snap: this._snapV193AG | 0, dig: 1, paint };
     D.push(d);
     while (D.length > Math.max(1, TU("dirtMaxV193AG", 48))) D.shift();
     this.paintMarkV193AG(d, "scuff");
-    this.dirtBurstV193AG(x, y, a, s);
+    this.dirtBurstV193AG(x, y, a, s, paint);
     return d;
   }
   // one call per collision in the event switch: the scuff, and the strength it was laid with
@@ -4455,6 +4800,8 @@ class Ot extends mt.Scene {
     const seed = Math.round((d.seed || 0) * 997) + 1;
     const hash = (i, j, k) => { let h = (i * 374761393 + j * 668265263 + (seed + k) * 2147483647) | 0; h = (h ^ (h >>> 13)) * 1274126177 | 0; return ((h ^ (h >>> 16)) >>> 0) / 4294967296; };
     const wearA = kind === "wear" ? Math.min(0.42, d.a * d.n) : 0;
+    const pt = kind === "scuff" && d.paint && d.paint.css ? d.paint.css : null;   // v194 D: the torn turf is the colour it was painted
+    const ptPaint = !!pt && d.paint.kind === "paint";
     let drawn = 0;
     ctx.save(); ctx.globalAlpha = Math.max(0, Math.min(1, alpha));
     for (let gy = gy0; gy <= gy1; gy++) for (let gx = gx0; gx <= gx1; gx++) {
@@ -4471,10 +4818,11 @@ class Ot extends mt.Scene {
         else if (rr < 1.28 && ux <= -0.15) col = "#1d2a10";                                  // the dark lip the hit came in over
         else if (rr < ring && h > 0.9) col = h2 > 0.5 ? "#5a4326" : "#6f9c45";               // loose clods
       } else if (kind === "scuff") {
-        if (rr < 0.62) col = h2 > 0.8 ? "#7a5f3a" : h2 > 0.3 ? "#55401f" : "#3f2f18";       // the scraped core: solid dirt, a few lit grains
-        else if (rr < 0.82) col = ux < 0 ? (h2 > 0.5 ? "#2f3d18" : "#3f2f18") : (h2 > 0.4 ? "#a3c96a" : "#7fa84a");   // the lip: dark behind, torn turf ahead
-        else if (rr < 1.05 && h < 0.55) col = h2 > 0.6 ? "#8fae55" : h2 > 0.3 ? "#5b4a2b" : "#3d5a22";   // grit and torn grass round it
-        else if (rr < ring && h > 0.9) col = h2 > 0.5 ? "#4f3b22" : "#79a84b";               // a few flecks thrown clear
+        if (rr < 0.62) col = ptPaint ? (h2 > 0.62 ? pt.lt : h2 > 0.3 ? pt.base : h2 > 0.14 ? "#7a5f3a" : "#55401f")   // v194 D: on paint the chalk smears through the scrape
+          : h2 > 0.8 ? "#7a5f3a" : h2 > 0.3 ? "#55401f" : "#3f2f18";       // the scraped core: solid dirt, a few lit grains
+        else if (rr < 0.82) col = ux < 0 ? (h2 > 0.5 ? (pt ? pt.dk : "#2f3d18") : "#3f2f18") : (pt ? (h2 > 0.4 ? pt.lt : pt.base) : (h2 > 0.4 ? "#a3c96a" : "#7fa84a"));   // the lip: dark behind, torn turf ahead
+        else if (rr < 1.05 && h < 0.55) col = h2 > 0.6 ? (pt ? pt.lt : "#8fae55") : h2 > 0.3 ? "#5b4a2b" : (pt ? pt.dk : "#3d5a22");   // grit and torn grass round it
+        else if (rr < ring && h > 0.9) col = h2 > 0.5 ? "#4f3b22" : (pt ? pt.base : "#79a84b");               // a few flecks thrown clear
       } else {
         // worn grass: speckle, its density the wear's own weight
         if (rr < 1 && hash(gx >> 1, gy >> 1, 3) < wearA * TU("wearDensV193AG", 1.1) * (1 - rr * 0.7)) col = h2 > 0.66 ? "#7a6a3e" : h2 > 0.33 ? "#66583a" : "#5b6a34";
@@ -4486,7 +4834,7 @@ class Ot extends mt.Scene {
     return drawn;
   }
   // the turf thrown up by a collision: chunky clods on short arcs and a puff of dust, all sized by the hit
-  dirtBurstV193AG(x, y, ang, s) {
+  dirtBurstV193AG(x, y, ang, s, paint) {
     if (REDUCED_MOTION || !this.add || !this.tweens || !TU("dirtBurstV193AG", 1)) return 0;
     /* its own seeded stream (a hash of the spot and a running count), never rnd(): the sim draws from that
      * stream in this same page, so a burst must not shift a later play's rolls (CLAUDE.md: randomness changes sample paths) */
@@ -4494,7 +4842,13 @@ class Ot extends mt.Scene {
     const rnd = () => { st = (st + 0x6D2B79F5) | 0; let t = Math.imul(st ^ (st >>> 15), 1 | st); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
     const n = Math.max(0, Math.round(TU("dirtClodsMinV193AG", 2) + TU("dirtClodsMaxV193AG", 8) * s));
     const p0 = PJ(x, y), px = Math.max(TU("dirtPxMinV193AG", 2), Math.round(TU("dirtPxV193AG", 2) * Math.max(0.5, p0.s)));
-    const cols = [0x5a4326, 0x6b5232, 0x4a3720, 0x6f9c45, 0x8fbf5a];
+    let cols = [0x5a4326, 0x6b5232, 0x4a3720, 0x6f9c45, 0x8fbf5a];
+    // v194 D THE TURF REMEMBERS ITS PAINT: the clods are the turf he landed on — chalk off a yard line, the end zone's
+    // colour, the logo's, the light or the dark stripe of grass — with dirt from under it; the dust is that colour too
+    let dustCol = 0xc8b48a;
+    if (paint && paint.hex != null) { const P0 = paint.hex, L0 = paint.lt, D0 = paint.dk;
+      cols = paint.kind === "paint" ? [P0, L0, 0x5a4326, P0, D0] : paint.kind === "dirt" ? [P0, 0x5a4326, D0, 0x6b5232, L0] : [P0, L0, 0x5a4326, D0, 0x6b5232];
+      dustCol = paint.dust; }
     for (let i = 0; i < n; i++) {
       const spread = (i / Math.max(1, n - 1) - 0.5) * 2.2, a = ang + spread + (rnd() - 0.5) * 0.4;
       const dist = (6 + rnd() * 10) * (0.6 + s), q = PJ(x + Math.cos(a) * dist, y + Math.sin(a) * dist);
@@ -4511,12 +4865,74 @@ class Ot extends mt.Scene {
     const nd = Math.round(1 + 3 * s);
     for (let i = 0; i < nd; i++) {
       try {
-        const sz = px * (2 + Math.round(s * 2)), d0 = this.add.rectangle(Math.round(p0.x + (rnd() - 0.5) * 8 * p0.s), Math.round(p0.y + 4 * p0.s), sz, sz, 0xc8b48a, 0.55).setDepth(TU("dirtBurstDepthV193AG", 3.52));
+        const sz = px * (2 + Math.round(s * 2)), d0 = this.add.rectangle(Math.round(p0.x + (rnd() - 0.5) * 8 * p0.s), Math.round(p0.y + 4 * p0.s), sz, sz, dustCol, 0.55).setDepth(TU("dirtBurstDepthV193AG", 3.52));
         this.tweens.add({ targets: d0, y: d0.y - (6 + rnd() * 8) * p0.s, x: d0.x + (rnd() - 0.5) * 10 * p0.s, alpha: 0, duration: 520 + rnd() * 300, onComplete: () => { try { d0.destroy(); } catch (e) {} } });
       } catch (e) {}
     }
     const V = (window.__V193AG = window.__V193AG || {}); V.bursts = (V.bursts || 0) + 1; V.lastBurst = n;
+    if (paint) { const K = this.hookV194D().paint; K.bursts = (K.bursts || 0) + 1; K.lastBurst = { kind: paint.kind, cols: cols.map(c => "#" + c.toString(16).padStart(6, "0")), dust: "#" + dustCol.toString(16).padStart(6, "0") }; }
     return n;
+  }
+  /* ===== v194 D THE TURF REMEMBERS ITS PAINT =====
+   * The owner: "Make sure the field distortion makes sense with the color spot. For example, if an impact happens on white
+   * color, have the field be distorted white. It matters where they land." v193 AG threw the same browns and greens
+   * wherever a hit landed. Now a collision reads the turf UNDER it: the bake's copy of the warped turf as PAINTED
+   * (`paintSnapV194D`: the field art through the projection — the yard lines, hashes and numbers, the end zone's paint,
+   * the crest, the mown stripes — before the scuffs and v98's night wash go on) at the spot's projected pixel, a small patch (`paintSampleRV194D` ×
+   * the scale) voted into classes — PAINT (pale and grey: the lines; or saturated and not green: an end zone, a crest),
+   * GRASS (green) or DIRT (brown) — and the winning class averaged. The burst's clods and dust and the scuff's torn lip
+   * are shaded from that colour (`lt`/`dk`); the scraped core is dirt on grass, and on paint the chalk smears through it. Read once per mark (a merged hit keeps the
+   * paint its mark first tore up). No randomness at all (the burst keeps v193 AG's seeded stream). Kill switch
+   * `TU("v194Dpaint", 0)` (or `v194D` 0). `window.__V194D.paintAt(x, y)` and `.paint`; `v194Dcheck`. */
+  turfPaintAtV194D(x, y) {
+    if (!TU("v194D", 1) || !TU("v194Dpaint", 1) || !this._warpCv || !PERSP || !Number.isFinite(x) || !Number.isFinite(y)) return null;
+    try {
+      const cv = this._paintCvV194D || this._warpCv, p = PJ(x, y), ox = (cv.width - FW) / 2;
+      const cx = Math.round(p.x + ox), cy = Math.round(p.y), r = Math.max(1, Math.round(TU("paintSampleRV194D", 1.5) * Math.max(.6, p.s)));
+      if (cx - r < 0 || cy - r < 0 || cx + r >= cv.width || cy + r >= cv.height) return null;
+      const ctx = cv.getContext("2d");
+      const D = ctx.getImageData(cx - r, cy - r, 2 * r + 1, 2 * r + 1).data;
+      const acc = { paint: [0, 0, 0, 0], grass: [0, 0, 0, 0], dirt: [0, 0, 0, 0] };
+      let top = [0, 0, 0, -1];   // the brightest painted pixel: a far line is a pixel or two, blurred into the grass round it
+      for (let i = 0; i < D.length; i += 4) {
+        const R0 = D[i], G0 = D[i + 1], B0 = D[i + 2], mx = Math.max(R0, G0, B0), mn = Math.min(R0, G0, B0), sat = mx ? (mx - mn) / mx : 0;
+        const k = this.paintClassV194D(R0, G0, B0, mx, mn, sat), A = acc[k]; A[0] += R0; A[1] += G0; A[2] += B0; A[3]++;
+        if (k === "paint" && R0 + G0 + B0 > top[3]) top = [R0, G0, B0, R0 + G0 + B0];
+      }
+      // the class that covers the most of the patch; paint wins a tie with grass (a line is narrower than the patch)
+      let best = "grass"; for (const k of ["dirt", "paint"]) if (acc[k][3] * (k === "paint" ? TU("paintVoteKV194D", 1.4) : 1) > acc[best][3]) best = k;
+      const A = acc[best]; if (!A[3]) return null;
+      let rgb = [A[0] / A[3], A[1] / A[3], A[2] / A[3]];
+      if (best === "paint" && top[3] > 0) { const w = TU("paintTopKV194D", .65); rgb = rgb.map((v, i) => v + (top[i] - v) * w); }
+      const out = this.paintShadesV194D(rgb, best);
+      const K = this.hookV194D().paint; K.n++; K.kinds[best] = (K.kinds[best] || 0) + 1; K.last = { x: Math.round(x), y: Math.round(y), kind: best, css: out.css.base };
+      return out;
+    } catch (e) { return null; }
+  }
+  /* the bake's copy of the turf as PAINTED — the art, the end zones, the crest, the stripes — taken before the scuffs and
+   * the lamps' wash go on (v98 bakes the night INTO the turf: a chalk line reads grey under it, and the clods are drawn
+   * unlit like the men, so they take the paint's own colour). Once per bake, a canvas copy. */
+  paintSnapV194D(CW, CH) {
+    if (!TU("v194D", 1) || !TU("v194Dpaint", 1) || !this._warpCv) { this._paintCvV194D = null; return; }
+    let cv = this._paintCvV194D;
+    if (!cv) { cv = this._paintCvV194D = document.createElement("canvas"); }
+    if (cv.width !== CW || cv.height !== CH) { cv.width = CW; cv.height = CH; }
+    const c2 = cv.getContext("2d", { willReadFrequently: true }); c2.clearRect(0, 0, CW, CH); c2.drawImage(this._warpCv, 0, 0);
+  }
+  paintClassV194D(r, g, b, mx, mn, sat) {
+    if (sat < TU("paintGreySatV194D", .33) && mx > TU("paintGreyMinV194D", 130)) return "paint";               // a line, a hash, a number: pale and grey (the lamps tint it)
+    if (g > r * 1.08 && g > b * 1.15 && sat > .18) return "grass";                                            // the mown stripes, light and dark
+    if (r > g * 1.04 && g > b * 1.08 && sat > .22 && mx < 175 && r - b > 30) return "dirt";                 // brown: dirt, a scuff, worn turf
+    if (sat > .3) return "paint";                                                                             // an end zone, a crest: a colour that is not grass
+    return "paint";                                                                                           // not green, not brown: painted (a dark end zone too)
+  }
+  paintShadesV194D(rgb, kind) {
+    const cl = (v) => Math.max(0, Math.min(255, Math.round(v)));
+    const mix = (c, t, k) => c.map((v, i) => v + (t[i] - v) * k);
+    const base = rgb.map(cl), lt = mix(rgb, [255, 255, 255], kind === "paint" ? .35 : .22).map(cl), dk = mix(rgb, [0, 0, 0], .32).map(cl);
+    const dust = mix(rgb, kind === "grass" ? [200, 180, 138] : [235, 232, 222], kind === "grass" ? .7 : .25).map(cl);
+    const hex = (c) => (c[0] << 16) | (c[1] << 8) | c[2], css = (c) => "#" + hex(c).toString(16).padStart(6, "0");
+    return { kind, rgb: base, hex: hex(base), lt: hex(lt), dk: hex(dk), dust: hex(dust), css: { base: css(base), lt: css(lt), dk: css(dk) } };
   }
 
   actorIdx(id) { return id ? (id[0] === "o" ? +id.slice(3) : 11 + +id.slice(3)) : -1; }
@@ -5002,6 +5418,7 @@ class Ot extends mt.Scene {
         // v109: the ARM is the side he came from (`e.side`, or where the two of them stand): the
         // carrier leans into the shove, the tackler is thrown down facing away from it
         const sa9 = this.sideV109(e, carrier, tk); this.hookV109().arms[sa9 > 0 ? "R" : "L"]++;
+        if (this.stiffArmV194D(P, e, carrier, tk, false)) { this.puffFx(e.x, e.y, 2); break; }   // v194 D THE STIFF ARM: the sim graded it — the locked arm, the snap, the stagger or the fall
         if (carrier) { carrier._lean = sa9 * TU("stiffLean", .14); carrier._leanSrc = "stiff"; this.time.delayedCall(300, () => { if (carrier._leanSrc === "stiff") { carrier._leanSrc = null; carrier._lean = 0; } }); }
         if (tk && tk.dirKey !== "up" && tk.dirKey !== "dn") tk.flip = sa9 > 0;
         if (tk && carrier && this.ajOnV193()) { tk._ajReach = null; this.ajShovedV193(tk, carrier, e); }   // v193 AJ: shoved off the arm, over and down, up again
@@ -5828,6 +6245,7 @@ class Ot extends mt.Scene {
           this.hookV109C1().quietTrucks++; break; }
         this.slowMoment(P);
         this.hitFx(e.x, e.y, Number(e.kb || 0) >= 8, false, e);   // v109: the rings at the point he was run through, along the carrier's line
+        const sa194 = e.stiffArm ? this.stiffArmV194D(P, e, this.markers[this.actorIdx(e.carrier)], m, true) : null;   // v194 D: run through with the arm
         { const cmD = this.markers[this.actorIdx(e.carrier)];   // v193 AG: run through — the beaten man's spot is scuffed by the knock-back
           this.dirtHitV193AG(e.x, e.y, Math.min(1, TU("dirtTruckV193AG", 0.25) + Number(e.kb || 0) * 0.05 + (e.hitStick ? 0.3 : 0)), cmD && m ? Math.atan2(m.sy - cmD.sy, m.sx - cmD.sx) : null); }
         try { if (e.hitStick || Number(e.flyVz) > 0 || Number(e.kb || 0) >= TU("divotKbV192E", 7)) {   // v192E: run through hard enough, the turf keeps the mark
@@ -5842,7 +6260,7 @@ class Ot extends mt.Scene {
           this.hookV112F().flying++;
           if (m.body) m.body.setAlpha(0.85);
           this.time.delayedCall(TU("launchDownMs", 900), () => { if (m.body) { m.body.setAlpha(1); if (m.forceState === "down" && !m._flyV112) m.forceState = null; } });
-          this.time.delayedCall(this.flyBadgeMsV112(e.flyVz), () => BADGE_V95.show("bighit", { sub: e.hitStick ? "TRUCKED HIM" : "OFF HIS FEET", x: e.x, y: e.y, scene: this }));   // v112: the callout lands with him
+          this.time.delayedCall(this.flyBadgeMsV112(e.flyVz), () => BADGE_V95.show("bighit", { sub: sa194 ? "STIFF-ARMED HIM" : e.hitStick ? "TRUCKED HIM" : "OFF HIS FEET", x: e.x, y: e.y, scene: this }));   // v112: the callout lands with him
           this.hitStop = Math.max(this.hitStop, TU("hitStopBig", 120));
           this.puffFx(e.x, e.y, 6); vib(48);
           REDUCED_MOTION || this.cameras.main.shake(240, 0.014);
@@ -5854,12 +6272,13 @@ class Ot extends mt.Scene {
           m.forceState = "dive"; m._launchT0 = m.tms; m._launchUntil = m.tms + 300; m._launchH = 15;
           this.time.delayedCall(280, () => { if (m.body) { m.forceState = "down"; m.body.setAlpha(0.85);
             this.time.delayedCall(720, () => { if (m.body) { m.body.setAlpha(1); if (m.forceState === "down") m.forceState = null; } }); } });
-          BADGE_V95.show("bighit", { sub: "TRUCKED HIM", x: e.x, y: e.y, scene: this });   // v95: the carrier levels the tackler
+          BADGE_V95.show("bighit", { sub: sa194 ? "STIFF-ARMED HIM" : "TRUCKED HIM", x: e.x, y: e.y, scene: this });   // v95: the carrier levels the tackler
           this.hitStop = Math.max(this.hitStop, TU("hitStopBig", 120));
           this.puffFx(e.x, e.y, 6); vib(48);
           REDUCED_MOTION || this.cameras.main.shake(240, 0.014);
           break;
         }
+        if (sa194 && sa194.tk) break;   // v194 D: the arm's own fall played him, and the arm called it
         if (m) { m.forceState = "down"; m.body.setAlpha(0.7);
           this.time.delayedCall(720, () => { if (m.body) { m.body.setAlpha(1); if (m.forceState === "down") m.forceState = null; } }); }
         this.popText(e.x, e.y - 20, Number(e.kb||0) >= 8 ? "TRUCKED!" : "BROKEN!", Number(e.kb||0) >= 8 ? "#ff9fa5" : "#8fe7ff", Number(e.kb||0) >= 8 ? 15 : 13);
@@ -12252,6 +12671,7 @@ class Ot extends mt.Scene {
       this._nearEdgeV112 = { edgeI, lastTurfY: Math.round(NSTOP + P.VB * P.total), kMax: +(P.kMax || 0).toFixed(3) };
       try { (window.__V144 = window.__V144 || {}).apron = { on: !!APRON144, southRows: apronRows144, northRows: farRows144, edgeI }; } catch (e) {}
       try { const V193 = (window.__V193AG = window.__V193AG || {}); V193.farFill = { on: farFill193, rows: farFillRows193, uBack: uBack193 }; V193.warpAK = AK; V193.warpOx = (CW - FW) / 2; } catch (e) {}
+      try { this.paintSnapV194D(CW, CH); } catch (e) {}   // v194 D: the turf's own paint, before any scuff or lamp touches it
       try { this.paintDirtAllV193AG(ctx, (CW - FW) / 2); } catch (e) { try { warnOnceV193C("paintDirtAllV193AG", e); } catch (e2) {} }   // v193 AG: the scuffs, divots and wear, in the turf
       this.lightFieldV98(ctx, CW, CH);   // v98: the lamps' wash, their pools and the edge falloff, baked on the turf
       if (this.textures.exists("rib_field_warp")) this.textures.get("rib_field_warp").refresh();
