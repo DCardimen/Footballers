@@ -58,7 +58,7 @@ ok(near(F.eGrowth, 0.24) && near(F.varDown, 0.5) && near(F.ppMult, 0.15) && near
 ok(near(F.pay, 0.8) && near(F.injDown, 0.4) && near(F.injUp, 0.9), 'Eternal Form ×50 + Glass Cannon ×5 = payMultV179 0.8; The Wall injDown 0.4; Glass Cannon injUp 0.9', F)
 const SRC = await M(async () => { const r = await fetch('src/07-career-app.js'); return await r.text() })
 const rawBlock = SRC.slice(SRC.indexOf('v111: the focus is a multiplier'), SRC.indexOf('v111: the focus is a multiplier') + 700)
-ok(!/perfPctV190|treeFx\(\s*"perfFlat"\s*\)/.test(rawBlock) && /gearAttrV147\(k\)/.test(rawBlock), 'the game accessor (_raw) carries no tree game-day term (the personality nudge and the gear stay)')
+ok(!/perfPctV190|treeFx\(\s*"perfFlat"\s*\)/.test(rawBlock) && /gearAttrV147\(k[,)]/.test(rawBlock), 'the game accessor (_raw) carries no tree game-day term (the personality nudge and the gear stay — v193 X: the gear off his own attribute)')
 ok(!/playerPower\(e\)\s*\*\s*\(1\s*\+\s*perfPctV190/.test(SRC) && /xi\(\(e - a\) \* 2\.4 \+ 50\), 1, 100\)/.test(SRC), 'rollGamePerf and mr carry no term')
 ok(/\(1 \+ treeFx\(\s*"payMultV179"\s*\)\)/.test(SRC) && !/medalFxV179\(\s*"payMultV179"\s*\)\s*\)\s*\*\s*TU\("betaPay/.test(SRC), 'the paycheck reads payMultV179 through treeFx (the medal inside it, Eternal Form and Glass Cannon beside it)')
 ok(!/key:\s*"perfFlat",\s*name:\s*"Conditioning"/.test(SRC) && !/perfFlat:\s*3,|perfFlat:\s*70,/.test(SRC), 'Conditioning is out of GEAR_EFFECTS and perfFlat out of prestigeCap')

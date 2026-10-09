@@ -11043,7 +11043,7 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
     return gearCatV147().find(c => c.k === k) || null;
   }
   function gearCapV147(c) {
-    return TU(c.capK, c.capD);
+    return gearAttrPctV193X(c) ? gearPctCapV193X() : TU(c.capK, c.capD); /* v193 X: a percent cap on the attributes */
   }
   function gearRngV147(id) {
     let h = 2166136261;
@@ -11088,17 +11088,21 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
       used[c.k] = 1;
       let v = c.base * rs * tm * (0.8 + 0.4 * r()) * TU("gearValueMulV147", 1);
       v = c.int ? Math.max(1, Math.round(v)) : +v.toFixed(c.pct ? 3 : 1);
-      mods.push({ k: c.k, v });
+      /* v193 X: an attribute modifier is a percent of the attribute, against the typical one at this tier (flat kept) */
+      if (c.kind === "attr" && rollPctOnV193X()) mods.push({ k: c.k, v: gearFlatToPctV193X(v, tier), flatV193X: v });
+      else mods.push({ k: c.k, v });
     }
     it.mods = mods;
     it.tierV147 = tier | 0;
     it.modsV147 = 1;
+    rollPctOnV193X() && (it.attrPctV193X = 1); /* v193 X */
     gearLevelEnsureV193(it); /* v193 A: the level it is received at rides the tier */
     return it;
   }
   function gearEnsureV147(it) {
     if (it && !it.modsV147) gearRollV147(it, it.tierV147 != null ? it.tierV147 : 0);
     gearLevelEnsureV193(it); /* v193 A: an old piece gets its level once, from its tier */
+    gearPctEnsureV193X(it); /* v193 X: its attribute modifiers become percents, once */
     /* v193 E: Conditioning ("+N to ALL stats every game") is retired — an old piece becomes Growth, its value rescaled
      * from Conditioning's base (0.8) to Growth's (0.03) so the rarity roll it carried is kept */
     if (it && it.eff === "perfFlat") {
@@ -11113,8 +11117,9 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
   function gearTotalsV147() {
     const eq = state && state.equipped;
     if (!eq) return {};
-    const c = _gtV147;
-    if (c && c.eq === eq && c.a === eq.cleats && c.b === eq.gloves && c.c === eq.chain) return c.t;
+    const c = _gtV147,
+      on193X = rollPctOnV193X(); /* v193 X: the switch changes what an attribute modifier reads */
+    if (c && c.eq === eq && c.a === eq.cleats && c.b === eq.gloves && c.c === eq.chain && c.x === on193X) return c.t;
     const raw = {},
       t = {};
     GEAR_SLOTS.forEach(s => {
@@ -11126,16 +11131,17 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
     gearCatV147().forEach(d => {
       if (raw[d.k]) t[d.k] = Math.min(raw[d.k], gearCapV147(d));
     });
-    _gtV147 = { eq, a: eq.cleats, b: eq.gloves, c: eq.chain, t, raw };
+    _gtV147 = { eq, a: eq.cleats, b: eq.gloves, c: eq.chain, x: on193X, t, raw };
     return t;
   }
   function gearV147(k) {
     return TU("v147C", 1) ? gearTotalsV147()[k] || 0 : 0;
   }
-  /* one attribute's flat gear bonus: its own modifier (v193 E: the old Conditioning piece — "+N to ALL stats every
-   * game" — is retired; an old piece is Growth now, see gearEnsureV147) */
-  function gearAttrV147(k) {
-    return gearV147("a_" + k);
+  /* one attribute's gear bonus in POINTS: its own modifier (v193 E: the old Conditioning piece — "+N to ALL stats every
+   * game" — is retired; an old piece is Growth now, see gearEnsureV147). v193 X: the modifier is a percent of `base`
+   * (the wearer's own attribute; the player's when omitted) — flat while TU("v193X") is 0 */
+  function gearAttrV147(k, base) {
+    return gearAttrPtsV193X(k, base);
   }
   /* a production modifier for one stat definition of Ne[pos].stats (lower-is-better lines are cut) */
   function gearProdV147(c) {
@@ -11147,6 +11153,12 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
   function gearTxtV147(k, v) {
     const c = gearDefV147(k);
     if (!c) return "";
+    /* v193 X: an attribute modifier is a whole percent, with what it is worth on his sheet today in brackets */
+    if (gearAttrPctV193X(c)) {
+      const p = Math.round(Math.abs(+v || 0)),
+        pl = state && state.player;
+      return "+" + p + "% " + c.name + (pl && pl.attrs ? " (+" + Math.abs(rollPtsV193X(pl, c.stat, p)) + ")" : "");
+    }
     const sg = c.sign < 0 ? "−" : "+",
       n = Math.abs(+v || 0);
     return (
@@ -11263,12 +11275,12 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
     if (!state) return 0;
     let n = 0;
     (state.inventory || []).forEach(it => {
-      it && (!it.modsV147 || it.eff === "perfFlat") && (gearEnsureV147(it), n++); /* v193 E: Conditioning migrates too */
+      it && (!it.modsV147 || it.eff === "perfFlat" || (!it.attrPctV193X && rollPctOnV193X())) && (gearEnsureV147(it), n++); /* v193 E: Conditioning migrates too; v193 X: the percents */
     });
     const eq = state.equipped || {};
     GEAR_SLOTS.forEach(s => {
       const it = eq[s.key];
-      it && (!it.modsV147 || it.eff === "perfFlat") && (gearEnsureV147(it), n++);
+      it && (!it.modsV147 || it.eff === "perfFlat" || (!it.attrPctV193X && rollPctOnV193X())) && (gearEnsureV147(it), n++);
     });
     return n;
   }
@@ -11344,7 +11356,7 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
   }
   /* one rolled modifier's value on this piece, at its level (an integer modifier stays an integer) */
   function gearModValV193(it, m) {
-    const v = (+m.v || 0) * gearLvlMultForV193S(it, m.k),
+    const v = gearModRawV193X(m) * gearLvlMultForV193S(it, m.k) /* v193 X: a converted attribute modifier reads flat while off */,
       d = gearDefV147(m.k);
     return d && d.int ? Math.round(v) : v;
   }
@@ -11620,6 +11632,142 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
     now: gearSellNowV193G,
     flat: why => flatWhyV192A(why),
     why: s => gearSellWhyV193G(s)
+  };
+  /* ===== v193 X ROLLS AND ITEMS IN PERCENT =====
+   * The owner: "Season stat rolls should be based on percents, not flat amounts — and with items." A flat "+3 Speed" is
+   * a fifth of a Pee Wee's sheet (attributes ~10–20) and a rounding error in the UFF (100–250+). Every ROLL that handed
+   * out flat attribute points now hands out a PERCENT of the attribute it lands on — applied to the attribute's value at
+   * the time (`rollPtsV193X`: round(attr × pct / 100), never less than 1 point either way) and shown as a whole percent
+   * with today's points in small ("+6% Speed (+4)", v193 N's whole-number rule).
+   *   CALIBRATION. The old flat numbers were tuned at College (level 5), so a roll's percent is its old flat amount ×
+   *     `rollPctPerPointV193X` = 100 ÷ the typical rolled attribute at College (`REF_KEY_V193X[5]` — the position's rated
+   *     stats, which every roll pool draws from; `refTablesV193X`; measured on scripts/careersim.mjs careers, the season-end sheets; each
+   *     level's number is a knob, `refKeyV193X_<lv>` / `refAllV193X_<lv>`). The average outcome at College is unchanged;
+   *     below it a roll is fewer points, above it more.
+   *   THE ROLLS. The season commitment / midseason crossroads (src/18 `rollOutcome` / `applyOutcome` / `compose`: each
+   *     effect carries `pct`, composed into points at kickoff), the weekly plan roll (src/17 `decidePlan`: a click's
+   *     +3..+5 and a backfire's −3..−4 on the pool stats → `out.pct`; the projection's expected click / backfire,
+   *     `projBandGV146` / `projBandRV146`, priced per stat through the same function — `bandForV146` carries `pctG` /
+   *     `pctR`), the story wheel's buffs (`__mkTempBuffsV25`), the legendary "+1 Permanent" flip and the Extra reps flip
+   *     (`applyFlipV178`), and the fate roll (v192 A's percent through the same calibration — `rollPctV193X(flat ×
+   *     fatePctMultV192A)`, whole, the House Money hedge too; with College at 100 it reads as v192 A's one-for-one).
+   *   THE ITEMS. A gear attribute modifier (`a_*`) is a percent of the attribute: a piece's flat roll is converted ONCE
+   *     against the typical attribute at the tier it dropped at (`refTablesV193X().all[tierV147]` — every attribute, since a piece
+   *     is not tied to a position), so it is as strong as before at the level it dropped and keeps pace afterwards — never
+   *     past the cap (`gearRefMinTierV193X` prices low tiers against a higher tier's sheet, if early drops crowd the late
+   *     ones out). The v193 A/G level multiplier rides on top (still a whole percent), the per-attribute cap is `gearAttrPctCapV193X`
+   *     (25%) instead of v147's flat 20, and the points land in `_raw` and `effAttrsV85` off the wearer's own attribute.
+   *     An old piece converts lazily (`gearPctEnsureV193X`, tagged `attrPctV193X`, the flat value kept as `flatV193X` so
+   *     the kill switch reads it back). The base effects (`power`, `startAll`) stay flat.
+   * Kill switch `TU("v193X", 1)` → 0: every roll and every piece reads its old flat number again. `window.__V193X`;
+   * `v193Xcheck.mjs`. */
+  /* the typical attribute by level (Pee Wee … Interstellar): KEY = the mean of the position's roll-pool stats (the
+   * growth wheel's POOLS, which the plan roll and the story wheel draw from too), ALL = the mean of every attribute.
+   * MEASURED, Pee Wee → College: the season-end sheets of scripts/careersim.mjs careers (smart policy, 2 accounts, 3
+   * careers each, 82 seasons) — key 17.6 · 30.6 · 48.1 · 56.5 · 76.4 · 102.9, all 16.5 · 22.9 · 31.8 · 36.3 · 46.5 · 61.8.
+   * EXTRAPOLATED above College (no probe career got there in the time): the Combine and the UFF on the same climb, the
+   * Interstellar League at v183's "a newcomer ~OVR 350". College's key is 100 → a flat point is exactly 1%. */
+  function refTablesV193X() {
+    return { key: [18, 31, 48, 57, 76, 100, 115, 140, 350], all: [16, 23, 32, 36, 46, 62, 70, 85, 210] }; /* a function, so a boot-time render can never outrun it (v140) */
+  }
+  function rollPctOnV193X() {
+    return !!TU("v193X", 1);
+  }
+  function refAttrV193X(lv, all) {
+    const i = Math.max(0, Math.min(8, lv | 0)),
+      T = refTablesV193X()[all ? "all" : "key"];
+    return Math.max(1, TU((all ? "refAllV193X_" : "refKeyV193X_") + i, T[i]));
+  }
+  /* percent per old flat point — 100 ÷ the typical rolled attribute at College, where the flat numbers were tuned */
+  function rollPerPointV193X() {
+    return TU("rollPctPerPointV193X", 100 / refAttrV193X(TU("rollRefLevelV193X", 5), false));
+  }
+  /* an old flat roll as a whole percent (signed; a non-zero roll is never 0%) */
+  function rollPctV193X(flat) {
+    const f = Number(flat) || 0;
+    if (!f) return 0;
+    return Math.sign(f) * Math.max(1, Math.round(Math.abs(f) * rollPerPointV193X()));
+  }
+  /* a percent of THIS attribute, in points (signed; at least one point when the percent is not zero) */
+  function rollPtsV193X(pl, k, pct) {
+    const p = Number(pct) || 0;
+    if (!p) return 0;
+    const cur = Math.max(1, Number(pl && pl.attrs && pl.attrs[k]) || 10);
+    return Math.sign(p) * Math.max(1, Math.round((cur * Math.abs(p)) / 100));
+  }
+  /* "+6% Speed (+4)" — the percent whole, today's points in brackets (`html`: the points in <small>) */
+  function rollTxtV193X(pl, k, pct, html, label) {
+    const p = Math.round(Number(pct) || 0),
+      n = rollPtsV193X(pl, k, p),
+      nm = label != null ? label : (ATTR_INFO[k] && ATTR_INFO[k].name) || k,
+      sg = v => (v < 0 ? "−" : "+") + Math.abs(v);
+    return sg(p) + "% " + nm + (html ? ` <small class="pct-pts-v193x">(${sg(n)})</small>` : ` (${sg(n)})`);
+  }
+  /* one `_tempStatBuffsV25` entry as a line: "+6% Speed (+4)" when it carries a percent, the old "+4 Speed" otherwise */
+  function buffTxtV193X(b) {
+    if (!b || !b.stat) return "";
+    const nm = (ATTR_INFO[b.stat] && ATTR_INFO[b.stat].name) || b.stat,
+      a = b.max ? 10 : Math.round(Number(b.amt) || 0);
+    if (b.pct != null && rollPctOnV193X()) {
+      const p = Math.round(b.pct);
+      return (p < 0 ? "−" : "+") + Math.abs(p) + "% " + nm + " (" + (a < 0 ? "−" : "+") + Math.abs(a) + ")";
+    }
+    return (a > 0 ? "+" : "") + a + " " + nm;
+  }
+  // ---- the items
+  function gearPctCapV193X() {
+    return TU("gearAttrPctCapV193X", 25);
+  }
+  /* a piece's flat attribute roll as the percent of the typical attribute at the tier it dropped at */
+  function gearFlatToPctV193X(v, tier) {
+    const f = Number(v) || 0;
+    /* never past the cap: one piece cannot carry more than the whole slot-set may (an early-tier roll against a small sheet) */
+    /* `gearRefMinTierV193X` (0): price a piece from below that tier against that tier's sheet instead — the lever if early
+     * drops (a small sheet, so a big percent) crowd the late ones out */
+    const t = Math.max(tier | 0, TU("gearRefMinTierV193X", 0) | 0);
+    return f > 0 ? Math.min(gearPctCapV193X(), Math.max(1, Math.round((f / refAttrV193X(t, true)) * 100))) : 0;
+  }
+  /* once per piece, while on: the a_* modifiers become percents (the flat value kept for the kill switch) */
+  function gearPctEnsureV193X(it) {
+    if (!it || it.attrPctV193X || !rollPctOnV193X() || !Array.isArray(it.mods)) return it;
+    const tier = it.tierV147 != null ? it.tierV147 | 0 : 0;
+    it.mods.forEach(m => {
+      if (m && /^a_/.test(m.k) && m.flatV193X == null) {
+        m.flatV193X = +m.v || 0;
+        m.v = gearFlatToPctV193X(m.v, tier);
+      }
+    });
+    it.attrPctV193X = 1;
+    return it;
+  }
+  /* the value a modifier is read at: a converted attribute modifier reads its old flat number while the switch is off */
+  function gearModRawV193X(m) {
+    return m && m.flatV193X != null && !rollPctOnV193X() ? +m.flatV193X || 0 : +(m && m.v) || 0;
+  }
+  /* an attribute modifier is a percent right now (its total is capped at gearAttrPctCapV193X, shown with a %) */
+  function gearAttrPctV193X(c) {
+    return !!c && c.kind === "attr" && rollPctOnV193X();
+  }
+  /* the wearer's points from his gear on one attribute: the capped percent of `base` (his own attribute) — flat when off */
+  function gearAttrPtsV193X(k, base) {
+    const v = gearV147("a_" + k);
+    if (!rollPctOnV193X() || !v) return v;
+    const b = base != null ? base : state && state.player && state.player.attrs ? state.player.attrs[k] : 0;
+    return rollPtsV193X({ attrs: { [k]: b } }, k, v);
+  }
+  window.__V193X = {
+    on: rollPctOnV193X,
+    ref: refAttrV193X,
+    refs: refTablesV193X,
+    perPoint: rollPerPointV193X,
+    pct: rollPctV193X,
+    pts: rollPtsV193X,
+    txt: rollTxtV193X,
+    buff: buffTxtV193X,
+    gearPct: gearFlatToPctV193X,
+    gearCap: gearPctCapV193X,
+    gearEnsure: gearPctEnsureV193X,
+    gearPts: gearAttrPtsV193X
   };
   function screenLocker() {
     gearMigrateV147();
@@ -16269,11 +16417,13 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
       picks.push(p.splice(idx, 1)[0]);
     }
     return picks.map(function (k) {
-      if (sign > 0) {
-        var amt = Math.round(3 + good * 4 + bold * 3 + Math.random() * 3);
-        return { stat: k, amt: amt, max: false };
+      var amt = sign > 0 ? Math.round(3 + good * 4 + bold * 3 + Math.random() * 3) : -Math.round(5 + (1 - good) * 8 + bold * 3);
+      /* v193 X: a percent of the stat (the old flat × the College calibration), in points off his sheet today */
+      if (rollPctOnV193X()) {
+        var pct = rollPctV193X(amt);
+        return { stat: k, amt: rollPtsV193X(pl, k, pct), pct: pct, flatV193X: amt, max: false };
       }
-      return { stat: k, amt: -Math.round(5 + (1 - good) * 8 + bold * 3), max: false };
+      return { stat: k, amt: amt, max: false };
     });
   };
   window.__statLabelV25 = function (k) {
@@ -16413,7 +16563,7 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
           Math.round(
             Math.round((Math.round(a * mult) + (out.buffs[k] || 0)) * mu) +
               (out.persona[k] = pf.by[k] || 0) /* OFF (v193N 0): the old sheet, which never drew perfFlat */ +
-              (out.gear[k] = gearAttrV147(k))
+              (out.gear[k] = gearAttrV147(k, a)) /* v193 X: a percent of his own attribute */
           )
         );
       /* v147 C: gear lands last, as in _raw */ out.eff[k] = v;
@@ -18430,7 +18580,7 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
           /* v111: the focus is a multiplier, and it lands AFTER the body's swing. v193 E: the tree's game-day percent is
            * gone; what remains is the personality page's own nudge (src/14 — v193 N: ONE attribute per pole) and the gear on him */ _v +=
             _pf193N.all + (_pf193N.by[k] || 0) +
-            gearAttrV147(k); /* v147 C: the gear on him */
+            gearAttrV147(k, w.attrs && w.attrs[k]); /* v147 C: the gear on him (v193 X: a percent of his attribute) */
         }
         /* v171 A: their face, the call's cuts and lifts, the plan's team lift — as rating POINTS (the fraction × `mulPtsV171`),
          * so a +20% star is the same edge at Pee Wee as in the UFF: as a multiplier it was +5 on a 25 sheet and +16 on an 80 */
@@ -32090,18 +32240,19 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
     const B = st.band || null,
       sc = [],
       kS = kseedV146(e.pos);
-    const one = (ks, a) => {
+    const one = (ks, a, pct) => {
       const d = {};
       (ks || []).forEach(k => {
-        d[k] = (d[k] || 0) + a;
+        /* v193 X: a percent of each stat (the expected roll — unrounded, at least a point), flat while off */
+        d[k] = (d[k] || 0) + (pct != null && rollPctOnV193X() ? Math.sign(pct) * Math.max(1, (Math.abs(pct) * ((e.attrs && e.attrs[k]) || 10)) / 100) : a);
       });
       return projPtsV146(e, d);
     };
     const bands = B
       ? [
-          [B.g || 0, one(B.statsG, B.amtG != null ? B.amtG : TU("projBandGV146", 4))] /* v193 B: a revealed roll passes its own amount */,
+          [B.g || 0, one(B.statsG, B.amtG != null ? B.amtG : TU("projBandGV146", 4), B.pctG)] /* v193 B: a revealed roll passes its own amount (v193 X: percent) */,
           [B.n || 0, 0],
-          [B.r || 0, one(B.statsR, -(B.amtR != null ? B.amtR : TU("projBandRV146", 3.5)))]
+          [B.r || 0, one(B.statsR, -(B.amtR != null ? B.amtR : TU("projBandRV146", 3.5)), B.pctR != null ? -B.pctR : null)]
         ]
       : [[1, 0]];
     const fz =
@@ -34707,9 +34858,10 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
         };
         /* v192 A: the plan's number is a PERCENT of the attribute (+12% Speed), not flat points — see fatePctOnV192A */
         if (fatePctOnV192A()) {
-          out.pct = amount * TU("fatePctMultV192A", 1);
+          /* v193 X: re-based on the rolls' College calibration (a flat point = rollPctPerPointV193X %), whole percents */
+          out.pct = rollPctOnV193X() ? rollPctV193X(amount * TU("fatePctMultV192A", 1)) : amount * TU("fatePctMultV192A", 1);
           out.amount = fatePtsV192A(p, attr, out.pct);
-          out.hedgePct = out.pct * 0.3;
+          out.hedgePct = rollPctOnV193X() ? Math.max(1, Math.round(out.pct * 0.3)) : out.pct * 0.3;
           out.hedge = fatePtsV192A(p, attr, out.hedgePct);
         }
         return out;
@@ -38073,6 +38225,7 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
           return Object.assign({}, c6, { name: "+" + (Math.abs(v - Math.round(v)) < 0.05 ? Math.round(v) : v.toFixed(1)) + "% " + (c6.kind === "up" ? "Upgrade Points · season end" : "Prestige · career end") });
         }
         if (c6.id === "trust" && TU("flipTrustV186", 1) !== 1) return Object.assign({}, c6, { name: "+" + TU("flipTrustV186", 1) + " Coach Trust" });
+        if (c6.id === "attr" && rollPctOnV193X()) return Object.assign({}, c6, { name: "+" + rollPctV193X(TU("flipAttrV182", 1)) + "% Permanent" }); /* v193 X */
         return c6;
       }
     }
@@ -38127,10 +38280,12 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
       applyFlipV178.pts = n;
     } else if (id === "reps") {
       /* v192 A: a quarter point, on a stat drawn from the position's (Focused Reps leans it to the key ones) */
-      const g = flipRepsV192A(),
-        k192 = onV192A("flipStatV192A") ? flipStatV192A(e, w, "reps") : null,
-        r = repAttrV178(e, k192 || keys[0] || "speed", g);
-      say = "Extra reps · " + r.name + (r.up ? " +1!" : " +" + g);
+      const k192 = onV192A("flipStatV192A") ? flipStatV192A(e, w, "reps") : null,
+        kR = k192 || keys[0] || "speed",
+        /* v193 X: the card's quarter point is a percent of the stat (×rollPctPerPointV193X) — a share of a point, banked */
+        g = rollPctOnV193X() ? (flipRepsV192A() * rollPerPointV193X() * Math.max(1, (e.attrs && e.attrs[kR]) || 10)) / 100 : flipRepsV192A(),
+        r = repAttrV178(e, kR, g);
+      say = "Extra reps · " + r.name + (r.up ? " +1!" : rollPctOnV193X() ? " · " + Math.max(1, Math.round(g * 100)) + "% of a point banked" : " +" + g);
     } else if (id === "trust") e.coachTrust = clamp99((e.coachTrust != null ? e.coachTrust : 50) + TU("flipTrustV182", 3), 0, 100);
     else if (id === "pp") bankPPV136(flatFaceV192A(TU("flipPPV182", 3)), "flipV178"); /* v192 A */
     else if (id === "gear") {
@@ -38144,8 +38299,16 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
         keys.slice().sort((a, b) => (e.attrs[a] || 0) - (e.attrs[b] || 0))[0] ||
         "speed";
       const a182 = TU("flipAttrV182", 1);
-      e.attrs[k] = clamp99((e.attrs[k] || 1) + a182, 1, attrCap());
-      say = "+" + a182 + " " + ((ATTR_INFO[k] && ATTR_INFO[k].name) || k) + " · permanent";
+      if (rollPctOnV193X()) {
+        /* v193 X: a percent of the stat, in whole points off his sheet (at least one) */
+        const p193 = rollPctV193X(a182),
+          n193 = rollPtsV193X(e, k, p193);
+        say = rollTxtV193X(e, k, p193) + " · permanent"; /* read before the points land: "+1% Speed (+2)" */
+        e.attrs[k] = clamp99((e.attrs[k] || 1) + n193, 1, attrCap());
+      } else {
+        e.attrs[k] = clamp99((e.attrs[k] || 1) + a182, 1, attrCap());
+        say = "+" + a182 + " " + ((ATTR_INFO[k] && ATTR_INFO[k].name) || k) + " · permanent";
+      }
     }
     return say;
   }

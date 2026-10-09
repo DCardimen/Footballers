@@ -125,13 +125,21 @@ const hooks = await page.evaluate(() => {
   // the cap: two Mythics on one attribute cannot pass gearAttrCapV147
   S.equipped = { chain: piece('a_speed', 18), gloves: Object.assign(piece('a_speed', 18), { id: 'probe2', slot: 'gloves' }) }
   const capped = V.get('a_speed'); S.equipped = {}
-  return { out, capped }
+  // v193 X: an attribute modifier is a percent — two 18% pieces cannot pass gearAttrPctCapV193X; with v193X 0 the flat cap of 20
+  const pp = (id, slot) => Object.assign(piece('a_speed', 18), { id, slot, attrPctV193X: 1 })
+  S.equipped = { chain: pp('probe3', 'chain'), gloves: pp('probe4', 'gloves') }
+  const cappedPct = V.get('a_speed'), pctCap = window.__V193X.gearCap(); S.equipped = {}
+  window.RIB_TUNE = window.RIB_TUNE || {}; window.RIB_TUNE.v193X = 0
+  S.equipped = { chain: piece('a_speed', 18), gloves: Object.assign(piece('a_speed', 18), { id: 'probe2', slot: 'gloves' }) }
+  const cappedFlat = V.get('a_speed'); S.equipped = {}; delete window.RIB_TUNE.v193X
+  return { out, capped, cappedPct, pctCap, cappedFlat }
 })
 for (const [k, r] of Object.entries(hooks.out)) {
   ok(r.on !== r.off && r.back === r.off && r.got > 0, `equipping ${k} moves its hook, unequipping restores it`, `${r.off} → ${r.on} → ${r.back}`)
 }
 ok(Object.keys(hooks.out).length >= 10, 'at least ten modifier types probed', Object.keys(hooks.out).length)
-ok(hooks.capped === 20, 'two Mythic +18 Speed rolls are capped at gearAttrCapV147 (20)', hooks.capped)
+ok(hooks.cappedPct === hooks.pctCap && hooks.pctCap === 25 && hooks.capped === 25, 'two Mythic +18% Speed rolls are capped at gearAttrPctCapV193X (25%) — v193 X', JSON.stringify({ pct: hooks.cappedPct, migrated: hooks.capped }))
+ok(hooks.cappedFlat === 20, 'with v193X 0, two Mythic +18 Speed rolls are capped at gearAttrCapV147 (20)', hooks.cappedFlat)
 // direction: a good modifier is good
 const d = hooks.out
 ok(d.a_speed.on > d.a_speed.off && d.p_rushYds.on > d.p_rushYds.off && d.injChance.on < d.injChance.off && d.injDur.on < d.injDur.off && d.fatigueGain.on < d.fatigueGain.off && d.ageDecline.on < d.ageDecline.off && d.callUp.on > d.callUp.off,
@@ -168,8 +176,8 @@ const eqd = await page.evaluate(() => { const b = [...document.querySelectorAll(
 ok(eqd, 'EQUIP from the compare view equips that piece')
 // the pregame sheet reads the gear
 const sheet = await page.evaluate(() => { const S = window.S, p = S.player, V = window.__V147C; S.equipped = {}; const a = V.effAttrs(p).eff.speed
-  S.equipped = { chain: { id: 'sh', slot: 'chain', rarity: 'mythic', eff: 'growth', val: 0, modsV147: 1, mods: [{ k: 'a_speed', v: 9 }] } }; const b = V.effAttrs(p); S.equipped = {}; return { a, b: b.eff.speed, g: b.gear.speed } })
-ok(sheet.b - sheet.a === 9 && sheet.g === 9, 'the effective sheet (effAttrsV85 → pregame sheet) carries the gear', JSON.stringify(sheet))
+  S.equipped = { chain: { id: 'sh', slot: 'chain', rarity: 'mythic', eff: 'growth', val: 0, modsV147: 1, attrPctV193X: 1, mods: [{ k: 'a_speed', v: 9 }] } }; const b = V.effAttrs(p); S.equipped = {}; return { a, b: b.eff.speed, g: b.gear.speed, want: window.__V193X.pts(p, 'speed', 9) } })
+ok(sheet.b - sheet.a === sheet.want && sheet.g === sheet.want && sheet.want >= 1, 'the effective sheet (effAttrsV85 → pregame sheet) carries the gear (v193 X: +9% of his Speed)', JSON.stringify(sheet))
 
 ok(errs.length === 0, 'no page errors', errs.slice(0, 3).join(' | '))
 console.log(JSON.stringify({ pass, fail }))

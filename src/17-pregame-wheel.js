@@ -16,6 +16,14 @@
   const getPl=()=>{const s=ST();return s&&s.player||null};
   const G=()=>window.__GROWTH_V42;
   const cl=(v,a,b)=>Math.max(a,Math.min(b,v));
+  /* ===== v193 X ROLLS AND ITEMS IN PERCENT (the plan roll) =====
+   * A click's +3..+5 and a backfire's −3..−4 are percents of each pool stat now (`out.pct`, the old flat × the College
+   * calibration, src/07 `rollPctV193X`), applied through the growth pipeline (`compose` → points at kickoff). The lines
+   * read "+6% Speed (+4)"; `bandForV146` hands the projection the expected click / backfire as a percent (`pctG` /
+   * `pctR`, `projBandGV146` / `projBandRV146` × the calibration — a revealed roll its own). TU("v193X", 0): flat. */
+  const X193=()=>window.__V193X||null;
+  const pctOnX=()=>{const x=X193();return !!(x&&x.on())};
+  const rollLine=(pl,d,LBL)=>{const g=G(),o=d.out;return d.stats.map(k=>g&&g.statTxt?g.statTxt(pl,k,o.sign,o.amt,o.pct,LBL[k]||k):(o.sign>0?"+":"−")+o.amt+" "+(LBL[k]||k)).join(" · ")};
   const FALLBACK_COL=["#7d1a20","#10456e","#5e4a0a","#28571a","#3a2668","#6b1a44"];
 
   // ---- read the deck the game just drew
@@ -170,7 +178,7 @@
     }
     const amt=band==="green"?3+((R("am")*3)|0):band==="red"?3+((R("am")*2)|0):2;
     const out={card:"plan_"+win.id,icon:win.icon,name:win.name,band,
-      sign:band==="red"?-1:1,stats,amt:band==="neutral"?1:amt,
+      sign:band==="red"?-1:1,stats,amt:band==="neutral"?1:amt,pct:X193()?Math.abs(X193().pct(band==="neutral"?1:amt)):null/* v193 X */,
       tier:{games:1},permanent:false,fatigue:0,ctx:"pregame",tag:"PLAN",jive,odds,nudge,
       story:band==="green"?"It came off exactly the way you drew it up."
         :band==="neutral"?"It worked well enough. Nothing special either way."
@@ -195,7 +203,7 @@
     applyDecision(pl,d);
     const LBL=(d.g&&d.g.LBL)||{};
     return {id:d.win.id,rec:!!d.win.rec,name:d.win.name,icon:d.win.icon,band:d.band,
-      lines:d.stats.length&&d.band!=="neutral"?d.stats.map(k=>(d.out.sign>0?"+":"−")+d.out.amt+" "+(LBL[k]||k)).join(" · "):"no swing this game",
+      lines:d.stats.length&&d.band!=="neutral"?rollLine(pl,d,LBL):"no swing this game",
       odds:d.odds,cut:d.cut,offered:d.all.length,chosen:!!d.chosen};
   }
   /* ===== v135 THE WHEEL SPINS ON THE FIFTH PAGE =====
@@ -233,7 +241,7 @@
       result:{band,
         headline:`<span class="gv64-head" style="font-size:15px;margin:0">${(window.RIB_PLAN_ICO?window.RIB_PLAN_ICO(win.id,win.icon,30):win.icon+" ")}<span>${win.name} — ${band==="green"?"IT CLICKS":band==="neutral"?"IT'LL DO":"IT BACKFIRES"}</span></span>`,
         story:out.story,
-        lines:stats.length?stats.map(k=>(out.sign>0?"+":"−")+out.amt+" "+(LBL[k]||k)).join(" · "):"no swing this game",
+        lines:stats.length?rollLine(pl,d,LBL):"no swing this game",
         dur:"THIS GAME"}};
   }
   function holdPlanV135(pl,plans){
@@ -301,8 +309,8 @@
     return keep?{id,g}:{id,g,dropped:true}}
   function toastV193(msg){try{const t=document.getElementById("toast");if(!t)return;t.textContent=msg;t.classList.add("show");clearTimeout(toastV193._t);toastV193._t=setTimeout(()=>t.classList.remove("show"),2600)}catch(e){}}
   function revealedV193(){const h=heldV135;if(!h||!h.revealedV193||!h.d||h.d.win.id!==h.revealedV193)return null;const d=h.d,LBL=(d.g&&d.g.LBL)||{};
-    return{id:d.win.id,name:d.win.name,icon:d.win.icon,band:d.band,sign:d.out.sign,amt:d.out.amt,stats:d.stats.slice(),
-      lines:d.stats.length&&d.band!=="neutral"?d.stats.map(k=>(d.out.sign>0?"+":"−")+d.out.amt+" "+(LBL[k]||k)).join(" · "):"no swing this game",
+    return{id:d.win.id,name:d.win.name,icon:d.win.icon,band:d.band,sign:d.out.sign,amt:d.out.amt,pct:d.out.pct,stats:d.stats.slice(),
+      lines:d.stats.length&&d.band!=="neutral"?rollLine(h.pl,d,LBL):"no swing this game",
       say:d.band==="green"?"IT CLICKS":d.band==="neutral"?"IT'LL DO":"IT BACKFIRES",story:d.out.story,odds:d.odds}}
   function revealPlanV193(){const h=heldV135;if(!h||!h.dice||h.applied||!v193On())return null;
     if(!h.revealedV193){h.revealedV193=h.d.win.id;h.revealedAtV193=Date.now();
@@ -324,12 +332,13 @@
     for(let i=0;i<pool.length&&out.length<n;i++){const k=pool[(i*2+idx)%pool.length];if(k&&out.indexOf(k)<0)out.push(k)}return out}
   function bandForV146(id){const h=heldV135;if(!h||!h.dice)return null;const d=decidePlan(h.pl,h.plans,id,h.dice);if(!d)return null;
     const b={id,g:d.odds.g,n:d.odds.n,r:d.odds.r,statsG:seqStatsV146(h.pl,d.idx,3),statsR:seqStatsV146(h.pl,d.idx,2),jive:d.jive,why:d.why,scout:!!d.win.scout,oddsG:d.odds.g,oddsN:d.odds.n,oddsR:d.odds.r};
+    if(pctOnX()){const pp=X193().perPoint(),T=(k,v)=>window.TU?window.TU(k,v):v;b.pctG=T("projBandGV146",4)*pp;b.pctR=T("projBandRV146",3.5)*pp}   // v193 X: the expected click / backfire, as a percent
     if(h.revealedV193===id&&h.d&&h.d.win.id===id){   // v193 B: revealed — the band is known, the odds are history
       const bd=h.d.band;b.fixed=true;b.band=bd;b.g=bd==="green"?1:0;b.n=bd==="neutral"?1:0;b.r=bd==="red"?1:0;
-      if(bd==="green"){b.statsG=h.d.stats.slice();b.amtG=h.d.out.amt}if(bd==="red"){b.statsR=h.d.stats.slice();b.amtR=h.d.out.amt}}
+      if(bd==="green"){b.statsG=h.d.stats.slice();b.amtG=h.d.out.amt;if(b.pctG!=null)b.pctG=h.d.out.pct}if(bd==="red"){b.statsR=h.d.stats.slice();b.amtR=h.d.out.amt;if(b.pctR!=null)b.pctR=h.d.out.pct}}
     return b}
   function rollSayV146(h){const d=h.d,pl=h.pl,LBL=(d.g&&d.g.LBL)||{},w=(pl.weekResults||[]).find(x=>x&&!x.played);
-    const lines=d.stats.length&&d.band!=="neutral"?d.stats.map(k=>(d.out.sign>0?"+":"−")+d.out.amt+" "+(LBL[k]||k)).join(" · "):"no swing this game";
+    const lines=d.stats.length&&d.band!=="neutral"?rollLine(pl,d,LBL):"no swing this game";
     if(w)w.planRollV146={id:d.win.id,name:d.win.name,icon:d.win.icon,band:d.band,lines,revealedV193:!!h.revealedV193};
     if(h.revealedV193)return;   // v193 B: he saw it on page 5 — no second toast
     const t=document.getElementById("toast");if(t){t.textContent=`${d.win.icon||"📋"} ${d.win.name}: ${d.band==="green"?"IT CLICKS":d.band==="neutral"?"IT'LL DO":"IT BACKFIRES"} — ${lines}`;t.classList.add("show");clearTimeout(rollSayV146._t);rollSayV146._t=setTimeout(()=>t.classList.remove("show"),3200)}}
