@@ -5312,6 +5312,18 @@
   function perfPctV190() {
     return 0; /* v193 E: the game-day percent is gone (the banner below); `window.__V190.perfPct` keeps reading 0 */
   }
+  /* ===== v193 AC COLLEGE PAYS =====
+   * The owner: "consider scaling college prestige a bit higher (2 to 3× what it is now)". The careersim runs end most
+   * careers at the College → Combine declare, so College's base (28) was what most careers paid. It is ×2.5 now (70), and
+   * the levels above it rise just enough to stay above it (Combine 45 → 90, the UFF 70 → 110, Interstellar 120 → 180).
+   * ONE table for every reader (the career's end, the pot, the receipt, SPEND NOW's "a career pays ~N"). Knobs
+   * `careerBaseCollegeV193AC` … ; kill switch `v193AC` 0 = the old table. */
+  function careerBaseV193AC(lv) {
+    lv = Math.max(0, Math.min(8, lv | 0));
+    const old = [1, 2, 4, 8, 15, 28, 45, 70, 120][lv] || 1;
+    if (!TU("v193AC", 1)) return old;
+    return [1, 2, 4, 8, 15, TU("careerBaseCollegeV193AC", 70), TU("careerBaseCombineV193AC", 90), TU("careerBaseUffV193AC", 110), TU("careerBaseIstV193AC", 180)][lv] || 1;
+  }
   /* ===== v193 J THE REDRAWN NODES ARE PAID BACK =====
    * v193 E took "+N% to every attribute a game" (`perfFlat`) out of the game and gave its seven nodes new effects. A save
    * that bought them paid for the old effect, and the tree's free respecs are rationed by medals — so once a save, at
@@ -5508,7 +5520,7 @@
     } catch (_) {}
     let seasons = 0;
     for (let i = 0; i <= lv; i++) seasons += (LEVELS[i] && LEVELS[i].seasons) || 2;
-    const ii = [1, 2, 4, 8, 15, 28, 45, 70, 120][lv] || 1;
+    const ii = careerBaseV193AC(lv);
     return Math.max(1, Math.round((ii + seasons * 0.35) * sm * chaosEarnedAtV193E(lv, c)));
   }
   function chaosProjectV193E(lv) {
@@ -26734,7 +26746,7 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
         (hasTrait(e, "showman") ? 1.15 : 1) *
         eraMult(),
       n = nodeLvl("legacy") * e.totalSeasons,
-      i = [1, 2, 4, 8, 15, 28, 45, 70, 120][Math.min(a, 8)] || 1,
+      i = careerBaseV193AC(a),
       r = arr
         ? tailPPV154(e, arr, s, a)
         : Math.max(1, Math.round(((i + e.totalSeasons * 0.35 + (e.titles || 0) * 4) * s + n) * chaosEarnedMult(a))),
@@ -40944,7 +40956,7 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
           (hasTrait(e, "showman") ? 1.15 : 1) *
           eraMult(),
         nn = nodeLvl("legacy") * (e.totalSeasons || 0),
-        ii = [1, 2, 4, 8, 15, 28, 45, 70, 120][Math.min(a, 8)] || 1;
+        ii = careerBaseV193AC(a);
       r = e._arrivedV154 && a >= 7 ? tailPPV154(e, e._arrivedV154, sm, a) : Math.max(1, Math.round(((ii + (e.totalSeasons || 0) * 0.35 + (e.titles || 0) * 4) * sm + nn) * chaosEarnedMult(a)));
     } catch (_) {
       r = 0;
@@ -41201,7 +41213,7 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
     const X = ppMultPartsV192B(e),
       a = e.level | 0,
       sm = X.career / chaosEarnedMult(a),
-      ii = [1, 2, 4, 8, 15, 28, 45, 70, 120][Math.min(a, 8)] || 1,
+      ii = careerBaseV193AC(a),
       seasons = (e.totalSeasons || 0) * 0.35,
       titles = (e.titles || 0) * 4,
       nn = nodeLvl("legacy") * (e.totalSeasons || 0),
@@ -41713,7 +41725,7 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
       row("add", `+ ${plural193D(titles, "title")} × 6`, titles * 6, "a cut pays 4 a title");
       base = 85 + seasons * 0.75 + titles * 6;
     } else {
-      const ii = [1, 2, 4, 8, 15, 28, 45, 70, 120][Math.min(lv, 8)] || 1;
+      const ii = careerBaseV193AC(lv);
       row("base", `Reached ${levelName(lv)}`, ii, "the level's base");
       row("add", `+ ${plural193D(seasons, "season")} × 0.35`, seasons * 0.35, "a UFF arrival pays 0.75 a season");
       row("add", `+ ${plural193D(titles, "title")} × 4`, titles * 4, "a UFF arrival pays 6 a title");
