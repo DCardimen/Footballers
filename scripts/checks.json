@@ -42,7 +42,8 @@
     "v193Ocheck",
     "v193Vcheck",
     "v193Xcheck",
-    "v193Ycheck"
+    "v193Ycheck",
+    "v193Zcheck"
    ]
   },
   "docs": {
@@ -384,7 +385,8 @@
     "shot",
     "scrollcheck",
     "capcheck",
-    "v193Ncheck"
+    "v193Ncheck",
+    "v193Zcheck"
    ]
   },
   "sim-keys": {
@@ -599,7 +601,8 @@
    "desc": "v135 — the game-plan wheel, the held roll, the fifth pregame page",
    "anchors": [
     "v135",
-    "v193 X"
+    "v193 X",
+    "v193 Z"
    ],
    "files": [],
    "checks": [
@@ -610,7 +613,8 @@
     "v85check",
     "walk",
     "scrollcheck",
-    "v193Xcheck"
+    "v193Xcheck",
+    "v193Zcheck"
    ]
   },
   "goals": {
@@ -5269,6 +5273,20 @@
     "smoke"
    ],
    "runtimeSec": 45,
+   "slow": false,
+   "needsServer": true,
+   "pureNode": false,
+   "flaky": []
+  },
+  "v193Zcheck": {
+   "file": "scripts/v193Zcheck.mjs",
+   "desc": "v193 Z — the focus roll tilts the season: a forced −6% Speed season outcome sets a −12% Speed tilt (×2), a crossroads adds, a plan roll sets none, the cap holds (±40%); at a flat 1-pt band 10 points buy 9 Speed levels at −12% and 11 at +12% through window.alloc; 50 single taps charge whole points and the carried fraction balances exactly, 50 minuses refund every point and the carry; hold-to-spend and the auto button pay the tilted price; the sheet's header line, row chips, tilted + and readout, the stat card's chip, HOW PRICES WORK, no decimals; the season wheel's result card names the tilt and buzzes; finishSeasonGames clears it and a new career has none; the Focus Amplifier (Mental) is bought through QUICK BUY at its price, Lv 1 → ×2.5 and a 50% cap; v193Z 0 restores the old prices.",
+   "areas": [
+    "wheel",
+    "statinfo",
+    "smoke"
+   ],
+   "runtimeSec": 40,
    "slow": false,
    "needsServer": true,
    "pureNode": false,

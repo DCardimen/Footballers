@@ -5196,6 +5196,10 @@
         const cap = typeof drSoftCap === "function" ? Math.round(drSoftCap(pl, k)) : 0;
         chips += '<span class="si-chip-v142">YOURS <b>' + cur + "</b></span>";
         if (cap) chips += '<span class="si-chip-v142">SOFT CAP <b>' + cap + "</b></span>";
+        const tz = focusTiltOfV193Z(pl, k); /* v193 Z: this season's focus roll tilts this stat's price */
+        if (tz)
+          chips +=
+            '<span class="si-chip-v142 si-tilt-v193z">FOCUS <b style="color:' + (tz < 0 ? "#ff8a80" : "#7fe0a0") + '">' + focusPctTxtV193Z(tz) + "</b> THIS SEASON</span>";
         if (L.metric)
           chips +=
             '<span class="si-chip-v142">' + L.metric.label.toUpperCase() + " <b>" + L.metric.fmt(cur) + "</b></span>";
@@ -6428,6 +6432,18 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
           mult: 1.55,
           max: 6,
           req: { honors: 7 }
+        },
+        {
+          /* v193 Z: the focus roll's season-long price tilt is the outcome's percent ×2 — each level adds ×0.5, both ways */
+          key: "focusAmpV193Z",
+          name: "Focus Amplifier",
+          icon: "🎯",
+          desc: "Your focus roll's swing on skill prices: ×2.5 at Lv 1, +0.5 a level (×5 at Lv 6) — a good roll pays more, a bad one costs more.",
+          cost: 20,
+          mult: 1.6,
+          max: TU("focusAmpMaxV193Z", 6),
+          req: { honors: 10 },
+          fx: { focusAmpV193Z: 1 }
         },
         {
           key: "vet",
@@ -14556,6 +14572,7 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
       (e.points += $e),
       e.seasonsAtLevel++,
       e.totalSeasons++,
+      delete e.focusTiltV193Z /* v193 Z: the focus roll's price tilt lives one season — every settle path runs through here */,
       e.seasonsSinceStart++,
       e.age++,
       (e.awards = (e.awards || []).concat(Te)),
@@ -26144,12 +26161,13 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
         <div class="up-ovr-v153" id="liveOvr">OVR ${t}</div>
       </div>
     </div>
+    ${(focusCssV193Z(), focusLineV193Z(e)) /* v193 Z: this season's focus-roll tilts */}
     ${(() => {
       const st = clamp99(Math.round(e.stars || 1), 1, 5),
         bp = Math.round((TU("drStarBase", 0.6) + (st - 1) * TU("drStarStep", 0.0625)) * 100),
         pp = Math.round((TU("drPrestigePct", 0.01) * (state.prestige || 0) + softPctV146()) * 100);
       return `<div class="up-how-v153"><button type="button" class="up-how-b-v153" onclick="upHowV153()"><span>📉 <b>1 pt</b> per +1 up to each <b class="gold">soft cap</b>, then more</span><em>HOW PRICES WORK</em></button>
-      <div class="up-how-note-v153">Stats marked <span class="weight-tag">KEY</span> matter most for your position and raise your OVR the fastest. <b>Diminishing returns — no hard cap.</b> Each stat costs <b>1 pt</b> up to its <b class="gold">soft cap</b>, then <b>2, 3, 4…</b> per band of ${bandWV146()} above it${bandTopV146() < 1 / 0 ? ` (never more than <b>${bandTopV146()}</b>)` : ""}, and <b>×${wallMultV146()}</b> from <b>${wallAtV146()}</b> on. ★${st} sets your soft caps at <b>${bp}%</b> of ceiling${pp ? ` · ${medalsOnV156A() ? "Medals" : "Honors"} add <b style="color:#7fe0a0">+${pp}%</b>` : ""} — more RECRUIT stars and more ${medalsOnV156A() ? "MEDALS" : "HONORS"} push the cheap zone massively higher. The bar under each stat fills to its soft cap; gold values are past it.</div></div>`;
+      <div class="up-how-note-v153">Stats marked <span class="weight-tag">KEY</span> matter most for your position and raise your OVR the fastest. <b>Diminishing returns — no hard cap.</b> Each stat costs <b>1 pt</b> up to its <b class="gold">soft cap</b>, then <b>2, 3, 4…</b> per band of ${bandWV146()} above it${bandTopV146() < 1 / 0 ? ` (never more than <b>${bandTopV146()}</b>)` : ""}, and <b>×${wallMultV146()}</b> from <b>${wallAtV146()}</b> on. ★${st} sets your soft caps at <b>${bp}%</b> of ceiling${pp ? ` · ${medalsOnV156A() ? "Medals" : "Honors"} add <b style="color:#7fe0a0">+${pp}%</b>` : ""} — more RECRUIT stars and more ${medalsOnV156A() ? "MEDALS" : "HONORS"} push the cheap zone massively higher. The bar under each stat fills to its soft cap; gold values are past it.${focusOnV193Z() ? ` <b>Your focus roll tilts a season's prices:</b> every stat the season's commitment (or a midseason crossroads) lands on costs more or less <b>for that season only</b> — ${focusMultTxtV193Z()} its percent, so a −6% roll makes those points buy ${Math.round(6 * focusMultV193Z())}% less (10 pts → ${Math.round(10 * (1 + focusTiltFromPctV193Z(-6)))} levels) and a +6% roll ${Math.round(6 * focusMultV193Z())}% more (10 pts → ${Math.round(10 * (1 + focusTiltFromPctV193Z(6)))}).` : ""}</div></div>`;
     })()}
     ${(() => {
       const row = a => {
@@ -26157,7 +26175,7 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
         return `<div class="up-attr${isKey(a) ? " key" : ""}" data-k="${a}">
           <div class="info"><div class="un"><span class="up-ic-v153">${ATTR_INFO[a].icon}</span><span class="up-nm-v153">${ATTR_INFO[a].name}</span>${isKey(a) ? '<span class="weight-tag">KEY</span>' : ""}${statInfoBtnV142(a)}${n ? `<span class="up-metric" title="${n.label}"><small>${n.label}</small><b id="mtr-${a}">${n.fmt(e.attrs[a])}</b></span>` : ""}</div>
             <div class="desc">${ATTR_INFO[a].desc}</div>
-            <div class="up-line-v153"><span class="up-cap" id="cap-${a}"></span></div>
+            <div class="up-line-v153"><span class="up-tiltslot-v193z" id="tilt-${a}"></span><span class="up-cap" id="cap-${a}"></span></div>
             <div class="up-bar-v153" id="bar-${a}"><i></i></div></div>
           <button class="step" onclick="alloc('${a}',-1)" id="minus-${a}" aria-label="Lower ${ATTR_INFO[a].name}">−</button>
           <div class="uv" id="uv-${a}">${Math.round(e.attrs[a])}</div>
@@ -26226,6 +26244,168 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
       return 0;
     }
   }; /* v134: the sim asks the tree through this, never o.tree */
+  /* ===== v193 Z THE FOCUS ROLL TILTS THE SEASON =====
+   * The owner: "In addition to the career focus roll, I think that should provide bonuses or declines to that season's
+   * stat gains. So if I have −6% speed, a multiplier (2× to −12 percent) would apply to the upgrade skills for that
+   * season only. So you would need 10 points to upgrade 9 levels in that case." When the season commitment or a
+   * midseason crossroads (src/18 `applyOutcome`, ctx "season" / "inseason|…") resolves, every attribute it touched gets
+   * a SKILL TILT for this season: the outcome's signed percent × `focusMultV193Z()` (`focusTiltMultV193Z` 2, plus
+   * `focusAmpPerLvlV193Z` 0.5 a level of the Mental node FOCUS AMPLIFIER, `focusAmpV193Z` through `treeFx`, max
+   * `focusAmpMaxV193Z` 6 levels → ×5). Outcomes add up per attribute (`player.focusTiltV193Z.pcts`, read live); the tilt
+   * is capped at ±`focusTiltCapPerMultV193Z` (20%) × the multiplier (×2 → 40%; `focusTiltCapV193Z` overrides), a minus
+   * never past −`focusTiltNegMaxV193Z` (75%). Stored as `player.focusTiltV193Z = { season: totalSeasons, career, pcts,
+   * tilts, carry }` and dead the moment the season settles (`simSeason` deletes it where `totalSeasons` advances; the read
+   * also checks the season number, so no path can carry it over).
+   * THE PRICE. A tilted attribute's per-level price is the band price (`drCost`: the soft cap, the bands, the wall)
+   * × 1/(1 + tilt), charged in WHOLE points with the remainder carried per attribute (`carry[k]`, the running owed −
+   * charged, always in [−½, ½]): the charge for one level is round(carry + price). At −12% the levels cost 1.136 →
+   * 10 points buy 9 levels; at +12% 0.893 → 10 points buy 11. The sheet's +/−, hold-to-spend and the two auto buttons
+   * all go through `focusChargeV193Z`; a minus refunds exactly what that level charged and puts the carry back.
+   * The sheet shows a chip per tilted row, the tilted next charge on its +, "10 pts buy 9 levels" in the readout and a
+   * header line; the stat card (v142) a chip; src/18's result card says what the tilt will do and buzzes.
+   * Kill switch `TU("v193Z", 1)` → 0: no tilt is set or read — the old prices. `window.__V193Z`; `v193Zcheck.mjs`. */
+  function focusOnV193Z() {
+    return !!TU("v193Z", 1);
+  }
+  /* the multiplier on the outcome's percent: 2, +0.5 a Focus Amplifier level */
+  function focusMultV193Z() {
+    let amp = 0;
+    try {
+      amp = treeFx("focusAmpV193Z") || 0;
+    } catch (_) {}
+    return TU("focusTiltMultV193Z", 2) + amp * TU("focusAmpPerLvlV193Z", 0.5);
+  }
+  /* the cap scales with the multiplier, so the amplifier is never silently capped away */
+  function focusCapV193Z() {
+    return Math.max(0, TU("focusTiltCapV193Z", TU("focusTiltCapPerMultV193Z", 0.2) * focusMultV193Z()));
+  }
+  /* a signed percent (−6) → the tilt it makes (−0.12), capped */
+  function focusTiltFromPctV193Z(pct) {
+    const t = ((Number(pct) || 0) * focusMultV193Z()) / 100,
+      cap = focusCapV193Z(),
+      neg = Math.min(cap, TU("focusTiltNegMaxV193Z", 0.75));
+    return Math.max(-neg, Math.min(cap, t));
+  }
+  /* this season's record, or null (another season, another career, the switch off) */
+  function focusRecV193Z(e) {
+    if (!focusOnV193Z() || !e) return null;
+    const r = e.focusTiltV193Z;
+    if (!r || !r.pcts || r.season !== (e.totalSeasons | 0)) return null;
+    if (r.career != null && state && state.careers != null && r.career !== state.careers) return null;
+    return r;
+  }
+  function focusTiltOfV193Z(e, k) {
+    const r = focusRecV193Z(e);
+    return r && r.pcts[k] ? focusTiltFromPctV193Z(r.pcts[k]) : 0;
+  }
+  /* an outcome resolved (src/18): its stats take the signed percent, adding to anything already rolled this season */
+  function focusAddV193Z(e, out) {
+    if (!focusOnV193Z() || !e || !out || !Array.isArray(out.stats)) return null;
+    const ctx = String(out.ctx || "");
+    if (!(ctx === "season" || /^inseason/.test(ctx))) return null;
+    const pct = (out.sign < 0 ? -1 : 1) * Math.abs(Number(out.pct) || 0);
+    if (!pct) return null;
+    let r = focusRecV193Z(e);
+    if (!r) r = e.focusTiltV193Z = { season: e.totalSeasons | 0, career: state ? state.careers : null, pcts: {}, tilts: {}, carry: {} };
+    r.carry = r.carry || {};
+    r.tilts = r.tilts || {};
+    out.stats.forEach(k => {
+      if (!k || !ATTR_INFO[k]) return;
+      r.pcts[k] = (r.pcts[k] || 0) + pct;
+      r.tilts[k] = Math.round(focusTiltFromPctV193Z(r.pcts[k]) * 1e4) / 1e4;
+      r.pcts[k] || (delete r.pcts[k], delete r.tilts[k]);
+    });
+    return r;
+  }
+  /* the next level's price: the band price × 1/(1 + tilt), charged whole, the remainder carried */
+  function focusChargeV193Z(e, k) {
+    const base = drCost(e, k),
+      t = focusTiltOfV193Z(e, k);
+    if (!t) return { c: base, base, tilt: 0, carry0: null, carry: null };
+    const r = focusRecV193Z(e),
+      c0 = Number(r.carry && r.carry[k]) || 0,
+      raw = c0 + base / (1 + t),
+      c = Math.max(0, Math.round(raw));
+    return { c, base, tilt: t, carry0: c0, carry: Math.round((raw - c) * 1e9) / 1e9 };
+  }
+  function focusPayV193Z(e, k, ch) {
+    const r = ch && ch.carry != null ? focusRecV193Z(e) : null;
+    r && ((r.carry = r.carry || {}), (r.carry[k] = ch.carry));
+  }
+  function focusUnpayV193Z(e, k, c0) {
+    const r = c0 != null ? focusRecV193Z(e) : null;
+    r && ((r.carry = r.carry || {}), (r.carry[k] = c0));
+  }
+  /* whole-number words: "−12%" */
+  function focusPctTxtV193Z(t) {
+    const p = Math.round(t * 100);
+    return (p < 0 ? "−" : "+") + Math.abs(p) + "%";
+  }
+  function focusMultTxtV193Z() {
+    return "×" + Math.round(focusMultV193Z() * 10) / 10;
+  }
+  function focusNameV193Z(k) {
+    return (ATTR_INFO[k] && ATTR_INFO[k].name) || k;
+  }
+  /* the sheet's header line: "🎯 Focus roll ×2: Speed −12% · Grit +10% — this season only" */
+  function focusLineV193Z(e) {
+    const r = focusRecV193Z(e);
+    if (!r) return "";
+    const ks = Object.keys(r.pcts).filter(k => focusTiltOfV193Z(e, k));
+    if (!ks.length) return "";
+    return (
+      `<div class="up-focus-v193z" id="focusLineV193Z">🎯 <b>Focus roll ${focusMultTxtV193Z()}:</b> ` +
+      ks
+        .map(k => {
+          const t = focusTiltOfV193Z(e, k);
+          return `<span class="${t < 0 ? "neg" : "pos"}">${focusNameV193Z(k)} ${focusPctTxtV193Z(t)}</span>`;
+        })
+        .join(" · ") +
+      " — this season only</div>"
+    );
+  }
+  /* the row's chip */
+  function focusChipV193Z(e, k) {
+    const t = focusTiltOfV193Z(e, k);
+    if (!t) return "";
+    return `<span class="up-tilt-v193z ${t < 0 ? "neg" : "pos"}" title="Your focus roll: every ${focusNameV193Z(k)} point you spend this season buys ${Math.abs(Math.round(t * 100))}% ${t < 0 ? "less" : "more"}">🎯 ${focusPctTxtV193Z(t)} this season</span>`;
+  }
+  /* the readout's price: "10 pts buy 9 levels" at a 1-pt band, "34 pts per 10 levels" above it */
+  function focusPriceTxtV193Z(base, t) {
+    if (!t) return "";
+    if (base <= 1) return `10 pts buy ${Math.round(10 * (1 + t))} levels`;
+    return `${Math.round((10 * base) / (1 + t))} pts per 10 levels`;
+  }
+  function focusCssV193Z() {
+    if (document.getElementById("focusCssV193Z")) return;
+    const st = document.createElement("style");
+    st.id = "focusCssV193Z";
+    st.textContent = [
+      ".up-focus-v193z{margin:0 0 8px;padding:6px 10px;border-radius:10px;border:1px solid rgba(240,187,69,.35);background:rgba(240,187,69,.07);font:500 13px 'Barlow Condensed',sans-serif;color:var(--chalk-dim);line-height:1.35}",
+      ".up-focus-v193z b{color:var(--chalk)}.up-focus-v193z .neg{color:#ff8a80;font-weight:700}.up-focus-v193z .pos{color:#7fe0a0;font-weight:700}",
+      ".up-tilt-v193z{flex:none;display:inline-block;padding:1px 6px;border-radius:9px;font:700 10.5px Oswald,sans-serif;letter-spacing:.4px;white-space:nowrap}",
+      ".up-tilt-v193z.neg{color:#ff8a80;border:1px solid rgba(255,138,128,.45);background:rgba(201,74,58,.14)}",
+      ".up-tilt-v193z.pos{color:#7fe0a0;border:1px solid rgba(127,224,160,.45);background:rgba(63,158,90,.14)}",
+      ".step .stepcost.tilt-neg{color:#ff8a80}.step .stepcost.tilt-pos{color:#7fe0a0}",
+      ".up-tiltslot-v193z:empty{display:none}",
+      ".up-v153 .up-line-v153.tilt-v193z{flex-wrap:wrap;row-gap:2px;white-space:normal}" /* the chip and the tilted price both read, on two lines if they must */
+    ].join("");
+    (document.head || document.documentElement).appendChild(st);
+  }
+  window.__V193Z = {
+    on: focusOnV193Z,
+    mult: focusMultV193Z,
+    cap: focusCapV193Z,
+    tiltFromPct: focusTiltFromPctV193Z,
+    tilt: (k, e) => focusTiltOfV193Z(e || (state && state.player), k),
+    rec: e => focusRecV193Z(e || (state && state.player)),
+    add: (e, out) => focusAddV193Z(e, out),
+    charge: (k, e) => focusChargeV193Z(e || (state && state.player), k),
+    pctTxt: focusPctTxtV193Z,
+    multTxt: focusMultTxtV193Z,
+    name: focusNameV193Z,
+    line: e => focusLineV193Z(e || (state && state.player))
+  };
   function drSoftCap(e, k) {
     const st = clamp99(Math.round(e.stars || 1), 1, 5),
       base = TU("drStarBase", 0.6) + (st - 1) * TU("drStarStep", 0.0625),
@@ -26247,16 +26427,18 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
     let n = 0,
       g = 0;
     for (; e.points > 0 && g++ < 5e3;) {
-      const open = pool.filter(i => (e.attrs[i] || 0) < attrCap() && drCost(e, i) <= e.points);
+      const ch = {}; /* v193 Z: the focus roll's tilted, whole charge for each stat's next level */
+      pool.forEach(i => (ch[i] = focusChargeV193Z(e, i)));
+      const open = pool.filter(i => (e.attrs[i] || 0) < attrCap() && ch[i].c <= e.points);
       if (!open.length) break;
       const mc = Math.min.apply(
         null,
-        open.map(i => drCost(e, i))
+        open.map(i => ch[i].c)
       );
       let pick = null;
       for (let j = 0; j < pool.length; j++) {
         const i = pool[(n + j) % pool.length];
-        if (open.indexOf(i) >= 0 && drCost(e, i) === mc) {
+        if (open.indexOf(i) >= 0 && ch[i].c === mc) {
           pick = i;
           n = (n + j + 1) % pool.length;
           break;
@@ -26266,7 +26448,9 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
       (e.attrs[pick]++,
         (e.points -= mc),
         (allocSpent[pick] = (allocSpent[pick] || 0) + 1),
-        (allocCosts[pick] = allocCosts[pick] || []).push(mc));
+        (allocCosts[pick] = allocCosts[pick] || []).push(mc),
+        (allocCarryV193Z[pick] = allocCarryV193Z[pick] || []).push(ch[pick].carry0),
+        focusPayV193Z(e, pick, ch[pick]));
     }
     screenUpgrade();
   }
@@ -26283,27 +26467,32 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
     drAutoAlloc(ATTR_KEYS.slice());
   }
   let allocSpent = {},
-    allocCosts = {};
+    allocCosts = {},
+    allocCarryV193Z = {}; /* v193 Z: each bought level's carry before it, so a minus puts the remainder back exactly */
   function alloc(e, t) {
     const a = state.player;
     if (t > 0) {
-      const c = drCost(a, e);
+      const ch = focusChargeV193Z(a, e) /* v193 Z: the band price, tilted by this season's focus roll, charged whole */,
+        c = ch.c;
       if (a.attrs[e] >= attrCap()) {
         showToast("Absolute limit reached");
         return;
       }
       if (a.points < c) {
-        showToast(c > 1 ? "Needs " + c + " pts — diminishing returns past " + drSoftCap(a, e) : "No points left");
+        showToast(c > 1 ? "Needs " + c + " pts — " + (ch.tilt < 0 && ch.base < c ? "your focus roll's " + focusPctTxtV193Z(ch.tilt) + " this season" : "diminishing returns past " + drSoftCap(a, e)) : "No points left");
         return;
       }
       ((a.attrs[e] = Math.round(a.attrs[e]) + 1),
         (a.points -= c),
         (allocSpent[e] = (allocSpent[e] || 0) + 1),
-        (allocCosts[e] = allocCosts[e] || []).push(c));
+        (allocCosts[e] = allocCosts[e] || []).push(c),
+        (allocCarryV193Z[e] = allocCarryV193Z[e] || []).push(ch.carry0),
+        focusPayV193Z(a, e, ch));
     } else {
       if ((allocSpent[e] || 0) <= 0) return;
       ((a.attrs[e] = Math.round(a.attrs[e]) - 1),
         (a.points += allocCosts[e] && allocCosts[e].length ? allocCosts[e].pop() : 1),
+        focusUnpayV193Z(a, e, allocCarryV193Z[e] && allocCarryV193Z[e].length ? allocCarryV193Z[e].pop() : null),
         allocSpent[e]--);
     }
     byId("uv-" + e).textContent = Math.round(a.attrs[e]);
@@ -26321,14 +26510,19 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
         n = byId("minus-" + a),
         v = byId("uv-" + a),
         c = drCost(e, a),
+        ch = focusChargeV193Z(e, a) /* v193 Z: the next +1's whole charge, tilted by this season's focus roll */,
         sc = drSoftCap(e, a),
         over = (e.attrs[a] || 0) >= sc;
       (s &&
-        ((s.disabled = e.points < c || (e.attrs[a] || 0) >= attrCap()),
-        (s.innerHTML = c > 1 ? '+<i class="stepcost' + (c >= 4 ? " deep" : "") + '">' + c + "</i>" : "+"),
-        (s.title = over
-          ? "Past soft cap " + sc + " — each +1 costs " + c + " pts here"
-          : "1 pt per +1 until soft cap " + sc)),
+        ((s.disabled = e.points < ch.c || (e.attrs[a] || 0) >= attrCap()),
+        (s.innerHTML = ch.tilt
+          ? '+<i class="stepcost ' + (ch.tilt < 0 ? "tilt-neg" : "tilt-pos") + '">' + ch.c + "</i>"
+          : c > 1
+            ? '+<i class="stepcost' + (c >= 4 ? " deep" : "") + '">' + c + "</i>"
+            : "+"),
+        (s.title =
+          (over ? "Past soft cap " + sc + " — each +1 costs " + c + " pts here" : "1 pt per +1 until soft cap " + sc) +
+          (ch.tilt ? " · focus roll " + focusPctTxtV193Z(ch.tilt) + " this season: the next +1 costs " + ch.c : ""))),
         v && ((v.style.color = over ? (c >= 4 ? "#ff8a80" : "var(--gold)") : ""), (v.title = "Soft cap: " + sc)),
         n && (n.disabled = (allocSpent[a] || 0) <= 0));
       const cp = byId("cap-" + a);
@@ -26349,6 +26543,13 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
                 ' — <b style="color:#7fe0a0">1 pt per +1</b> for ' +
                 wholeNum(sc - (e.attrs[a] || 0)) +
                 " more");
+      /* v193 Z: a tilted row — the chip, and the readout states the tilted price */
+      const tl = byId("tilt-" + a);
+      tl && ((tl.innerHTML = focusChipV193Z(e, a)), tl.parentElement && tl.parentElement.classList.toggle("tilt-v193z", !!ch.tilt));
+      cp &&
+        ch.tilt &&
+        (e.attrs[a] || 0) < attrCap() &&
+        (cp.innerHTML = (over ? "Past soft cap " : "Soft cap ") + sc + ' — <b style="color:' + (ch.tilt < 0 ? "#ff8a80" : "#7fe0a0") + '">' + focusPriceTxtV193Z(c, ch.tilt) + "</b>");
       /* v153 E: the soft-cap bar — fills to the cap (green), gold past it, red where a +1 costs 4 or more */
       const bar = byId("bar-" + a);
       if (bar) {
@@ -26363,7 +26564,7 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
     });
   }
   function doneUpgrade() {
-    ((allocSpent = {}), (allocCosts = {}), saveGame(), showToast("Player upgraded!"), goView("hub"));
+    ((allocSpent = {}), (allocCosts = {}), (allocCarryV193Z = {}), saveGame(), showToast("Player upgraded!"), goView("hub"));
   }
   /* ===== v67 SOFT-CAP LEGIBILITY — the price of a point, stated where the choice is
    * made. v21 gave every stat a soft cap and a rising price above it (2, then 3, then
