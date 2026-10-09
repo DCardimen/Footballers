@@ -3071,9 +3071,22 @@ window.__visionRadiusV96 = visionRadiusV96;
       const armEdge = (cStr - dStr) + (c.str - 50)*0.45;
       const stiffP = (behind ? 0 : cl(0.05 + Math.max(0, armEdge)*0.007 + Math.max(0,lev)*0.005
         + afx.stiff * TU("aimFxV143", 1) - (angMovV151 ? (angX - TU("angleMeanV151D", .15)) * TU("angleStiffKV151D", .03) : 0), 0, 0.5)) * (1 - swarmChoke) * soloK * cmK("stiff");
+      /* ===== v194 D THE STIFF ARM (the sim's grade) =====
+       * The owner: "Add SICK stiff arm animation." The arm is graded HERE, off the same numbers that rolled it — the
+       * carrier's strength edge over the tackler (`armEdge`) and the momentum he carries into him — so the picture can
+       * tell a ward-off from a man put on his back: `pow` 0-1, `drop` (he goes down, `stiffDropV194D`), `sick` (the
+       * freeze-frame one, `stiffSickV194D`). And a TRUCK by a carrier who chose the arm (v166 F's `cmMove` "stiff") is
+       * delivered with it: the same brokenTackle, the same knock-back, the same yards — it just carries `stiffArm`.
+       * No roll is added and no physics moves: the game is bit-identical with the switch off (`TU("v194D", 0)`), and a
+       * stiff-armed man is `beaten`, never the tackler (stat-credit truth). */
+      const stiffGradeV194D = (edge, extra) => {
+        if (!TU("v194D", 1)) return null;
+        const pow = +cl((edge - TU("stiffPowLoV194D", -12)) / TU("stiffPowSpanV194D", 48) + Math.max(0, cMom - dMom) * TU("stiffPowMomKV194D", .002) + (extra || 0), 0, 1).toFixed(2);
+        return { pow, drop: pow >= TU("stiffDropV194D", .5), sick: pow >= TU("stiffSickV194D", .8) };
+      };
       if (Math.random() < stiffP) {
         d.beaten = t + 520; d.stagger = t; c.vel = Math.max(0,(c.vel||0)*0.95); c.burstUntil = t + 300; kickSprint(c);
-        c._evades = (c._evades||0) + 1; emit("stiffarm",{who:d.id, carrier:c.id, x:c.lx, y:c.y, ...hit, armEdge: Math.round(armEdge)});   // v109: which arm, and how far he shoved him
+        c._evades = (c._evades||0) + 1; emit("stiffarm",{who:d.id, carrier:c.id, x:c.lx, y:c.y, ...hit, armEdge: Math.round(armEdge), ...stiffGradeV194D(armEdge)});   // v109: which arm, and how far he shoved him (v194 D: and how hard)
         if (committerId===d.id) committerId = null;
         return "stiffarm";
       }
@@ -3107,8 +3120,11 @@ window.__visionRadiusV96 = visionRadiusV96;
         const fly112 = launchV112({ fly: d.lb, by: c.lb, impact: hit.impact, strEdge: cStr - dStr, kb: tkb, stick: hitStick, lev, behind, hands: handsOn });
         // v109: every truck is emitted now so the commit it resolves is always answered; past the
         // fourth in one play it is `quiet` and the renderer keeps only the man going down
+        // v194 D: run through WITH THE ARM — he chose the stiff arm for this man (v166 F) and won the collision outright
+        const saTruckV194D = cmMove === "stiff" && !behind && TU("v194Dtruck", 1) ? stiffGradeV194D(armEdge, TU("stiffTruckPowV194D", .25)) : null;
+        if (saTruckV194D) { saTruckV194D.stiffArm = true; saTruckV194D.drop = true; saTruckV194D.sick = saTruckV194D.sick || hitStick; }
         c._evades = (c._evades||0) + 1; emit("brokenTackle",{who:d.id, carrier:c.id, x:d.lx, y:d.y, kb:Math.round(tkb), hitStick, quiet: brokenShown++ >= 4, ...hit,
-          ...(fly112 ? { flyWho: d.id, flyVz: fly112.vz, flyPow: fly112.pow } : null)});
+          ...(fly112 ? { flyWho: d.id, flyVz: fly112.vz, flyPow: fly112.pow } : null), ...saTruckV194D});
         bobbleV109(c, hit);
         if (committerId===d.id) committerId = null;
         return "broken";
