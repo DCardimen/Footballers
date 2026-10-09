@@ -300,3 +300,21 @@ v156 C's list and its SEASON-tab section) pays one wing and one footprint:
 - **Every hat floats** (v177 H): every crown's baseline sits `hatLiftPxV177H` (3.2) sprite px over the helmet top and
   bobs (`hatBobPxV177H`, `hatBobMsV177H`), with a soft shadow and a glow of its colour on the helmet; the field's plumbob
   rises over it (`hatPlumbV177H`). TU `v177Hfloat` 0: v153 G's seating. `scripts/v177FGHcheck.mjs`.
+
+## v193 AI — the mascots dance (a member look)
+
+A new slot, **MASCOTS** (🎭, in the palette's HIS WORLD group): `mascot_none` (free, the default) and `mascot_team`
+"Team Mascots" (legendary, `source:"member"` — v156 C's door). Equipped, `src/35-mascots.js` (`window.RIB_MASCOTS`) puts
+each team's crest mascot on its bench in the live broadcast and beside his crest on the season hero; the Locker tile plays
+his crest's mascot whether or not he owns it.
+
+- **Every crest has a costume**: the 90 v44 emblems map to 16 archetypes (wolf, bear, big cat, bird, reptile, horned beast,
+  sea creature, bug, knight, spartan, viking, pirate, spook, robot, alien, elemental) through `EMBLEM_V193AI`; every team
+  name reaches an emblem through `TEAM_LOGOS_V44.forName`, so every team has a mascot. The Interstellar League adds a
+  space bubble.
+- **The sprite**: one procedural pixel rig in the team's jersey, its archetype's head, limbs, gloves, shoes and accessory,
+  drawn once per team into a ×2 pose sheet (37 poses) and cached as a texture.
+- **The dance**: the players' own celebrations on their clock — the drawn cheer cycle (`celebrateFrameMs`), HIS v161 A
+  bodies pose for pose (`boardCel.pose`), v177 I's bodies as routines of the same length.
+- Store OFF (as shipped): listed "🔒 Membership", never owned, never drawn in the game. `TU("mascotPreviewV193AI", 1)`
+  previews them everywhere; `TU("v193AI", 0)` removes them. `scripts/v193AIcheck.mjs`.

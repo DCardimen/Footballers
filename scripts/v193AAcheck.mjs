@@ -301,7 +301,8 @@ const NT = await M(() => {
   return { name: r && r.man.name, before }
 })
 ok(await waitCard(), 'moving up a level opens the card at the new team')
-const NT2 = await M((nm) => { const p = window.__GRIDIRON_AUDIT__.getState().player, R = window.__V193AA.rec; return { text: document.getElementById('rmV193AA').innerText, kind: R.last.kind, n: R.nums, after: window.__TEAMPAIR_V76().us, there: window.__V158_ROSTER().some((m) => m.name === nm) } }, NT.name)
+const NT2 = await M((nm) => { const p = window.__GRIDIRON_AUDIT__.getState().player, R = window.__V193AA.rec, m = window.__V158_ROSTER().find((x) => x.name === nm); return { text: document.getElementById('rmV193AA').innerText, kind: R.last.kind, n: R.nums, after: window.__TEAMPAIR_V76().us, there: !!m && !m.followV193AH /* v193 AH: a locked recruit may come along as one of his followers (his lock with him) */, followed: !!(m && m.followV193AH), left: m ? window.__V193AA.lockLeft(m) : null } }, NT.name)
+if (NT2.followed) console.log('the recruit followed him (v193 AH), his lock left:', NT2.left)
 ok(NT2.kind === 'team' && /A NEW TEAM/.test(NT2.text) && /YOU LEFT/.test(NT2.text) && /YOUR NEW TEAM/.test(NT2.text) && NT2.n.n0 === NT.before && NT2.n.n3 === NT2.after, 'A NEW TEAM: the men you leave, the men you join, the old team OVR → the new one', NT2.n)
 ok(NT.name && !NT2.there, 'the recruit could not follow to the new level: his lock ended there', NT.name)
 await M(() => window.__V193AA.skip())

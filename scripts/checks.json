@@ -44,7 +44,10 @@
     "v193Xcheck",
     "v193Ycheck",
     "v193Zcheck",
-    "v193AAcheck"
+    "v193AAcheck",
+    "v193AHcheck",
+    "v193AEcheck",
+    "v193AFcheck"
    ]
   },
   "docs": {
@@ -185,7 +188,8 @@
     "renderpathcheck",
     "sidelinecheck",
     "v144check",
-    "v148check"
+    "v148check",
+    "v193AGcheck"
    ],
    "variants": [
     "`READ_POS=WR MODES=0,1,4,5` for `v147Dcheck`"
@@ -206,7 +210,8 @@
     "combinecheck",
     "tiercheck",
     "scrollcheck",
-    "v193AAcheck"
+    "v193AAcheck",
+    "v193AHcheck"
    ]
   },
   "contact": {
@@ -216,7 +221,8 @@
     "v151 D",
     "v153 A",
     "v177 A",
-    "v177 B"
+    "v177 B",
+    "v193 AJ"
    ],
    "files": [],
    "checks": [
@@ -234,7 +240,8 @@
     "v110check",
     "v151Dcheck",
     "v153Acheck",
-    "scrumcheck"
+    "scrumcheck",
+    "v193AJcheck"
    ]
   },
   "cuts": {
@@ -276,7 +283,8 @@
     "walk",
     "v156Acheck",
     "v192Dcheck",
-    "v193AAcheck"
+    "v193AAcheck",
+    "v193AHcheck"
    ]
   },
   "plan": {
@@ -337,7 +345,8 @@
   "field": {
    "desc": "v144 — sprite scale by age, stall watchdog, between-plays shuffle, goalpost pad, apron, pylons, weather",
    "anchors": [
-    "v144"
+    "v144",
+    "v193 AG"
    ],
    "files": [],
    "checks": [
@@ -369,7 +378,9 @@
     "shot",
     "v148check",
     "v193Ccheck",
-    "v193Icheck"
+    "v193Icheck",
+    "v193AGcheck",
+    "v193AIcheck"
    ]
   },
   "statinfo": {
@@ -390,7 +401,8 @@
     "capcheck",
     "v193Ncheck",
     "v193Zcheck",
-    "v193ABcheck"
+    "v193ABcheck",
+    "v193AEcheck"
    ]
   },
   "sim-keys": {
@@ -527,7 +539,8 @@
     "v151Dcheck",
     "blockcheck",
     "cmovecheck",
-    "teamdefcheck"
+    "teamdefcheck",
+    "v193AJcheck"
    ],
    "steps": [
     "`scoreneutralcheck` over several seeds, against the OFF spread (the aim roll changes sample paths)"
@@ -640,7 +653,8 @@
     "declarecheck",
     "walk",
     "v156Acheck",
-    "v193ABcheck"
+    "v193ABcheck",
+    "v193AEcheck"
    ]
   },
   "grow": {
@@ -1162,7 +1176,8 @@
   "feel": {
    "desc": "anything in the live sim's FEEL (contact, possession, ball speed, catching, tackling, the clock) — v109",
    "anchors": [
-    "v109"
+    "v109",
+    "v193 AJ"
    ],
    "files": [],
    "checks": [
@@ -1173,7 +1188,8 @@
     "v109C2check",
     "v109Dcheck",
     "v109Echeck",
-    "v193Wcheck"
+    "v193Wcheck",
+    "v193AJcheck"
    ],
    "steps": [
     "run `scoreneutralcheck` FIRST and keep the before row; compare several seeds against the OFF spread"
@@ -1388,7 +1404,8 @@
     "sidelinecheck",
     "refcheck",
     "v162Acheck",
-    "rimcheck"
+    "rimcheck",
+    "v193AGcheck"
    ]
   },
   "declare": {
@@ -1478,7 +1495,8 @@
     "vaultcheck",
     "v156Ccheck",
     "v158Bcheck",
-    "v159Bcheck"
+    "v159Bcheck",
+    "v193AIcheck"
    ]
   },
   "pwa": {
@@ -1610,7 +1628,8 @@
     "v177 F",
     "v177 G",
     "v177 H",
-    "v193 Q"
+    "v193 Q",
+    "v193 AI"
    ],
    "files": [
     "src/28-cosmetics.js",
@@ -1618,7 +1637,8 @@
     "scripts/build-celebration-sheets.py",
     "public/celebrations/cel_v161a.json",
     "scripts/build-celebration-moves.py",
-    "public/celebrations/cel_v177i.json"
+    "public/celebrations/cel_v177i.json",
+    "src/35-mascots.js"
    ],
    "checks": [
     "v177IJKcheck",
@@ -1648,7 +1668,8 @@
     "numsewcheck",
     "v177FGHcheck",
     "v193Qcheck",
-    "v193Ycheck"
+    "v193Ycheck",
+    "v193AIcheck"
    ]
   },
   "audio": {
@@ -1727,7 +1748,8 @@
     "v147Ccheck",
     "v151Acheck",
     "coachcheck",
-    "v193AAcheck"
+    "v193AAcheck",
+    "v193AHcheck"
    ]
   },
   "thumb": {
@@ -1889,7 +1911,8 @@
     "v85check",
     "v146Ccheck",
     "v168check",
-    "v179check"
+    "v179check",
+    "v193AFcheck"
    ]
   },
   "board-and-frame": {
@@ -1937,7 +1960,8 @@
     "v192Ccheck",
     "v193Echeck",
     "v193Jcheck",
-    "v193ADcheck"
+    "v193ADcheck",
+    "v193AFcheck"
    ]
   }
  },
@@ -5317,6 +5341,21 @@
    "flaky": [],
    "loadSensitive": true
   },
+  "v193AHcheck": {
+   "file": "scripts/v193AHcheck.mjs",
+   "desc": "v193 AH — chemistry has a reason: every departure and arrival on the ROSTER MOVES card carries a reason chip decided by real state (paired seeded turnovers: a TOXIC personality loses more men than a neutral one and \"Can't stand you\" is among them; a 1-9 season brings \"Tired of losing\", a 9-1 never; a sour room brings \"Bad chemistry\"; the same turnover replayed gives the same reasons; arrivals Recruited / Transfer in / Came for YOU ★; v193 AA's ±N TEAM chips kept; the why-note); the follower roll measured over 10,000 rolls (1–10, never 0, 1–3 most of the time, 10 only at the maximum pull and under 2%, TOXIC < neutral < warm, Pied Piper shifts it up); a level up carries the followers into the new roster scaled to the new level (\"A NEW TEAM · N followed you from X\", Followed you ★ rows, Stayed behind / New teammate, the team row and MY TEAM say ★ N followers, src/10's list marks them); a UFF club change is a NEW FRANCHISE and a locked recruit who follows keeps his lock; the TOXIC trade-off (growthMulV192C ×1.15 at TOXIC 1.95, the arrival edge on the depth chart's score + coach trust, the card's note, the personality page); Pied Piper (Mental, 288 PP, v193 Y art, −25% Can't stand you a level, its desc's numbers measured); TU v193AH 0 = v193 AA as it was; 360 px; no page errors",
+   "areas": [
+    "v153b",
+    "league",
+    "impossible",
+    "smoke"
+   ],
+   "runtimeSec": 45,
+   "slow": false,
+   "needsServer": true,
+   "pureNode": false,
+   "flaky": []
+  },
   "v193ADcheck": {
    "file": "scripts/v193ADcheck.mjs",
    "desc": "v193 AD — the legends: 24 Prestige Paths (the old five first), all ten categories covered twice, every card lists each effect with its real number and a trade-off, every icon drawn by v193 Y; the old five audited on the readers (Grinder +20% and Phenom −8% / Magnate −4% growth on a seeded season, Prodigy opens a v128 lock, Ironman −21% injury / +2 seasons / a season-ender costs 4 games, Phenom +10 start, Prodigy +5% odds, each branch 25% cheaper); each new legend's main effect sampled on vs off (game rating, swing, start, fatigue, wheel and plan odds, the GM's second look, the deck and gear rarity, the focus tilt, the paycheck, Legacy XP, team OVR, key-attribute growth); a fresh save has nothing unlocked and every card greyed with \"Play 3 seasons — 0/3\" and a bar, choosePath refuses a locked legend, a real finishSeasonGames counts the season and unlocks The Natural with the NEW LEGEND UNLOCKED pop-up and ribHaptic(success), 12 medals open Phenom + Grinder, the switch cost holds; an old save past the 12-medal gate keeps the old five and its path, its Hall counts; v193AD 0 = the old five and gate; 360 / 1280 px no overflow.",
@@ -5342,6 +5381,74 @@
    "needsServer": true,
    "pureNode": false,
    "flaky": []
+  },
+  "v193AEcheck": {
+   "file": "scripts/v193AEcheck.mjs",
+   "desc": "v193 AE — the ⏭ season sim picks every card: the REAL season-dock ⏭ sims the regular season; every simmed game but the last has its card picked for him (best by rarity, marked auto, in the season's card log) before the summary card opens; the card says how many; Continue picks the last (one card a game, every game); a summary card that expires unseen picks its weeks first; no overflow at 360 px; v193AE 0 restores the old one-card behaviour.",
+   "areas": [
+    "goals",
+    "statinfo"
+   ],
+   "runtimeSec": 40,
+   "slow": false,
+   "needsServer": true,
+   "pureNode": false,
+   "flaky": []
+  },
+  "v193AFcheck": {
+   "file": "scripts/v193AFcheck.mjs",
+   "desc": "v193 AF — growth fills the points bar too: paired paychecks on one week — no bonus ×1; Eternal Growth ×5 + a Blue-Blood program multiply the raw pay by exactly the growth multiplier (the season's ua × 0.22 sum); the Phenom's −8% slows it; the season screen's next-point row names the bonus (🌱 +N% growth); 360 px; v193AF 0 restores the old paycheck.",
+   "areas": [
+    "goals",
+    "statinfo"
+   ],
+   "runtimeSec": 20,
+   "slow": false,
+   "needsServer": true,
+   "pureNode": false,
+   "flaky": []
+  },
+  "v193AGcheck": {
+   "file": "scripts/v193AGcheck.mjs",
+   "desc": "v193 AG — the field pass: two side tunnels and no middle arch; the far stands (club level, upper deck, roof) fill the sky over the far bowl; every collision scuffs the turf in solid pixel dirt that fades by the snap and is capped; the turf composited at 2x with mowing stripes; the stands hold their shape at every field perspective; a frame wider than the field is centred.",
+   "areas": [
+    "broadcast"
+   ],
+   "runtimeSec": 90,
+   "slow": false,
+   "needsServer": true,
+   "pureNode": false,
+   "flaky": []
+  },
+  "v193AIcheck": {
+   "file": "scripts/v193AIcheck.mjs",
+   "desc": "v193 AI — the mascots dance: all 90 crests map to one of 16 costume archetypes (each used) and every team name the game builds resolves to a mascot whose costume is its name's animal or figure; every sheet builds every pose; store OFF \"Team Mascots\" is a member look listed \"🔒 Membership\" in the Locker's MASCOTS row (its tile dancing), never owned / granted / equipped, no RIB_MONETIZE call, no mascot in the broadcast; TU mascotPreviewV193AI 1 puts one on each bench (its crest's costume), idle-bouncing, a touchdown starts the scorer's team's mascot on the cheer cycle at celebrateFrameMs, HIS v161 A backflip is mirrored (tuck, spin), the opponent's score moves the other bench, a too-small mascot is culled; the season hero shows his mascot; Interstellar bubbles; TU v193AI 0 removes them everywhere; store ON with a membership owned and drawn, F2P locked; the per-frame cost; no page errors",
+   "areas": [
+    "cosmetics",
+    "field",
+    "monetize"
+   ],
+   "runtimeSec": 150,
+   "slow": false,
+   "needsServer": true,
+   "pureNode": false,
+   "flaky": [],
+   "loadSensitive": true
+  },
+  "v193AJcheck": {
+   "file": "scripts/v193AJcheck.mjs",
+   "desc": "v193 AJ — animation v2 + physics: presentation-only (seeded games identical on/off), the mass-scaled brake and cut, no dead stops (decelV193), the fall forward, the pass parabola under one gravity; on the live field the contact gap in drawn body widths, the stride against the ground, every move's own sequence in the lab (juke, spin, side step, swim, hurdle, stiff arm, whiff slide, grasp, layout catch, push-out, ankle/air/wrap/stick tackles), the whiff that stays down, the fall along both men's momentum, the parabolic hops, the decaying bounces, both kill switches, the per-frame cost",
+   "areas": [
+    "contact",
+    "tackle",
+    "animation"
+   ],
+   "runtimeSec": 420,
+   "slow": true,
+   "needsServer": true,
+   "pureNode": false,
+   "flaky": [],
+   "loadSensitive": true
   }
  }
 }

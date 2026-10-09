@@ -461,6 +461,96 @@ function ribSyncEndZonesV93(scene) {
     return true;
   } catch (e) { return false; }
 }
+/* ===== v193 AG THE TURF =====
+ * The owner: "Improve the quality of the field." The turf is ONE 360x700 JPEG, re-warped every snap and stretched up to ~3x
+ * across the near rows, so it came out soft: the yard numbers and hashes were blurred blends of white into green, the
+ * grass was one flat colour with JPEG grain, and the end zones were lettered at 360-pixel resolution and then magnified.
+ * The paint path is unchanged (the art → v93's end zones and v44's crest composited onto it → warpField through PJ); it
+ * now composites at `turfHiKV193AG` (2) times the art's resolution, and the art it starts from is this pass:
+ *   CRISP PAINT  — every pixel's whiteness (its minimum channel, grass ≈ 5, paint ≈ 220) is pushed along a contrast curve
+ *                  (`turfCrispV193AG` 0.7 of a smoothstep 0.2-0.6, only ever brightening — a faint 5-yard line never fades), so the upscaled lines, hashes and numbers keep a
+ *                  hard, anti-aliased edge instead of a two-pixel smear. Only green-backed blends move (a navy end zone's
+ *                  lettering is repainted below instead).
+ *   MOWING       — the art's own five-yard mowing bands (faint: ~80 vs ~97 green, then lost in the warp's haze) are
+ *                  deepened in phase (`turfStripeAV193AG` ±0.045), the length of the art, apron included, counted
+ *                  from the art's own goal rows (`fieldGoalRows`), grass pixels only.
+ *   GRAIN        — low-frequency clumps (`turfClumpAV193AG` 0.06, 3-pixel cells) and a fine per-pixel grain
+ *                  (`turfGrainAV193AG` 0.03): a fixed hash, so the same blade is the same colour at every bake.
+ *   WEAR         — the strip between the hashes is worn toward a dry olive (`turfWearAV193AG` 0.2), most at midfield and
+ *                  fading out by the 20s, broken up by the clumps (v86's live wear and v193 AG DIRT add the game's own).
+ *   END ZONES    — v93 paints them, and v44 its crest, on the hi-res canvas (the transform scales their base-art
+ *                  coordinates), so the lettering is drawn at 2x instead of magnified; then a touch of the turf's own
+ *                  grain is laid back over the paint (`turfEzGrainV193AG` 0.18) so it reads as painted grass.
+ * Done ONCE per art (cached on the image), ~1M pixels; every composite after that is a drawImage and the vector paint.
+ * Kill switch `TU("v193AG", 0)` / `v193AGturf` 0: the composite at the art's own size, as before. ===== */
+function ribTurfOnV193AG() { return !!TU("v193AG", 1) && !!TU("v193AGturf", 1); }
+function ribTurfV193AG(base, K) {
+  if (!base || !base.width) return null;
+  K = Math.max(1, Math.round(K || TU("turfHiKV193AG", 2)));
+  const key = [base.width, base.height, K, TU("turfCrispV193AG", 0.7), TU("turfStripeAV193AG", 0.045), TU("turfClumpAV193AG", 0.06),
+    TU("turfGrainAV193AG", 0.03), TU("turfWearAV193AG", 0.2)].join("_");
+  const C0 = RIB._turfV193AG;
+  if (C0 && C0.src === base && C0.key === key) return C0.cv;
+  const t0 = (typeof performance !== "undefined" ? performance.now() : 0);
+  const W = base.width * K, H = base.height * K;
+  const cv = document.createElement("canvas"); cv.width = W; cv.height = H;
+  const c = cv.getContext("2d", { willReadFrequently: true });
+  c.imageSmoothingEnabled = true; c.imageSmoothingQuality = "high";
+  c.drawImage(base, 0, 0, W, H);
+  try {
+    const im = c.getImageData(0, 0, W, H), d = im.data;
+    // the goal rows (base art rows): the stripes are counted from them, so a stripe edge is a five-yard line
+    let G = { y0: 613.5 * base.height / 700, y100: 85.5 * base.height / 700 };
+    try { const sc = RIB.fieldScene; if (sc && sc.fieldGoalRows) { const g = sc.fieldGoalRows(); if (g && Number.isFinite(g.y0)) G = g; } } catch (e) {}
+    const CR = Math.max(0, Math.min(1, TU("turfCrispV193AG", 0.7))), SA = TU("turfStripeAV193AG", 0.045);
+    const CA = TU("turfClumpAV193AG", 0.06), GA = TU("turfGrainAV193AG", 0.03), WA = TU("turfWearAV193AG", 0.2);
+    const hash = (i, j) => { let h = (i * 374761393 + j * 668265263) | 0; h = (h ^ (h >>> 13)) * 1274126177 | 0; return ((h ^ (h >>> 16)) >>> 0) / 4294967296; };
+    const CELL = 3 * K;   // clump cells: three base pixels
+    const vnoise = (x, y) => { const gx = Math.floor(x / CELL), gy = Math.floor(y / CELL), fx = x / CELL - gx, fy = y / CELL - gy;
+      const sx = fx * fx * (3 - 2 * fx), sy = fy * fy * (3 - 2 * fy);
+      const a = hash(gx, gy), b = hash(gx + 1, gy), e = hash(gx, gy + 1), f = hash(gx + 1, gy + 1);
+      return (a + (b - a) * sx) + ((e + (f - e) * sx) - (a + (b - a) * sx)) * sy; };
+    const sstep = (e0, e1, v) => { const t = Math.max(0, Math.min(1, (v - e0) / (e1 - e0))); return t * t * (3 - 2 * t); };
+    const GR = [40, 86, 6], WT = [238, 250, 222];                   // the art's own grass and paint
+    const midX = base.width * 0.5, halfHash = base.width * 0.14;     // the strip between the hashes, in base pixels
+    for (let y = 0; y < H; y++) {
+      const by = y / K, yard = (by - G.y0) / (G.y100 - G.y0) * 100;
+      const band = Math.floor(yard / 5), stripe = (band % 2 === 0 ? -1 : 1) * SA;   // in phase with the art's own faint bands (the 0-5 band is the darker)
+      const wearY = Math.max(0, 1 - Math.abs(yard - 50) / 32);
+      for (let x = 0; x < W; x++) {
+        const i = (y * W + x) * 4; let r = d[i], g = d[i + 1], b = d[i + 2];
+        const mn = Math.min(r, g, b);
+        const greenish = g >= r && g >= b;
+        // ---- crisp paint: the blend between grass and line, along a contrast curve
+        const a = Math.max(0, Math.min(1, (mn - 6) / 214));
+        if (CR > 0 && greenish && a > 0.04 && a < 0.96) {
+          const a2 = a + Math.max(0, sstep(0.2, 0.6, a) - a) * CR;   // only ever toward the paint: the art's faint five-yard lines are one pale row and must not fade
+          if (a2 > a) { const k = (a2 - a) / (1 - a); r += (WT[0] - r) * k; g += (WT[1] - g) * k; b += (WT[2] - b) * k; }
+          else { const k = a2 / a; r = GR[0] + (r - GR[0]) * k; g = GR[1] + (g - GR[1]) * k; b = GR[2] + (b - GR[2]) * k; }
+        }
+        // ---- the grass itself: green-dominant and not paint
+        if (g > r + 10 && g > b + 10 && mn < 90) {
+          const cl = vnoise(x, y) - 0.5, gr = hash(x, y) - 0.5;
+          let m = 1 + stripe + cl * 2 * CA + gr * 2 * GA;
+          // the worn strip between the hashes, midfield-heavy, broken up by the clumps
+          const bx = x / K, wx = Math.max(0, 1 - Math.abs(bx - midX) / halfHash);
+          const wv = WA * wearY * wx * wx * Math.max(0, Math.min(1, 0.4 + cl * 1.6 + 0.3));
+          r *= m; g *= m; b *= m;
+          if (wv > 0) { r += (118 - r) * wv; g += (112 - g) * wv; b += (58 - b) * wv; }
+        }
+        d[i] = r; d[i + 1] = g; d[i + 2] = b;
+      }
+    }
+    c.putImageData(im, 0, 0);
+    // what the check reads: the mean green of the grass in the middle of two neighbouring five-yard bands
+    const rowAt = (yd) => Math.round((G.y0 + (G.y100 - G.y0) * yd / 100) * K);
+    const gAt = (yd) => { let t = 0, n = 0; const y = rowAt(yd); for (let x = Math.round(W * 0.3); x < W * 0.37; x++) { const i = (y * W + x) * 4; if (d[i + 1] > d[i] + 10) { t += d[i + 1]; n++; } } return n ? Math.round(t / n) : null; };
+    RIB._turfStripeV193AG = [gAt(32.5), gAt(37.5), gAt(42.5), gAt(47.5)];
+  } catch (e) { try { warnOnceV193C("ribTurfV193AG", e); } catch (e2) {} }
+  RIB._turfV193AG = { src: base, key, cv, K, ms: Math.round((typeof performance !== "undefined" ? performance.now() : 0) - t0) };
+  try { (window.__V193AG = window.__V193AG || {}).turf = { on: true, K, w: W, h: H, ms: RIB._turfV193AG.ms, bands: RIB._turfStripeV193AG || null }; } catch (e) {}
+  return cv;
+}
 function ribApplyFieldLogo(idx, force) {
   // Paint the home team's emblem onto the FLAT field art at the 50 (the art's exact center:
   // PLAY_L + PLAY_W/2 === FW/2). warpField() re-samples RIB.fieldImg every snap, so the logo
@@ -474,10 +564,25 @@ function ribApplyFieldLogo(idx, force) {
     if (!RIB.fieldBase) RIB.fieldBase = RIB.fieldImg;               // keep the clean art for re-composites
     const base = RIB.fieldBase;
     const cv = RIB._fieldLogoCv || (RIB._fieldLogoCv = document.createElement("canvas"));
-    cv.width = base.width; cv.height = base.height;
+    // v193 AG THE TURF: composited at K times the art (the turf pass underneath, the paint and crest drawn at that resolution)
+    const turfHi = ribTurfOnV193AG() ? ribTurfV193AG(base, TU("turfHiKV193AG", 2)) : null, KT = turfHi ? turfHi.width / base.width : 1;
+    cv.width = base.width * KT; cv.height = base.height * KT;
     const ctx = cv.getContext("2d");
-    ctx.drawImage(base, 0, 0);
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    if (turfHi) { ctx.drawImage(turfHi, 0, 0); ctx.setTransform(KT, 0, 0, KT, 0, 0); } else ctx.drawImage(base, 0, 0);
     try { ribPaintEndZonesV93(ctx, base); } catch (e) { console.warn("[v93 end zones]", e); }
+    if (turfHi && RIB._ezV93 && TU("turfEzGrainV193AG", 0.18) > 0) { try {   // v193 AG: the turf's grain back over the paint
+      const B = ribEndZoneBandsV93(base); ctx.save(); ctx.globalAlpha = TU("turfEzGrainV193AG", 0.18); ctx.globalCompositeOperation = "overlay";
+      // a grain tile of its own (never the art under the paint: that still carries the old lettering)
+      let gt = RIB._ezGrainV193AG;
+      if (!gt) { gt = RIB._ezGrainV193AG = document.createElement("canvas"); gt.width = gt.height = 48; const gc = gt.getContext("2d"), gd = gc.createImageData(48, 48);
+        for (let q = 0; q < 48 * 48; q++) { let h = (q * 374761393 + 1013904223) | 0; h = (h ^ (h >>> 13)) * 1274126177 | 0; const v = 96 + (((h ^ (h >>> 16)) >>> 0) % 64) + ((q % 48) % 3 === 0 ? 14 : 0);
+          gd.data[q * 4] = v; gd.data[q * 4 + 1] = v; gd.data[q * 4 + 2] = v; gd.data[q * 4 + 3] = 255; }
+        gc.putImageData(gd, 0, 0); }
+      ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.fillStyle = ctx.createPattern(gt, "repeat");
+      for (const end of ["far", "near"]) { const b = B[end]; ctx.fillRect(B.x0 * KT, b.y0 * KT, (B.x1 - B.x0) * KT, (b.y1 - b.y0) * KT); }
+      ctx.setTransform(KT, 0, 0, KT, 0, 0);
+      ctx.restore(); } catch (e) {} }
     const i = ((Number(idx) || 0) % 90 + 90) % 90;
     const c = i % LOGO_COLS, r = Math.floor(i / LOGO_COLS);
     const w = base.width * TU("fieldLogoSize", 0.44);               // ~23yd across on a 53yd-wide field
@@ -487,6 +592,7 @@ function ribApplyFieldLogo(idx, force) {
         (base.width - w) / 2, (base.height - w) / 2, w, w);
       ctx.globalAlpha = 1;
     }
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
     RIB.fieldImg = cv; RIB._fieldLogoDrawn = idx;
     window.__fieldLogoStateV44 = { drawn: i, name: (LOGO_DB[i] || {}).n, composited: true, baseW: base.width, crestW: Math.round(w) };
     try { RIB.fieldScene && RIB.fieldScene.refreshPersp && RIB.fieldScene.refreshPersp(); } catch (e) {}
@@ -656,6 +762,10 @@ function liveAgeKV144() {
 }
 function cl144(v, a, b) { return v < a ? a : v > b ? b : v; }
 try { window.__V144 = Object.assign(window.__V144 || {}, { ageK: liveAgeKV144, ageTable: LIVE_AGE_K_V144 }); } catch (e) {}
+/* v193 AG THE STANDS HOLD THEIR SHAPE: a stand point's drawn height factor and its rake, after the camera's pitch
+ * (`pitchPtV193AG` sets `hk` / `rkM` per point in buildCrowd; a point without them is v57's `k` and rake) */
+function hkV193AG(p) { return p.hk != null ? p.hk : p.k; }
+function rkV193AG(p) { return (p.rk == null ? 0 : p.rk) * (p.rkM != null ? p.rkM : 1); }
 function crowdTier() {
   // an explicit override wins (dev harness / checks), then the career level
   const forced = window.__CROWD_TIER;
@@ -2132,6 +2242,15 @@ function ribRebindSideV159A(scene) {
 window.__V161A_FIELD = { kit: (k) => (RIB.teamCols[k] ? RIB.teamCols[k].slice() : null), recolor: (c, p1, p2) => ribRecolor(c, p1, p2), tones: SKIN_TONES_V151D,
   // v193 I: the bodies grow the generator's skin mask the way the field grows its own (off: TU v193C or skinGrowV193I 0)
   skinGrow: (d, w, h, mask) => (TU("v193C", 1) && TU("skinGrowV193I", 1) ? skinGrowV193I(d, w, h, mask, null, TU("skinGrowSeedBodyV193I", 1)) : 0) };
+/* v193 AG: the field pass's hooks — `dirt(x, y, strength)` lays a collision's scuff at FIELD (sim) coordinates, strength 0-1
+ * (the animation pass calls it, guarded); `dirtInfo()` is what the check reads. The stands / tunnels / turf publish here too. */
+window.__V193AG = Object.assign(window.__V193AG || {}, {
+  dirt: function (x, y, strength) { try { const sc = window.__gridironScene; return !!(sc && sc.addDirtV193AG && sc.addDirtV193AG(Number(x), Number(y), strength)); } catch (e) { return false; } },
+  standGeom: function () { const sc = window.__gridironScene; return sc && sc.standGeomV193AG ? sc.standGeomV193AG() : null; },
+  dirtInfo: function () { const sc = window.__gridironScene; if (!sc) return null; const D = sc.dirtV193AG || [];
+    return { on: !!(sc.dirtOnV193AG && sc.dirtOnV193AG()), snap: sc._snapV193AG | 0, n: D.length, cap: TU("dirtMaxV193AG", 48), divots: (sc.divotsV192E || []).length,
+      wear: (sc.wearV86 || []).length, marks: D.map((d) => ({ x: +d.x.toFixed(1), y: +d.y.toFixed(1), s: +d.s.toFixed(2), n: d.n, snap: d.snap, a: +sc.dirtAlphaV193AG(d, "scuff").toFixed(2) })) }; },
+});
 window.__V162A = { bakes: 0, skips: 0, cheers: 0, key: () => { const sc = window.__gridironScene; return sc ? sc._fieldKeyV162A || null : null; } };
 window.__V159A_FIELD = { regs: 0, clones: 0, lastMs: 0, cloneMs: 0, cloned: 0, key: null, kit: false, side: 0, base: () => RIB.baseOffV159A && RIB.baseOffV159A.slice(), teams: () => Object.assign({}, RIB.teamCols) };
 // the atlas decodes the moment the page loads — long before any game starts
@@ -2385,6 +2504,7 @@ class Ot extends mt.Scene {
         setTimeout(() => { try { if (this._camSoftTokV109 === tk && !this.play && this.cameras && this.cameras.main) { this._camSoftV109 = 0; this.resetCamera(); } } catch (e) {} }, TU("camSoftMs", 900) + 30);
         return; }
       this._camSoftV109 = 0; this._camSpr = null;
+      if (TU("v193AG", 1) && TU("v193AGcenter", 1)) this.camSideV145(c, z0);   // v193 AG
       c.setZoom(z0); c.centerOn(f.x, f.y - 80); } catch (e) {}
   }
   /* ===== v109 THE BROADCAST (agent E) — the hook every v109 E check reads ===== */
@@ -2433,6 +2553,7 @@ class Ot extends mt.Scene {
     }
     const nx = px, ny = py;
     const jerk = Math.hypot(S.vx - v0x, S.vy - v0y) / dt, step = Math.hypot(nx - x, ny - y);
+    if (TU("v193AG", 1) && TU("v193AGcenter", 1)) this.camSideV145(cam, Math.exp(lz));   // v193 AG: a frame wider than the field is centred on it
     cam.setZoom(Math.exp(lz)); cam.centerOn(nx, ny);
     // v147 D: a pan the bounds stopped keeps no velocity into the wall, or the feed-forward winds it up
     if (ff) { if (Math.abs(cam.midPoint.x - nx) > 0.5) S.vx = 0; if (Math.abs(cam.midPoint.y - ny) > 0.5) S.vy = 0; }
@@ -2647,8 +2768,13 @@ class Ot extends mt.Scene {
    * than that and the turf and the team area are painted ~240 px past it before the page's ground
    * shows — so a man on the near sideline was a man no pan could reach. A follow cam may run
    * `camFollowSidePx` past either side (inside the painting); every other mode keeps 0..FW. */
-  camSideV145(cam) {
-    const xb = this.camModeV112().follow ? Math.max(0, TU("camFollowSidePx", 180)) : 0;
+  camSideV145(cam, zAt) {
+    let xb = this.camModeV112().follow ? Math.max(0, TU("camFollowSidePx", 180)) : 0;
+    /* v193 AG (the live-sim pass): at the zoom floor (0.78, a wide shot / the Wide mode / a deep field perspective) the
+     * frame is ~920 world px across and the world 720, and Phaser's clamp pins such a frame to the LEFT bound — the field
+     * sat off-centre with 200 px of the right-hand margin showing. The bounds open symmetrically to the frame's width, so
+     * a frame wider than the field is centred on it. */
+    if (TU("v193AG", 1) && TU("v193AGcenter", 1)) { try { const vw = cam.width / Math.max(0.05, zAt || cam.zoom || 1); if (vw > FW + 2 * xb) xb = Math.ceil((vw - FW) / 2) + 1; } catch (e) {} }
     try { const top = this.camTopV192E(cam), b = cam._bounds; if (!b || b.x !== -xb || b.y !== top || b.width !== FW + 2 * xb || b.height !== WORLD_H - top) cam.setBounds(-xb, top, FW + 2 * xb, WORLD_H - top); } catch (e) {}   // v177 E: and the world's height (v192E: and a screen above it)
     return xb;
   }
@@ -3071,6 +3197,7 @@ class Ot extends mt.Scene {
       this.windupV107(P);   // v107: the arm starts four frames before the ball leaves
       this.plantV109(P);   // v109: and the feet plant before the cut
       this.exchangeV108(P);   // v108: and the reach two frames before the ball changes hands
+      this.ajTickV193(P, Math.max(0, P.t - (P.delay || 0)));   // v193 AJ: the lunge is seen coming; a drawn fall gives way when the sim needs him
       // v10: live yardage ticker rides the carrier, counting up as he earns it
       if (P.carrierId != null && this.markers[P.carrierId] && !P.ydDone && P.losX != null) {
         const cmY = this.markers[P.carrierId];
@@ -3177,7 +3304,13 @@ class Ot extends mt.Scene {
       let ballX = bpp.x, ballY = bpp.y - airY, ballDepth = flight ? 20 : loose ? 30 : 9;
       let baseSX = (flight ? 0.58 : loose ? 0.52 : 0.40) * airSw * bpp.s;
       let baseSY = (flight ? 0.52 : loose ? 0.45 : 0.36) * airSw * bpp.s;
-      if (mode === "bounce") {
+      if (mode === "bounce" && this.ajOnV193() && TU("v193AJphys", 1)) {
+        /* v193 AJ PHYSICS: an incompletion hits the turf and bounces (a swat first deflects it: back the way it came, popped up) */
+        const age = Math.max(0, P.t - (P.ballReleaseAt || P.t)), sw = !!P._ajSwatV193, seed = String(P.__ballTokenV1514 || P.ballReleaseAt || 1).split("").reduce((h, ch) => (h * 31 + ch.charCodeAt(0)) % 9973, 7);
+        const R = this.ajBounceV193("inc:" + seed + ":" + Math.round(P.ballReleaseAt || 0), seed, sw ? { z0: TU("ajSwatZ0V193", 12), vz0: TU("ajSwatPopV193", .12), vx0: -TU("ajSwatBackV193", .05) } : { z0: TU("ajIncZ0V193", 6), vz0: -TU("ajIncVinV193", .05), vx0: TU("ajIncSkipV193", .045) });
+        const B = this.ajBounceAtV193(R, age);
+        ballX += (P.ballBounceDir || 1) * B.x * bpp.s; ballY -= B.z * bpp.s;
+      } else if (mode === "bounce") {
         const age = Math.max(0, P.t - (P.ballReleaseAt || P.t)), decay = Math.max(0, 1 - age / 720);
         ballX += (P.ballBounceDir || 1) * Math.min(18, age * 0.024) * bpp.s;
         ballY -= Math.abs(Math.sin(age / 92)) * 13 * decay * bpp.s;
@@ -3187,6 +3320,12 @@ class Ot extends mt.Scene {
        * this is the bounce on top of it: an oval tumbling end over end with a jittered hop, phased
        * from the play's token so a replay bounces the same way, dying as the ball settles. Open
        * from `fumble`/`looseBall` until `recover`; the `loose` mode alone used to ride the straight path. */
+      else if (loose && P.__looseV109 && this.ajOnV193() && TU("v193AJphys", 1)) {   // v193 AJ PHYSICS: a prolate ball's bounces
+        const Lb = P.__looseV109, age = Math.max(0, P.t - Lb.t0), R = this.ajBounceV193("loose:" + Lb.seed + ":" + Lb.t0, Lb.seed, { z0: TU("ajLooseZ0V193", 7), vz0: TU("ajLooseVz0V193", .07), vx0: 0 }), B = this.ajBounceAtV193(R, age);
+        ballY -= B.z * bpp.s; ballX += B.x * bpp.s;
+        const sq = B.rest ? 0 : Math.abs(Math.sin(age * TU("ajBallTumbleV193", .02) + Lb.seed)); baseSX *= 1 + .32 * sq; baseSY *= 1 - .22 * sq;
+        P._looseDrawV109 = (P._looseDrawV109 || 0) + 1;
+      }
       else if (loose && P.__looseV109) {
         const Lb = P.__looseV109, age = Math.max(0, P.t - Lb.t0), decay = Math.max(0, 1 - age / TU("looseBounceMs", 520));
         const ph = age / TU("looseHopMs", 78) + Lb.seed, hop = Math.abs(Math.sin(ph)), sq = Math.abs(Math.cos(ph * .5 + Lb.seed));
@@ -3237,6 +3376,7 @@ class Ot extends mt.Scene {
         // just above it. The lateral hand offset keeps either case out of the body core.
         ballDepth = holder.root.depth + (holder === centerV105 ? 0.05 : rear ? -0.06 : 0.08);
         baseSX = 0.40 * sc; baseSY = 0.36 * sc;
+        if (holder._ajHideBall) { baseSX = 0; baseSY = 0; }   // v193 AJ: the layout's cell has the ball in his arms — one football on screen
         // v107/v108: a cell that already carries a football hides ours — two otherwise. Which
         // frames those are is per cycle and MEASURED (BALL_DRAWN_V108), not the flat 0-3 v107
         // assumed: the rear throw only shows it cocked at the ear. The v1513 ball guard forces
@@ -3656,6 +3796,7 @@ class Ot extends mt.Scene {
     return TU("postPlayMs", 1450) + TU("postGatherExtraMs", 260);   /* v144 C: the gather had 600ms of a 1450ms window once the late contact had its 850 — it reaches the huddle spot now */
   }
   startPostV86(P, ms) {
+    try { this.ajPostV193(P); } catch (e) {}   // v193 AJ: the gather starts from where they are DRAWN
     const S = P.script, dir = S.meta.dir || VDIR || 1, YDF = PLAY_W / 100, MIDY = (F_TOP + F_BOT) / 2;
     const spot = { x: P._refBX != null ? P._refBX : (P.losX != null ? P.losX : PLAY_L + PLAY_W / 2), y: P._refBY != null ? P._refBY : MIDY };
     P.post = { t: 0, ms, spot, dir };
@@ -4110,10 +4251,15 @@ class Ot extends mt.Scene {
     const q = et && et.quarter != null ? Number(et.quarter) : null;
     if (q != null) { if (this._wearQ != null && q < this._wearQ) this.wearV86 = []; this._wearQ = q; }   // a new game starts on fresh turf
     const g = this.wearG; g.clear();
-    for (const w of (this.wearV86 || [])) { const p = PJ(w.x, w.y);
+    const dirt193 = this.dirtOnV193AG();   // v193 AG: the wear is painted into the turf as speckle (paintDirtAllV193AG)
+    if (!dirt193) for (const w of (this.wearV86 || [])) { const p = PJ(w.x, w.y);
       g.fillStyle(0x5e4b2c, Math.min(0.42, w.a * w.n)).fillEllipse(p.x, p.y + 6 * p.s, w.r * 2.2 * p.s, w.r * 1.1 * p.s); }
-    if (this._wearQ != null && this._divotQV192E != null && this._wearQ < this._divotQV192E) this.divotsV192E = [];   // v192E: a new game, fresh turf
+    let fresh193 = false;
+    if (this._wearQ != null && this._divotQV192E != null && this._wearQ < this._divotQV192E) { this.divotsV192E = []; this.dirtV193AG = []; fresh193 = true; }   // v192E: a new game, fresh turf (v193 AG: the scuffs too)
     this._divotQV192E = this._wearQ;
+    // v193 AG: the dirt's clock is the snap — one tick per new play handed to the field
+    if (et && et !== this._dirtEtV193AG) { this._dirtEtV193AG = et; this._snapV193AG = (this._snapV193AG | 0) + 1; }
+    if (dirt193 && fresh193) { try { this.refreshPersp(); } catch (e) {} }   // the bake that just ran still had last game's marks in it
     try { this.drawDivotsV192E(); } catch (e) {}   // v192E: the snap re-projects the turf, and the divots ride it
   }
   /* ===== v192E THE TURF REMEMBERS THE BIG HITS =====
@@ -4144,10 +4290,10 @@ class Ot extends mt.Scene {
     const w = Math.max(0.6, Math.min(1.6, weight || 1));
     const V = (window.__V192E = window.__V192E || { pans: 0, aboveTop: 0, divots: 0, made: 0, crowd: { home: 0, away: 0, flips: 0 } });
     for (const d of D) if (Math.abs(d.x - x) < TU("divotMergePxV192E", 8) && Math.abs(d.y - y) < TU("divotMergePxV192E", 8)) {
-      d.w = Math.min(1.9, d.w + 0.25); d.n++; d.dig = 0; this.divotClodsV192E(x, y, ang, w); this.drawDivotsV192E(); V.made++; return d;
+      d.w = Math.min(1.9, d.w + 0.25); d.n++; d.dig = 0; this.divotClodsV192E(x, y, ang, w); this.drawDivotsV192E(); d.dig = 1; d.snapV193AG = this._snapV193AG | 0; this.paintMarkV193AG(d, "divot"); V.made++; return d;
     }
     const seed = (Math.abs(Math.round(x * 7.31 + y * 13.7)) % 997) / 997;
-    const d = { x, y, ang: Number.isFinite(ang) ? ang : 0, w, n: 1, seed, dig: 0 };
+    const d = { x, y, ang: Number.isFinite(ang) ? ang : 0, w, n: 1, seed, dig: 0, snapV193AG: this._snapV193AG | 0 };
     D.push(d);
     while (D.length > Math.max(1, TU("divotMaxV192E", 36))) D.shift();
     V.made++; V.divots = D.length;
@@ -4155,8 +4301,9 @@ class Ot extends mt.Scene {
     // the dig: the hole opens over a quarter second (a few redraws of one Graphics, then it is still)
     if (REDUCED_MOTION) d.dig = 1;
     else { try { this.tweens.addCounter({ from: 0, to: 1, duration: TU("divotDigMsV192E", 260), ease: "Cubic.easeOut",
-      onUpdate: (tw) => { d.dig = tw.getValue(); this.drawDivotsV192E(); }, onComplete: () => { d.dig = 1; this.drawDivotsV192E(); } }); } catch (e) { d.dig = 1; } }
+      onUpdate: (tw) => { d.dig = tw.getValue(); this.drawDivotsV192E(); this.paintMarkV193AG(d, "divot"); }, onComplete: () => { d.dig = 1; this.drawDivotsV192E(); this.paintMarkV193AG(d, "divot"); } }); } catch (e) { d.dig = 1; } }
     this.drawDivotsV192E();
+    this.paintMarkV193AG(d, "divot");   // v193 AG: into the turf, at once (a no-op with the dirt off)
     return d;
   }
   drawDivotsV192E() {
@@ -4164,6 +4311,9 @@ class Ot extends mt.Scene {
     if (!this.divotG) { if (!D.length || !this.add) return; this.divotG = this.add.graphics().setDepth(0.92); }
     const g = this.divotG; g.clear();
     if (!TU("v192Edivot", TU("v192E", 1))) return;
+    /* v193 AG DIRT: the divots are painted INTO the turf (the warp canvas) as solid pixel art — a full repaint at every bake
+     * (warpField), and the one being dug painted as it opens (`addDivotV192E` → `paintMarkV193AG`) */
+    if (this.dirtOnV193AG()) { try { const V = window.__V192E; if (V) { V.divots = D.length; V.drawn = (V.drawn || 0) + 1; } } catch (e) {} return; }
     const R0 = TU("divotRadiusV192E", 5.5);
     for (const d of D) {
       const dig = d.dig == null ? 1 : d.dig, len = R0 * d.w * (0.4 + 0.6 * dig), wid = len * 0.52;
@@ -4191,6 +4341,7 @@ class Ot extends mt.Scene {
   // the turf thrown up out of the hole: a handful of clods on short arcs, gone in under a second
   divotClodsV192E(x, y, ang, w) {
     if (REDUCED_MOTION || !this.add || !this.tweens) return;
+    if (this.dirtOnV193AG()) return;   // v193 AG: the collision's own burst (`dirtBurstV193AG`) throws the turf, sized by the hit
     const n = Math.max(0, Math.round(TU("divotClodsV192E", 5) * Math.min(1.4, w)));
     const p0 = PJ(x, y);
     for (let i = 0; i < n; i++) {
@@ -4205,6 +4356,167 @@ class Ot extends mt.Scene {
           onComplete: () => { try { c.destroy(); } catch (e) {} } });
       } catch (e) {}
     }
+  }
+  /* ===== v193 AG DIRT =====
+   * The owner: "Make the dirt detail solid for the collision impacts." v86's wear was a soft brown ellipse at 3-8% alpha
+   * and v192E's divot a stack of anti-aliased translucent ovals — both read as a smudge at phone size, and a routine
+   * tackle left nothing a player could see. Now EVERY collision marks the turf, and the mark is solid pixel art:
+   *   - a SCUFF for each contact (`addDirtV193AG(x, y, strength, ang)`): a tackle (0.3 + 0.55·impact, more for a big hit
+   *     or hit stick), a broken tackle (by its knock-back), a pancake, a QB hit, a whiffed diver's landing. A streak of
+   *     scraped turf and torn dirt laid along the hit, its size by the strength (`dirtScuffLenV193AG` 4 → ×2.4);
+   *   - v192E's DIVOT for a major one (unchanged rules), drawn as a torn hole: the deep back, the dirt, its highlights,
+   *     the dark lip the hit came in over, the pale lip of turf shoved up past it and loose clods round it;
+   *   - v86's WEAR (the trenches, cuts, piles) as speckled worn grass instead of a translucent oval.
+   * Each is rasterised on a pixel grid snapped to the world (`dirtPxV193AG` × the projection's scale, so the pixels are
+   * chunky up close and fine far off), in SIM coordinates through the local Jacobian of PJ — it lies on the ground and
+   * foreshortens like the yard lines. It is painted INTO the turf (the warp canvas, under every line and shadow): a full
+   * repaint at every bake (`warpField`, before the light wash), and a new mark painted the moment it lands. So it costs
+   * nothing per frame and rides the camera for free. Each collision throws a burst (`dirtBurstV193AG`): 2-10 chunky clods
+   * and a puff of dust, by strength.
+   * Lifetime is counted in SNAPS (never wall time): a scuff holds `dirtHoldV193AG` 4 snaps, then fades out over
+   * `dirtFadeV193AG` 10 (about a drive); a divot holds 8 and fades to `divotFloorV193AG` 0.55 over 32 — the rest of the
+   * game. Caps: `dirtMaxV193AG` 48 scuffs (the oldest goes; a hit within `dirtMergeV193AG` 6 of one deepens it), v192E's
+   * 36 divots, v86's 160 wear marks. A new game starts on fresh turf. Render-only: no sim read, no Math.random() the sim
+   * sees (every shape's noise is a hash of the spot). Kill switch `TU("v193AG", 0)` (or `v193AGdirt` 0): v192E/v86 as
+   * they were. `window.__V193AG.dirt(x, y, strength)` lays one (the animation pass calls it); `.dirtInfo()`. ===== */
+  dirtOnV193AG() { return !!TU("v193AG", 1) && !!TU("v193AGdirt", 1); }
+  addDirtV193AG(x, y, strength, ang) {
+    if (!this.dirtOnV193AG() || !Number.isFinite(x) || !Number.isFinite(y)) return null;
+    const s = Math.max(0, Math.min(1, Number(strength) || 0));
+    if (s < TU("dirtMinV193AG", 0.04)) return null;
+    const a = Number.isFinite(ang) ? ang : ((x * 0.37 + y * 0.11) % 6.283);
+    const D = this.dirtV193AG || (this.dirtV193AG = []);
+    const V = (window.__V193AG = window.__V193AG || {}); V.dirtMade = (V.dirtMade || 0) + 1;
+    const M = TU("dirtMergeV193AG", 6);
+    for (const d of D) if (Math.abs(d.x - x) < M && Math.abs(d.y - y) < M) {
+      d.s = Math.min(1, d.s + s * 0.5); d.n++; d.snap = this._snapV193AG | 0; d.dig = 1;
+      this.paintMarkV193AG(d, "scuff"); this.dirtBurstV193AG(x, y, a, s); return d;
+    }
+    const d = { x, y, s, ang: a, n: 1, seed: (Math.abs(Math.round(x * 7.31 + y * 13.7)) % 997) / 997, snap: this._snapV193AG | 0, dig: 1 };
+    D.push(d);
+    while (D.length > Math.max(1, TU("dirtMaxV193AG", 48))) D.shift();
+    this.paintMarkV193AG(d, "scuff");
+    this.dirtBurstV193AG(x, y, a, s);
+    return d;
+  }
+  // one call per collision in the event switch: the scuff, and the strength it was laid with
+  dirtHitV193AG(x, y, strength, ang) { try { return this.addDirtV193AG(x, y, strength, ang); } catch (e) { return null; } }
+  // how far into its life a mark is: 1 while fresh, then down to 0 (a scuff) or to the floor (a divot)
+  dirtAlphaV193AG(d, kind) {
+    const age = Math.max(0, (this._snapV193AG | 0) - ((kind === "divot" ? d.snapV193AG : kind === "wear" ? d.snapV193AG : d.snap) | 0));
+    if (kind === "divot") { const H = TU("divotHoldV193AG", 8), F = Math.max(1, TU("divotFadeV193AG", 32)), fl = TU("divotFloorV193AG", 0.55);
+      return age <= H ? 1 : Math.max(fl, 1 - (1 - fl) * (age - H) / F); }
+    if (kind === "wear") return 1;
+    const H = TU("dirtHoldV193AG", 4), F = Math.max(1, TU("dirtFadeV193AG", 10));
+    return age <= H ? 1 : Math.max(0, 1 - (age - H) / F);
+  }
+  // paint one mark into the turf now (mid-play), and refresh the texture — the next bake repaints everything in order
+  paintMarkV193AG(d, kind) {
+    if (!this.dirtOnV193AG() || !d || !this._warpCv || !PERSP) return false;
+    try {
+      const ctx = this._warpCv.getContext("2d");
+      this.rasterMarkV193AG(ctx, (this._warpCv.width - FW) / 2, d, kind, this.dirtAlphaV193AG(d, kind));
+      if (this.textures.exists("rib_field_warp")) this.textures.get("rib_field_warp").refresh();
+      return true;
+    } catch (e) { return false; }
+  }
+  // the whole set, in the bake (warpField calls it before the light wash): wear first, then scuffs, then divots on top
+  paintDirtAllV193AG(ctx, ox) {
+    if (!this.dirtOnV193AG() || !PERSP) return 0;
+    let n = 0;
+    const D = this.dirtV193AG || [];
+    for (let i = D.length - 1; i >= 0; i--) if (this.dirtAlphaV193AG(D[i], "scuff") <= 0) D.splice(i, 1);   // faded out: gone
+    for (const w of (this.wearV86 || [])) { this.rasterMarkV193AG(ctx, ox, w, "wear", 1); n++; }
+    for (const d of D) { this.rasterMarkV193AG(ctx, ox, d, "scuff", this.dirtAlphaV193AG(d, "scuff")); n++; }
+    for (const d of (this.divotsV192E || [])) { this.rasterMarkV193AG(ctx, ox, d, "divot", this.dirtAlphaV193AG(d, "divot")); n++; }
+    const V = (window.__V193AG = window.__V193AG || {}); V.dirtPaints = (V.dirtPaints || 0) + 1; V.dirtPainted = n;
+    return n;
+  }
+  /* The rasteriser. A mark is an ellipse in SIM space (along the hit, across it); the screen pixels it covers are found
+   * through the inverse of PJ's local Jacobian at its centre (exact enough over a few yards), on a grid of `px` world
+   * pixels snapped to the world so neighbouring marks share one pixel lattice. Each cell's colour comes from where it
+   * sits in the shape plus a hash of the cell (stable from bake to bake: the same divot is the same pixels). */
+  rasterMarkV193AG(ctx, ox, d, kind, alpha) {
+    if (!(alpha > 0.01)) return 0;
+    const p = PJ(d.x, d.y); if (!p || !Number.isFinite(p.x) || !Number.isFinite(p.y)) return 0;
+    const ang = kind === "wear" ? 0 : (d.ang || 0), ca = Math.cos(ang), sa = Math.sin(ang);
+    const A = PJ(d.x + ca, d.y + sa), B = PJ(d.x - sa, d.y + ca);
+    const ex = A.x - p.x, ey = A.y - p.y, fx = B.x - p.x, fy = B.y - p.y, det = ex * fy - ey * fx;
+    if (Math.abs(det) < 1e-6) return 0;
+    let len, wid, ring;
+    if (kind === "divot") { const dig = d.dig == null ? 1 : d.dig; len = TU("divotRadiusV192E", 5.5) * TU("divotSizeV193AG", 0.9) * d.w * (0.4 + 0.6 * dig); wid = len * 0.56; ring = 2.1; }
+    else if (kind === "wear") { len = d.r * 1.1; wid = d.r * 0.62; ring = 1; }
+    else { len = TU("dirtScuffLenV193AG", 5) * (0.75 + 1.6 * d.s); wid = len * (0.42 + 0.14 * d.s); ring = 1.55; }
+    const px = Math.max(TU("dirtPxMinV193AG", 2), Math.round(TU("dirtPxV193AG", 2) * Math.max(0.5, p.s)));
+    // the screen box of the shape (its ellipse and the clods round it)
+    const rx = Math.abs(ex) * len * ring + Math.abs(fx) * wid * ring + px, ry = Math.abs(ey) * len * ring + Math.abs(fy) * wid * ring + px;
+    const gx0 = Math.floor((p.x - rx) / px), gx1 = Math.ceil((p.x + rx) / px), gy0 = Math.floor((p.y - ry) / px), gy1 = Math.ceil((p.y + ry) / px);
+    if ((gx1 - gx0) * (gy1 - gy0) > 6000) return 0;          // a degenerate projection, never a real mark
+    const seed = Math.round((d.seed || 0) * 997) + 1;
+    const hash = (i, j, k) => { let h = (i * 374761393 + j * 668265263 + (seed + k) * 2147483647) | 0; h = (h ^ (h >>> 13)) * 1274126177 | 0; return ((h ^ (h >>> 16)) >>> 0) / 4294967296; };
+    const wearA = kind === "wear" ? Math.min(0.42, d.a * d.n) : 0;
+    let drawn = 0;
+    ctx.save(); ctx.globalAlpha = Math.max(0, Math.min(1, alpha));
+    for (let gy = gy0; gy <= gy1; gy++) for (let gx = gx0; gx <= gx1; gx++) {
+      const cx = (gx + 0.5) * px - p.x, cy = (gy + 0.5) * px - p.y;
+      const lx = (cx * fy - cy * fx) / det, ly = (ex * cy - ey * cx) / det;     // sim units along / across the hit
+      const ux = lx / len, uy = ly / wid, r = Math.sqrt(ux * ux + uy * uy), h = hash(gx, gy, 0), h2 = hash(gx, gy, 7);
+      const rr = r + (h - 0.5) * 0.36;                                          // a ragged edge, never a clean oval
+      let col = null;
+      if (kind === "divot") {
+        if (rr < 0.42 && ux < 0.1) col = h2 < 0.2 ? "#3a2a17" : "#24190e";                 // the deepest part, at the back
+        else if (rr < 0.8) col = h2 > 0.84 ? "#7a5c38" : h2 < 0.3 ? "#3f2e1a" : "#523c22";    // the dirt, with a few lit grains
+        else if (rr < 1.0) col = ux < 0 ? "#2d2414" : (h2 > 0.5 ? "#5d4527" : "#6a4f2d");
+        else if (rr < 1.32 && ux > -0.15) col = h2 > 0.45 ? "#9cc768" : "#79a84b";           // the turf shoved up past the hole
+        else if (rr < 1.28 && ux <= -0.15) col = "#1d2a10";                                  // the dark lip the hit came in over
+        else if (rr < ring && h > 0.9) col = h2 > 0.5 ? "#5a4326" : "#6f9c45";               // loose clods
+      } else if (kind === "scuff") {
+        if (rr < 0.62) col = h2 > 0.8 ? "#7a5f3a" : h2 > 0.3 ? "#55401f" : "#3f2f18";       // the scraped core: solid dirt, a few lit grains
+        else if (rr < 0.82) col = ux < 0 ? (h2 > 0.5 ? "#2f3d18" : "#3f2f18") : (h2 > 0.4 ? "#a3c96a" : "#7fa84a");   // the lip: dark behind, torn turf ahead
+        else if (rr < 1.05 && h < 0.55) col = h2 > 0.6 ? "#8fae55" : h2 > 0.3 ? "#5b4a2b" : "#3d5a22";   // grit and torn grass round it
+        else if (rr < ring && h > 0.9) col = h2 > 0.5 ? "#4f3b22" : "#79a84b";               // a few flecks thrown clear
+      } else {
+        // worn grass: speckle, its density the wear's own weight
+        if (rr < 1 && hash(gx >> 1, gy >> 1, 3) < wearA * TU("wearDensV193AG", 1.1) * (1 - rr * 0.7)) col = h2 > 0.66 ? "#7a6a3e" : h2 > 0.33 ? "#66583a" : "#5b6a34";
+      }
+      if (!col) continue;
+      ctx.fillStyle = col; ctx.fillRect(gx * px + ox, gy * px, px, px); drawn++;
+    }
+    ctx.restore();
+    return drawn;
+  }
+  // the turf thrown up by a collision: chunky clods on short arcs and a puff of dust, all sized by the hit
+  dirtBurstV193AG(x, y, ang, s) {
+    if (REDUCED_MOTION || !this.add || !this.tweens || !TU("dirtBurstV193AG", 1)) return 0;
+    /* its own seeded stream (a hash of the spot and a running count), never rnd(): the sim draws from that
+     * stream in this same page, so a burst must not shift a later play's rolls (CLAUDE.md: randomness changes sample paths) */
+    let st = ((Math.round(x * 131 + y * 977) ^ ((this._burstNV193AG = (this._burstNV193AG | 0) + 1) * 2654435761)) >>> 0) || 1;
+    const rnd = () => { st = (st + 0x6D2B79F5) | 0; let t = Math.imul(st ^ (st >>> 15), 1 | st); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
+    const n = Math.max(0, Math.round(TU("dirtClodsMinV193AG", 2) + TU("dirtClodsMaxV193AG", 8) * s));
+    const p0 = PJ(x, y), px = Math.max(TU("dirtPxMinV193AG", 2), Math.round(TU("dirtPxV193AG", 2) * Math.max(0.5, p0.s)));
+    const cols = [0x5a4326, 0x6b5232, 0x4a3720, 0x6f9c45, 0x8fbf5a];
+    for (let i = 0; i < n; i++) {
+      const spread = (i / Math.max(1, n - 1) - 0.5) * 2.2, a = ang + spread + (rnd() - 0.5) * 0.4;
+      const dist = (6 + rnd() * 10) * (0.6 + s), q = PJ(x + Math.cos(a) * dist, y + Math.sin(a) * dist);
+      const sz = px * (rnd() < 0.3 ? 2 : 1) * (1 + Math.round(s));
+      try {
+        const c = this.add.rectangle(Math.round(p0.x), Math.round(p0.y), sz, sz, cols[i % cols.length]).setDepth(TU("dirtBurstDepthV193AG", 3.52));
+        const up = (8 + rnd() * 14) * (0.6 + s) * p0.s, dur = 380 + rnd() * 260;
+        this.tweens.addCounter({ from: 0, to: 1, duration: dur, onUpdate: (tw) => { const k = tw.getValue();
+            c.setPosition(Math.round(p0.x + (q.x - p0.x) * k), Math.round(p0.y + (q.y - p0.y) * k - up * 4 * k * (1 - k))); },
+          onComplete: () => { try { c.destroy(); } catch (e) {} } });
+      } catch (e) {}
+    }
+    // the dust: a few pale squares that rise off the spot and thin out
+    const nd = Math.round(1 + 3 * s);
+    for (let i = 0; i < nd; i++) {
+      try {
+        const sz = px * (2 + Math.round(s * 2)), d0 = this.add.rectangle(Math.round(p0.x + (rnd() - 0.5) * 8 * p0.s), Math.round(p0.y + 4 * p0.s), sz, sz, 0xc8b48a, 0.55).setDepth(TU("dirtBurstDepthV193AG", 3.52));
+        this.tweens.add({ targets: d0, y: d0.y - (6 + rnd() * 8) * p0.s, x: d0.x + (rnd() - 0.5) * 10 * p0.s, alpha: 0, duration: 520 + rnd() * 300, onComplete: () => { try { d0.destroy(); } catch (e) {} } });
+      } catch (e) {}
+    }
+    const V = (window.__V193AG = window.__V193AG || {}); V.bursts = (V.bursts || 0) + 1; V.lastBurst = n;
+    return n;
   }
 
   actorIdx(id) { return id ? (id[0] === "o" ? +id.slice(3) : 11 + +id.slice(3)) : -1; }
@@ -4438,6 +4750,8 @@ class Ot extends mt.Scene {
     this.crowdReact(e, P);      // v57: the stands hear every play
     try { this.coverEventV192F(e, P); } catch (er) {}   // v192 F: the coverage the sim played, for the picture
     try { this.sideReact(e); } catch (er) {}   // v79: so does the bench
+    try { this.ajGapProbeV193(e); } catch (er) {}   // v193 AJ: how far apart they are DRAWN on the contact frame
+    if (/^(stagger|bounce|brokenTackle|beaten|gripBreak|escapeV153A|breakFreeV177B)$/.test(e.type)) { const rk = this.markers[this.actorIdx(e.who || e.by)]; if (rk && rk._ajReach) rk._ajReach.until = rk.tms + TU("ajReachLetGoMsV193", 90); }   // v193 AJ: off him, he lets go
 
     switch (e.type) {
       /* ===== v109 THE RECEIVER FINDS THE BALL ===== */
@@ -4452,7 +4766,8 @@ class Ot extends mt.Scene {
         const a = PJ(m.sx, m.sy), b = PJ(e.x, e.y); if (Math.hypot(b.x - a.x, b.y - a.y) > 2) this.faceMarker(m, b.x - a.x, b.y - a.y);
         const kit = m.kit || m.team, face3 = m.dirKey === "dn" ? "dn" : (m.dirKey === "dr" || m.dirKey === "sd") ? "dr" : "up", CS = RIB.catchseqV109 || {};
         m._reachV109 = { kind: e.kind, at: e.at, t: m.tms }; m._preCatch = false; m._handfight = false; m._lookAt = null; m._tuckV109 = 0;
-        if (e.kind === "dive") { m.forceState = "diveCatchSeq"; m.seqT = m.tms; m._launchT0 = m.tms; m._launchUntil = m.tms + 285; m._launchH = 5; }
+        if (e.kind === "dive" && this.ajOnV193() && this.ajLayoutV193(m, e, P)) {}   // v193 AJ THE DIVING CATCH: the layout
+        else if (e.kind === "dive") { m.forceState = "diveCatchSeq"; m.seqT = m.tms; m._launchT0 = m.tms; m._launchUntil = m.tms + 285; m._launchH = 5; }
         else if (this.textures.exists("spr_" + kit + "_" + face3 + "_catchseq0_0")) { m._csVarV109 = (CS[e.kind] || CS.stride || {})[face3] || 0; m.forceState = "catchseqSeq"; m.seqT = m.tms;
           if (e.kind === "high") { m._launchT0 = m.tms; m._launchUntil = m.tms + TU("catchHopMs", 300); m._launchH = TU("catchHopH", 12); } }
         else { m.forceState = "catchSeq"; m.seqT = m.tms; }
@@ -4507,6 +4822,7 @@ class Ot extends mt.Scene {
           P.contestDef = null; P.awaitCatch2 = null;
         }
         const cm = this.markers[P.carrierId];
+        if (cm) cm._ajCatchT = cm.tms;   // v193 AJ: an air tackle is one that lands while he is still coming down with it
         // v21.2 HIGH-POINT CATCH: the receiver LEAPS for the ball (arms-up catch cell
         // + a launch-parabola hop) instead of a flat static grab, then settles.
         if (cm) { const diving=e.catchType==="dive";
@@ -4662,6 +4978,7 @@ class Ot extends mt.Scene {
               H151.jukeHop++;
             }
           }
+          if (mv151 && cm2.body && this.ajOnV193()) { const scr193 = Math.sign(PJ(cm2.sx, cm2.sy + (Number(e.direction) || 1) * 10).x - PJ(cm2.sx, cm2.sy).x) || 1; this.ajCutV193(cm2, e, scr193, flu); }   // v193 AJ THE MOVES
           // a spin whips the body around; a juke throws a sharp lateral lean-and-recover.
           if (cm2.body && !mv151) {
             if (isSpin) {
@@ -4687,7 +5004,8 @@ class Ot extends mt.Scene {
         const sa9 = this.sideV109(e, carrier, tk); this.hookV109().arms[sa9 > 0 ? "R" : "L"]++;
         if (carrier) { carrier._lean = sa9 * TU("stiffLean", .14); carrier._leanSrc = "stiff"; this.time.delayedCall(300, () => { if (carrier._leanSrc === "stiff") { carrier._leanSrc = null; carrier._lean = 0; } }); }
         if (tk && tk.dirKey !== "up" && tk.dirKey !== "dn") tk.flip = sa9 > 0;
-        if (tk) { tk.forceState = "grab";
+        if (tk && carrier && this.ajOnV193()) { tk._ajReach = null; this.ajShovedV193(tk, carrier, e); }   // v193 AJ: shoved off the arm, over and down, up again
+        else if (tk) { tk.forceState = "grab";
           this.time.delayedCall(160, () => { if (tk.active !== false) tk.forceState = "down"; });
           this.time.delayedCall(760, () => { if (tk.forceState === "down") tk.forceState = null; }); }
         this.popText(e.x, e.y - 22, "STIFF ARM!", "#ffd97a", 14);
@@ -4734,6 +5052,7 @@ class Ot extends mt.Scene {
         if (m) { m.forceState = null; m.cutUntil = m.tms + 200; m.body && m.body.setTint(0xbfe0ff);
           this.time.delayedCall(360, () => { m.body && m.body.clearTint(); }); }
         this.moveV164H(m, bmS, "swim", e);   // v164 H: the arm over the top, the hop past him, the blocker turned
+        if (m && this.ajOnV193()) this.ajSwimV193(m, bmS);   // v193 AJ: the rise, the arm-over, the rip and the burst; the blocker reaching after him
         this.popText(e.x, e.y - 20, "SWIM MOVE!", "#8fe7ff", 13);
         this.puffFx(e.x, e.y, 2);
         break;
@@ -4889,7 +5208,8 @@ class Ot extends mt.Scene {
           const aimK = e.aim === "low" ? TU("lungeLowHKV143", .5) : e.aim === "high" ? TU("lungeHighHKV143", 1.45) : 1;
           const aimMs = e.aim === "low" ? TU("lungeLowMsKV143", 1.18) : e.aim === "high" ? TU("lungeHighMsKV143", .88) : 1;
           const Lms = Math.round(L.ms * aimMs);
-          tk.forceState = "dive"; tk._launchT0 = tk.tms; tk._launchUntil = tk.tms + Lms; tk._launchH = L.h * aimK;
+          if (this.ajOnV193() && tk._ajLungeAt != null && Math.abs(tk._ajLungeAt - tk.tms) < 220) tk.forceState = "dive";   // v193 AJ: the lookahead already launched him at the gap
+          else { tk.forceState = "dive"; tk._launchT0 = tk.tms; tk._launchUntil = tk.tms + Lms; tk._launchH = L.h * aimK; }
           this.time.delayedCall(Lms, () => { if (tk.forceState === "dive" && !tk._whiffed) tk.forceState = null; });
         }
         // a whoosh trail sells the launch — a low dive scrapes up more of it
@@ -4913,7 +5233,8 @@ class Ot extends mt.Scene {
         if (hm) { hm.forceState="hurdleSeq"; hm.seqT=hm.tms; hm._launchT0 = hm.tms; hm._launchUntil = hm.tms + 460; hm._launchH = h9; const HH = this.hookV109().hurdleH; HH.push(h9); if (HH.length > 24) HH.shift(); }
         const htk = this.markers[this.actorIdx(e.who)];
         if (htk && htk.dirKey !== "up" && htk.dirKey !== "dn") htk.flip = this.sideV109(e, hm, htk) < 0;
-        if (htk) { htk.forceState = "dive"; this.time.delayedCall(220, () => { if (htk.active !== false) htk.forceState = "down"; });
+        if (htk && this.ajOnV193() && this.ajHurdleV193(P, e, hm, htk)) {}   // v193 AJ: he dives for the grass the hurdler's feet clear
+        else if (htk) { htk.forceState = "dive"; this.time.delayedCall(220, () => { if (htk.active !== false) htk.forceState = "down"; });
           this.time.delayedCall(820, () => { if (htk.forceState === "down") htk.forceState = null; }); }
         this.popText(e.x, e.y - 26, "HURDLED!", "#8fe7ff", 14);
         this.slowMoment(P);
@@ -5022,7 +5343,8 @@ class Ot extends mt.Scene {
           this.popText(e.x, e.y - 22, "OVERRAN IT!", "#8fe7ff", 12);
           break;
         }
-        if (tk) { tk._whiffed = true; tk.forceState = "dive";
+        if (tk && this.ajOnV193() && this.ajWhiffV193(tk, e, P)) { (window.__V191D_R = window.__V191D_R || { whiffs: 0, late: 0 }).whiffs++; }   // v193 AJ THE WHIFF SLIDE
+        else if (tk) { tk._whiffed = true; tk.forceState = "dive";
           /* v191 D: a whiff is a LAUNCH — if the lunge never got him off the ground he leaves his feet now, longer and
            * higher than a wrap, facing the man he reached for, and lands just past him */
           if (TU("v191whiff", 1)) {
@@ -5039,6 +5361,7 @@ class Ot extends mt.Scene {
           this.time.delayedCall(fall, () => { if (tk.active === false) return;
             tk.forceState = "down"; tk._launchUntil = 0; tk._launchH = 0;
             this.puffFx(tk.sx, tk.sy, 3); this.skidFx(tk.sx, tk.sy);
+            this.dirtHitV193AG(tk.sx, tk.sy, TU("dirtWhiffV193AG", 0.22));   // v193 AG: the diver's landing
             try { this.addWearV86(tk.sx, tk.sy, 6, .08); } catch (er) {} });
           this.time.delayedCall(fall + TU("whiffDownMsV139", 580), () => {
             if (tk.forceState === "down") { tk.forceState = "getupSeq"; tk.seqT = tk.tms; tk._whiffed = false; } }); }
@@ -5078,6 +5401,10 @@ class Ot extends mt.Scene {
         // fixed-height fold below (the style, the hit stick) stands aside for it.
         const willFly112 = !!(m && TU("flyV112", 1) && e.flyWho && e.flyWho === e.carrier && Number(e.flyVz) > 0);
         try { this.addWearV86(ixV109, iyV109, (big ? 9 : 6) * (0.8 + impK * 0.5), 0.08); } catch (er) {}   // v86: the turf remembers the pile (v109: where the bodies met)
+        /* v193 AG DIRT: every tackle scuffs the turf where the bodies met, sized by the hit (a major one also digs v192E's divot below) */
+        { const mT = this.markers[P.carrierId >= 0 ? P.carrierId : this.actorIdx(e.carrier)], tT = this.markers[this.actorIdx(e.tackler)];
+          const sT = Math.min(1, TU("dirtTackleV193AG", 0.3) + TU("dirtTackleImpV193AG", 0.55) * impK + (big ? 0.12 : 0) + (e.hitStick || e.bigHit ? 0.2 : 0) + Math.min(0.2, bump * 0.02));
+          this.dirtHitV193AG(ixV109, iyV109, sT, mT && tT ? Math.atan2(mT.sy - tT.sy, mT.sx - tT.sx) : null); }
         try { if (this.divotMajorV192E(e)) {   // v192E: a major collision digs a divot that stays all game
           const hAng = m && tk ? Math.atan2(m.sy - tk.sy, m.sx - tk.sx) : Math.atan2(0, (P.script.meta.dir || 1) * -1);
           this.addDivotV192E(ixV109, iyV109, hAng, 0.85 + impK * 0.4 + (e.hitStick || e.bigHit ? 0.25 : 0) + Math.min(0.3, Number(e.kb || 0) * 0.02)); } } catch (er) {}
@@ -5128,7 +5455,8 @@ class Ot extends mt.Scene {
           } else if (e.strain) this.popText(e.x, e.y - 46, "DROVE FOR IT", "#f0bb45", 12);
         }
         if (e.horseCollar) this.popText(e.x, e.y - 58, "HORSE COLLAR?", "#e0484f", 12);
-        if (slide && tk) {
+        const ajOob = !!(e.oob && m && this.ajOnV193() && this.ajPushOutV193(P, e, m, tk));   // v193 AJ THE PUSH: a push-out stays on its feet
+        if (slide && tk && !ajOob) {
           // he gives himself up: a low forward slide, and the man over him pulls up
           m.forceState = "dive"; m._launchT0 = m.tms; m._launchUntil = m.tms + TU("slideMs", 260); m._launchH = 3; m._lean = 0;
           this.time.delayedCall(TU("slideMs", 260), () => { if (m.active !== false && m.forceState === "dive") m.forceState = "down"; });
@@ -5137,7 +5465,7 @@ class Ot extends mt.Scene {
           this.popText(e.x, e.y - 24, "SLIDES", "#8fe7ff", 12);
           break;
         }
-        if (tk) {
+        if (tk && !ajOob) {
           // fast closers launch a flying tackle; otherwise it's a jersey-grab drag-down,
           // then the tackler folds to the turf and STAYS down — the pile holds until the
           // next snap resets the formation (no popping back up to idle mid-replay).
@@ -5194,7 +5522,7 @@ class Ot extends mt.Scene {
             if (n153) { R153.gangs++; R153.fell += n153; R153.maxN = Math.max(R153.maxN, n153); }
           }
         }
-        if (m) {
+        if (m && !ajOob) {
           if (willFly112) {
             // he does not fold, he is thrown: the arc, the landing and the skid (placeMarker)
             if (m.body) { this.tweens.killTweensOf(m.body); m.body.x = 0; m.body.y = 0; m.body.angle = 0; }
@@ -5228,6 +5556,7 @@ class Ot extends mt.Scene {
             m.forceState = "tackleSeq"; m.seqT = m.tms;
           }
         }
+        if (m && !ajOob && this.ajOnV193()) try { this.ajTackleTypeV193(P, e, m, tk, { slide, tstyle, willFly112, F146 }); } catch (er) {}   // v193 AJ THE TACKLE TYPES
         // v25 HIT STICK (defense levels the carrier): the baked dive→down flight + a
         // heavy freeze-frame. Height geometry adds flavor: high wrap = they fold
         // together, low hit = a shoestring trip.
@@ -5332,6 +5661,7 @@ class Ot extends mt.Scene {
         const m = this.markers[this.actorIdx(e.who)];
         if (m) { m.forceState = "pancakeSeq"; m.seqT=m.tms; m.body.setAlpha(0.8); }
         this.puffFx(e.x, e.y, 3);
+        this.dirtHitV193AG(e.x, e.y, TU("dirtPancakeV193AG", 0.35));   // v193 AG: he lands on the turf, and it shows
         this.popText(e.x, e.y - 24, "PANCAKE!", "#ffd97a", 16);
         REDUCED_MOTION || this.cameras.main.shake(130, 0.005);
         vib(25);
@@ -5454,7 +5784,7 @@ class Ot extends mt.Scene {
         this.puffFx(e.x, e.y, 1); this.popText(e.x, e.y - 20, "JAMMED", "#93a0b1", 11); break; }
       case "rollout": this.popText(e.x, e.y - 22, "ROLLOUT", "#8ec3ee", 12); break;
       case "stepUp": this.popText(e.x, e.y - 22, "STEPS UP", "#bfe3ae", 11); break;
-      case "swat": {
+      case "swat": { P._ajSwatV193 = true;   // v193 AJ PHYSICS: the incompletion that follows is a deflection
         /* ===== v109 A PASS BREAK-UP IS CONTACT ===== the arm goes THROUGH the hands: both men face the
          * ball, the defender takes the grab pose ON the catch point for swatHoldMs (pulled onto it the
          * way the receiver is on an incompletion, from the side `from` says the arm came from), and
@@ -5498,6 +5828,8 @@ class Ot extends mt.Scene {
           this.hookV109C1().quietTrucks++; break; }
         this.slowMoment(P);
         this.hitFx(e.x, e.y, Number(e.kb || 0) >= 8, false, e);   // v109: the rings at the point he was run through, along the carrier's line
+        { const cmD = this.markers[this.actorIdx(e.carrier)];   // v193 AG: run through — the beaten man's spot is scuffed by the knock-back
+          this.dirtHitV193AG(e.x, e.y, Math.min(1, TU("dirtTruckV193AG", 0.25) + Number(e.kb || 0) * 0.05 + (e.hitStick ? 0.3 : 0)), cmD && m ? Math.atan2(m.sy - cmD.sy, m.sx - cmD.sx) : null); }
         try { if (e.hitStick || Number(e.flyVz) > 0 || Number(e.kb || 0) >= TU("divotKbV192E", 7)) {   // v192E: run through hard enough, the turf keeps the mark
           const cm = this.markers[this.actorIdx(e.carrier)];
           this.addDivotV192E(e.x, e.y, cm && m ? Math.atan2(m.sy - cm.sy, m.sx - cm.sx) : 0, 1 + Math.min(0.3, Number(e.kb || 0) * 0.02)); } } catch (er) {}
@@ -5578,6 +5910,7 @@ class Ot extends mt.Scene {
         break;
       }
       case "qbHit": { this.flash(e.x, e.y, 0xff6b52); this.popText(e.x, e.y - 22, "QB HIT!", "#ff9fa5", 13);
+        this.dirtHitV193AG(e.x, e.y, TU("dirtQbHitV193AG", 0.45));   // v193 AG
         REDUCED_MOTION || this.cameras.main.shake(110, 0.005); break; }
       // v23: a defender has broken through and is bearing down on the QB — flag him
       // so the player sees the scramble/sack coming a beat early.
@@ -6432,6 +6765,11 @@ class Ot extends mt.Scene {
     const air = TU("lateDiveAirMsV191", 280), delay = TU("lateDiveDelayMsV191", 90);
     this.time.delayedCall(delay, () => {
       if (m.active === false || (m.forceState && m.forceState !== "grab")) return;
+      if (this.ajOnV193() && cm.root) {   // v193 AJ: the late diver lands short of the pile and slides into it
+        let ux = cm.sx - m.sx, uy = cm.sy - m.sy; const d = Math.hypot(ux, uy) || 1; ux /= d; uy /= d;
+        (window.__V191D_R = window.__V191D_R || { whiffs: 0, late: 0 }).late++;
+        this.ajDiveSlideV193(m, ux, uy, Math.max(4, d - TU("lateDiveShortPxV193", 9)), air, Math.max(.06, d / air), { kind: "lateDive", down: TU("whiffDownMsV139", 580), h: TU("lateDiveHV191", 4.5) });
+        return; }
       m._whiffed = true; m.forceState = "dive"; m._launchT0 = m.tms; m._launchUntil = m.tms + air; m._launchH = TU("lateDiveHV191", 4.5);
       (window.__V191D_R = window.__V191D_R || { whiffs: 0, late: 0 }).late++;
       this.time.delayedCall(air, () => {
@@ -6488,8 +6826,11 @@ class Ot extends mt.Scene {
     const lo = Math.min(m.num, engaged.num), hi = Math.max(m.num, engaged.num), phase = ((lo * 7 + hi * 13) % 17) / 17 * Math.PI * 2;
     const t = (m.tms || 0) / Math.max(80, TU("shoveMsV164H", 260)), w = Math.sin(t * Math.PI * 2 + phase);
     const drive = (engaged.sSm || 0) + (m.sSm || 0) > TU("driveSpd", 22) ? TU("shoveDriveKV164H", 1.5) : 1;
+    if (this.ajOnV193() && !m._ajClip && (!m._leanSrc || m._leanSrc === "shove")) this.ajHandFightV193(m, engaged, toward);   // v193 AJ THE PUSH: hand fighting, and the lean says who is winning
+    else {
     m.body.x = toward * (TU("shovePxV164H", 1.6) * drive) * (0.5 + 0.5 * w);
     if (!m._leanSrc || m._leanSrc === "shove") { m._lean = toward * TU("shoveLeanV164H", 0.09) * (0.6 + 0.4 * w); m._leanSrc = "shove"; }
+    }
     if (!m._shoveV164H) H.shoves++;
     m._shoveV164H = 1;
   }
@@ -6581,6 +6922,7 @@ class Ot extends mt.Scene {
   strideV151D(m, dtms, dx, dy, mul) {
     const dt = Math.max(1, dtms || 16), old = dt * Math.min(2.4, m.sSm / 58) * (mul || 1);
     if (!TU("strideV151D", 1) || m.sx == null) return old;
+    if (this.ajOnV193()) return this.ajStrideV193(m, dtms, dx, dy, mul);   // v193 AJ THE STRIDE: the ground measured the same way in every direction
     const p0 = PJ(m.sx - dx, m.sy - dy), p1 = PJ(m.sx, m.sy);
     const k = Math.max(.05, (p1.s || 1) * (m._ageKV144 || 1));
     const cell = Math.hypot(p1.x - p0.x, p1.y - p0.y) / k;                 // the ground he covered, in his own sprite's pixels
@@ -6732,6 +7074,649 @@ class Ot extends mt.Scene {
     m._stumbleV109 = { t0: m.tms, until: m.tms + (ms || TU("stumbleMs", 250)), side: sideSgn };
     m._lean = -sideSgn * TU("stumbleLean", .22); m._leanSrc = "stumble"; m._leanV109 = 0;   // knocked AWAY from the contact
   }
+  /* ===== v193 AJ ANIMATION V2 =====
+   * The owner: "Improve all the animations, like running, diving catch, the distance for tackles. Sliding on the ground if
+   * missed, pushing, swim move, spin move, side step. Hurdles. Air tackle, foot tackle, etc." Presentation only: every
+   * piece below is driven by the events and the frames FieldSim already produced, spends no sim draw and moves no booked
+   * yard, name or spot. Three tools carry it:
+   *   THE CLIP (`ajClipV193`) — a short timed pose a man plays over whatever the old path would have drawn: which cell,
+   *     the rotation, a body offset and squash, his facing. A clip that owns him sets its own `forceState` ("diveAJ",
+   *     "downAJ", "fallAJ" — the prefixes the shadow and the post-play gather already read as down); an overlay clip
+   *     ("*") rides on top and gives way the moment a tackle, a get-up or a throw takes him over.
+   *   THE ANCHOR (`ajAnchorV193`) — his DRAWN spot leaves the sim's for a beat: a dive that lands and slides, a man shoved
+   *     off his feet, a push out of bounds. A path of keyframes (field points, or offsets from the sim), a hold, then a
+   *     catch-up at a capped multiple of his own top speed. The hold is cut short when the sim needs him (an event about
+   *     to name him) or when he has fallen too far behind himself (`ajLagCapPxV193`).
+   *   THE REACH (`ajReachV193`) — the commit resolves at up to 16 sim px (2.7 yd), which on a Pee Wee field is two and a
+   *     half bodies of daylight. The lunge is seen COMING (the script is known): a set man breaks down first (chop steps,
+   *     hips sink), then extends, and his drawn body closes the gap to `ajReachCellV193` sprite pixels — arms on the man —
+   *     on the frame the contact resolves, instead of hitting him from across the grass or snapping onto him a frame later.
+   * Kill switch `TU("v193AJ", 0)` = today's animations exactly. `window.__V193AJ` is the hook; `v193AJcheck`. */
+  ajOnV193() { return !!TU("v193AJ", 1); }
+  // a rolling record for the check: every entry numbered, the oldest dropped past `max`
+  ajLogV193(arr, rec, max) { const H = this.hookAJV193(); if (rec && typeof rec === "object") rec.n = H.serial = (H.serial || 0) + 1; arr.push(rec); if (arr.length > max) arr.shift(); return rec; }
+  // the contact frame, measured: centre to centre on screen in drawn body widths (22 sprite px x his drawn scale — the age
+  // and the projection both backed out), and the sim's own gap in field px. Recorded whether the switch is on or off.
+  ajGapProbeV193(e) {
+    if (!/^(tackleHit|grab|tackle|stiffarm|hurdle|brokenTackle|bounce|stagger|wrapIn|tackleWhiff)$/.test(e.type) || e.oob) return;
+    const kid = e.type === "tackle" ? e.tackler : e.who, k = this.markers[this.actorIdx(kid)], c = this.markers[this.actorIdx(e.carrier)];
+    if (!k || !c || k === c || !k.root || !c.root) return;
+    const H = this.hookAJV193(), bw = 22 * Math.max(.05, (k.root.scale + c.root.scale) / 2);
+    const scr = Math.hypot(k.root.x - c.root.x, k.root.y - c.root.y), sim = Math.hypot((k._ajSimX != null ? k._ajSimX : k.sx) - (c._ajSimX != null ? c._ajSimX : c.sx), (k._ajSimY != null ? k._ajSimY : k.sy) - (c._ajSimY != null ? c._ajSimY : c.sy));
+    H.reach.n++;
+    if (H.reach.gaps.length < 600) H.reach.gaps.push({ type: e.type, bw: +(scr / bw).toFixed(2), sim: +sim.toFixed(1), on: this.ajOnV193() ? 1 : 0, age: +(k._ageKV144 || 1).toFixed(2) });
+  }
+  hookAJV193() {
+    return window.__V193AJ = window.__V193AJ || { clips: {}, seq: {}, frames: 0, reach: { n: 0, gaps: [] }, whiffs: [], anchors: 0, releases: 0, early: 0, lagMax: 0,
+      stride: { n: 0, frames: 0, cell: 0, slide: 0, slideN: 0 }, backpedal: 0, shuffle: 0, handfight: 0, falls: [], types: {}, arcs: [], bounces: [], windups: 0, lunges: 0,
+      oob: 0, layouts: [], hurdles: [], shoves: 0, swims: 0, cuts: {} };
+  }
+  /* the mass a body carries into a collision, by position — FieldSim's own WT table (contact()'s momentum) */
+  ajMassV193(m) { const W = { DT: 1.06, DE: .96, DL: 1.0, NT: 1.08, LB: .86, S: .7, CB: .58, QB: .6, RB: .72, WR: .54, TE: .82, OL: 1.12 }; return W[m && m._ajLabel] || .75; }
+  // screen-x sign of a field direction at a man's spot (the camera sits behind an end zone: field x is depth)
+  ajScrXV193(m, ux, uy) { const a = PJ(m.sx, m.sy), b = PJ(m.sx + ux * 10, m.sy + uy * 10); return { sx: b.x - a.x, sy: b.y - a.y, sgn: Math.sign(b.x - a.x) || (m.flip ? 1 : -1), k: Math.abs(b.x - a.x) / Math.max(1e-6, Math.hypot(b.x - a.x, b.y - a.y)) }; }
+  // sprite pixels → field px along a direction at his spot (so "an arm's length" is the same on a Pee Wee field and a pro one)
+  ajCellToSimV193(m, cell, ux, uy) { const a = PJ(m.sx, m.sy), b = PJ(m.sx + ux, m.sy + uy); const r = Math.max(.05, Math.hypot(b.x - a.x, b.y - a.y)); return cell * (a.s || 1) * (m._ajAgeK || m._ageKV144 || 1) / r; }
+  ajDirtV193(sx, sy, o) {   // the field's dirt marks belong to v193 AG; we only ask, through a guarded hook
+    try { const AG = window.__V193AG; if (AG && typeof AG.dirt === "function") AG.dirt(sx, sy, o || {}); } catch (e) {}
+  }
+  ajResetV193(m) {
+    if (!m) return;
+    if (m._ajClip) { m._ajClip = null; if (m.body) { m.body.x = 0; m.body.y = 0; m.body.setScale(1, 1); } }
+    m._ajAnc = null; m._ajReach = null; m._ajCadK = 1; m._ajLean = 0; m._ajFallFlip = null; m._ajBackpedal = false; m._ajHideBall = false; m._ajRot = null; m._ajLungeAt = null;
+  }
+  /* ---------- the clip ---------- */
+  ajClipV193(m, kind, ms, pose, o) {
+    if (!m || !m.root || !this.ajOnV193()) return null;
+    const H = this.hookAJV193();
+    if (m._ajClip) this.ajClipEndV193(m, false);
+    if (m.body) { this.tweens.killTweensOf(m.body); m.body.x = 0; m.body.y = 0; m.body.setScale(1, 1); m.body.angle = 0; }
+    const C = Object.assign({ kind, t0: m.tms, ms: Math.max(1, ms), pose, rec: [], fs: "*" }, o || {});
+    if (C.fs !== "*") m.forceState = C.fs;
+    m._ajClip = C; H.clips[kind] = (H.clips[kind] || 0) + 1;
+    return C;
+  }
+  ajClipEndV193(m, done) {
+    const C = m._ajClip; if (!C) return null;
+    m._ajClip = null; m._ajRot = null; m._ajHideBall = false;
+    if (m.body) { m.body.x = 0; m.body.y = 0; m.body.setScale(1, 1); }
+    const H = this.hookAJV193(), L = H.seq[C.kind] || (H.seq[C.kind] = []);
+    if (C.rec.length) { this.ajLogV193(L, C.rec.slice(0, 30), 8); this.ajLogV193(H.seqLog || (H.seqLog = []), { kind: C.kind, rec: C.rec.slice(0, 30) }, 300); }
+    let st = null;
+    if (done && C.end) st = C.end.call(this, m, C) || null;
+    else if (!done && C.abort) C.abort.call(this, m, C);
+    return st;
+  }
+  // in placeMarker, after every other rule has chosen his cell: the clip, if he is in one, has the last word
+  ajClipPoseV193(m, st) {
+    const C = m._ajClip; if (!C) return st;
+    const fs = String(m.forceState || "");
+    if ((C.fs !== "*" && fs !== C.fs) || (C.fs === "*" && /^(tackleSeq|pancakeSeq|getupSeq|celebrateSeq|throwSeq|handSeq|down|fall)$/.test(fs) && !(C.keep && C.keep.test(fs)))) {
+      this.ajClipEndV193(m, false); return st; }
+    const k = (m.tms - C.t0) / C.ms;
+    if (k >= 1) { const s2 = this.ajClipEndV193(m, true); return s2 || st; }
+    const r = C.pose.call(this, Math.max(0, k), m, C, st) || {};
+    if (r.face) { m.dirKey = r.face[0]; m.flip = r.face[1]; }
+    if (r.flip != null) m.flip = r.flip;
+    m._ajRot = r.rot != null ? r.rot : null;
+    if (m.body && !r.keepBody) { m.body.x = r.ox || 0; m.body.y = r.oy || 0; m.body.setScale(r.sx || 1, r.sy || 1); }
+    m._ajHideBall = !!r.hideBall;
+    if (r.ground) m._groundT = m.tms;
+    const s = r.st || st, key = s + "/" + m.dirKey + (m.flip ? "f" : "");
+    if (C.rec[C.rec.length - 1] !== key) C.rec.push(key);
+    this.hookAJV193().frames++;
+    return s;
+  }
+  /* ---------- the anchor ---------- */
+  ajAnchorV193(m, kf, o) {
+    if (!m || !this.ajOnV193()) return null;
+    const A = Object.assign({ kf, t0: m.tms, mode: "abs", hold: 0, vmax: (m._ajSp || 140) / 1000 * TU("ajCatchUpKV193", 1.35), lagCap: TU("ajLagCapPxV193", 46), rel: false, ox: 0, oy: 0 }, o || {});
+    m._ajAnc = A; if (A.mode !== "add") m._ajReach = null; this.hookAJV193().anchors++;
+    return A;
+  }
+  ajAnchorAtV193(A, age) {
+    const kf = A.kf; if (age <= kf[0].t) return kf[0];
+    for (let i = 1; i < kf.length; i++) if (kf[i].t >= age) { const a = kf[i - 1], b = kf[i]; let u = (age - a.t) / Math.max(1, b.t - a.t);
+      if (b.ease === "out") u = 1 - (1 - u) * (1 - u); else if (b.ease === "in") u = u * u; else if (b.ease === "io") u = u * u * (3 - 2 * u);
+      return { x: a.x + (b.x - a.x) * u, y: a.y + (b.y - a.y) * u }; }
+    return kf[kf.length - 1];
+  }
+  ajReleaseV193(m, why) {   // the hold is over: from here his drawn spot runs back onto his sim spot
+    const A = m._ajAnc; if (!A || A.rel) return;
+    A.forceRel = why || "event";
+  }
+  // where he is DRAWN this frame, given where the sim has him
+  ajDrawnV193(m, sx, sy, dt) {
+    let x = sx, y = sy;
+    const A = m._ajAnc, H = this.hookAJV193();
+    if (A && A.post && !(m._post && m._post.grounded && !m._post.rose)) m._ajAnc = null;   // up again after the whistle: the gather has him
+    else if (A) {
+      const age = m.tms + dt - A.t0, last = A.kf[A.kf.length - 1];
+      if (!A.rel) {
+        const p = this.ajAnchorAtV193(A, age);
+        const px = A.mode === "add" ? sx + p.x : p.x, py = A.mode === "add" ? sy + p.y : p.y, lag = Math.hypot(px - sx, py - sy);
+        if (A.mode === "abs") H.lagMax = Math.max(H.lagMax, Math.round(lag));
+        const over = A.mode === "abs" && age > last.t && lag > A.lagCap;
+        if (A.forceRel || (A.mode === "abs" && age > last.t + A.hold) || over) {
+          A.rel = true; A.ox = px - sx; A.oy = py - sy; H.releases++; if (over) H.early++;
+          if (A.onRelease) A.onRelease.call(this, m, A, over || !!A.forceRel);
+        } else { x = px; y = py; }
+      }
+      if (A.rel) { const d = Math.hypot(A.ox, A.oy), step = A.vmax * Math.max(1, A.forceRel ? 1.6 : 1) * dt;
+        if (d <= step + .2) m._ajAnc = null;
+        else { A.ox -= A.ox / d * step; A.oy -= A.oy / d * step; x = sx + A.ox; y = sy + A.oy; } }
+      if (A.mode !== "add") return [x, y];
+    }
+    /* THE REACH: closes the drawn gap to an arm's length while the lunge lands */
+    const R = m._ajReach;
+    if (R) {
+      const age = m.tms + dt - R.t0;
+      let w = age <= 0 ? 0 : age < R.ms ? (age / R.ms) * (age / R.ms) * (3 - 2 * age / R.ms) : 1;
+      if (R.until != null && m.tms > R.until) { w *= Math.max(0, 1 - (m.tms - R.until) / Math.max(1, R.fade || 140)); if (w <= 0) m._ajReach = null; }
+      const cm = R.cm;
+      if (w > 0 && cm && cm.root && cm !== m && cm.sx != null) {
+        const gx = x - cm.sx, gy = y - cm.sy, g = Math.hypot(gx, gy);
+        if (g > TU("ajReachMaxPxV193", 24) && age > R.ms && R.until == null) R.until = m.tms;   // the sim has them apart again: let go
+        if (g > .01) {
+          const tgt = this.ajCellToSimV193(cm, TU("ajReachCellV193", 16), gx / g, gy / g);
+          if (g > tgt) { const k = (g - tgt) * w; x -= gx / g * k; y -= gy / g * k; R.k = k; }
+        }
+      }
+    }
+    return [x, y];
+  }
+  /* ---------- per frame: the lookahead (the lunge is seen coming) and the hold that has to end ---------- */
+  ajTickV193(P, T) {
+    if (!this.ajOnV193() || !P || !P.script) return;
+    const S = P.script, ev = S.events || [];
+    if (this._ajP !== P) {
+      this._ajP = P; P._ajSeen = {}; this._ajBnc = {};
+      this.markers.forEach((m, k) => { this.ajResetV193(m); const a = S.actors[k]; if (a && m) { m._ajSide = a.side; m._ajLabel = a.label; m._ajSp = a.sp || 140; } });
+      const sn = ev.find(q => q.type === "snap"); P._ajSnapT = sn ? sn.t : 0;
+    }
+    const lungeMs = TU("ajLungeMsV193", 150), windMs = TU("ajWindupMsV193", 170);
+    for (let i = P.evIdx || 0; i < ev.length; i++) {
+      const e = ev[i]; if (e.t > T + lungeMs + windMs) break;
+      if (P._ajSeen[i]) continue;
+      if (e.type === "tackleLunge") {
+        const tk = this.markers[this.actorIdx(e.who)], cm = this.markers[this.actorIdx(e.carrier)], lead = e.t - T;
+        if (!tk || !cm || tk === cm) { P._ajSeen[i] = 1; continue; }
+        if (lead > lungeMs) {
+          const w = ev[i - 1] && ev[i - 1].type === "tackleWindup" && ev[i - 1].who === e.who ? ev[i - 1] : null;
+          if (w && w.set && !P._ajSeen["w" + i] && !tk.forceState && !tk._ajClip) { P._ajSeen["w" + i] = 1; this.ajWindupV193(tk, cm, lead - lungeMs); }
+          continue;
+        }
+        P._ajSeen[i] = 1;
+        if (tk.forceState && tk.forceState !== "grab") continue;   // a man already on the ground, or mid-move, does not lunge
+        this.ajLungeV193(tk, cm, e, Math.max(33, lead));
+      } else if (/^(wrapIn|tackleHit|grab|tackle|stagger|bounce|brokenTackle|stiffarm|hurdle)$/.test(e.type) && !e.oob && e.t - T <= lungeMs) {
+        // every contact the sim resolves is closed to an arm's length by the frame it lands — a lunge already did it; a
+        // support man, a second wrap, a man with no commit of his own is walked in here
+        P._ajSeen[i] = 1;
+        const sm = this.markers[this.actorIdx(e.type === "tackle" ? e.tackler : e.who)], cm = this.markers[this.actorIdx(e.carrier)];
+        if (sm && cm && sm !== cm && !sm._ajAnc && !(sm._ajReach && sm._ajReach.cm === cm && sm._ajReach.until == null)) sm._ajReach = { cm, t0: sm.tms, ms: Math.max(33, e.t - T), until: null, fade: 140 };
+      }
+    }
+    // a man held down by a drawn fall has to be back on his own legs before the sim needs him again
+    const IDS = ["who", "tackler", "by", "on", "carrier", "off", "def"];
+    this.markers.forEach((m, k) => {
+      const A = m && m._ajAnc; if (!A || A.rel || A.mode !== "abs") return;
+      const id = S.actors[k] && S.actors[k].id; if (!id) return;
+      const lag = Math.hypot(m.sx - (m._ajSimX != null ? m._ajSimX : m.sx), m.sy - (m._ajSimY != null ? m._ajSimY : m.sy));
+      const need = lag / Math.max(.02, A.vmax * .6) + TU("ajNeedPadMsV193", 140);
+      for (let i = P.evIdx || 0; i < ev.length; i++) { const e = ev[i]; if (e.t > T + need) break;
+        if (IDS.some(f => e[f] === id) || (Array.isArray(e.sup) && e.sup.indexOf(id) >= 0) || (Array.isArray(e.downV153A) && e.downV153A.indexOf(id) >= 0)) {
+          if (e.type === "turn" || e.type === "plant" || e.type === "effort") continue;
+          this.ajReleaseV193(m, "event"); break; } }
+    });
+  }
+  /* the whistle. The play-ending tackle is usually the script's last event, so its fall plays out in the post-play gather:
+   * a clip runs on, a man in a drawn fall is marked down (the gather gets him up on its own clock), and an anchor is
+   * frozen onto the field — an offset from a sim spot that the gather is about to move would add itself every frame —
+   * and dropped the moment he is up and walking (his drawn spot IS where the gather starts from). */
+  ajPostV193(P) {
+    if (!this.ajOnV193()) return;
+    this.markers.forEach((m) => {
+      if (!m) return;
+      m._ajReach = null; m._ajCadK = 1; m._ajBackpedal = false;
+      const A = m._ajAnc;
+      if (A) { if (A.mode === "add") { const bx = m._ajSimX != null ? m._ajSimX : m.sx, by = m._ajSimY != null ? m._ajSimY : m.sy;
+          A.kf = A.kf.map(q => ({ t: q.t, x: bx + q.x, y: by + q.y, ease: q.ease })); A.mode = "abs"; }
+        A.hold = 1e9; A.lagCap = 1e9; A.post = true; }
+      const C = m._ajClip; if (C && C.grounded && C.grounded(m, C)) m._groundT = m.tms;
+    });
+  }
+  /* ===== v193 AJ THE TACKLE REACH =====
+   * A SET man (v143's windup) breaks down: chop steps (the cadence up, the stride short), the hips sink, the chest comes up.
+   * Then the lunge: the facing's own reaching cell (`dive_<dd>`) going into the full extension (the flat dive) as he leaves
+   * his feet, and the drawn gap closes to an arm's length on the contact frame. A rushed man gets no gather — the tell. */
+  ajWindupV193(tk, cm, ms) {
+    const H = this.hookAJV193(); H.windups++;
+    const fx = this.ajScrXV193(tk, cm.sx - tk.sx, cm.sy - tk.sy).sgn;
+    tk._ajCadK = TU("ajChopCadKV193", 1.7);
+    this.ajClipV193(tk, "windup", ms, function (k) {
+      const q = Math.sin(Math.PI * Math.min(1, k * 1.3));
+      return { sy: 1 - TU("ajSinkV193", .08) * q, sx: 1 + .04 * q, oy: 1.2 * q, rot: -fx * .1 * q };
+    }, { end: function (m) { m._ajCadK = 1; }, abort: function (m) { m._ajCadK = 1; } });
+  }
+  ajLungeV193(tk, cm, e, ms) {
+    const H = this.hookAJV193(); H.lunges++;
+    const a = PJ(tk.sx, tk.sy), b = PJ(cm.sx, cm.sy); if (Math.hypot(b.x - a.x, b.y - a.y) > 1) this.faceMarker(tk, b.x - a.x, b.y - a.y);
+    tk._ajCadK = 1;
+    tk._ajReach = { cm, t0: tk.tms, ms, until: null, fade: 140 };   // held until the outcome lets him go (a bounce, a stagger, a truck) or the whistle
+    tk._ajLungeAt = tk.tms + ms;
+    const after = TU("ajLungeAfterMsV193", 110), D = ms + after, hDecl = e.aim === "low" ? 2.5 : e.aim === "high" ? 9 : 5.5;
+    // the airborne part ENDS just after the contact; a low dive leaves the ground late and skims
+    const air = Math.min(D, Math.sqrt(8 * hDecl / Math.max(1e-5, TU("ajGravV193", .001))));
+    tk._launchT0 = tk.tms + Math.max(0, D - air); tk._launchUntil = tk.tms + D; tk._launchH = hDecl;
+    const fx = Math.sign(b.x - a.x) || (tk.flip ? 1 : -1), flat = Math.abs(b.x - a.x) > .45 * Math.hypot(b.x - a.x, b.y - a.y);
+    this.ajClipV193(tk, "lunge", D, function (k) {
+      const ext = k > TU("ajExtendAtV193", .4);
+      if (k < TU("ajLoadAtV193", .18)) return { st: "plant", sy: .92, sx: 1.05 };   // the load: the last step planted, hips down
+      return ext && flat ? { st: "dive", face: ["sd", fx > 0], rot: fx * (.12 + .18 * k), sx: 1.06, sy: .96 } : { st: "divex", sx: ext ? 1.06 : .96, sy: ext ? .96 : 1 };
+    }, { keep: /^grab$/ });
+  }
+  /* ===== v193 AJ THE WHIFF SLIDE =====
+   * The man who misses does not snap to the turf and pop up. He leaves his feet on the line he was on, carried PAST the
+   * spot by his own speed, lands on his belly, slides to a stop on the grass (friction: the slide is v²/2μ of what the
+   * landing left him, in dust), lies there `ajWhiffDownMsV193`, then gets up on the drawn get-up. Against a SPIN he never
+   * leaves his feet: he grabs at the spot the man spun out of — arms closing on air — stumbles on and goes to a knee. */
+  ajWhiffV193(tk, e, P) {
+    const cm = this.markers[this.actorIdx(e.carrier)]; if (!tk || !tk.root) return false;
+    const cut = (P.script.events || []).find(q => q.type === "cut" && Math.abs(q.t - e.t) < 1 && q.carrier === e.carrier);
+    tk._whiffed = true; tk._ajReach = null;
+    let ux = cm ? cm.sx - tk.sx : (tk._ajVx || 1), uy = cm ? cm.sy - tk.sy : (tk._ajVy || 0); const g = Math.hypot(ux, uy) || 1; ux /= g; uy /= g;
+    const v = Math.max(TU("ajWhiffVMinV193", .07), Math.min(.3, Math.hypot(tk._ajVx || 0, tk._ajVy || 0)));
+    if (cut && cut.kind === "spin") return this.ajGraspV193(tk, ux, uy, v, e);
+    const air = TU("ajWhiffAirMsV193", 240);
+    const dist = Math.min(TU("ajWhiffMaxPxV193", 30), Math.max(g + TU("ajWhiffPastPxV193", 5), v * air));
+    return this.ajDiveSlideV193(tk, ux, uy, dist, air, v, { kind: "whiffDive", down: TU("ajWhiffDownMsV193", 420), h: 7, rec: true });
+  }
+  // the dive, the landing, the slide, the lie, the get-up — one shape for a whiff, a late diver and the man under a hurdle
+  ajDiveSlideV193(m, ux, uy, dist, air, v, o) {
+    const H = this.hookAJV193(), mu = TU("ajFrictionV193", .0007);
+    const x0 = m.sx, y0 = m.sy, lx = x0 + ux * dist, ly = y0 + uy * dist;
+    const vLand = Math.max(.03, (dist / Math.max(1, air)) * TU("ajLandKeepV193", .55));
+    const slide = Math.min(TU("ajSlideMaxPxV193", 11), vLand * vLand / (2 * mu)), slideMs = Math.max(60, 2 * slide / vLand);
+    const down = o.down != null ? o.down : 360, getMs = 8 * TU("getupFrameMs", 85);
+    const S = this.ajScrXV193(m, ux, uy), fx = S.sgn, flat = S.k > .45;
+    m._launchT0 = m.tms; m._launchUntil = m.tms + air; m._launchH = o.h != null ? o.h : 5;
+    const rec = o.rec ? { kind: o.kind, air, slidePlan: +slide.toFixed(1), down, landT: null, slidPx: 0, groundMs: 0, lag: 0 } : null;
+    if (rec) this.ajLogV193(H.whiffs, rec, 60);
+    let land = null, lastPuff = 0;
+    this.ajAnchorV193(m, [{ t: 0, x: x0, y: y0 }, { t: air, x: lx, y: ly }, { t: air + slideMs, x: lx + ux * slide, y: ly + uy * slide, ease: "out" }],
+      { hold: down + getMs, onRelease: function (mm, A, early) { if (early && mm._ajClip && mm._ajClip.kind === o.kind) mm._ajClip.ms = Math.min(mm._ajClip.ms, mm.tms - mm._ajClip.t0 + 1); } });
+    const C = this.ajClipV193(m, o.kind, air + slideMs + down, function (k, mm, CC) {
+      const age = k * CC.ms;
+      if (age < air) return flat ? { st: "dive", face: ["sd", fx > 0], rot: fx * .22, sx: 1.05, sy: .95 } : { st: "divex", sx: 1.05, sy: .95 };
+      if (CC.fs === "dive") { CC.fs = "downAJ"; mm.forceState = "downAJ"; }   // on the grass: our own state from here (nothing else's timer stands him up)
+      if (!land) { land = { x: mm.sx, y: mm.sy, t: mm.tms }; this.puffFx(mm.sx, mm.sy + 2, 3, 0x8a7a55, .5); this.skidFx(mm.sx, mm.sy);
+        try { this.addWearV86(mm.sx, mm.sy, 6, .08); } catch (er) {}
+        this.ajDirtV193(mm.sx, mm.sy, { kind: "slide", dx: ux, dy: uy, len: slide });
+        if (rec) rec.landT = Math.round(mm.tms); }
+      if (age < air + slideMs) { if (mm.tms - lastPuff > 60) { lastPuff = mm.tms; this.puffFx(mm.sx, mm.sy + 3, 1, 0x8a7a55, .38); }
+        return { st: "tackle4", flip: fx < 0, ground: true, oy: 1 }; }
+      return { st: "down", flip: fx < 0, ground: true };
+    }, { fs: o.fs || "dive", grounded: function (mm, CC) { return mm.tms - CC.t0 > air; },
+      end: function (mm) { if (rec && land) { rec.slidPx = +Math.hypot(mm.sx - land.x, mm.sy - land.y).toFixed(1); rec.groundMs = Math.round(mm.tms - land.t); }
+        mm._whiffed = false; mm.forceState = "getupSeq"; mm.seqT = mm.tms; mm._groundT = 0; return "getup0"; } });
+    if (C && rec) C.recW = rec;
+    return true;
+  }
+  ajGraspV193(m, ux, uy, v, e) {
+    const H = this.hookAJV193();
+    const g1 = 170, g2 = 210, g3 = 130, down = TU("ajGraspDownMsV193", 260), getMs = 8 * TU("getupFrameMs", 85);
+    const x0 = m.sx, y0 = m.sy, d1 = v * g1 * .8, d2 = d1 + v * g2 * .5, d3 = d2 + Math.min(4, v * g3 * .2);
+    const fx = this.ajScrXV193(m, ux, uy).sgn;
+    const rec = { kind: "grasp", air: 0, slidePlan: +(d3 - d2).toFixed(1), down, landT: null, slidPx: 0, groundMs: 0 };
+    this.ajLogV193(H.whiffs, rec, 60);
+    let fell = null;
+    this.ajAnchorV193(m, [{ t: 0, x: x0, y: y0 }, { t: g1, x: x0 + ux * d1, y: y0 + uy * d1, ease: "out" }, { t: g1 + g2, x: x0 + ux * d2, y: y0 + uy * d2, ease: "out" },
+      { t: g1 + g2 + g3, x: x0 + ux * d3, y: y0 + uy * d3, ease: "out" }], { hold: down + getMs });
+    this.ajClipV193(m, "grasp", g1 + g2 + g3 + down, function (k, mm, CC) {
+      const age = k * CC.ms;
+      if (age < g1) return { st: "grab", rot: fx * .1 * (age / g1), sx: 1.06 };   // arms out, closing on the spot he spun out of
+      if (age < g1 + g2) return { st: "hurt" + (Math.floor((age - g1) / 70) % 2), rot: fx * (.15 + .25 * (age - g1) / g2) };
+      if (!fell) { fell = { x: mm.sx, y: mm.sy, t: mm.tms }; rec.landT = Math.round(mm.tms); this.puffFx(mm.sx, mm.sy + 3, 2, 0x8a7a55, .45); }
+      if (age < g1 + g2 + g3) return { st: "fall", rot: fx * .2, ground: true };
+      return { st: "down", flip: fx < 0, ground: true };
+    }, { fs: "fallAJ", grounded: function (mm, CC) { return mm.tms - CC.t0 > g1 + g2; },
+      end: function (mm) { if (fell) { rec.slidPx = +Math.hypot(mm.sx - fell.x, mm.sy - fell.y).toFixed(1); rec.groundMs = Math.round(mm.tms - fell.t); }
+        mm._whiffed = false; mm.forceState = "getupSeq"; mm.seqT = mm.tms; return "getup0"; } });
+    return true;
+  }
+  /* ===== v193 AJ THE MOVES =====
+   * JUKE — the plant, the head-and-shoulder fake the OTHER way, the drawn juke cells with the hips swinging through, then
+   *   the push off into the burst. SIDE STEP — his facing stays where it was (that is the read: sideways, not turned), a
+   *   quick lateral hop with the feet together, the landing squash. SPIN — v151 D's walk through the facings, recorded.
+   * SWIM — the rusher rises into the arm-over (the stiff-arm row is the atlas's one raised arm), rips through low and
+   *   bursts; the blocker reaches after him, turned, off balance. HURDLE — the man under him dives for the spot the hurdler's
+   *   apex is over, so the carrier's feet clear a body on the grass. STIFF ARM — the tackler is shoved back off the arm, his
+   *   head snaps back, he goes over and down and gets up. */
+  ajCutV193(cm, e, scrDir, flu) {
+    const H = this.hookAJV193(); H.cuts[e.kind] = (H.cuts[e.kind] || 0) + 1;
+    if (e.kind === "juke") {
+      const ms = 4 * TU("jukeFrameMsV164H", 95);
+      return this.ajClipV193(cm, "juke", ms, function (k) {
+        if (k < .18) return { st: "cut", rot: -scrDir * .2 * (k / .18), ox: -scrDir * 1.5, sy: .94 };
+        if (k < .74) { const q = (k - .18) / .56; return { st: "juke" + Math.min(3, Math.floor(q * 4)), rot: scrDir * .3 * Math.sin(Math.PI * q), ox: scrDir * (3 + 2 * flu) * q * (2 - q) }; }
+        const q = (k - .74) / .26; return { rot: scrDir * .14 * (1 - q), ox: scrDir * (3 + 2 * flu) * (1 - q) };
+      }, { keep: /^jukeSeq$/ });
+    }
+    if (e.kind === "sidestep") {
+      const F0 = [cm.dirKey, cm.flip], ms = TU("ajStepMsV193", 280) - flu * 50;
+      return this.ajClipV193(cm, "sidestep", ms, function (k) {
+        if (k < .22) return { st: "cut", face: F0, sy: .92, sx: 1.05 };
+        if (k < .66) { const q = (k - .22) / .44; return { st: "plant", face: F0, oy: -TU("ajStepHopV193", 3) * Math.sin(Math.PI * q), ox: scrDir * 3.5 * q }; }
+        const q = (k - .66) / .34; return { st: q < .4 ? "cut" : null, face: F0, ox: scrDir * 3.5 * (1 - q), sy: q < .4 ? .93 : 1 };
+      });
+    }
+    if (e.kind === "spin") {
+      const ms = cm._spinV151 ? cm._spinV151.ms : TU("spinMsV151D", 420);
+      return this.ajClipV193(cm, "spin", ms, function (k) { return { keepBody: true, rot: 0 }; });
+    }
+    return null;
+  }
+  ajSwimV193(rm, bm) {
+    const H = this.hookAJV193(); H.swims++;
+    const tgt = bm && bm.root ? bm : null;
+    const bx = tgt ? Math.sign(PJ(tgt.sx, tgt.sy).x - PJ(rm.sx, rm.sy).x) || 1 : 1;
+    const run = this.ajScrXV193(rm, (rm._ajVx || 0) || 1, rm._ajVy || 0).sgn;
+    this.ajClipV193(rm, "swim", TU("ajSwimMsV193", 380), function (k) {
+      if (k < .3) { const q = k / .3; return { st: "stiff1", flip: bx > 0, oy: -3 * Math.sin(q * Math.PI / 2), rot: bx * .1 * q }; }
+      if (k < .6) { const q = (k - .3) / .3; return { st: "stiff3", flip: bx > 0, oy: -3 * (1 - q), rot: run * .26 * q, sy: 1 - .06 * q }; }
+      const q = (k - .6) / .4; return { rot: run * .22 * (1 - q), sy: .95 + .05 * q };
+    });
+    if (tgt) {
+      this.ajClipV193(tgt, "beaten", TU("ajBeatenMsV193", 420), function (k, m) {
+        const a = PJ(m.sx, m.sy), b = PJ(rm.sx, rm.sy), dx = b.x - a.x, dy = b.y - a.y; if (Math.hypot(dx, dy) > 1) this.faceMarker(m, dx, dy);
+        const s = Math.sign(dx) || 1;
+        if (k < .55) return { st: "block" + (k < .3 ? 4 : 5), rot: s * .26 * Math.sin(Math.PI * k / .55 * .5), ox: s * 2.5 * Math.sin(Math.PI * k / .55) };   // hands still out for a man who is gone
+        return { st: "hurt" + (Math.floor(k * 10) % 2), rot: s * .3 * (1 - (k - .55) / .45) };
+      });
+    }
+  }
+  ajHurdleV193(P, e, hm, htk) {
+    const H = this.hookAJV193();
+    if (!htk || !hm) return false;
+    // where the hurdler's apex will be: his own script frames, half his hang from now
+    const ci = this.actorIdx(e.carrier), A = P.script.actors[ci], T = Math.max(0, P.t - (P.delay || 0));
+    const hang = (hm._launchUntil || (hm.tms + 460)) - (hm._launchT0 || hm.tms), tA = T + hang * .5;
+    // his script frames say where he will be; if they do not agree with where he is now (a re-spotted or hand-driven man),
+    // his own velocity does
+    let ax = hm.sx + (hm._ajVx || 0) * hang * .5, ay = hm.sy + (hm._ajVy || 0) * hang * .5;
+    const fAt = (fr, t) => { let p = fr[fr.length - 1]; for (let i = 1; i < fr.length; i++) if (fr[i].t >= t) { const a0 = fr[i - 1], b0 = fr[i], q = (t - a0.t) / ((b0.t - a0.t) || 1); p = { x: a0.x + (b0.x - a0.x) * q, y: a0.y + (b0.y - a0.y) * q }; break; } return p; };
+    if (A && A.frames && A.frames.length) { const now = fAt(A.frames, T), sx0 = hm._ajSimX != null ? hm._ajSimX : hm.sx, sy0 = hm._ajSimY != null ? hm._ajSimY : hm.sy;
+      if (Math.hypot(now.x - sx0, now.y - sy0) < 6) { const p = fAt(A.frames, tA); ax = p.x; ay = p.y; } }
+    let ux = ax - htk.sx, uy = ay - htk.sy; const d = Math.hypot(ux, uy) || 1; ux /= d; uy /= d;
+    this.ajLogV193(H.hurdles, { apexDt: Math.round(hang * .5), under: +d.toFixed(1) }, 30);
+    htk._ajReach = null; htk._whiffed = true;
+    return this.ajDiveSlideV193(htk, ux, uy, d, Math.max(120, hang * .5), Math.max(.06, d / Math.max(1, hang * .5)), { kind: "diveUnder", down: TU("ajHurdleDownMsV193", 380), h: 3 });
+  }
+  ajShovedV193(tk, cm, e) {
+    const H = this.hookAJV193(); H.shoves++;
+    let ux = tk.sx - cm.sx, uy = tk.sy - cm.sy; const d = Math.hypot(ux, uy) || 1; ux /= d; uy /= d;
+    const push = TU("ajStiffPushPxV193", 7) * Math.max(.6, Math.min(1.5, 1 + Number(e.armEdge || 0) / 40)), t1 = 170, t2 = 120, down = TU("ajStiffDownMsV193", 360), getMs = 8 * TU("getupFrameMs", 85);
+    const x0 = tk.sx, y0 = tk.sy, fx = this.ajScrXV193(tk, ux, uy).sgn;
+    this.ajAnchorV193(tk, [{ t: 0, x: x0, y: y0 }, { t: t1, x: x0 + ux * push, y: y0 + uy * push, ease: "out" }, { t: t1 + t2, x: x0 + ux * (push + 3), y: y0 + uy * (push + 3), ease: "out" }], { hold: down + getMs });
+    let fell = false;
+    this.ajClipV193(tk, "shoved", t1 + t2 + down, function (k, mm, CC) {
+      const age = k * CC.ms;
+      if (age < t1) return { st: "hurt0", rot: fx * .38 * Math.sin(Math.PI / 2 * age / t1), ox: fx * 1.5 };   // the head snaps back off the arm
+      if (!fell) { fell = true; this.puffFx(mm.sx, mm.sy + 3, 2, 0x8a7a55, .45); }
+      if (age < t1 + t2) return { st: "fall", rot: fx * .3, ground: true };
+      return { st: "down", flip: fx < 0, ground: true };
+    }, { fs: "fallAJ", grounded: function (mm, CC) { return mm.tms - CC.t0 > t1; }, end: function (mm) { mm.forceState = "getupSeq"; mm.seqT = mm.tms; return "getup0"; } });
+  }
+  /* ===== v193 AJ THE DIVING CATCH =====
+   * A layout: he plants, leaves his feet and flies flat at the ball so the HANDS — not his belly — are on the spot the ball
+   * arrives at, the cell switches to the one with the ball in his arms the frame it is his, he lands on his chest past the
+   * spot and slides on the turf in dust (the field's dirt marks are v193 AG's: asked through a guarded hook), lies a beat
+   * and gets up into his run. */
+  ajLayoutV193(m, e, P) {
+    if (!m || !m.root) return false;
+    const H = this.hookAJV193(), T = Math.max(0, P.t - (P.delay || 0)), lead = Math.max(80, Math.min(420, (e.at || (T + 180)) - T));
+    let ux = e.x - m.sx, uy = e.y - m.sy; let d = Math.hypot(ux, uy);
+    if (d < 2) { ux = m._ajVx || 1; uy = m._ajVy || 0; d = 0; }
+    const n = Math.hypot(ux, uy) || 1; ux /= n; uy /= n;
+    const arm = this.ajCellToSimV193(m, TU("ajArmCellV193", 15), ux, uy), plant = 50, past = TU("ajLayoutPastPxV193", 2), after = 90;
+    const x0 = m.sx, y0 = m.sy, hx = e.x - ux * arm, hy = e.y - uy * arm, Lx = e.x + ux * past, Ly = e.y + uy * past;
+    const vf = Math.hypot(Lx - x0, Ly - y0) / (lead + after - plant), vLand = Math.max(.04, vf * TU("ajLandKeepV193", .55)), mu = TU("ajFrictionV193", .0007);
+    const slide = Math.min(TU("ajLayoutSlideMaxPxV193", 13), vLand * vLand / (2 * mu)), slideMs = Math.max(80, 2 * slide / vLand), down = TU("ajLayoutDownMsV193", 200), getMs = 8 * TU("getupFrameMs", 85);
+    const S = this.ajScrXV193(m, ux, uy), fx = S.sgn, flat = S.k > .45;
+    m.forceState = "diveCatchSeq"; m.seqT = m.tms;
+    m._launchT0 = m.tms + plant; m._launchUntil = m.tms + lead + after; m._launchH = 8;
+    const rec = { lead: Math.round(lead), arm: +arm.toFixed(1), slidePlan: +slide.toFixed(1), handsAt: null, slidPx: 0, frames: [] };
+    this.ajLogV193(H.layouts, rec, 30);
+    this.ajAnchorV193(m, [{ t: 0, x: x0, y: y0 }, { t: plant, x: x0 + ux * vf * plant * .5, y: y0 + uy * vf * plant * .5 }, { t: lead, x: hx, y: hy, ease: "lin" },
+      { t: lead + after, x: Lx, y: Ly }, { t: lead + after + slideMs, x: Lx + ux * slide, y: Ly + uy * slide, ease: "out" }],
+      { hold: down + getMs, onRelease: function (mm, A, early) { if (early && mm._ajClip && mm._ajClip.kind === "layout" && mm.tms - mm._ajClip.t0 > lead + after) mm._ajClip.ms = Math.min(mm._ajClip.ms, mm.tms - mm._ajClip.t0 + 1); } });
+    let land = null, lastPuff = 0;
+    this.ajClipV193(m, "layout", lead + after + slideMs + down, function (k, mm, CC) {
+      const age = k * CC.ms, P2 = this.play, mine = P2 && P2.ballHolderId != null && this.markers[P2.ballHolderId] === mm;
+      if (rec.handsAt == null && age >= lead) rec.handsAt = +Math.hypot(mm.sx + ux * arm - e.x, mm.sy + uy * arm - e.y).toFixed(1);
+      if (age < plant) return { st: "plant", sy: .9, sx: 1.06 };
+      if (age < lead + after) return mine ? (flat ? { st: "divecatch2", face: ["sd", fx > 0], rot: fx * .08, hideBall: true } : { st: "divecatch2", hideBall: true }) : (flat ? { st: "dive", face: ["sd", fx > 0], rot: fx * .14, sx: 1.05 } : { st: "divex", sx: 1.05 });
+      if (!land) { land = { x: mm.sx, y: mm.sy, t: mm.tms }; this.puffFx(mm.sx, mm.sy + 2, 4, 0x8a7a55, .55); this.skidFx(mm.sx, mm.sy);
+        try { this.addWearV86(mm.sx, mm.sy, 6, .08); } catch (er) {}
+        this.ajDirtV193(mm.sx, mm.sy, { kind: "slide", dx: ux, dy: uy, len: slide }); }
+      if (age < lead + after + slideMs && mm.tms - lastPuff > 55) { lastPuff = mm.tms; this.puffFx(mm.sx, mm.sy + 3, 1, 0x8a7a55, .4); }
+      if (age >= lead + after + slideMs && !rec.slidDone) { rec.slidDone = true; rec.slidPx = +Math.hypot(mm.sx - land.x, mm.sy - land.y).toFixed(1); }
+      return flat ? { st: "divecatch2", face: ["sd", fx > 0], ground: true, hideBall: mine } : { st: "divecatch2", ground: true, hideBall: mine };
+    }, { grounded: function (mm, CC) { return mm.tms - CC.t0 > lead + after; },
+      end: function (mm) { if (land && !rec.slidDone) rec.slidPx = +Math.hypot(mm.sx - land.x, mm.sy - land.y).toFixed(1);
+        mm.forceState = "getupSeq"; mm.seqT = mm.tms; mm._groundT = 0; return "getup0"; } });
+    return true;
+  }
+  /* ===== v193 AJ THE TACKLE TYPES =====
+   * How a man goes down is read off the collision: an AIR tackle (the carrier still in the air off a catch) — the hitter
+   *   leaps, the carrier is tipped over backward in the air; an ANKLE tackle (the low aim) — a flat dive at the feet and the
+   *   carrier trips, pitching forward over the top; a WRAP — the two of them twist down together; a HIT STICK — the hitter
+   *   extends through him and recoils on his feet (v112 throws the carrier); a GANG — v191's pile.
+   * And WHERE they fall is the momentum of both men: the drawn fall faces the combined momentum vector m₁v₁ + m₂v₂ (the
+   *   masses are FieldSim's own), and with v193 AJ PHYSICS on the pile slides along it as one body — the inelastic
+   *   collision's common speed |p|/(m₁+m₂), stopped by friction (v²/2μ, capped). The spot is the sim's (forward progress)
+   *   and does not move. */
+  ajTackleTypeV193(P, e, m, tk, o) {
+    if (!m || !m.root) return;
+    const H = this.hookAJV193();
+    const mT = tk ? this.ajMassV193(tk) : 0, mC = this.ajMassV193(m);
+    const vT = tk ? [tk._ajVx || 0, tk._ajVy || 0] : [0, 0], vC = [m._ajVx || 0, m._ajVy || 0];
+    let Fx = mT * vT[0] + mC * vC[0], Fy = mT * vT[1] + mC * vC[1], F = Math.hypot(Fx, Fy);
+    if (F < 1e-4) { Fx = -(P.script.meta.dir || 1); Fy = 0; F = 1e-4; }
+    const ux = Fx / F, uy = Fy / F, v0 = F / Math.max(.1, mT + mC);
+    const fs = this.ajScrXV193(m, ux, uy), fsx = fs.sgn;
+    const lastCatch = m._ajCatchT != null && m.tms - m._ajCatchT < TU("ajAirWindowMsV193", 380);
+    const kind = e.hitStick ? "hitstick" : (e.catchTackle || lastCatch || (m._launchUntil > m.tms)) ? "air" : e.style === "low" ? "ankle" : e.gang ? "gang" : "wrap";
+    H.types[kind] = (H.types[kind] || 0) + 1;
+    const flips = !o.willFly112;
+    if (flips) { m._ajFallFlip = fsx < 0; if (tk && !(o.F146 && o.F146.stick)) tk._ajFallFlip = fsx < 0; }
+    const foldMs = Math.max(140, (o.F146 && o.F146.foldMs) || 160);
+    const fx = tk ? this.ajScrXV193(tk, m.sx - tk.sx, m.sy - tk.sy).sgn : fsx;
+    if (kind === "air") {
+      if (tk && !(o.F146 && o.F146.stick) && /^(dive|grab)$/.test(String(tk.forceState || ""))) {
+        tk._launchT0 = tk.tms; tk._launchUntil = tk.tms + 300; tk._launchH = 10;
+        this.ajClipV193(tk, "airTackle", 300, function (k) { return k < .45 ? { st: "divex" } : { st: "dive", face: ["sd", fx > 0], rot: fx * (.1 + .25 * k) }; });
+      }
+      if (!o.willFly112) this.ajClipV193(m, "airFall", foldMs, function (k) { return { st: k < .45 ? "hurt0" : "fall", rot: fsx * 1.1 * k * k, oy: -2 * (1 - k) }; });
+    } else if (kind === "ankle") {
+      if (tk && /^(dive|grab)$/.test(String(tk.forceState || ""))) {
+        tk._launchT0 = tk.tms; tk._launchUntil = tk.tms + 140; tk._launchH = 2;
+        this.ajClipV193(tk, "ankleDive", 220, function (k) { return k < .3 ? { st: "divex", sy: .94 } : { st: "dive", face: ["sd", fx > 0], rot: fx * .06, oy: 2 }; });
+      }
+      this.ajClipV193(m, "trip", foldMs, function (k) { return { st: k < .35 ? "cut" : "fall", rot: fsx * 1.1 * Math.pow(k, 1.5), oy: -1.5 * Math.sin(Math.PI * k) }; });
+    } else if (kind === "hitstick") {
+      if (tk && tk !== m) this.ajClipV193(tk, "stick", 320, function (k) { return { st: k < .35 ? "divex" : "grab", rot: fx * .18 * (1 - k), ox: -fx * 3 * Math.sin(Math.PI * k) }; }, { keep: /^grab$/ });
+    } else if (kind === "wrap" && !o.slide && !o.willFly112 && m.forceState !== "dive") {
+      this.ajClipV193(m, "wrapTwist", foldMs, function (k) { return { rot: fsx * .38 * k, keepBody: false }; });
+    }
+    const sl = this.ajPileSlideV193 ? this.ajPileSlideV193(P, e, m, tk, o, ux, uy, v0, fsx, flips, foldMs) : { d: 0, ms: 0 }, d = sl.d, ms = sl.ms;
+    this.ajLogV193(H.falls, { kind, ux: +ux.toFixed(3), uy: +uy.toFixed(3), v0: +v0.toFixed(3), d: +d.toFixed(2), ms: Math.round(ms), mT: +mT.toFixed(2), mC: +mC.toFixed(2),
+      vT: vT.map(q => +q.toFixed(3)), vC: vC.map(q => +q.toFixed(3)), flip: flips ? (fsx < 0) : null, fsx, x0: m.sx, y0: m.sy, idx: this.markers.indexOf(m) }, 80);
+  }
+  /* ===== v193 AJ THE PUSH =====
+   * Pushed out of bounds: the tackler's arms extend into him (the stiff-arm row is the atlas's outstretched arm), the
+   * carrier is driven off his line and stumbles out past the paint, upright, and pulls up — nobody folds on a push-out. */
+  ajPushOutV193(P, e, m, tk) {
+    const H = this.hookAJV193(); H.oob++;
+    const MIDY = (F_TOP + F_BOT) / 2, sy = Math.sign(m.sy - MIDY) || 1;
+    let pux = 0, puy = sy;
+    if (tk && tk !== m) { const dx = m.sx - tk.sx, dy = m.sy - tk.sy, n = Math.hypot(dx, dy) || 1; pux = dx / n * .5; puy = sy * .8 + dy / n * .3; const q = Math.hypot(pux, puy) || 1; pux /= q; puy /= q; }
+    const away = this.ajScrXV193(m, pux, puy).sgn, drift = TU("ajOobDriftPxV193", 9);
+    this.ajAnchorV193(m, [{ t: 0, x: 0, y: 0 }, { t: 420, x: pux * drift, y: puy * drift, ease: "out" }], { mode: "add", hold: 1e9 });
+    this.ajClipV193(m, "shovedOut", 560, function (k) { return k < .7 ? { st: "hurt" + (Math.floor(k * 12) % 2), rot: away * .3 * Math.sin(Math.PI * Math.min(1, k / .7)) } : { st: "idle", rot: 0 }; });
+    if (tk && tk !== m && tk.root) {
+      const a = PJ(tk.sx, tk.sy), b = PJ(m.sx, m.sy); if (Math.hypot(b.x - a.x, b.y - a.y) > 1) this.faceMarker(tk, b.x - a.x, b.y - a.y);
+      const fx = Math.sign(b.x - a.x) || 1;
+      this.ajAnchorV193(tk, [{ t: 0, x: 0, y: 0 }, { t: 300, x: pux * drift * .4, y: puy * drift * .4, ease: "out" }], { mode: "add", hold: 1e9 });
+      this.ajClipV193(tk, "shove", 380, function (k) { return { st: k < .6 ? "stiff2" : "idle", flip: fx > 0, rot: fx * .2 * Math.sin(Math.PI * Math.min(1, k / .6)), ox: fx * 3 * Math.sin(Math.PI * Math.min(1, k / .6)) }; });
+    }
+    return true;
+  }
+  /* hand fighting: each man punches into the other on a sharp jab and a slow give, half a beat apart, and leans by who is
+   * winning — the man moving INTO his partner leans in, the man being driven back is bent back off his feet */
+  ajHandFightV193(m, engaged, toward) {
+    const H = this.hookAJV193(); H.handfight++;
+    const T = (m.tms || 0) / Math.max(80, TU("ajPunchMsV193", 300)), off = ((m.num || 0) % 7) / 7 * .2 + (m._ajSide === "def" ? .5 : 0);
+    const ph = (T + off) % 1, punch = ph < .2 ? ph / .2 : 1 - (ph - .2) / .8;
+    const dx = engaged.sx - m.sx, dy = engaged.sy - m.sy, d = Math.hypot(dx, dy) || 1;
+    const into = ((m._ajVx || 0) * dx + (m._ajVy || 0) * dy) / d;   // field px a ms, toward him
+    const drive = into > TU("ajDriveVelV193", .015) ? 1 : into < -TU("ajDriveVelV193", .015) ? -1 : 0;
+    m.body.x = toward * TU("ajPunchPxV193", 2.2) * (.25 + .9 * punch);
+    const lean = drive > 0 ? TU("ajPushLeanV193", .18) : drive < 0 ? -TU("ajDrivenLeanV193", .1) : .09;
+    m._lean = toward * lean * (.8 + .2 * punch); m._leanSrc = "shove";
+    m._ajDrive = drive;
+  }
+  /* ===== v193 AJ PHYSICS: BODIES IN THE AIR =====
+   * Every hop in the broadcast — a catch, a high point, a lunge, a hurdle, a whiff, a slide — was a sin() hump of a height
+   * somebody typed over a duration somebody else typed. With `v193AJphys` on, a hop is a launch under ONE gravity (the same
+   * `launchG` v112's thrown men fly on): the height he was given is his launch speed (vz = √(2gh)), the hang is 2vz/g, and
+   * the lift is the parabola vz·t − ½gt², so a long hang is a high one and nobody floats. The hang may stretch at most
+   * `ajHopStretchV193` over the time the old path allowed, so every timer that lands him still lands him. */
+  hopLiftV193(m, convert) {
+    if (!m._launchUntil || m.tms >= m._launchUntil) return 0;
+    const t0 = m._launchT0 != null ? m._launchT0 : m.tms;
+    if (m.tms < t0) return 0;
+    const phys = this.ajOnV193() && TU("v193AJphys", 1);
+    if (phys && convert && m._ajHopKey !== t0 + "/" + m._launchUntil + "/" + m._launchH) {
+      const g = Math.max(1e-5, TU("ajGravV193", .001)), D = Math.max(1, m._launchUntil - t0), h = Math.max(.3, m._launchH || 11);
+      const D2 = Math.min(Math.sqrt(8 * h / g), D * TU("ajHopStretchV193", 1.15));
+      m._launchUntil = t0 + D2; m._launchH = g * D2 * D2 / 8; m._ajHopKey = t0 + "/" + m._launchUntil + "/" + m._launchH;
+      const H = this.hookAJV193(); m._ajArc = this.ajLogV193(H.arcs, { D: Math.round(D2), h: +m._launchH.toFixed(2), was: { D: Math.round(D), h: +h.toFixed(2) }, s: [] }, 40);
+      if (m.tms >= m._launchUntil) return 0;
+    }
+    const kk = Math.max(0, Math.min(1, (m.tms - t0) / Math.max(1, m._launchUntil - t0)));
+    const lift = (phys ? 4 * kk * (1 - kk) : Math.sin(kk * Math.PI)) * (m._launchH || 11);
+    if (convert && m._ajArc && m._ajArc.s.length < 24 && m._ajHopKey === t0 + "/" + m._launchUntil + "/" + m._launchH) m._ajArc.s.push([+kk.toFixed(3), +lift.toFixed(3)]);
+    return lift;
+  }
+  /* ===== v193 AJ PHYSICS: THE BALL ON THE GROUND =====
+   * A football that hits the turf does not bob on a sine. It drops, and every bounce is a prolate spheroid's: it leaves the
+   * grass at `ajBallRestV193` of the speed it came in with, give or take an odd hop (`ajBallOddV193` — the long axis lands
+   * at a different angle every time), kicks sideways a little each time, and the hops die away until it lies there. A swat
+   * DEFLECTS it first: back the way it came, popped up. The bounces are seeded off the play's ball token, so a replay
+   * bounces the same way; the ground path (where it ends, who picks it up) is still the sim's. */
+  ajBounceV193(key, seed, o) {
+    const C = this._ajBnc || (this._ajBnc = {});
+    if (C[key]) return C[key];
+    let s = (seed * 2654435761) >>> 0; const rnd = () => { s = (s + 0x6D2B79F5) >>> 0; let v = Math.imul(s ^ s >>> 15, 1 | s); v = v + Math.imul(v ^ v >>> 7, 61 | v) ^ v; return ((v ^ v >>> 14) >>> 0) / 4294967296; };
+    const g = TU("ajBallGravV193", .0012), e0 = TU("ajBallRestV193", .52), odd = TU("ajBallOddV193", .55);
+    let t = 0, z = o.z0 != null ? o.z0 : 8, vz = o.vz0 != null ? o.vz0 : .08, vx = o.vx0 || 0, x = 0;
+    const segs = [], apex = [];
+    for (let i = 0; i < 10; i++) {
+      const tg = (vz + Math.sqrt(vz * vz + 2 * g * z)) / g;   // time to the grass
+      segs.push({ t0: t, z0: z, vz, vx, x0: x });
+      apex.push(+(z + vz > 0 ? z + vz * vz / (2 * g) : z).toFixed(2));
+      t += tg; x += vx * tg;
+      const vin = Math.abs(vz - g * tg);
+      vz = vin * e0 * (1 + odd * (rnd() - .5)); z = 0;
+      vx = vx * TU("ajBallSkidKeepV193", .6) + (rnd() - .5) * TU("ajBallKickV193", .05);
+      if (vz < TU("ajBallStopVzV193", .03)) break;
+    }
+    const R = { segs, apex, end: t, xEnd: x };
+    C[key] = R;
+    const H = this.hookAJV193(); this.ajLogV193(H.bounces, { key: String(key).slice(0, 24), apex: apex.slice(0, 8) }, 30);
+    return R;
+  }
+  ajBounceAtV193(R, age) {
+    if (age >= R.end) return { z: 0, x: R.xEnd, rest: true };
+    let s = R.segs[0]; for (const q of R.segs) { if (q.t0 <= age) s = q; else break; }
+    const t = age - s.t0, g = TU("ajBallGravV193", .0012);
+    return { z: Math.max(0, s.z0 + s.vz * t - .5 * g * t * t), x: s.x0 + s.vx * t, rest: false };
+  }
+  /* ===== v193 AJ PHYSICS: THE PILE SLIDES =====
+   * The tackle's two bodies are one body the instant they lock: the common speed of a perfectly inelastic collision,
+   * v = |m1v1 + m2v2| / (m1 + m2), along the combined momentum. Once they are down, friction takes it out of them — a
+   * constant deceleration μ, so the slide is v²/2μ long (`ajPileSlideKV193` of it, capped `ajPileSlideMaxPxV193`) and the
+   * pile decelerates into its rest the way a sliding body does (quadratic ease-out is exactly s = vt − ½μt²). Drawn only:
+   * the spot was booked at forward progress and does not move. Every man in the heap slides with it. */
+  ajPileSlideV193(P, e, m, tk, o, ux, uy, v0, fsx, flips, foldMs) {
+    let d = 0, ms = 0;
+    if (!TU("v193AJphys", 1) || o.willFly112 || o.slide) return { d, ms };
+    const mu = TU("ajFrictionV193", .0007);
+    d = Math.min(TU("ajPileSlideMaxPxV193", 6), v0 * v0 / (2 * mu) * TU("ajPileSlideKV193", .5)); ms = d > .2 ? 2 * d / Math.max(.02, v0) : 0;
+    if (d > .2) {
+      const who = [m].concat(tk && tk !== m && !(o.F146 && o.F146.stick) ? [tk] : []).concat((e.downV153A || []).concat(e.sup || []).map(id => this.markers[this.actorIdx(id)]).filter(q => q && q !== m && q !== tk));
+      for (const q of who) { if (q._ajAnc) continue;
+        this.ajAnchorV193(q, [{ t: 0, x: 0, y: 0 }, { t: foldMs, x: 0, y: 0 }, { t: foldMs + ms, x: ux * d, y: uy * d, ease: "out" }], { mode: "add", hold: 1e9 });
+        if (q !== m && flips) q._ajFallFlip = fsx < 0; }
+    }
+    return { d, ms };
+  }
+  /* ===== v193 AJ THE STRIDE =====
+   * The run cycle is paced by ground covered, as v151 D made it — but measured ISOTROPICALLY: v151 D divided SCREEN
+   * distance by his scale, and the broadcast foreshortens depth (field x) ~3x against width, so a man running up the field
+   * churned his legs a third as fast as one running across it. The ground is now field distance at his spot's across-field
+   * scale. One 8-cell cycle is a stride of `ajStrideCellV193` sprite px — the drawing's own stride — stretched by at most
+   * a fifth with speed (a sprinter's stride is longer, his cadence higher), so the feet never skate more than that against
+   * the turf. He leans INTO speed and acceleration (back on a hard brake); a defensive back dropping in coverage before the
+   * throw BACKPEDALS — square to the line, the cycle run in reverse on short steps — and a set breaks down on chop steps. */
+  ajStrideV193(m, dtms, dx, dy, mul) {
+    const dt = Math.max(1, dtms || 16), H = this.hookAJV193(), R = this.hookV151D().stride;
+    const p1 = PJ(m.sx, m.sy), pl = PJ(m.sx, m.sy + 1);
+    const k = Math.max(.05, (p1.s || 1) * (m._ageKV144 || 1)), lat = Math.max(.05, Math.hypot(pl.x - p1.x, pl.y - p1.y));
+    const cell = Math.min(Math.hypot(dx, dy) * lat / k, TU("strideTeleCellV151D", 24));
+    const v = cell / dt * 1000;
+    m._cellVV151 = m._cellVV151 == null ? v : m._cellVV151 * .75 + v * .25;
+    const art = TU("ajStrideCellV193", 52), sf = Math.max(0, Math.min(1.3, m._cellVV151 / TU("ajStrideVRefV193", 260)));
+    let L = Math.max(30, Math.min(84, art * (TU("ajStrideMinKV193", .88) + TU("ajStrideSpdKV193", .2) * sf)));
+    if (m._ajBackpedal) L *= TU("ajBackpedalStrideKV193", .72);
+    const cad = (mul || 1) * (m._ajCadK || 1), frames = cell / L * 8 * cad;
+    R.frames += frames; R.cell += cell; R.n++;
+    const sp = (window.__getGridironLiveSpeed && window.__getGridironLiveSpeed()) || 1, b = R.by[sp] = R.by[sp] || { frames: 0, cell: 0, n: 0 };
+    b.frames += frames; b.cell += cell; b.n++;
+    if (cad === 1 && !m._ajBackpedal && cell > .4) { H.stride.n++; H.stride.frames += frames; H.stride.cell += cell; H.stride.slide += Math.abs(L / art - 1) * cell; H.stride.slideN += cell; }
+    return frames * 96;
+  }
+  // the run's lean and the backpedal — called on a man whose rules have picked a run cell
+  ajRunV193(m, st, dtms) {
+    const dt = Math.max(1, dtms || 16);
+    if (!/^run\d/.test(st) || m.forceState || m._ajClip) { m._ajLean = (m._ajLean || 0) * .8; if (Math.abs(m._ajLean) < .003) m._ajLean = 0; m._ajBackpedal = false; return st; }
+    // the backpedal
+    const P = this.play; m._ajBackpedal = false;
+    if (P && P.snapped && !P._thrown && m._ajSide === "def" && /^(CB|S|LB)$/.test(String(m._ajLabel || "")) && P.payload && P.payload.event === "pass"
+        && Math.max(0, P.t - (P.delay || 0)) - (P._ajSnapT || 0) < TU("ajBackpedalMsV193", 1500)) {
+      const dir = (P.script.meta && P.script.meta.dir) || 1, vx = m._ajVx || 0, vy = m._ajVy || 0, v = Math.hypot(vx, vy);
+      if (v > .02 && vx * dir / v > TU("ajBackpedalDotV193", .6) && v < (m._ajSp || 140) / 1000 * TU("ajBackpedalMaxKV193", .8)) {
+        const a = PJ(m.sx, m.sy), b = PJ(m.sx - dir * 10, m.sy); this.faceMarker(m, b.x - a.x, b.y - a.y);
+        m._ajBackpedal = true; this.hookAJV193().backpedal++;
+        m._ajLean = -this.ajScrXV193(m, -dir, 0).sgn * TU("ajBackpedalLeanV193", .06);
+        return "run" + ((8 - (Number(st.slice(3)) || 0)) % 8);
+      }
+    }
+    // the lean: into his speed, more while he is still building it, back off it on a hard brake
+    if (m._leanSrc && m._leanSrc !== "turn") { m._ajLean = 0; return st; }
+    const vx = m._ajVx || 0, vy = m._ajVy || 0, v = Math.hypot(vx, vy);
+    const acc = m._ajVPrev != null ? (v - m._ajVPrev) / dt : 0; m._ajVPrev = v;
+    m._ajAcc = (m._ajAcc || 0) * .8 + acc * .2;
+    let tgt = 0;
+    const hh = m._hist, h0 = hh && hh.length >= 2 ? hh[hh.length - 2] : null, h1 = hh && hh.length ? hh[hh.length - 1] : null;
+    const sdx = h0 && h1 ? h1.x - h0.x : 0, sdy = h0 && h1 ? h1.y - h0.y : 0, sd = Math.hypot(sdx, sdy);
+    if (v > .02 && sd > .05) { const S = { sgn: Math.sign(sdx) || 1, k: Math.abs(sdx) / sd }, sf = Math.min(1.2, v / Math.max(.05, (m._ajSp || 140) / 1000));
+      tgt = S.sgn * S.k * (TU("ajLeanSpdV193", .1) * sf + TU("ajLeanAccV193", .16) * Math.max(-.6, Math.min(1, m._ajAcc / TU("ajAccRefV193", .0006)))); }
+    m._ajLean = (m._ajLean || 0) + (tgt - (m._ajLean || 0)) * Math.min(1, dt / 90);
+    return st;
+  }
   /* ===== v105.2 THE KIT FOLLOWS THE TEAM =====
    * The kits are registered by PALETTE — "off" is the user's team's colours, "def" the
    * opponent's — but every marker was dressed by its SIDE (`a.side === "off" ? "off" : "def"`),
@@ -6860,10 +7845,13 @@ class Ot extends mt.Scene {
     return true;
   }
   placeMarker(m, sx, sy, dtms) {
+    m._ajSimX = sx; m._ajSimY = sy;
+    if ((m._ajAnc || m._ajReach) && this.ajOnV193()) { const d193 = this.ajDrawnV193(m, sx, sy, Math.max(1, dtms || 16)); sx = d193[0]; sy = d193[1]; }   // v193 AJ: a drawn fall, a slide, a reach
     const dx = sx - m.sx, dy = sy - m.sy;
     m.prevSx=m.sx; m.prevSy=m.sy;
     m.sx = sx; m.sy = sy; m.tms += (dtms || 16);
     m._stepDxV151 = dx; m._stepDyV151 = dy;   // v151 D: the stride reads the ground this step covered
+    if (m.prevSx != null) { const dtA = Math.max(1, dtms || 16); m._ajVx = (m._ajVx || 0) * .6 + dx / dtA * .4; m._ajVy = (m._ajVy || 0) * .6 + dy / dtA * .4; }   // v193 AJ: his drawn velocity, field px a ms
     const spdPx = Math.hypot(dx, dy) / Math.max(1, dtms || 16) * 1000;
     m.sSm = m.sSm == null ? spdPx : m.sSm * 0.7 + spdPx * 0.3;   // v11: smoothed speed kills state flicker
     const lineLocked = m.isLine && !m.forceState && m.sSm < TU("blockBand",78);   // engaged linemen hold their facing
@@ -6969,6 +7957,7 @@ class Ot extends mt.Scene {
       st = "backpedal" + (Math.floor(m.bpt / TU("backpedalFrameMs", 110)) % 6);
       const V7 = (window.__V107 = window.__V107 || { throws: [] }); V7.backpedalFrames = (V7.backpedalFrames || 0) + 1;
     }
+    if (this.ajOnV193()) st = this.ajRunV193(m, st, dtms);   // v193 AJ THE STRIDE: the lean, the backpedal
     // v11: engaged linemen BLOCK across the whole grind band — one stable state, no flapping
     if (!scrum7 && !m.forceState && m.isLine && m.sSm > 3 && m.sSm < TU("blockBand",78) && (st === "idle" || st.indexOf("run") === 0)) st = "block";
     // v83: anyone squared up on a partner is blocking (or being blocked) — and the pair's own
@@ -6983,6 +7972,7 @@ class Ot extends mt.Scene {
     // last frame he was on the turf; the moment he's free and roughly stationary,
     // play a brief crouch (stance) → stand (idle) recovery before normal states
     // resume — killing the pile "pop" and reading as the get-up the sim implies.
+    if (m._ajClip) st = this.ajClipPoseV193(m, st);   // v193 AJ: a clip has the last word on his cell
     const _grounded = st === "down" || st.indexOf("tackle") === 0 || st.indexOf("pancake") === 0;
     if (_grounded) m._groundT = m.tms;
     else if (m._groundT && !m.forceState && m.sSm < TU("getupSpd", 30)) {
@@ -7047,10 +8037,11 @@ class Ot extends mt.Scene {
       const lv = Math.max(0, Math.min(255, Math.round(lb * 255 / 8) * 8));
       m.body.setTint((lv << 16) | (lv << 8) | lv);
     }
+    if (m._ajFallFlip != null && TU("v193AJ", 1)) { if (st === "down" || st.indexOf("tackle") === 0) m.flip = m._ajFallFlip; else if (st.indexOf("getup") === 0) m._ajFallFlip = null; }   // v193 AJ: he lies the way the momentum put him
     m.body.setFlipX(m.flip && (m.dirKey === "sd" || m.dirKey === "dr" || m.dirKey === "ur" || st === "down" || st === "dive" || st === "grab" || st === "stance" || st.indexOf("tackle") === 0));
     // flat, clean sprites — only the diving tackle gets a slight tilt
     // v112: and a man in the air off a hit keeps turning through the flight, then settles as he skids
-    m.body.setRotation((st === "dive" ? (m.flip ? 0.3 : -0.3) : (m._lean || 0)) + (m._flySpinV112 || 0));   // v86: a lean survives the frame
+    m.body.setRotation((m._ajClip && m._ajRot != null ? m._ajRot : (st === "dive" ? (m.flip ? 0.3 : -0.3) : (m._lean || 0)) + (m._ajLean || 0)) + (m._flySpinV112 || 0));   // v193 AJ: a clip's rotation, and the run's lean   // v86: a lean survives the frame
     this.skinSyncV151D(m, tex);
     // v41: side profiles NEVER show a number (chest/back art isn't visible from the
     // side, any state), while linemen keep their numbers even in the pre-snap stance.
@@ -7114,6 +8105,7 @@ class Ot extends mt.Scene {
     /* v139: a man in a v112 F flight is NOT also hopping — the two lifts used to stack and put him
      * above his own arc. The flight is the authority while it lasts. */
     if (m._flyV112) { if (m._launchUntil) { m._launchUntil = 0; m._launchH = 0 } }
+    else if (m._launchUntil && m.tms < m._launchUntil && this.ajOnV193()) { liftV99 = this.hopLiftV193(m, true); p.y -= liftV99 * p.s; }   // v193 AJ PHYSICS: a launch under one gravity
     else if (m._launchUntil && m.tms < m._launchUntil) { const kk = (m.tms - (m._launchT0 || m.tms)) / (m._launchUntil - (m._launchT0 || m.tms));
       liftV99 = Math.sin(Math.max(0, Math.min(1, kk)) * Math.PI) * (m._launchH || 11); p.y -= liftV99 * p.s; }
     else if (m._launchUntil) m._launchUntil = 0;
@@ -7196,7 +8188,7 @@ class Ot extends mt.Scene {
       const ndx = m.root.x - px0[i], ndy = m.root.y - py0[i], nd = Math.hypot(ndx, ndy);
       m._nudgeV109 = nd > 0.01 ? { dx: ndx, dy: ndy } : null;
       if (nd > 0.01 && TU("shadowFollowV109", 1)) { V9.nudged++;
-        let lift = 0; if (m._launchUntil && m.tms < m._launchUntil) { const kk = (m.tms - (m._launchT0 || m.tms)) / (m._launchUntil - (m._launchT0 || m.tms)); lift = Math.sin(Math.max(0, Math.min(1, kk)) * Math.PI) * (m._launchH || 11); }
+        let lift = 0; if (m._launchUntil && m.tms < m._launchUntil && this.ajOnV193()) lift = this.hopLiftV193(m, false); else if (m._launchUntil && m.tms < m._launchUntil) { const kk = (m.tms - (m._launchT0 || m.tms)) / (m._launchUntil - (m._launchT0 || m.tms)); lift = Math.sin(Math.max(0, Math.min(1, kk)) * Math.PI) * (m._launchH || 11); }
         if (m.shadow && this.silOnV164()) {
           const down = /^(down|dive|tackleSeq|pancakeSeq|getup)/.test(String(m.forceState || "")) || (m._groundT > 0 && m.tms - m._groundT < 400);
           this.castSilV164(m, m.root.x, m.root.y + lift * m.root.scale, lift, m._spdPx || 0, down); V9.recast++; }
@@ -7482,6 +8474,7 @@ class Ot extends mt.Scene {
       const off = c * sc >= stripW ? 0 : stripW - c * sc;
       for (let j = 0; j <= B.NP; j++) P2[j].c = off + raw[j] * sc;
     }
+    const pitchT = this.pitchTV193AG();   // v193 AG: how far the camera has tipped over toward top-down (0 at the default view)
     for (const B of built) {
       const { wall, pts, NP } = B;
       // sections share their boundary sample, so neighbours butt up with no seam
@@ -7495,7 +8488,7 @@ class Ot extends mt.Scene {
         // the curve the section sits, so the lean turns with the wall instead of
         // snapping off at the corner. Kept separate from `side`, which stays the
         // wall's identity — the dev checks and the roar both read that.
-        for (const q of seg) q.rk = side || Math.max(-1, Math.min(1, ((q.vv == null ? MIDY : q.vv) - MIDY) / Math.max(1, vOut)));
+        for (const q of seg) { q.rk = side || Math.max(-1, Math.min(1, ((q.vv == null ? MIDY : q.vv) - MIDY) / Math.max(1, vOut))); this.pitchPtV193AG(q, pitchT); }
         this.crowdSection(n++, side, side, seg, strips, stripW, stripH, HH);
       }
     }
@@ -7503,6 +8496,8 @@ class Ot extends mt.Scene {
     C.built = n;
     this.bowlTrimV112(built, HH);   // v112: the blue band round the foot of the bowl, and the way out of it
     try { this.rimV177D(built, HH); } catch (e) {}   // v177 D: one clean line round the top of the bowl
+    C.builtV193AG = { built, HH };   // v193 AG: kept for the geometry hook (standGeomV193AG)
+    try { this.farStandsV193AG(built, HH); } catch (e) { try { warnOnceV193C("farStandsV193AG", e); } catch (e2) {} }   // v193 AG: the rest of the stadium above the rim
     try { ribRegisterLightsV92(this); this.buildStadiumV92(); } catch (e) {}   // v92: the sky behind the bowl
     try {
       window.__CROWD_V57 = { tier, sections: n, sec: SEC, tiles, decks, height: +HH.toFixed(1), gap: GAP, endGap: EZG,
@@ -7652,18 +8647,18 @@ class Ot extends mt.Scene {
     if (L) add(L.pts, false); if (Bw) add(Bw.pts, false); if (Rt) add(Rt.pts, true);
     if (chain.length < 3) { C.rim177 = null; return false; }
     const DN = Math.max(0, TU("rimDownV177D", 0.085)), UP = Math.max(0, TU("rimUpV177D", 0.012));
-    const at = (p, f) => { const h = HH * p.k * f; return { x: p.sx + (p.rk == null ? 0 : p.rk) * RK * h, y: p.sy - h }; };
+    const at = (p, f) => { const h = HH * hkV193AG(p) * f; return { x: p.sx + rkV193AG(p) * RK * h, y: p.sy - h }; };
     /* v57 draws each slice as a parallelogram off its FIRST sample's height and rake, so where the stand's height changes
      * along the wall the slices' tops step — that staircase is the jag. The cap's top edge rides the taller of each
      * point's neighbours, so every step is under it, and stays as smooth as the heights themselves */
-    const kUp = chain.map((p, i) => p.k + 0.5 * Math.abs((chain[i + 1] || p).k - (chain[i - 1] || p).k));   // the height a neighbouring slice's step reaches
+    const kUp = chain.map((p, i) => hkV193AG(p) + 0.5 * Math.abs(hkV193AG(chain[i + 1] || p) - hkV193AG(chain[i - 1] || p)));   // the height a neighbouring slice's step reaches
     // smoothed along the rim's own length (the walls are sampled at different spacings), never under the point's own height
     const arc = [0]; for (let i = 1; i < chain.length; i++) arc.push(arc[i - 1] + Math.hypot(chain[i].sx - chain[i - 1].sx, chain[i].sy - chain[i - 1].sy));
     const SG = Math.max(2, TU("rimSmoothPxV177D", 24));
     const kTop = kUp.map((k0, i) => { let a = 0, w = 0; for (let j = i; j >= 0 && arc[i] - arc[j] < SG * 2.5; j--) { const q = Math.exp(-Math.pow((arc[i] - arc[j]) / SG, 2)); a += kUp[j] * q; w += q; }
       for (let j = i + 1; j < kUp.length && arc[j] - arc[i] < SG * 2.5; j++) { const q = Math.exp(-Math.pow((arc[j] - arc[i]) / SG, 2)); a += kUp[j] * q; w += q; }
-      return Math.max(chain[i].k, a / Math.max(1e-9, w)); });
-    const top = chain.map((p, i) => at(Object.assign({}, p, { k: Math.max(p.k, kTop[i]) }), 1 + UP)), bot = chain.map((p) => at(p, 1 - DN)), rim = chain.map((p) => at(p, 1));
+      return Math.max(hkV193AG(chain[i]), a / Math.max(1e-9, w)); });
+    const top = chain.map((p, i) => at(Object.assign({}, p, { hk: Math.max(hkV193AG(p), kTop[i]) }), 1 + UP)), bot = chain.map((p) => at(p, 1 - DN)), rim = chain.map((p) => at(p, 1));
     // the theme's lip (an equipped stadium theme, home games) or the bowl's own band colour for the ribbon
     let th = null; try { const CO = window.RIB_COSMETICS; th = CO && CO.stadiumTheme ? CO.stadiumTheme() : null; } catch (e) {}
     const ribbon = th ? th.lip : TU("rimRibbonColV177D", TU("baseBandColV112", 0x1a4694));
@@ -7686,6 +8681,254 @@ class Ot extends mt.Scene {
     V.rim = () => { const R = this.crowd && this.crowd.rim177; return R ? Object.assign({}, R, { top: top.map((q) => [+q.x.toFixed(1), +q.y.toFixed(1)]), bot: bot.map((q) => [+q.x.toFixed(1), +q.y.toFixed(1)]), rim: rim.map((q) => [+q.x.toFixed(1), +q.y.toFixed(1)]), depth: g.depth, visible: g.visible }) : null; };
     return true;
   }
+  /* ===== v193 AG THE FAR STANDS =====
+   * The owner: "fill in the northern blank area." Above the far bowl's rim the broadcast showed nothing but the night: a
+   * single terrace about a sixth of the frame tall, then black sky (and stars) for up to half the picture whenever the
+   * camera looked up the field — the v175 pan to the screen, a kickoff, a drive backed up at its own goal line — and the
+   * same black wedge over each sideline stand in the top corners. A stadium does not stop there.
+   * What fills it is the rest of the stadium, built on the SAME chain of ground samples the rim (v177 D) rides — up the
+   * left sideline, round the far bowl, down the right — so it is in the bowl's own projection and rake and meets itself at
+   * the corners. Upward from the rim, in stand-heights (`HH·k`, so it foreshortens with the terrace under it):
+   *   the club level   `standsClubV193AG` (0.16): a dark band of suites with a row of lit windows and mullions;
+   *   the upper deck   `standsDeckV193AG` by tier (sparse 1.05 / mid 1.3 / packed 1.55 — a Pee Wee ground is a smaller
+   *                    house): the crowd sheet itself (v57's strip, the tier's own density), stacked twice so the people
+   *                    up there are ~3/4 the size of the lower bowl's, darkened toward the roof and hazed by distance;
+   *   the roof fascia  `standsFasciaV193AG` (0.09): steel with an LED ribbon in the house's band colour (an equipped
+   *                    stadium theme's on a home game) broken into panels;
+   *   the canopy       `standsRoofV193AG` (0.2): its edge, a truss zigzag and a row of lamps under it (dimmed by day).
+   * One canvas texture (`rib_far_v193ag`), painted only when the crowd is (at a snap whose bake key changed — v162 A),
+   * clipped to the world's width so the near sideline's deck (always off the side of the frame) is never painted. Depth
+   * `crowdDepth − 0.3`: behind the lower bowl (which hides its foot) and behind the masts (3.2) and the big screen (3.3),
+   * which now stand in front of a stadium instead of in a void; the sky (0.6) is behind it, so what is left of the sky is
+   * the strip above the roof. The masts' lamps glow in front of it. Render-only. Kill switch `TU("v193AG", 0)` (or
+   * `v193AGstands` 0). `window.__V193AG.stands` (`on`, `tier`, `box`, `roofTop`, `rimTop`, `slices`, `n`). ===== */
+  farStandsV193AG(built, HH) {
+    const C = this.crowd; if (!C || !this.add || !this.textures) return false;
+    const V = (window.__V193AG = window.__V193AG || {});
+    const on = !!TU("v193AG", 1) && !!TU("v193AGstands", 1);
+    let S = C.farV193AG;
+    if (!on || !C.strips || !C.strips.idle) { if (S && S.img) { try { S.img.setVisible(false); } catch (e) {} } V.stands = { on: false }; return false; }
+    const MIDY = (F_TOP + F_BOT) / 2, RK = TU("crowdRake", 0.24);
+    const L = built.find((b) => b.wall.kind === "side" && b.wall.vv < MIDY), Rt = built.find((b) => b.wall.kind === "side" && b.wall.vv > MIDY), Bw = built.find((b) => b.wall.kind === "bowl");
+    const chain = [];
+    const add = (P, rev) => { const Q = rev ? P.slice().reverse() : P; for (const p of Q) { const last = chain[chain.length - 1]; if (last && Math.abs(last.sx - p.sx) < 0.01 && Math.abs(last.sy - p.sy) < 0.01) continue; chain.push(p); } };
+    if (L) add(L.pts, false); if (Bw) add(Bw.pts, false); if (Rt) add(Rt.pts, true);
+    if (chain.length < 3) { V.stands = { on: false, why: "no chain" }; return false; }
+    const tier = C.tier || "mid";
+    const DECK = Math.max(0.3, TU("standsDeckV193AG", tier === "sparse" ? TU("standsDeckSparseV193AG", 1.05) : tier === "packed" ? TU("standsDeckPackedV193AG", 1.55) : 1.3));
+    const F0 = 1 - TU("standsTuckV193AG", 0.03), FC = F0 + Math.max(0.02, TU("standsClubV193AG", 0.16)), FD = FC + DECK;
+    const FF = FD + Math.max(0.02, TU("standsFasciaV193AG", 0.09)), FR = FF + Math.max(0.02, TU("standsRoofV193AG", 0.2));
+    const at = (p, f) => { const h = HH * hkV193AG(p) * f; return { x: p.sx + rkV193AG(p) * RK * h, y: p.sy - h }; };
+    // only the part of the chain whose deck can be on camera: the world is FW wide and the camera never zooms out past it
+    const PADX = TU("standsPadXV193AG", 160);
+    const vis = (p) => { const a = at(p, F0), b = at(p, FR); return Math.max(a.x, b.x) > -PADX && Math.min(a.x, b.x) < FW + PADX && Math.min(a.y, b.y) < WORLD_H; };
+    let i0 = -1, i1 = -1;
+    for (let i = 0; i < chain.length; i++) if (vis(chain[i])) { if (i0 < 0) i0 = i; i1 = i; }
+    if (i0 < 0) { V.stands = { on: false, why: "off camera" }; if (S && S.img) S.img.setVisible(false); return false; }
+    i0 = Math.max(0, i0 - 1); i1 = Math.min(chain.length - 1, i1 + 1);
+    const ch = chain.slice(i0, i1 + 1);
+    let x0 = 1e9, y0 = 1e9, x1 = -1e9, y1 = -1e9;
+    for (const p of ch) for (const f of [F0, FR + 0.04]) { const q = at(p, f); x0 = Math.min(x0, q.x); x1 = Math.max(x1, q.x); y0 = Math.min(y0, q.y); y1 = Math.max(y1, q.y); }
+    x0 = Math.floor(Math.max(-PADX, x0) - 2); x1 = Math.ceil(Math.min(FW + PADX, x1) + 2); y0 = Math.floor(Math.max(-40, y0) - 2); y1 = Math.ceil(y1 + 2);
+    const bw = Math.max(1, x1 - x0), bh = Math.max(1, y1 - y0);
+    if (bw * bh > TU("standsMaxPxV193AG", 2.4e6)) { V.stands = { on: false, why: "too big", bw, bh }; if (S && S.img) S.img.setVisible(false); return false; }
+    // the canvas: grow-only, like the crowd sections (a canvas swap re-uploads the texture)
+    const key = "rib_far_v193ag";
+    if (!S || !S.cv) { S = C.farV193AG = { cv: document.createElement("canvas"), img: null }; S.cv.width = 8; S.cv.height = 8; }
+    if (S.cv.width < bw || S.cv.height < bh || !this.textures.exists(key)) {
+      if (S.cv.width < bw || S.cv.height < bh) { const cv = document.createElement("canvas"); cv.width = Math.max(S.cv.width, Math.ceil(bw / 64) * 64); cv.height = Math.max(S.cv.height, Math.ceil(bh / 64) * 64); S.cv = cv; }
+      try { if (this.textures.exists(key)) this.textures.remove(key); } catch (e) {}
+      this.textures.addCanvas(key, S.cv);
+      if (S.img && S.img.scene) S.img.setTexture(key);
+    }
+    if (!S.img || !S.img.scene) S.img = this.add.image(0, 0, key).setOrigin(0, 0);
+    const cx = S.cv.getContext("2d");
+    cx.setTransform(1, 0, 0, 1, 0, 0); cx.clearRect(0, 0, S.cv.width, S.cv.height);
+    cx.imageSmoothingEnabled = true; cx.imageSmoothingQuality = "high";
+    const loc = (q) => ({ x: q.x - x0, y: q.y - y0 });
+    const band = (fa, fb) => { const A = ch.map((p) => loc(at(p, fa))), B = ch.map((p) => loc(at(p, fb))); return A.concat(B.reverse()); };
+    const poly = (pts, style, a) => { cx.globalAlpha = a == null ? 1 : a; cx.fillStyle = style; cx.beginPath(); pts.forEach((q, i) => i ? cx.lineTo(q.x, q.y) : cx.moveTo(q.x, q.y)); cx.closePath(); cx.fill(); cx.globalAlpha = 1; };
+    const line = (pts, style, w, a) => { cx.globalAlpha = a == null ? 1 : a; cx.strokeStyle = style; cx.lineWidth = w; cx.beginPath(); pts.forEach((q, i) => i ? cx.lineTo(q.x, q.y) : cx.moveTo(q.x, q.y)); cx.stroke(); cx.globalAlpha = 1; };
+    const arc = [0]; for (let i = 1; i < ch.length; i++) arc.push(arc[i - 1] + Math.hypot(ch[i].sx - ch[i - 1].sx, ch[i].sy - ch[i - 1].sy));
+    const kRef = (p) => p.k / 0.43;
+    // a fixed seed per spot along the chain, so the windows and panels do not re-roll at every snap
+    const hash = (n) => { const s = Math.sin(n * 127.1 + 311.7) * 43758.5453; return s - Math.floor(s); };
+    // ---- the upper deck: the crowd sheet, twice stacked (people ~3/4 of the lower bowl's size), cut in slices like v57
+    const src = this.tallStripV193AG(C.strips.idle);
+    let slices = 0;
+    if (src) {
+      const SW = src.width, SH = src.height;
+      // the source column advances so a spectator keeps his drawn proportions (v57's k-integral, on the deck's own height)
+      const cs = [0];
+      for (let j = 1; j < ch.length; j++) { const p = ch[j - 1], q = ch[j], hp = HH * Math.max(0.02, 0.5 * (p.k + q.k)) * (FD - FC);
+        cs.push(cs[j - 1] + SH * Math.hypot(q.sx - p.sx, q.sy - p.sy) / Math.max(1e-3, hp)); }
+      const off = (TU("standsSrcOffV193AG", 0.37) * SW) % SW;
+      for (let j = 0; j < ch.length - 1; j++) {
+        const p = ch[j], q = ch[j + 1];
+        const P0 = at(p, FC), Q0 = at(q, FC), h = HH * hkV193AG(p) * (FD - FC);
+        let c = (off + cs[j]) % SW, dc = cs[j + 1] - cs[j];
+        if (dc < 1e-4) continue;
+        if (c + dc > SW) c = 0;                                   // wrap the strip (its ends are mirrored copies, so the seam is a face, not a cut)
+        const a = (Q0.x - P0.x) / dc, b = (Q0.y - P0.y) / dc, d = h / SH, g = -rkV193AG(p) * RK * d;
+        const e = P0.x - a * c - g * SH - x0, f = P0.y - b * c - d * SH - y0;
+        cx.setTransform(a, b, g, d, e, f);
+        const sw = Math.min(dc + 1, SW - c);
+        if (sw > 0) { cx.drawImage(src, c, 0, sw, SH, c, 0, sw, SH); slices++; }
+      }
+      cx.setTransform(1, 0, 0, 1, 0, 0);
+      // the deck sits under a roof and a long way off: darker toward the back rows, hazed toward the sky
+      const day = this.wxV144().day;
+      cx.globalCompositeOperation = "source-atop";
+      const mid = ch[ch.length >> 1], tb = loc(at(mid, FD)), bb = loc(at(mid, FC));
+      const gr = cx.createLinearGradient(0, tb.y, 0, bb.y);
+      gr.addColorStop(0, "rgba(6,9,14," + TU(day ? "standsShadeTopDayV193AG" : "standsShadeTopV193AG", day ? 0.45 : 0.62) + ")");
+      gr.addColorStop(1, "rgba(14,20,30," + TU("standsHazeV193AG", 0.3) + ")");
+      cx.fillStyle = gr; cx.fillRect(0, 0, bw, bh);
+      cx.globalCompositeOperation = "source-over";
+    }
+    // ---- the club level: a dark band of suites with their windows lit
+    const thV = (() => { try { const CO = window.RIB_COSMETICS; return CO && CO.stadiumTheme ? CO.stadiumTheme() : null; } catch (e) { return null; } })();
+    const bandCol = thV ? thV.band : TU("baseBandColV112", 0x1a4694), lipCol = thV ? thV.lip : TU("baseBandLipCol", 0x6f9be6);
+    const hex = (n) => "#" + (n >>> 0).toString(16).padStart(6, "0").slice(-6);
+    poly(band(F0, FC), TU("standsClubColV193AG", "#151a22"));
+    const W0 = F0 + (FC - F0) * 0.3, W1 = F0 + (FC - F0) * 0.78;
+    const dayNow = this.wxV144().day;
+    poly(band(W0, W1), TU("standsWinColV193AG", "#e9c27a"), dayNow ? 0.28 : TU("standsWinAV193AG", 0.62));
+    // mullions (and a few dark suites — a sparse house has more of them)
+    const dark = tier === "sparse" ? 0.45 : tier === "mid" ? 0.25 : 0.12;
+    let nextW = 0, win = 0;
+    for (let i = 0; i < ch.length; i++) {
+      const p = ch[i], step = TU("standsWinPxV193AG", 11) * kRef(p);
+      if (arc[i] < nextW) continue;
+      nextW = arc[i] + Math.max(3, step); win++;
+      const a = loc(at(p, W0)), b = loc(at(p, W1));
+      line([a, b], "#0c0f14", Math.max(1, 1.3 * kRef(p)), 0.95);
+      if (hash(win + 0.5) < dark && i + 1 < ch.length) { const q = ch[Math.min(ch.length - 1, i + 2)];
+        poly([a, b, loc(at(q, W1)), loc(at(q, W0))], "#10141a", 0.85); }
+    }
+    line(ch.map((p) => loc(at(p, FC))), hex(lipCol), Math.max(1, 1.1 * kRef(mid0(ch))), 0.8);
+    // ---- the roof fascia, with an LED ribbon round it in the house's colour, in panels
+    poly(band(FD - 0.01, FF), TU("standsFasciaColV193AG", "#1c2027"));
+    const R0 = FD + (FF - FD) * 0.22, R1 = FD + (FF - FD) * 0.78;
+    poly(band(R0, R1), hex(bandCol), 0.95);
+    let nextP = 0, pan = 0;
+    for (let i = 0; i < ch.length - 1; i++) {
+      const p = ch[i], step = TU("standsPanelPxV193AG", 46) * kRef(p);
+      if (arc[i] < nextP) continue;
+      nextP = arc[i] + Math.max(8, step); pan++;
+      // every other panel is lit brighter (an ad on the ribbon); a thin seam between panels
+      let j = i; while (j < ch.length - 1 && arc[j] < arc[i] + step * 0.55) j++;
+      if (pan % 2 === 0) poly(ch.slice(i, j + 1).map((q) => loc(at(q, R0))).concat(ch.slice(i, j + 1).reverse().map((q) => loc(at(q, R1)))), "#ffffff", 0.18);
+      line([loc(at(p, R0)), loc(at(p, R1))], "#0b0d12", Math.max(1, 1.1 * kRef(p)), 0.9);
+    }
+    line(ch.map((p) => loc(at(p, FF))), "#9aa6b8", Math.max(0.8, 1.1 * kRef(mid0(ch))), 0.75);
+    // ---- the canopy: its edge, a truss, and the lamps under it
+    poly(band(FF, FR), TU("standsRoofColV193AG", "#0f1217"));
+    const T0 = FF + (FR - FF) * 0.25, T1 = FF + (FR - FF) * 0.9;
+    let nextT = 0, tr = 0; const zig = [];
+    for (let i = 0; i < ch.length; i++) { const p = ch[i], step = TU("standsTrussPxV193AG", 16) * kRef(p);
+      if (arc[i] < nextT && i !== ch.length - 1) continue; nextT = arc[i] + Math.max(4, step); zig.push(loc(at(p, tr++ % 2 ? T0 : T1))); }
+    line(zig, "#2a313c", Math.max(0.8, 1.2 * kRef(mid0(ch))), 0.9);
+    line(ch.map((p) => loc(at(p, T1))), "#232a33", Math.max(0.8, 1 * kRef(mid0(ch))), 0.9);
+    line(ch.map((p) => loc(at(p, FR))), "#3a4250", Math.max(1, 1.3 * kRef(mid0(ch))), 1);
+    const lampA = (dayNow ? 0.35 : 1) * Math.min(1, this.lightMulV100 ? 0.4 + 0.6 * this.lightMulV100() : 1);
+    let nextL = 0, lamps = 0;
+    for (let i = 0; i < ch.length; i++) { const p = ch[i], step = TU("standsLampPxV193AG", 24) * kRef(p);
+      if (arc[i] < nextL) continue; nextL = arc[i] + Math.max(6, step);
+      const q = loc(at(p, FF + (FR - FF) * 0.12)), r = Math.max(1, 1.2 * kRef(p));
+      cx.globalAlpha = 0.22 * lampA; cx.fillStyle = "#ffe7b0"; cx.beginPath(); cx.arc(q.x, q.y, r * 3.2, 0, Math.PI * 2); cx.fill();
+      cx.globalAlpha = lampA; cx.fillStyle = "#fff6dc"; cx.fillRect(Math.round(q.x - r), Math.round(q.y - r * 0.6), Math.max(1, Math.round(r * 2)), Math.max(1, Math.round(r * 1.2)));
+      cx.globalAlpha = 1; lamps++; }
+    try { this.textures.get(key).refresh(); } catch (e) {}
+    S.img.setPosition(x0, y0).setDepth(TU("crowdDepth", 3.45) - TU("standsDepthBackV193AG", 0.3)).setVisible(true);
+    S.img.setCrop(0, 0, bw, bh);
+    let roofTop = 1e9, rimTop = 1e9;
+    for (const p of ch) { roofTop = Math.min(roofTop, at(p, FR).y); rimTop = Math.min(rimTop, at(p, 1).y); }
+    V.stands = { on: true, tier, deck: DECK, f: { club: [F0, FC], deck: [FC, FD], fascia: [FD, FF], roof: [FF, FR] }, box: [x0, y0, bw, bh],
+      roofTop: Math.round(roofTop), rimTop: Math.round(rimTop), roofMid: Bw ? Math.round(at(Bw.pts[Bw.pts.length >> 1], FR).y) : null, rimMid: Bw ? Math.round(at(Bw.pts[Bw.pts.length >> 1], 1).y) : null, slices, n: ch.length, lamps, depth: S.img.depth, builds: ((V.stands && V.stands.builds) || 0) + 1 };
+    return true;
+    function mid0(a) { return a[a.length >> 1]; }
+  }
+  /* ===== v193 AG THE STANDS HOLD THEIR SHAPE =====
+   * The owner: "Ensure that when field perspective is higher, the stadium doesn't distort." The stands were drawn as an
+   * elevation — a fixed `HH·k` straight up the screen and a fixed 0.24 lean — whatever the camera's pitch. That is right
+   * for the broadcast's default (Settings › Field perspective 78%), and wrong as the camera climbs toward top-down (the
+   * slider toward 0): a raked stand seen from above shows its RUN, not its rise, so a sideline stand should lie out to
+   * the side of the field, not stand up the screen over the stand beyond it; and the painted apron stopped short of the
+   * bowl's foot, opening a strip of night sky between the grass and the stand.
+   * `pitchTV193AG()` is how far the camera has tipped from the default toward top-down (0 at 78% and above, 1 at 0%).
+   * Per stand point, `pitchPtV193AG` sets the drawn height factor `hk` (k × 1 − t·(the wall's share of the drop: a
+   * sideline keeps `pitchUpSideV193AG` 0.4 of its height at top-down, the bowl's back, which recedes AWAY up the screen,
+   * `pitchUpBowlV193AG` 0.92)) and the lean `rkM` (out to `pitchRunV193AG` 0.85 stand-heights — the run). Every piece of
+   * the stadium reads the same two numbers (`hkV193AG` / `rkV193AG`: v57's slices, the rim, the band, the tunnels, the far
+   * stands), so the rows stay parallel to the field edge and the pieces stay on one another at every pitch; the masts
+   * and the screen stand on the bowl's measured boxes, so they follow. Kill switch `v193AGpitch` 0 (or `v193AG` 0). ===== */
+  // what the check reads: along each sideline, the angle between the foot of the stand and its rim (rows parallel to the
+  // field edge), and the bowl's rim against the far end line, on the samples a camera can show
+  standGeomV193AG() {
+    const C = this.crowd, G = C && C.builtV193AG; if (!G || !PERSP) return null;
+    const MIDY = (F_TOP + F_BOT) / 2, HALF = (F_BOT - F_TOP) / 2, RK = TU("crowdRake", 0.24), HH = G.HH;
+    const at = (p, f) => { const h = HH * hkV193AG(p) * f; return { x: p.sx + rkV193AG(p) * RK * h, y: p.sy - h }; };
+    // the field edge's vanishing point: the two touchlines as homogeneous lines, crossed (w ~ 0 when they are parallel)
+    const hl = (a, b) => [a.y - b.y, b.x - a.x, a.x * b.y - a.y * b.x];
+    const cr = (l, m) => [l[1] * m[2] - l[2] * m[1], l[2] * m[0] - l[0] * m[2], l[0] * m[1] - l[1] * m[0]];
+    const VP = cr(hl(this.crowdProject(120, F_TOP), this.crowdProject(600, F_TOP)), hl(this.crowdProject(120, F_BOT), this.crowdProject(600, F_BOT)));
+    const toVP = (q) => Math.abs(VP[2]) < 1e-6 * Math.hypot(VP[0], VP[1]) ? Math.atan2(VP[1], VP[0]) : Math.atan2(VP[1] / VP[2] - q.y, VP[0] / VP[2] - q.x);
+    const dl = (a, b) => { const d = Math.abs(a - b) % Math.PI; return Math.min(d, Math.PI - d); };   // between two LINES
+    const out = { t: +this.pitchTV193AG().toFixed(3), sides: [], farEndY: +this.crowdProject(FW, MIDY).y.toFixed(1) };
+    for (const B of G.built) {
+      const P = B.pts; if (!P || P.length < 3) continue;
+      if (B.wall.kind === "side") {
+        /* every row of the stand (its foot, its rim) runs to the field edge's vanishing point — parallel to the touchline
+         * in the world. Samples where the foot itself does not (behind the v148 / v192E clamp the ground is no longer a
+         * pinhole) are not the stand's to answer for. */
+        let worst = 0, n = 0;
+        for (let j = 0; j < P.length - 1; j++) {
+          const a = P[j], b = P[j + 1]; if (Math.max(a.sx, b.sx) < -420 || Math.min(a.sx, b.sx) > FW + 420 || Math.max(a.sy, b.sy) < -200) continue;
+          if (Math.hypot(b.sx - a.sx, b.sy - a.sy) < 2) continue;
+          const fm = { x: (a.sx + b.sx) / 2, y: (a.sy + b.sy) / 2 };
+          if (dl(Math.atan2(b.sy - a.sy, b.sx - a.sx), toVP(fm)) > 0.0175) continue;
+          const ra = at(a, 1), rb = at(b, 1), rm = { x: (ra.x + rb.x) / 2, y: (ra.y + rb.y) / 2 };
+          worst = Math.max(worst, dl(Math.atan2(rb.y - ra.y, rb.x - ra.x), toVP(rm))); n++;
+        }
+        out.sides.push({ vv: B.wall.vv < MIDY ? "left" : "right", n, maxDeg: +(worst * 180 / Math.PI).toFixed(2) });
+      } else {
+        // the bowl's BACK (behind the end zone, inside the touchlines): its rim must stay above the far end line
+        let lowTop = -1e9, hiTop = 1e9;
+        for (const p of P) { if (p.vv != null && Math.abs(p.vv - MIDY) > HALF) continue; const q = at(p, 1); lowTop = Math.max(lowTop, q.y); hiTop = Math.min(hiTop, q.y); }
+        const mid = P[P.length >> 1];
+        out.bowl = { lowestTop: +lowTop.toFixed(1), highestTop: +hiTop.toFixed(1), footMid: [+mid.sx.toFixed(1), +mid.sy.toFixed(1)] };
+      }
+    }
+    return out;
+  }
+  pitchTV193AG() {
+    if (!TU("v193AG", 1) || !TU("v193AGpitch", 1)) return 0;
+    const FX = window.__FIELD_FX || {}, dp = FX.depth == null ? 0.78 : +FX.depth, ref = TU("pitchRefDepthV193AG", 0.78);
+    return Math.max(0, Math.min(1, (ref - dp) / Math.max(0.05, ref)));
+  }
+  pitchPtV193AG(q, t) {
+    if (!(t > 0)) { q.hk = null; q.rkM = null; return; }
+    const a = Math.min(1, Math.abs(q.rk || 0)), RK = Math.max(0.01, TU("crowdRake", 0.24));
+    const vm = 1 - t * (a * (1 - TU("pitchUpSideV193AG", 0.4)) + (1 - a) * (1 - TU("pitchUpBowlV193AG", 0.92)));
+    q.hk = q.k * vm;
+    q.rkM = (RK + (TU("pitchRunV193AG", 0.85) - RK) * t) / (RK * Math.max(0.05, vm));
+  }
+  // the crowd strip stacked twice (decks lapped like ribCrowdStrip's), so the upper deck's spectators are smaller than the bowl's
+  tallStripV193AG(strip) {
+    if (!strip || !strip.width) return null;
+    const lap = Math.max(0, Math.round(TU("crowdDeckLap", 10)));
+    const key = strip.width + "x" + strip.height + ":" + lap;
+    const T = this._tallV193AG;
+    if (T && T.src === strip && T.key === key) return T.cv;
+    const cv = document.createElement("canvas"); cv.width = strip.width; cv.height = strip.height * 2 - lap;
+    const c = cv.getContext("2d"); c.imageSmoothingEnabled = false;
+    c.drawImage(strip, 0, strip.height - lap);
+    // the top copy mirrored, so the two decks are not the same faces one above the other
+    c.save(); c.translate(strip.width, 0); c.scale(-1, 1); c.drawImage(strip, 0, 0); c.restore();
+    this._tallV193AG = { src: strip, key, cv };
+    return cv;
+  }
   bowlTrimV112(built, HH) {
     const C = this.crowd; if (!C || !this.add) return false;
     let g = C.trimG;
@@ -7703,13 +8946,13 @@ class Ot extends mt.Scene {
     const RK = TU("crowdRake", 0.24), COL = thV151B ? thV151B.band : TU("baseBandColV112", 0x1a4694);
     const FR = Math.max(0.01, TU("baseBandFracV112", 0.068));          // of the stand's own height
     const dbg = { band: [], ent: null, col: COL, frac: FR, wash: thV151B ? thV151B.crowd : null };
-    const top = (p) => { const h = HH * p.k * FR; return { x: p.sx + (p.rk == null ? 0 : p.rk) * RK * h, y: p.sy - h, h }; };
+    const top = (p) => { const h = HH * hkV193AG(p) * FR; return { x: p.sx + rkV193AG(p) * RK * h, y: p.sy - h, h }; };
     for (const B of built) {
       const P = B.pts; if (!P || P.length < 2) continue;
       const foot = [], cap = [];
       for (const p of P) { foot.push({ x: p.sx, y: p.sy }); cap.push(top(p)); }
       if (thV151B) {   // v151 B: the theme's colour washed over the whole stand, foot to rim
-        const rim = P.map((p) => { const h = HH * p.k; return { x: p.sx + (p.rk == null ? 0 : p.rk) * RK * h, y: p.sy - h }; });
+        const rim = P.map((p) => { const h = HH * hkV193AG(p); return { x: p.sx + rkV193AG(p) * RK * h, y: p.sy - h }; });
         g.fillStyle(thV151B.crowd, TU("cosCrowdWashV151B", 0.2)); g.fillPoints(foot.concat(rim.slice().reverse()), true);
       }
       g.fillStyle(COL, TU("baseBandAV112", 0.92));
@@ -7719,7 +8962,7 @@ class Ot extends mt.Scene {
       g.lineStyle(Math.max(1, TU("baseBandLipPx", 1.6) * (P[P.length >> 1].k / 0.43)), thV151B ? thV151B.lip : TU("baseBandLipCol", 0x6f9be6), TU("baseBandLipA", 0.85));
       g.strokePoints(cap, false);
       const m = P[P.length >> 1];
-      dbg.band.push({ kind: B.wall.kind, n: P.length, k: +m.k.toFixed(3), h: +(HH * m.k * FR).toFixed(1),
+      dbg.band.push({ kind: B.wall.kind, n: P.length, k: +m.k.toFixed(3), h: +(HH * hkV193AG(m) * FR).toFixed(1),
         mid: [Math.round(m.sx), Math.round(m.sy)], midTop: [Math.round(top(m).x), Math.round(top(m).y)],
         foot: foot.map((p) => [+p.x.toFixed(2), +p.y.toFixed(2)]) });
     }
@@ -7742,11 +8985,11 @@ class Ot extends mt.Scene {
         if (seg.length < 3) return null;
         const HF = Math.max(0.05, rect ? TU("cornerTunnelHighV144", 0.26) : TU("tunnelHighV112", 0.3)), M = seg.length - 1;
         const hAt = rect
-          ? (j) => HH * seg[j].k * HF
-          : (j) => HH * seg[j].k * HF * Math.pow(Math.sin(Math.PI * (j / M)), 0.34);
+          ? (j) => HH * hkV193AG(seg[j]) * HF
+          : (j) => HH * hkV193AG(seg[j]) * HF * Math.pow(Math.sin(Math.PI * (j / M)), 0.34);
         const mouth = [], arch = [];
         for (let j = 0; j <= M; j++) { const p = seg[j], h = hAt(j);
-          mouth.push({ x: p.sx, y: p.sy }); arch.push({ x: p.sx + (p.rk == null ? 0 : p.rk) * RK * h, y: p.sy - h }); }
+          mouth.push({ x: p.sx, y: p.sy }); arch.push({ x: p.sx + rkV193AG(p) * RK * h, y: p.sy - h }); }
         const poly = mouth.concat(arch.slice().reverse());
         g.fillStyle(TU("tunnelDarkV112", 0x06080c), 1); g.fillPoints(poly, true);
         // something behind it: the tunnel's own lights, a warm line run along the underside of
@@ -7765,8 +9008,16 @@ class Ot extends mt.Scene {
           h: +(base.y - mid.y).toFixed(1), w: +Math.hypot(mouth[M].x - mouth[0].x, mouth[M].y - mouth[0].y).toFixed(1),
           mouth: mouth.map((p) => [Math.round(p.x), Math.round(p.y)]), arch: arch.map((p) => [Math.round(p.x), Math.round(p.y)]) };
       };
-      // the middle arch, unchanged — `dbg.ent` still means THIS one, which is what v112Bcheck reads
-      dbg.ent = cut(TU("tunnelAtV112", 0.34), TU("tunnelWideV112", 0.1), false);
+      // the middle arch — `dbg.ent` still means THIS one, which is what v112Bcheck reads
+      /* ===== v193 AG THE TWO TUNNELS =====
+       * The owner: "remove the north tunnel and only have 2 tunnels on the side." The arch in the far bowl is not cut any
+       * more: the terrace (and the base band) run straight across where it was, so the far end is all stand, and the two
+       * v144 G mouths — one where the bowl turns into each sideline — are the only ways out. Nothing walks out of the
+       * arch (the sideline, the crew and the teams are placed on the apron, never routed through a tunnel), so nothing
+       * has to be re-routed. `TU("v193AG", 0)` / `TU("v193AGtunnel", 0)` cut the arch again. ===== */
+      const noMidV193AG = !!TU("v193AG", 1) && !!TU("v193AGtunnel", 1);
+      dbg.ent = noMidV193AG ? null : cut(TU("tunnelAtV112", 0.34), TU("tunnelWideV112", 0.1), false);
+      dbg.midGoneV193AG = noMidV193AG;
       /* ===== v144 G A WAY OUT IN EACH UPPER CORNER =====
        * Rectangular mouths cut where the bowl turns into each sideline — the players' tunnels, one
        * per corner, facing in toward the corner of the field. */
@@ -7779,13 +9030,15 @@ class Ot extends mt.Scene {
     }
     C.trim112 = dbg;
     try { (window.__V144 = window.__V144 || {}).tunnels = { mid: !!dbg.ent, corners: (dbg.corners || []).length,
-      cornerW: (dbg.corners || []).map((e) => e.w), cornerH: (dbg.corners || []).map((e) => e.h) }; } catch (e) {}
+      cornerW: (dbg.corners || []).map((e) => e.w), cornerH: (dbg.corners || []).map((e) => e.h),
+      // v193 AG: where each mouth sits along the bowl (0 = screen-left end, 1 = screen-right end) — the check reads "none in the middle" off it
+      at: [dbg.ent].concat(dbg.corners || []).filter(Boolean).map((e) => +(((e.i0 + e.i1) / 2) / Math.max(1, (B && B.pts ? B.pts.length - 1 : 1))).toFixed(3)) }; } catch (e) {}
     return true;
   }
   crowdSection(idx, sgn, rakeSgn, pts, strips, stripW, CELL_H, HH) {
     const C = this.crowd;
     if (pts.length < 2) return;
-    const h = pts.map((p) => HH * p.k);
+    const h = pts.map((p) => HH * hkV193AG(p));
     // ---- RAKE. A stand is not a billboard: its back row is both higher AND further
     // from the field than its front row, so in this projection the top of the stand
     // has to sit OUTBOARD of its own base, not straight above it. The slice transform
@@ -7802,7 +9055,7 @@ class Ot extends mt.Scene {
     // the bowl's corners make it do. Per point the lean turns with the wall and the
     // remaining discontinuity is one slice wide, which is a pixel or two of source.
     const RK0 = TU("crowdRake", 0.24);
-    const rk = pts.map((p) => (p.rk == null ? (rakeSgn == null ? sgn : rakeSgn) : p.rk) * RK0);
+    const rk = pts.map((p) => (p.rk == null ? (rakeSgn == null ? sgn : rakeSgn) : p.rk) * RK0 * (p.rkM != null ? p.rkM : 1));
     let x0 = 1e9, x1 = -1e9, y0 = 1e9, y1 = -1e9;
     for (let j = 0; j < pts.length; j++) {
       const p = pts[j], tx = p.sx + rk[j] * h[j];
@@ -7831,9 +9084,9 @@ class Ot extends mt.Scene {
     s.ux = mid.x; s.k = mid.k;
     // a point that is definitely ON this stand — the box is axis-aligned over a
     // diagonal band, so its own corners are not
-    s.hh = HH * mid.k;                                // this stand's drawn height here
-    s.mx = mid.sx + (rk[pts.length >> 1] || 0) * HH * mid.k * .22;
-    s.my = mid.sy - HH * mid.k * .22;                 // just above the front rows
+    s.hh = HH * hkV193AG(mid);                        // this stand's drawn height here
+    s.mx = mid.sx + (rk[pts.length >> 1] || 0) * HH * hkV193AG(mid) * .22;
+    s.my = mid.sy - HH * hkV193AG(mid) * .22;                 // just above the front rows
     // Depth: just above fieldLines (3.4) so the stand OCCLUDES the outer tips of the
     // LOS/first-down stripes — that ground is behind the bleachers — and below the
     // ground shadows and highlight rings under the players (3.5+), which only ever
@@ -9926,6 +11179,7 @@ class Ot extends mt.Scene {
     if (C.emojis) { for (const v of C.emojis) { try { v.tx.destroy() } catch (e) {} } C.emojis.length = 0; }
     if (C.trimG) { try { C.trimG.destroy() } catch (e) {} C.trimG = null; }   // v112: the bowl's band and its entrance
     if (C.rimG) { try { C.rimG.destroy() } catch (e) {} C.rimG = null; }   // v177 D: the rim
+    if (C.farV193AG) { try { C.farV193AG.img && C.farV193AG.img.destroy() } catch (e) {} try { this.textures.remove("rib_far_v193ag") } catch (e) {} C.farV193AG = null; }   // v193 AG: the far stands
     for (const s of C.secs) for (const pose of ["idle", "cheer"]) {
       try { s.spr[pose].destroy(); } catch (e) {}
       try { this.textures.remove("crowd_" + C.secs.indexOf(s) + "_" + pose); } catch (e) {}
@@ -10405,6 +11659,8 @@ class Ot extends mt.Scene {
     // the ball spotlight rides across the band as the play moves
     S._lt += dt;
     if (S._lt > .12) { S._lt = 0; this.sideRelight(); }
+    /* v193 AI THE MASCOTS DANCE (renderer): each bench's mascot (src/35-mascots.js) — a no-op unless they are his */
+    try { if (window.RIB_MASCOTS) window.RIB_MASCOTS.frame(this, delta, { FW, PLAY_L, PLAY_W, VDIR, MIDY: (F_TOP + F_BOT) / 2 }); } catch (e) {}
   }
   clearSideline() {
     const S = this.side; if (!S) return;
@@ -10839,6 +12095,15 @@ class Ot extends mt.Scene {
     try {
       const fimg = RIB.fieldImg, P = PERSP;
       if (!fimg || !P) return;
+      /* v193 AG THE TURF: the composite may be K times the art (or, before any composite, the turf pass is laid on the bare
+       * art here). Every row LOGIC below stays in the art's own pixels (SWa/SHa, fieldArtY); only the drawImage source
+       * coordinates are scaled by AK, and each output row reads ONE hi-res row, so the extra resolution is kept. */
+      const baseArt = RIB.fieldBase || fimg;
+      let ART = fimg;
+      if (ribTurfOnV193AG() && ART.width === baseArt.width) ART = ribTurfV193AG(ART, TU("turfHiKV193AG", 2)) || fimg;
+      const AK = ART.width / Math.max(1, baseArt.width);
+      // the hi-res row whose CENTRE is the art row's centre (an art row [y, y+1] is centred on y+0.5; at AK 1 this is y)
+      const AY = (y) => (y + 0.5) * AK - 0.5;
       const CW = 1200, CH = WORLD_H, AW = FW * PERSP_OA;
       if (!this._warpCv) { this._warpCv = document.createElement("canvas"); this._warpCv.width = CW; this._warpCv.height = CH; }
       else if (this._warpCv.height < CH) {   // v177 E: the world grew: a taller canvas (grow-only — rows past WORLD_H are under the camera's bound), so a new texture
@@ -10861,7 +12126,7 @@ class Ot extends mt.Scene {
       else { sky.addColorStop(0, "#010204"); sky.addColorStop(1, "#080b10"); }   // v98: darker still, so the lamps have something to glow against
       ctx.fillStyle = sky; ctx.fillRect(0, 0, CW, NSTOP + 1);
       this.starsV112(ctx, CW, NSTOP);   // v112: and the sky has stars in it
-      const SWa = fimg.width, SHa = fimg.height;         // 360x700 art
+      const SWa = baseArt.width, SHa = baseArt.height;   // 360x700 art (v193 AG: the art's own size, whatever ART's is)
       /* ===== v112 THE NEAR EDGE IS AN EDGE, NOT A SMEAR =====
        * Below the near end line the loop used to pin `u = 0` and copy that ONE art scanline
        * down the rest of the canvas — a few rows of it at the shipped anchoring, hundreds at
@@ -10890,13 +12155,25 @@ class Ot extends mt.Scene {
       const SLOPE_N = Math.abs(P.s(FW)) || 1;
       const A_BAND = Math.max(6, TU("apronBandV144", 22)), A_MINROW = TU("apronFarMinRowV144", 3);
       let edgeI = -1, apronRows144 = 0, farRows144 = 0;
+      const farFill193 = !!TU("v193AG", 1) && !!TU("v193AGpitch", 1), uBack193 = FW + TU("crowdEndGap", 44) + TU("apronFillPadV193AG", 10);
+      let farFillRows193 = 0;
       for (let i = 0; i < CH; i++) {
         const target = (i - NSTOP) / P.VB;               // = total − C(u) at this row
         let u;
         if (target <= 0) {                                // above the far end line
           if (!APRON144) continue;                        // v112 and earlier: backdrop, not turf
           const uN = FW + (-target) / (SLOPE_N * SLOPE_N);
-          if (this.fieldArtY(uN) < A_MINROW) continue;    // v144 E: past the painting — this really is sky
+          if (this.fieldArtY(uN) < A_MINROW) {            // v144 E: past the painting — this really is sky
+            /* v193 AG THE STANDS HOLD THEIR SHAPE: ...unless the bowl stands on it. Under a high camera (a low field
+             * perspective) the rows above the end line are a few times taller and the painted apron ran out short of the
+             * bowl's foot, so a band of night sky opened between the grass and the stand. The ground now runs on to the
+             * bowl's back foot (its apron's own rows, ping-ponged so there is no seam) and only past it is sky. */
+            if (!(farFill193 && uN <= uBack193)) continue;
+            const r193 = this.fieldArtY(uN), sp193 = Math.max(2, A_BAND - 4), m193 = ((A_MINROW - r193) % (sp193 * 2) + sp193 * 2) % (sp193 * 2);
+            ctx.drawImage(ART, 0, AY(A_MINROW + (m193 < sp193 ? m193 : sp193 * 2 - m193)), SWa * AK, 1, 0, i, CW, 1);
+            farFillRows193++;
+            continue;
+          }
           u = uN; farRows144++;                           // v144 E: the far apron the art has always carried
         }
         else if (target >= P.total) u = EXT ? (P.total - target) / (P.d0 || SLOPE * SLOPE) : 0;   // v148: the density the curve has at u=0 (the taper's, when it runs)
@@ -10914,17 +12191,17 @@ class Ot extends mt.Scene {
            * continuation begins and no repeat line where a wrap would have jumped back. */
           const span144 = Math.max(2, A_BAND - 4), tt144 = (i - edgeI) % (span144 * 2);
           const sYa = (SHa - 4) - (tt144 < span144 ? tt144 : span144 * 2 - 1 - tt144);
-          ctx.drawImage(fimg, 0, sYa, SWa, 1, 0, i, CW, 1);
+          ctx.drawImage(ART, 0, AY(sYa), SWa * AK, 1, 0, i, CW, 1);
           apronRows144++;
           continue;
         }
         const sY = Math.max(3, Math.min(SHa - 4, this.fieldArtY(u)));   // v72: by goal line, not by height
         const w = AW * (P.s(u) / P.sN), x0 = (CW - w) / 2;
         if (x0 > 0) {                                     // edge-extend the grass margins
-          ctx.drawImage(fimg, 0, sY, 2, 1, 0, i, x0 + 1, 1);
-          ctx.drawImage(fimg, SWa - 2, sY, 2, 1, x0 + w - 1, i, CW - x0 - w + 1, 1);
+          ctx.drawImage(ART, 0, AY(sY), 2 * AK, 1, 0, i, x0 + 1, 1);
+          ctx.drawImage(ART, (SWa - 2) * AK, AY(sY), 2 * AK, 1, x0 + w - 1, i, CW - x0 - w + 1, 1);
         }
-        ctx.drawImage(fimg, 0, sY, SWa, 1, x0, i, w, 1);
+        ctx.drawImage(ART, 0, AY(sY), SWa * AK, 1, x0, i, w, 1);
         /* v79: the painted apron — REBASED in v79.2 on the art's OWN touchline.
          * The art paints its boundary ~35 world units outside the sim's F_BOT,
          * so the first cut of this block laid a second white "border" in the
@@ -10965,7 +12242,7 @@ class Ot extends mt.Scene {
           // down and fall into the dark — one soft edge instead of several hundred rows of one
           // stretched scanline.
           const fade = Math.max(8, TU("nearEdgeFadePx", 110)), n = Math.min(CH - edgeI, fade);
-          ctx.drawImage(fimg, 0, SHa - 3, SWa, 2, 0, edgeI, CW, n);
+          ctx.drawImage(ART, 0, (SHa - 3) * AK, SWa * AK, 2 * AK, 0, edgeI, CW, n);
           const ge = ctx.createLinearGradient(0, edgeI, 0, edgeI + n);
           ge.addColorStop(0, "rgba(6,10,14,0)"); ge.addColorStop(1, "rgba(5,8,12,1)");
           ctx.fillStyle = ge; ctx.fillRect(0, edgeI, CW, n);
@@ -10974,6 +12251,8 @@ class Ot extends mt.Scene {
       }
       this._nearEdgeV112 = { edgeI, lastTurfY: Math.round(NSTOP + P.VB * P.total), kMax: +(P.kMax || 0).toFixed(3) };
       try { (window.__V144 = window.__V144 || {}).apron = { on: !!APRON144, southRows: apronRows144, northRows: farRows144, edgeI }; } catch (e) {}
+      try { const V193 = (window.__V193AG = window.__V193AG || {}); V193.farFill = { on: farFill193, rows: farFillRows193, uBack: uBack193 }; V193.warpAK = AK; V193.warpOx = (CW - FW) / 2; } catch (e) {}
+      try { this.paintDirtAllV193AG(ctx, (CW - FW) / 2); } catch (e) { try { warnOnceV193C("paintDirtAllV193AG", e); } catch (e2) {} }   // v193 AG: the scuffs, divots and wear, in the turf
       this.lightFieldV98(ctx, CW, CH);   // v98: the lamps' wash, their pools and the edge falloff, baked on the turf
       if (this.textures.exists("rib_field_warp")) this.textures.get("rib_field_warp").refresh();
       else this.textures.addCanvas("rib_field_warp", this._warpCv);

@@ -659,6 +659,7 @@
     el.classList.add("cos-pv-v151b", "cat-" + cat);
     if (previewV158A(el, it)) return el;   // v158 A: animated banners, styled titles, drawn badges, material nameplates
     if (previewV159C(el, it)) return el;   // v159 C: a celebration's looping mini-stage, a shelf that catches the light
+    if (cat === "mascot") return previewMascotV193AI(el, it);   // v193 AI: his crest's mascot, dancing
     if (cat === "uniform" || cat === "helmet") {
       var tc = (window.__GRIDIRON_TEAM_CUSTOM__ || {}).col || ["#1f4fd0", "#e8c86a"];
       var U = resolveU(it.k || (cat === "helmet" ? (item("uniform") || {}).k : null), tc) || { j: tc[0], p: tc[1], pat: "solid" };
@@ -7462,7 +7463,8 @@
     var eq = equipped(k), list = ITEMS.filter(function (it) { return it.cat === k && listed(it); });
     return (k === "uniform" ? uniColRowV159A() : "") +   // v159 A: the uniform's own colours or the team palette, beside the uniforms as before
       (k === "celebration" && onV161A() ? '<div class="cos-note-v161a">🎲 On every touchdown he picks one of three moves at random — the flex, the backflip or the ball spike. The effect you equip plays around him.</div>' : "") +
-      '<div class="cos-grid-v151b">' + list.map(function (it) { return itemHTMLV174(it, k, eq); }).join("") + "</div>";
+      '<div class="cos-grid-v151b">' + list.map(function (it) { return itemHTMLV174(it, k, eq); }).join("") + "</div>" +
+      (k === "mascot" && window.RIB_MASCOTS && window.RIB_MASCOTS.galleryHTML ? window.RIB_MASCOTS.galleryHTML() : "");   // v193 AI: every costume, one per archetype
   }
   function secHTMLV174(k) {
     var open = SEL.cat === k;
@@ -8940,4 +8942,27 @@
     oldSprite: function (k, px) { return spriteCanvas0V193Q(k, px || 64); }, kitDeco: function (U, H) { return kitDeco(U, H); }, resolveU: function (U, tc) { return resolveU(U, tc); },
     paintCards: paintCardsV193Q, cards: function () { return CARDS_V193Q.order.length; }
   });
+
+  /* ===== v193 AI THE MASCOTS DANCE (cosmetics) =====
+   * The owner: "Add dancing mascots for every single team logo. These will be unlockable with the membership." One new
+   * slot, MASCOTS (🎭, it lands in the palette's HIS WORLD group by v174's "a slot added later" rule), with two looks:
+   * `mascot_none` (free, the default — no mascot) and `mascot_team` "Team Mascots" (legendary, source "member" — v156 C's
+   * door: owned while the store is ON and the device holds `member` / `founder`, or grandfathered; with the store OFF it is
+   * LISTED "🔒 Membership", never owned, granted or equipped, and nothing calls RIB_MONETIZE). Equipped, src/35-mascots.js
+   * puts each team's crest mascot on its bench in the broadcast and beside his crest on the season hero; its tile in the
+   * Locker plays his crest's mascot dancing whether or not he owns it (the preview IS the incentive). Nothing is sold that
+   * was free: the look is new. Registered only while TU `v193AI` is on at boot (0: no slot, no look). */
+  function previewMascotV193AI(el, it) {
+    try { if (window.RIB_MASCOTS && window.RIB_MASCOTS.preview) return window.RIB_MASCOTS.preview(el, it); } catch (e) {}
+    el.innerHTML = '<i class="mascot-none-v193ai">' + (it && it.id === "mascot_team" ? "🎭" : "🚫") + "</i>"; return el;
+  }
+  if (TUv("v193AI", 1) && !CATS.mascot) {
+    SLOTS.push("mascot");
+    CATS.mascot = { name: "MASCOTS", icon: "🎭", def: "mascot_none" };
+    addItemsV177([
+      { id: "mascot_none", cat: "mascot", name: "No Mascot", rarity: "common", source: "free", blurb: "The benches without a mascot." },
+      { id: "mascot_team", cat: "mascot", name: "Team Mascots", rarity: "legendary", source: "member", blurb: "Every crest has its mascot — a knight, a bear, a pirate, an alien… On both benches, dancing the players' celebrations." }
+    ], "v193AI");
+    API.slots = SLOTS.slice();
+  }
 })();

@@ -6343,7 +6343,7 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
           key: "engine",
           name: "Twin Engines",
           icon: "🔋",
-          desc: "Attribute growth every season: about 1% a level, +5% at Lv 6 — the same unit as Eternal Growth.", /* v193: whole numbers (v92check) */
+          desc: "Attribute growth (and every game's upgrade points): about 1% a level, +5% at Lv 6 — the same unit as Eternal Growth.", /* v193: whole numbers (v92check) */
           cost: 12,
           mult: 1.65,
           max: 6,
@@ -6398,10 +6398,22 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
           max: 2
         },
         {
+          /* v193 AH PIED PIPER: read through treeFx("piedPiperV193AH") (the Mental branch pays ×1: 1 a level) — the follow
+           * pull +0.8 a level (`followPullV193AH`) and the "Can't stand you" share −25% a level (`leaveOddsV193AH`) */
+          key: "piedPiperV193AH",
+          name: "Pied Piper",
+          icon: "📯",
+          desc: "Teammates follow you to every new team and fewer walk out on you. Each level: +0.8 follow pull (a neutral personality brings 4+ followers 14% → 18% → 23% → 31% of the time) and \"Can't stand you\" departures −25% (Lv 3: −75%).",
+          cost: 12,
+          mult: 2,
+          max: 3,
+          fx: { piedPiperV193AH: 1 }
+        },
+        {
           key: "talent",
           name: "Natural Talent",
           icon: "⭐",
-          desc: "+6% attribute growth.",
+          desc: "+6% attribute growth (and upgrade points).",
           cost: 6,
           mult: 1.4,
           max: 12
@@ -6609,7 +6621,7 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
           key: "gym",
           name: "Private Trainer",
           icon: "🏟️",
-          desc: "+1.5% attribute growth every season, per level.",
+          desc: "+1.5% attribute growth (and upgrade points) every season, per level.",
           cost: 9,
           mult: 1.5,
           max: 6
@@ -7165,7 +7177,7 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
           key: "etGrowth",
           name: "Eternal Growth",
           icon: "🌌",
-          desc: "+2% attribute growth. FOREVER repeatable.",
+          desc: "+2% attribute growth (and upgrade points). FOREVER repeatable.",
           cost: 12,
           mult: 1.22,
           max: 999,
@@ -8095,7 +8107,7 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
     has("startMental") && add(P.startMental > 0, `${sg(P.startMental)} to starting Awareness, Vision and Discipline`);
     has("startStars") && add(!0, `Recruited as a ${P.startStars}★ prospect at worst`);
     has("startPrestige") && add(!0, `+${P.startPrestige} prestige counted when a career starts (≈ ${sg(P.startPrestige * 0.55)} to every starting attribute)`);
-    P.growthMult != null && P.growthMult !== 1 && add(P.growthMult > 1, `${pc(P.growthMult - 1)} attribute growth every season`);
+    P.growthMult != null && P.growthMult !== 1 && add(P.growthMult > 1, `${pc(P.growthMult - 1)} attribute growth (and upgrade points) every season`);
     const ceil = Math.round(pathCeilOfV193AD(k));
     ceil && add(ceil > 0, `${sg(ceil)} potential ceiling (how high attributes can grow)`);
     P.keyGrowthMult && P.keyGrowthMult !== 1 && add(P.keyGrowthMult > 1, `${pc(P.keyGrowthMult - 1)} growth on your position's three key attributes`);
@@ -28210,7 +28222,7 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
   function depthChart(e) {
     ensureDepth(e);
     const t = LEVELS[e.level].need - 5 + lo(e.level) + chaosOppBoost() /* v185: the flat lift only — the depth chart is your own teammates, not the lifted world */,
-      a = playerPower(e) + e.coachTrust * 0.18 + treeFx("depthPower") * 20 - t;
+      a = playerPower(e) + e.coachTrust * 0.18 + treeFx("depthPower") * 20 + arrivalDepthV193AH(e) /* v193 AH: a TOXIC lean arrives as one of the new team's best */ - t;
     let s, n;
     return (
       a >= 16
@@ -29741,7 +29753,7 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
   }
   function growthMulV192C(e) {
     const fx = personaFxV192C(e);
-    return (fx && fx.growthMult) || 1;
+    return ((fx && fx.growthMult) || 1) * growNegV193AH(e) /* v193 AH: a TOXIC lean grows faster (+8% a point, ≤ 15%) */;
   }
   function boomMulV192C(e) {
     const fx = personaFxV192C(e);
@@ -38346,7 +38358,11 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
     const row = o => {
       const v = mark[o.i],
         tag = !v
-          ? ""
+          ? o.p.followV193AH && ahOnV193AH()
+            ? `<b style="color:var(--gold)">★ followed you</b>` /* v193 AH */
+            : o.p.drawnV193AH && ahOnV193AH()
+              ? `<b style="color:var(--gold)">★ came for you</b>`
+              : ""
           : v.kind === "sacrifice"
             ? `<b style="color:var(--gold)">🤝 +${v.amt} from you</b>`
             : v.kind === "leave"
@@ -38356,7 +38372,7 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
     };
     sc.insertAdjacentHTML(
       "beforeend",
-      `<div class="card tight" id="myTeamV186"><details><summary style="cursor:pointer;list-style:none"><div class="eyebrow">👥 MY TEAM · ${mine === "off" ? "OFFENSE" : "DEFENSE"} · CHEMISTRY ${Math.round(chem)} · TEAM ${q >= 0 ? "+" : ""}${Math.round(q * 100)}% ▸</div></summary>` +
+      `<div class="card tight" id="myTeamV186"><details><summary style="cursor:pointer;list-style:none"><div class="eyebrow">👥 MY TEAM · ${mine === "off" ? "OFFENSE" : "DEFENSE"} · CHEMISTRY ${Math.round(chem)} · TEAM ${q >= 0 ? "+" : ""}${Math.round(q * 100)}%${followersOnV193AH(e) ? ` · ★ ${followersOnV193AH(e)} FOLLOWER${followersOnV193AH(e) === 1 ? "" : "S"}` /* v193 AH */ : ""} ▸</div></summary>` +
         `<div style="margin-top:6px">${unit.map(row).join("")}</div>` +
         `<div class="small" style="margin-top:6px">` +
         (sac.length
@@ -38554,6 +38570,8 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
     delete m.lockerV153B;
     delete m.lockedUntilV193AA;
     delete m.recruitV193AA;
+    delete m.followV193AH; /* v193 AH: a new face is nobody's follower */
+    delete m.drawnV193AH;
     return m;
   }
   /* src/10 asks this when it builds a season's roster: carry the program's men, or start fresh */
@@ -38572,8 +38590,17 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
     const prevProg = M0 ? M0.prog : String(p.teamRosterSeasonV158 || "").split(":")[0] === String(p.level | 0) ? prog : null;
     if (prevProg !== prog) {
       const r = fresh("new team");
+      // v193 AH: his followers come with him, and a TOXIC lean may arrive as one of the new team's best
+      let F = null,
+        A = null;
       try {
-        rmQueueTeamV193AA(p, prevR, players, M0);
+        F = followPlantV193AH(p, prevR, players, M0, target, prevProg, prog);
+        A = arriveV193AH(p, prog);
+      } catch (x) {
+        console.warn("[v193 AH follow]", x);
+      }
+      try {
+        rmQueueTeamV193AA(p, prevR, players, M0, F, A);
       } catch (x) {
         console.warn("[v193 AA team]", x);
       }
@@ -38621,28 +38648,41 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
       dep = [],
       arr = [],
       imp = [];
-    const before0 = p.teamSnapV193AA && p.teamSnapV193AA.prog === prog ? p.teamSnapV193AA.team : null;
+    const before0 = p.teamSnapV193AA && p.teamSnapV193AA.prog === prog ? p.teamSnapV193AA.team : null,
+      AHo = ahOnV193AH() ? leaveOddsV193AH(p) : null /* v193 AH: why men leave, and the odds a new face came for him */,
+      AHd = AHo ? drawOddsV193AH(p) : 0;
+    let nDrawn = 0;
     prevR.forEach((m0, i) => {
       if (!m0) return;
       const rnd = seededRng("v193AA", p.name || "", at, lv, i, key),
         m = JSON.parse(JSON.stringify(m0)),
         locked = lockLeftV193AA(p, m) > 0;
       delete m.lockerV153B;
-      let leave = null;
+      let leave = null,
+        rsn = null;
       if (!locked && !touched[i]) {
         if (!pro) {
-          if (m.year === "SR") leave = lv <= 2 ? "aged up — on to the next league" : lv >= 5 ? "out of eligibility — graduated" : "graduated";
-          else if (lv >= 3 && rnd() < TU("rmTransferPV193AA", 0.05) * (1 - 0.1 * ret)) leave = "entered the transfer portal";
+          if (m.year === "SR") (leave = lv <= 2 ? "aged up — on to the next league" : lv >= 5 ? "out of eligibility — graduated" : "graduated"), (rsn = "grad");
+          else if (lv >= 3 && rnd() < TU("rmTransferPV193AA", 0.05) * (1 - 0.1 * ret)) (leave = "entered the transfer portal"), (rsn = "transfer");
         } else {
           const P = TU("rmProLeavePV193AA", 0.18) * Math.max(0, 1 - 0.1 * ret) * (top3.has(i) ? Math.max(0, 1 - 0.06 * fac) : 1);
-          if (rnd() < P) leave = rnd() < 0.3 ? "retired" : "signed elsewhere in free agency";
+          if (rnd() < P) rnd() < 0.3 ? ((leave = "retired"), (rsn = "retire")) : ((leave = "signed elsewhere in free agency"), (rsn = "transfer"));
+        }
+        // v193 AH: a second roll of his own seed — he can't stand you, the room went sour, he is tired of losing, or cut
+        if (!leave && AHo) {
+          const w = ahLeaveRollV193AH(p, AHo, m0, i, key, T, pro);
+          w && ((leave = w.why), (rsn = w.rsn));
         }
       }
       if (leave) {
-        const nw = rmNewManV193AA(fr[i], i, T, rnd, used, nums, at);
+        const inn = AHo ? ahArriveRollV193AH(p, AHd, i, key, lv) : null,
+          drawn = !!(inn && inn.rsn === "drawn"),
+          nw = rmNewManV193AA(fr[i], i, T, rnd, used, nums, at, drawn ? ((fr[i] && fr[i].ovr) || T) * TU("rmNewInKV193AA", 0.96) * TU("ahDrawRateKV193AH", 1.06) : null);
+        drawn && ((nw.drawnV193AH = { at }), nDrawn++);
+        inn && inn.rsn === "transferIn" && !pro && (nw.year = "SO");
         players[i] = nw;
-        dep.push({ name: m0.name, pos: m0.pos, ovr: Math.round(m0.ovr || 0), why: leave, star: top3.has(i) || (m0.pos !== "K" && m0.pos !== "P" && (m0.ovr || 0) >= prevAvg + 8), slot: i, chip: -rmChipV193AA(m0.ovr, T) });
-        arr.push({ name: nw.name, pos: nw.pos, ovr: nw.ovr, why: pro ? "a rookie" : "a freshman", star: nw.star, slot: i, chip: rmChipV193AA(nw.ovr, T) });
+        dep.push({ name: m0.name, pos: m0.pos, ovr: Math.round(m0.ovr || 0), why: leave, rsn: AHo ? rsn : void 0, star: top3.has(i) || (m0.pos !== "K" && m0.pos !== "P" && (m0.ovr || 0) >= prevAvg + 8), slot: i, chip: -rmChipV193AA(m0.ovr, T) });
+        arr.push({ name: nw.name, pos: nw.pos, ovr: nw.ovr, why: inn ? inn.why : pro ? "a rookie" : "a freshman", rsn: inn ? inn.rsn : void 0, star: nw.star, slot: i, chip: rmChipV193AA(nw.ovr, T) });
         return;
       }
       // he stays: a year older and better for it (this season's locker-room moves stay on the locker room's ledger)
@@ -38667,38 +38707,50 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
       nBack = players.length - nNew,
       c0 = chemOfV153B(p),
       mx = TU("rmChemMaxV193AA", 5),
-      d = clamp99(nBack * TU("rmChemBackV193AA", 0.3) - nNew * TU("rmChemNewV193AA", 0.6), -mx, mx);
+      d = clamp99(nBack * TU("rmChemBackV193AA", 0.3) - (nNew - nDrawn) * TU("rmChemNewV193AA", 0.6) + nDrawn * TU("ahChemDrawV193AH", 0.8) /* v193 AH: a man who came for him is good chemistry */, -mx, mx);
     Math.abs(d) >= 0.1 && chemMoveV153B(p, Math.round(d * 10) / 10, "who came back, and who is new");
     const c1 = chemOfV153B(p);
     if (dep.length || imp.length)
       rmQueueV193AA(p, { kind: "season", at, before: before0, dep, arr, imp, chem: [c0, c1], target: T, team: rmTeamNameV193AA(p) });
     return { carried: !0, skipLocker: !0, dep: dep.length, imp: imp.length };
   }
-  function rmQueueTeamV193AA(p, prevR, players, M0) {
+  function rmQueueTeamV193AA(p, prevR, players, M0, F, A) {
     const S0 = p.teamSnapV193AA,
       T0 = (M0 && M0.target) || 50,
       T1 = (p.rosterMetaV193AA && p.rosterMetaV193AA.target) || 50,
-      top = (R, T, why) =>
+      ah = ahOnV193AH(),
+      fol = new Set(F && F.men ? F.men.map(x => x.slot) : []) /* v193 AH: the slots his followers took */,
+      folNames = new Set(F && F.men ? F.men.map(x => x.name) : []),
+      top = (R, T, why, skip, rsn) =>
         R.map((m, i) => ({ m, i }))
-          .filter(o => o.m && o.m.pos !== "K" && o.m.pos !== "P")
+          .filter(o => o.m && o.m.pos !== "K" && o.m.pos !== "P" && !(skip && skip(o)))
           .sort((a, b) => (b.m.ovr || 0) - (a.m.ovr || 0))
           .slice(0, 3)
-          .map(o => ({ name: o.m.name, pos: o.m.pos, ovr: Math.round(o.m.ovr || 0), why, star: !0, slot: o.i, chip: 0 })),
+          .map(o => ({ name: o.m.name, pos: o.m.pos, ovr: Math.round(o.m.ovr || 0), why, rsn: ah ? rsn : void 0, star: !0, slot: o.i, chip: 0 })),
       c0 = chemOfV153B(p);
     if (teamOnV153B()) chemMoveV153B(p, Math.round((50 - c0) * TU("rmChemNewTeamV193AA", 0.5) * 10) / 10, "a new team");
-    const from = (S0 && S0.teamName) || (M0 && M0.team) || "your old team";
+    // v193 AH: men who know him already — +0.5 chemistry each (once a move: the club after the level adds nothing)
+    F && F.n && !F.sameMove && !F.settle && chemMoveV153B(p, Math.round(F.n * TU("ahChemFollowV193AH", 0.5) * 10) / 10, "teammates who followed you");
+    const from = (S0 && S0.teamName) || (M0 && M0.team) || "your old team",
+      folFrom = (F && F.from) || from,
+      folRows = F && F.men ? F.men.map(x => ({ name: x.name, pos: x.pos, ovr: x.ovr, why: "followed you from " + folFrom, rsn: "follow", star: !1, slot: x.slot, chip: 0, lock: x.lock || 0 })) : [],
+      dep = top(prevR, T0, "stays with " + from, o => folNames.has(o.m.name), "stay"),
+      arr = folRows.concat(top(players, T1, "your new teammate", o => fol.has(o.i), "newmate"));
     rmQueueV193AA(p, {
       kind: "team",
       at: p.totalSeasons | 0,
       before: S0 ? S0.team : null,
       fromName: from,
       toName: rmTeamNameV193AA(p) || "your new team",
-      dep: top(prevR, T0, "stays with " + from),
-      arr: top(players, T1, "your new teammate"),
-      more: [Math.max(0, prevR.length - 3), Math.max(0, players.length - 3)],
+      dep,
+      arr,
+      more: [Math.max(0, prevR.length - folRows.length - dep.length), Math.max(0, players.length - arr.length)],
       imp: [],
       chem: [c0, chemOfV153B(p)],
-      target: T1
+      target: T1,
+      follow: F ? { n: F.n, from: folFrom } : null,
+      franchise: !!(F && F.franchise),
+      arrive: A && A.hit ? { depth: A.depth, trust: A.trust } : null
     });
   }
   function rmQueueV193AA(e, it) {
@@ -38710,6 +38762,9 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
     if (last && !last.opened && last.kind === "team" && it.kind === "team" && last.at === it.at) {
       // a level's new roster, then the club he signs with: one card, the old team to the last new one
       Object.assign(last, { toName: it.toName, arr: it.arr, more: [last.more ? last.more[0] : 0, it.more ? it.more[1] : 0], target: it.target, chem: [last.chem ? last.chem[0] : it.chem[0], it.chem[1]] });
+      // v193 AH: the same men followed (the level's move decided them); the arrival stands; a level up stays A NEW TEAM
+      it.follow && (last.follow = Object.assign({}, it.follow, { from: (last.follow && last.follow.from) || it.follow.from }));
+      !last.arrive && it.arrive && (last.arrive = it.arrive);
       return last;
     }
     if (last && !last.opened && last.kind === "season" && it.kind === "team" && last.at === it.at) {
@@ -38730,10 +38785,13 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
       dep = [],
       arr = [],
       imp = [];
+    const ah = ahOnV193AH();
     evs.forEach(v => {
       if (v.kind === "leave") {
-        dep.push({ name: v.name, pos: v.pos, ovr: Math.round(v.ovrFrom || 0), why: (v.quit ? "quit the team" : "entered the transfer portal") + " — " + (v.why || ""), star: !1, slot: v.slot, chip: -rmChipV193AA(v.ovrFrom, T) });
-        arr.push({ name: v.newName, pos: v.pos, ovr: Math.round(v.ovrTo || 0), why: "his replacement", slot: v.slot, chip: rmChipV193AA(v.ovrTo, T) });
+        // v193 AH: v153 B's walk-out is his TOXIC lean ("he could not play beside you") or a story / wheel swing gone sour
+        const rsn = ah ? (v.trigger === "season" || /could not play beside you/.test(v.why || "") ? "clash" : "chem") : void 0;
+        dep.push({ name: v.name, pos: v.pos, ovr: Math.round(v.ovrFrom || 0), why: (v.quit ? "quit the team" : "entered the transfer portal") + " — " + (v.why || ""), rsn, star: !1, slot: v.slot, chip: -rmChipV193AA(v.ovrFrom, T) });
+        arr.push({ name: v.newName, pos: v.pos, ovr: Math.round(v.ovrTo || 0), why: "his replacement", rsn: ah ? "recruit" : void 0, slot: v.slot, chip: rmChipV193AA(v.ovrTo, T) });
       } else imp.push({ name: v.name, pos: v.pos, ovr: Math.round(v.ovrTo || 0), from: v.ovrFrom, to: v.ovrTo, why: v.kind === "sacrifice" ? "your sacrifice" : "grew beside you", slot: v.slot, chip: ((v.ovrTo || 0) - (v.ovrFrom || 0)) / 22 });
     });
     const Q = (e.rmQV193AA = Array.isArray(e.rmQV193AA) ? e.rmQV193AA : []),
@@ -38802,12 +38860,12 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
       team = q.kind === "team",
       chip = (c, up) => (team ? "" : `<i class="rm-chip ${up ? "g" : "r"}">${up ? "+" : "−"}${Math.max(1, Math.round(Math.abs(c)))} TEAM</i>`),
       row = (m, cls, ch) =>
-        `<div class="rm-row ${cls}${m.star && cls === "dep" ? " star" : ""}" data-slot="${m.slot}"><span class="rm-pos">${escHtml(String(m.pos || ""))}</span><span class="rm-nm">${m.star && cls === "dep" && !team ? "⭐ " : ""}${escHtml(String(m.name || "—"))}<small>${escHtml(String(m.why || ""))}</small></span><b class="rm-ovr">${Math.round(m.ovr || 0)}</b>${ch}</div>`,
-      dep = (q.dep || []).slice().sort((a, b) => (b.star ? 1 : 0) - (a.star ? 1 : 0) || (b.ovr || 0) - (a.ovr || 0)),
-      arr = (q.arr || []).slice().sort((a, b) => (b.ovr || 0) - (a.ovr || 0)),
+        `<div class="rm-row ${cls}${m.star && cls === "dep" ? " star" : ""}" data-slot="${m.slot}"${m.rsn ? ` data-rsn="${escHtml(String(m.rsn))}"` : ""}><span class="rm-pos">${escHtml(String(m.pos || ""))}</span><span class="rm-nm">${m.star && cls === "dep" && !team ? "⭐ " : ""}${escHtml(String(m.name || "—"))}<small>${rsnChipV193AH(m) /* v193 AH: the reason */}${escHtml(String(m.why || ""))}</small></span><b class="rm-ovr">${Math.round(m.ovr || 0)}</b>${ch}</div>`,
+      dep = (q.dep || []).slice().sort((a, b) => (b.star ? 1 : 0) - (a.star ? 1 : 0) || rsnRankV193AH(a) - rsnRankV193AH(b) || (b.ovr || 0) - (a.ovr || 0)),
+      arr = (q.arr || []).slice().sort((a, b) => rsnRankV193AH(a) - rsnRankV193AH(b) || (b.ovr || 0) - (a.ovr || 0)) /* v193 AH: the men who came for him, or followed him, first */,
       imp = (q.imp || []).slice().sort((a, b) => (b.to - b.from || 0) - (a.to - a.from || 0)),
       more = (n, what) => (n > 0 ? `<div class="rm-more">+ ${n} more ${what}</div>` : ""),
-      title = { season: "A NEW SEASON", team: "A NEW TEAM", recruit: "YOU SIGNED A RECRUIT", locker: "THE LOCKER ROOM" }[q.kind] || "ROSTER MOVES",
+      title = (q.kind === "team" && q.franchise && ahOnV193AH() ? "NEW FRANCHISE" : { season: "A NEW SEASON", team: "A NEW TEAM", recruit: "YOU SIGNED A RECRUIT", locker: "THE LOCKER ROOM" }[q.kind]) || "ROSTER MOVES",
       c = q.chem,
       chemShow = !!(c && Math.round(c[1]) !== Math.round(c[0])) || N.rest !== 0,
       d = N.n3 - N.n0;
@@ -38822,7 +38880,7 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
         ? `<div class="rm-sec rm-arr-s"><h6>${team ? "YOUR NEW TEAM · " + escHtml(String(q.toName || "")).toUpperCase() : arr.length ? "JOINED" : "CAME BACK BETTER"}</h6>${arr
             .slice(0, MAXR)
             .map(m => row(m, "arr", chip(m.chip, !0) + (m.lock ? `<i class="rm-chip k">🔒 ${m.lock}</i>` : "")))
-            .join("")}${team ? more(q.more && q.more[1], "teammates") : more(arr.length - MAXR, "joined")}${imp
+            .join("")}${team ? more(((q.more && q.more[1]) || 0) + Math.max(0, arr.length - MAXR), "teammates") : more(arr.length - MAXR, "joined")}${imp
             .slice(0, 2)
             .map(m => row(m, "imp", `<i class="rm-chip g">+${Math.max(1, Math.round(m.to - m.from))} OVR</i>`))
             .join("")}${imp.length > 2 ? `<div class="rm-more">+ ${imp.length - 2} more came back better</div>` : ""}</div>`
@@ -38832,7 +38890,7 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
       : "";
     return `<div class="rm-card" id="rmCardV193AA" role="dialog" aria-label="Roster moves"><div class="rm-eye">🏈 ROSTER MOVES · ${title}</div>
       <div class="rm-big"><b id="rmNumV193AA" data-n="${N.n0}">${N.n0}</b><span>TEAM OVR</span><em class="rm-spark"><i></i><i></i><i></i><i></i><i></i></em></div>
-      ${depH}${arrH}${chemH}
+      ${rmNotesV193AH(q) /* v193 AH: who followed him, how he arrives, why they left */}${depH}${arrH}${chemH}
       <div class="rm-end" id="rmEndV193AA">TEAM ${N.n0} → ${N.n3} <em class="${d > 0 ? "up" : d < 0 ? "dn" : ""}">(${rmSgV193AA(d)})</em></div>
       <button type="button" class="btn rm-go" id="rmGoV193AA">CONTINUE</button><div class="rm-hint" id="rmHintV193AA">tap to skip</div></div>`;
   }
@@ -38921,6 +38979,8 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
     }, t);
     t += (N.n1 !== N.n0 ? clamp99(Math.abs(N.n1 - N.n0) * TU("rmTickMsV193AA", 90), 320, 1500) : 0) + 380;
     ups.forEach((r, k) => at(() => r.classList.add("in"), t + k * stag));
+    // v193 AH: a man who followed him, or came for him, lands with a tap
+    ups.some(r => /^(follow|drawn)$/.test(r.dataset.rsn || "")) && at(() => buzzV193O("tap"), t);
     t += ups.length * stag + (ups.length ? 250 : 0);
     at(() => {
       card && card.classList.remove("shake");
@@ -39147,7 +39207,8 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
         `YOU LOSE (for good): ${recruitCostTxtV193AA(o.cost)}.\n` +
         `YOU GAIN: ${o.man.name} (${o.man.pos}, ${o.man.ovr} OVR, ${o.tier}) in place of ${o.old.name} (${o.old.pos}, ${o.old.ovr}).\n` +
         `TEAM ${o.before} → ${o.after} (${rmSgV193AA(d)}).\n` +
-        `He is LOCKED to your team for ${o.lock} seasons (this one counted) — he won't leave in turnover. If you move up a level or sign with another club before then, he can't follow: the lock ends there.`;
+        `He is LOCKED to your team for ${o.lock} seasons (this one counted) — he won't leave in turnover. If you move up a level or sign with another club before then, ` +
+        (ahOnV193AH() ? `the lock can't follow you there — he comes along only if he is one of the men who follow you (then his lock comes too).` : `he can't follow: the lock ends there.`);
     return askV150(msg, { title: "Sign " + o.man.name + "?", ok: "Sign him" }).then(ok => {
       if (!ok) return !1;
       const r = recruitSignV193AA(i);
@@ -39199,8 +39260,8 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
       at,
       before,
       after,
-      dep: [{ name: old ? old.name : "—", pos: man.pos, ovr: Math.round((old && old.ovr) || 0), why: "made room for " + man.name, star: !1, slot: o.slot, chip: -rmChipV193AA(old && old.ovr, T) }],
-      arr: [{ name: man.name, pos: man.pos, ovr: man.ovr, why: o.tier + " · paid " + recruitCostTxtV193AA(o.cost), star: man.star, slot: o.slot, chip: rmChipV193AA(man.ovr, T), lock: o.lock }],
+      dep: [{ name: old ? old.name : "—", pos: man.pos, ovr: Math.round((old && old.ovr) || 0), why: "made room for " + man.name, rsn: ahOnV193AH() ? "cut" : void 0, star: !1, slot: o.slot, chip: -rmChipV193AA(old && old.ovr, T) }],
+      arr: [{ name: man.name, pos: man.pos, ovr: man.ovr, why: o.tier + " · paid " + recruitCostTxtV193AA(o.cost), rsn: ahOnV193AH() ? "recruit" : void 0, star: man.star, slot: o.slot, chip: rmChipV193AA(man.ovr, T), lock: o.lock }],
       imp: [],
       chem: null,
       target: T
@@ -39254,7 +39315,9 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
         : left > 0
           ? `<button type="button" class="rm-recbtn" id="rmRecruitBtnV193AA_${where}" onclick="openRecruitV193AA()">${artV193Y("🤝", 16)} RECRUIT A PLAYER</button>`
           : `<span class="rm-recdone">✓ Recruited this season</span>`;
-    return `<div class="rm-teamrow-v193aa" id="rmTeamRowV193AA_${where}">${chip}${btn}</div>${locks
+    const nf = followersOnV193AH(e),
+      fchip = nf ? (ahCssV193AH(), `<span class="rm-fchip" id="rmFollowV193AH_${where}">★ ${nf} follower${nf === 1 ? "" : "s"}</span>`) : ""; /* v193 AH */
+    return `<div class="rm-teamrow-v193aa" id="rmTeamRowV193AA_${where}">${chip}${fchip}${btn}</div>${locks
       .map(m => {
         const n = lockLeftV193AA(e, m);
         return `<div class="rm-lock-v193aa">🔒 <b>${escHtml(m.name)}</b> ${escHtml(m.pos)} ${Math.round(m.ovr)} · locked ${n} more season${n === 1 ? "" : "s"}</div>`;
@@ -39410,6 +39473,405 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
       }
     },
     chip: (ovr, T) => rmChipV193AA(ovr, T)
+  };
+
+  /* ===== v193 AH CHEMISTRY HAS A REASON =====
+   * The owner: "If someone joins the team because of you it good chemistry note it. If someone leaves because they can't
+   * stand you or bad chemistry or they're a losing. New league new team besides your followers from the prior league.
+   * franchise note it. From league to league have 1 to 10 top people follow you (10 only in extremely rare circumstances.
+   * Great personality. Leader, etc most of the time its 1 to 3. More players can leave with a negative personality. But
+   * negative personalities can gain stats faster themselves. and instantly be one of the better players on that team.
+   * Random, brought by personality. And be improved with prestige mechanic."
+   * WHO HE IS (`leansV193AH`): the pure TOXIC / TEAM leans of his personality — the same weights as v153 B's
+   *   `personaScoresV153B` (TOXIC = me-first + brash + volatile + stubborn + aggressive; TEAM = team-first + even-keeled +
+   *   coachable + humble), without the room's chemistry. A "negative personality" is a TOXIC lean (0 … 2).
+   * EVERY MOVE HAS A REASON (`rsn` on each row of v193 AA's card, drawn as a chip by `rsnChipV193AH`):
+   *   departures  Graduated / Transferred / Retired (v193 AA's own rolls, named) · and, from the same turnover, a second
+   *               seeded roll a man (`ahLeaveRollV193AH`, its own seed — v193 AA's draws are untouched) at
+   *               `leaveOddsV193AH`: "Can't stand you" TOXIC (personaScoresV153B, a sour room counts) × `ahClashKV193AH`
+   *               (5% a TOXIC point, × (1 − 25% a Pied Piper level)), "Bad chemistry" (chemistry under `ahChemLowV193AH`
+   *               40: up to `ahChemKV193AH` 8% at 0), "Tired of losing" (last season's regular-season record under .500:
+   *               up to `ahLoseKV193AH` 10% at 0 wins — `lastRecordV193AH`, the finished season's weeks, else the season
+   *               log), the three together at most `ahLeaveMaxV193AH` 30% a man, the reason picked by its share; in the
+   *               UFF a man under `ahCutBelowV193AH` 88% of the roster's target is "Cut" at `ahCutPV193AH` 20%.
+   *               v153 B's walk-outs: "Can't stand you" (his TOXIC lean did it) or "Bad chemistry" (a story / wheel swing);
+   *               RECRUIT A PLAYER's man who made room: "Cut"; a new team's men you leave: "Stayed behind".
+   *   arrivals    each new face (`ahArriveRollV193AH`): "Came for YOU ★" at `drawOddsV193AH` (4% + 30% × his OVR over the
+   *               level's base, + 12% × his fame (media heat), + 6% a TEAM point − 5% a TOXIC point, ≤ 50%) — rated
+   *               `ahDrawRateKV193AH` ×1.06 and good chemistry: +`ahChemDrawV193AH` 0.8 instead of a newcomer's −0.6;
+   *               else "Transfer in" (`ahTransferInPV193AH` 25%, JV and up) or "Recruited"; the recruit he signs is
+   *               "Recruited"; v153 B's replacement "Recruited"; a new team's men "New teammate" / "Followed you ★".
+   * FOLLOWERS (`followPlantV193AH`, from v193 AA's new-program branch of `rmCarryV193AA`): a level up or a new UFF club
+   *   (a NEW FRANCHISE) is a new roster EXCEPT 1–10 of his best former teammates. The count is a seeded weighted roll
+   *   (`followCountV193AH`) over `followWeightsV193AH(pull)`: weight r^(n−1), r = 0.55 + 0.07 × pull (0.4 … 0.8); 7+
+   *   only past a pull of 1 (× ((pull − 1) / 2)² ≤ 1), 10 × 0.25 more. The pull (`followPullV193AH`, −1.5 … 4): TEAM ×
+   *   0.6 − TOXIC × 0.6 + (chemistry − 50) / 50 × 0.5 + Born Leader 0.5 + The Captain 0.5 + Pied Piper 0.8 a level.
+   *   Measured over 10,000 rolls (docs/CHANGELOG.md, v193AHcheck): pull 0 → 1–3 ~85%, never 7+; the maximum → 1–3
+   *   ~55%, 10 under 1%. The men are drawn from his best (`ahFollowPoolV193AH` 3 more than the count, weighted by rank),
+   *   planted in the weakest place at their position on the new roster at their standing scaled to the new level (OVR / the old target × the
+   *   new one × `ahFollowKV193AH` 0.97), +`ahChemFollowV193AH` 0.5 chemistry each (in the UFF the club's offer IS his first season's team rating, v146 B: they settle in — the team term and the chemistry count them from the next season); a locked recruit who follows keeps his
+   *   lock (they never count against it). A level's roster and then the club he signs with (one card in v193 AA) or a
+   *   pass through the combine carry the SAME men (`p.followV193AH`). The card: "A NEW TEAM · N followed you from X" /
+   *   "NEW FRANCHISE · …"; the season card's team row and MY TEAM say "★ N followers"; src/10's roster list marks them.
+   * THE TRADE-OFF (a TOXIC lean): more men leave (above) and fewer follow (the pull) — but he grows faster
+   *   (`growNegV193AH`: +`ahGrowKV193AH` 8% attribute growth a TOXIC point, ≤ `ahGrowMaxV193AH` 15%, × v192 C's own
+   *   personality growth in `growthMulV192C` — v192 C slows Coasts / Win-Now / Stubborn; only Stubborn is also TOXIC,
+   *   at 0.35 a point), and a new team sees him as one of its best (`arriveV193AH`, seeded per move): TOXIC ≥
+   *   `ahArriveMinV193AH` 0.25 → at `ahArrivePBaseV193AH` 30% + 35% a TOXIC point (≤ 95%) he arrives +6 … 14 on the
+   *   depth chart's score (`arrivalDepthV193AH`, read by `depthChart`, his first season there) and +half that in coach
+   *   trust, once. The personality page (src/14 `fxChips`) and the card say it.
+   * PIED PIPER (`TREE.mental`, `piedPiperV193AH`, 12 × the branch's ×24 = 288 PP, ×2 a level, max 3): +0.8 pull a level
+   *   and "Can't stand you" −25% a level. Kill switch `TU("v193AH", 1)`: 0 = v193 AA as it was (no reasons, no extra
+   *   departures, no followers, no growth or arrival edge). `window.__V193AH`; `scripts/v193AHcheck.mjs`. */
+  function ahOnV193AH() {
+    return rmOnV193AA() && !!TU("v193AH", 1);
+  }
+  function piedLvlV193AH() {
+    return Math.max(0, Number(treeFx("piedPiperV193AH")) || 0);
+  }
+  function leansV193AH(e) {
+    const p = (e && e.personaV13) || {},
+      g = k => ((p[k] == null ? 5 : +p[k]) - 5) / 5;
+    return {
+      tox: +clamp99(-g("loyalty") + g("confidence") * 0.45 - g("eq") * 0.5 - g("coachability") * 0.35 + g("aggression") * 0.2, 0, 2).toFixed(3),
+      team: +clamp99(g("loyalty") + g("eq") * 0.4 + g("coachability") * 0.35 - g("confidence") * 0.25, 0, 2).toFixed(3)
+    };
+  }
+  var AH_RSN_V193AH = {
+    drawn: ["Came for YOU ★", "g"],
+    follow: ["Followed you ★", "g"],
+    recruit: ["Recruited", "n"],
+    transferIn: ["Transfer in", "n"],
+    newmate: ["New teammate", "n"],
+    clash: ["Can't stand you", "r"],
+    chem: ["Bad chemistry", "r"],
+    lose: ["Tired of losing", "r"],
+    grad: ["Graduated", "n"],
+    retire: ["Retired", "n"],
+    transfer: ["Transferred", "n"],
+    cut: ["Cut", "n"],
+    stay: ["Stayed behind", "n"]
+  };
+  function rsnChipV193AH(m) {
+    const R = m && m.rsn && ahOnV193AH() && AH_RSN_V193AH[m.rsn];
+    return R ? `<i class="rm-why ${R[1]}" data-rsn="${m.rsn}">${escHtml(R[0])}</i>` : "";
+  }
+  // the card's order: the moves he caused first (followers, men who came for him; men who left because of him)
+  function rsnRankV193AH(m) {
+    const k = { follow: 0, drawn: 1, clash: 0, chem: 1, lose: 2 }[(m && m.rsn) || ""];
+    return ahOnV193AH() && k != null ? k : 5;
+  }
+  // the lines under the big number: who followed him, how he arrives, and why the room changed
+  function rmNotesV193AH(q) {
+    if (!q || !ahOnV193AH()) return "";
+    ahCssV193AH();
+    let h = "";
+    const F = q.follow;
+    if (q.kind === "team")
+      h += `<div class="rm-note" id="rmFollowNoteV193AH">${q.franchise ? "NEW FRANCHISE" : "A NEW TEAM"} · ${F && F.n ? `${F.n} followed you from ${escHtml(String(F.from || q.fromName || ""))}` : "no one followed you"}</div>`;
+    if (q.arrive) h += `<div class="rm-note g" id="rmArriveNoteV193AH">⚡ You arrive as one of its best: +${q.arrive.depth} on the depth chart, +${q.arrive.trust} coach trust</div>`;
+    if (q.kind !== "team") {
+      const n = k => (q.dep || []).concat(q.arr || []).filter(m => m && m.rsn === k).length,
+        bits = [];
+      [["clash", "can't stand you"], ["chem", "bad chemistry"], ["lose", "tired of losing"], ["drawn", "came for you ★"]].forEach(([k, t]) => n(k) && bits.push(`${n(k)} ${t}`));
+      bits.length && (h += `<div class="rm-note${n("clash") + n("chem") + n("lose") > n("drawn") ? " r" : " g"}" id="rmWhyNoteV193AH">${bits.join(" · ")}</div>`);
+    }
+    return h;
+  }
+  // last season's regular-season record: the finished season's weeks (the turnover runs at its end), else the log
+  function lastRecordV193AH(e) {
+    const reg = ((e && e.weekResults) || []).filter(w => w && !w.playoff && w.played);
+    if (reg.length) {
+      const w = reg.filter(x => x.won).length;
+      return { w, l: reg.length - w };
+    }
+    const log = e && e.seasonLogV77,
+      r = log && log.length ? log[log.length - 1] : null;
+    return r && (r.wins || r.losses) ? { w: r.wins | 0, l: r.losses | 0 } : null;
+  }
+  // the extra departure odds a man, by reason (the shares scaled together to at most ahLeaveMaxV193AH)
+  function leaveOddsV193AH(e) {
+    const S = personaScoresV153B(e),
+      chem = chemOfV153B(e),
+      rec = lastRecordV193AH(e),
+      wp = rec && rec.w + rec.l ? rec.w / (rec.w + rec.l) : null,
+      clash = S.tox >= TU("ahClashMinV193AH", 0.1) ? S.tox * TU("ahClashKV193AH", 0.05) * Math.max(0, 1 - TU("ahNodeClashCutV193AH", 0.25) * piedLvlV193AH()) : 0,
+      lowAt = TU("ahChemLowV193AH", 40),
+      chemP = chem < lowAt ? ((lowAt - chem) / Math.max(1, lowAt)) * TU("ahChemKV193AH", 0.08) : 0,
+      loseAt = TU("ahLoseAtV193AH", 0.5),
+      loseP = wp != null && wp < loseAt ? ((loseAt - wp) / loseAt) * TU("ahLoseKV193AH", 0.1) : 0,
+      sum = clash + chemP + loseP,
+      tot = Math.min(sum, TU("ahLeaveMaxV193AH", 0.3)),
+      k = sum > 0 ? tot / sum : 0;
+    return { tox: S.tox, chem, rec, wp, clash: clash * k, chemP: chemP * k, loseP: loseP * k, tot };
+  }
+  function ahLeaveRollV193AH(p, O, m0, i, key, T, pro) {
+    const r = seededRng("v193AH", p.name || "", p.totalSeasons | 0, p.level | 0, i, key),
+      x = r(),
+      y = r() * O.tot;
+    if (x < O.tot) {
+      if (y < O.clash) return { rsn: "clash", why: "couldn't stand playing beside you" };
+      if (y < O.clash + O.chemP) return { rsn: "chem", why: "the room went sour — chemistry " + Math.round(O.chem) };
+      return { rsn: "lose", why: "tired of losing — " + (O.rec ? O.rec.w + "-" + O.rec.l : "") + " last season" };
+    }
+    if (pro && (Number(m0.ovr) || 0) < T * TU("ahCutBelowV193AH", 0.88) && r() < TU("ahCutPV193AH", 0.2)) return { rsn: "cut", why: "cut — below the roster's level" };
+    return null;
+  }
+  // the odds a new face came because of HIM: his OVR over the level, his fame, who he is
+  function drawOddsV193AH(e) {
+    if (!e) return 0;
+    const L = leansV193AH(e),
+      base = Math.max(1, levelBaseV178(e.level));
+    let ovr = base;
+    try {
+      ovr = e.attrs && e.pos ? playerOvr(e) : base;
+    } catch (_) {}
+    const rel = clamp99(ovr / base - 1, -0.3, 0.5),
+      heat = e.worldState && e.worldState.mediaHeat != null ? +e.worldState.mediaHeat || 0 : 20,
+      fame = clamp99((heat - 20) / 60, 0, 1),
+      p =
+        TU("ahDrawBaseV193AH", 0.04) +
+        TU("ahDrawOvrKV193AH", 0.3) * rel +
+        TU("ahDrawFameKV193AH", 0.12) * fame +
+        TU("ahDrawTeamKV193AH", 0.06) * L.team -
+        TU("ahDrawToxKV193AH", 0.05) * L.tox;
+    return clamp99(p, 0, TU("ahDrawMaxV193AH", 0.5));
+  }
+  function ahArriveRollV193AH(p, pDraw, i, key, lv) {
+    const r = seededRng("v193AH-in", p.name || "", p.totalSeasons | 0, lv, i, key),
+      x = r();
+    if (x < pDraw) return { rsn: "drawn", why: "came to play beside you" };
+    if (lv >= 3 && x < pDraw + TU("ahTransferInPV193AH", 0.25)) return { rsn: "transferIn", why: lv >= 7 ? "signed from another club" : "a transfer" };
+    return { rsn: "recruit", why: lv >= 7 ? "a rookie" : "a freshman" };
+  }
+  /* FOLLOWERS */
+  function followPullV193AH(e) {
+    const L = leansV193AH(e),
+      chem = (chemOfV153B(e) - 50) / 50,
+      parts = {
+        team: L.team * TU("ahPullTeamKV193AH", 0.6),
+        tox: -L.tox * TU("ahPullToxKV193AH", 0.6),
+        chem: chem * TU("ahPullChemKV193AH", 0.5),
+        lead: (hasTrait(e, "bornLeader") ? TU("ahPullLeadV193AH", 0.5) : 0) + (state && state.path === "captain" && currentPath() ? TU("ahPullCaptainV193AH", 0.5) : 0),
+        node: piedLvlV193AH() * TU("ahNodePullV193AH", 0.8)
+      };
+    let s = 0;
+    for (const k in parts) s += parts[k];
+    return { pull: +clamp99(s, -1.5, 4).toFixed(3), parts };
+  }
+  function followWeightsV193AH(pull) {
+    const r = clamp99(TU("ahFollowR0V193AH", 0.55) + TU("ahFollowRKV193AH", 0.07) * pull, 0.4, 0.8),
+      gate = Math.pow(clamp99((pull - TU("ahFollowGateAtV193AH", 1)) / 2, 0, 1), 2),
+      mx = clamp99(TU("ahFollowMaxV193AH", 10) | 0, 1, 10),
+      w = [];
+    for (let n = 1; n <= mx; n++) w.push(Math.pow(r, n - 1) * (n >= 7 ? gate : 1) * (n === 10 ? TU("ahFollowTenKV193AH", 0.25) : 1));
+    const s = w.reduce((a, b) => a + b, 0);
+    return w.map(x => x / s);
+  }
+  function followCountV193AH(pull, rnd) {
+    const W = followWeightsV193AH(pull);
+    let x = rnd();
+    for (let n = 0; n < W.length; n++) if ((x -= W[n]) < 0) return n + 1;
+    return 1;
+  }
+  // the share of moves that bring 4+ / the most likely count — whole percents for the pages
+  function followSayV193AH(pull) {
+    const W = followWeightsV193AH(pull);
+    return { p13: Math.round((W[0] + (W[1] || 0) + (W[2] || 0)) * 100), p4: Math.round(W.slice(3).reduce((a, b) => a + b, 0) * 100), p10: W[9] || 0 };
+  }
+  /* the new program's roster keeps the men who follow him (rmCarryV193AA's new-team branch, after v193 AA's fresh) */
+  function followPlantV193AH(p, prevR, players, M0, T1, prevProg, prog) {
+    if (!ahOnV193AH() || !Array.isArray(prevR) || !Array.isArray(players)) return null;
+    const at = p.totalSeasons | 0,
+      F0 = p.followV193AH,
+      lv = p.level | 0,
+      prevLv = parseInt(String(prevProg || "").split("|")[0], 10),
+      T0 = M0 && M0.target > 0 ? M0.target : T1,
+      S0 = p.teamSnapV193AA,
+      fromName = (S0 && S0.teamName) || (M0 && M0.team) || "your old team",
+      // the same move finished (a level's roster, then the club he signs with) or a pass through the combine: the same men
+      reuse0 = !!(F0 && Array.isArray(F0.names) && (F0.at === at || prevLv === 6));
+    let picks = [],
+      P = null,
+      reuse = reuse0;
+    if (reuse) {
+      F0.names.forEach(nm => {
+        const i = prevR.findIndex(m => m && m.name === nm);
+        i >= 0 && picks.push({ m: prevR[i], i });
+      });
+      if (!picks.length && F0.at !== at) reuse = !1; // out of the combine with none of them left: a fresh roll
+    }
+    const sameMove = reuse && F0.at === at,
+      franchise = sameMove ? !!F0.franchise : lv >= 7 && prevLv === lv;
+    if (!reuse) {
+      P = followPullV193AH(p);
+      const rnd = seededRng("v193AH-follow", p.name || "", at, lv, prevProg, prog),
+        cand = prevR
+          .map((m, i) => ({ m, i }))
+          .filter(o => o.m && o.m.pos !== "K" && o.m.pos !== "P")
+          .sort((a, b) => (b.m.ovr || 0) - (a.m.ovr || 0)),
+        n = Math.min(followCountV193AH(P.pull, rnd), cand.length),
+        pool = cand.slice(0, Math.min(cand.length, n + Math.max(0, TU("ahFollowPoolV193AH", 3) | 0)));
+      for (let k = 0; k < n && pool.length; k++) {
+        const w = pool.map((o, j) => pool.length - j),
+          tot = w.reduce((a, b) => a + b, 0);
+        let x = rnd() * tot,
+          j = 0;
+        for (; j < pool.length - 1 && (x -= w[j]) >= 0; j++);
+        picks.push(pool.splice(j, 1)[0]);
+      }
+    }
+    const taken = new Set(),
+      planted = [],
+      K = TU("ahFollowKV193AH", 0.97),
+      // in the UFF the club's offer IS the team's rating his first season (v146 B): the men who follow him settle in
+      // and count in the team term from the next season (their own OVR shows at once)
+      settle = lv >= 7;
+    picks.forEach(o => {
+      // he takes the weakest place at his position on the new roster
+      let j = -1,
+        lo = Infinity;
+      players.forEach((x, q) => x && x.pos === o.m.pos && !taken.has(q) && (x.ovr || 0) < lo && ((lo = x.ovr || 0), (j = q)));
+      if (j < 0) return;
+      taken.add(j);
+      const m = JSON.parse(JSON.stringify(o.m)),
+        was = players[j],
+        ovr = clamp99(Math.round(((Number(o.m.ovr) || 1) / Math.max(1, T0)) * T1 * (reuse ? 1 : K)), 1, 999);
+      rmScaleV193AA(m, ovr / Math.max(1, m.ovr || ovr));
+      m.ovr = m.overall = ovr;
+      m.carryOvrV193AA = settle ? (was.carryOvrV193AA != null ? was.carryOvrV193AA : was.ovr) : ovr;
+      m.id = "P" + j + "f" + at;
+      if (!franchise && !reuse && lv < 7) m.year = "FR";
+      m.followV193AH = { at, from: reuse ? F0.from : fromName };
+      delete m.lockerV153B;
+      delete m.newV193AA;
+      delete m.drawnV193AH;
+      if (!(lockLeftV193AA(p, o.m) > 0)) {
+        delete m.lockedUntilV193AA;
+        delete m.recruitV193AA;
+      }
+      // his name is the follower's: the replaced new face's jersey is free, keep the follower's own unless taken
+      players[j] = m;
+      planted.push({ name: m.name, pos: m.pos, ovr, from: Math.round(o.m.ovr || 0), slot: j, lock: lockLeftV193AA(p, m) || 0 });
+    });
+    const T = (p.rosterMetaV193AA && p.rosterMetaV193AA.target) || T1;
+    p.rosterMetaV193AA && (p.rosterMetaV193AA.dev = +rmDevOfV193AA(players, T).toFixed(3));
+    p.followV193AH = { at, from: reuse ? F0.from : fromName, n: planted.length, names: planted.map(x => x.name), pull: P ? P.pull : F0 && F0.pull, franchise, lv, prog };
+    return { n: planted.length, men: planted, from: p.followV193AH.from, franchise, reuse, sameMove, settle, pull: P ? P.pull : null };
+  }
+  function followersOnV193AH(e) {
+    const R = e && Array.isArray(e.teamRosterV158) ? e.teamRosterV158 : [];
+    return ahOnV193AH() ? R.filter(m => m && m.followV193AH).length : 0;
+  }
+  /* THE TRADE-OFF: a TOXIC lean grows faster (read in growthMulV192C) and arrives as one of the better men */
+  function growNegV193AH(e) {
+    if (!e || !ahOnV193AH()) return 1;
+    return 1 + Math.min(TU("ahGrowMaxV193AH", 0.15), leansV193AH(e).tox * TU("ahGrowKV193AH", 0.08));
+  }
+  function arriveOddsV193AH(tox) {
+    return tox >= TU("ahArriveMinV193AH", 0.25) ? clamp99(TU("ahArrivePBaseV193AH", 0.3) + tox * TU("ahArrivePKV193AH", 0.35), 0, TU("ahArrivePMaxV193AH", 0.95)) : 0;
+  }
+  function arriveV193AH(p, prog) {
+    if (!p || !ahOnV193AH()) return null;
+    const at = p.totalSeasons | 0,
+      A0 = p.arrivalV193AH;
+    if (A0 && A0.at === at) {
+      A0.prog = prog; // the same move finished (the club after the level): one arrival a move
+      return A0.hit ? A0 : null;
+    }
+    const tox = leansV193AH(p).tox,
+      P = arriveOddsV193AH(tox),
+      rnd = seededRng("v193AH-arrive", p.name || "", at, p.level | 0, prog),
+      x = rnd();
+    if (!(x < P)) {
+      p.arrivalV193AH = { at, prog, hit: !1, P: +P.toFixed(3) };
+      return null;
+    }
+    const lo = TU("ahArriveDepthLoV193AH", 6),
+      hi = TU("ahArriveDepthHiV193AH", 14),
+      depth = Math.round(lo + (hi - lo) * rnd() * Math.min(1, 0.5 + tox / 2)),
+      trust = Math.round(depth * TU("ahArriveTrustKV193AH", 0.5));
+    p.coachTrust = clamp99((p.coachTrust != null ? p.coachTrust : 50) + trust, 0, 100);
+    p.arrivalV193AH = { at, prog, hit: !0, depth, trust, P: +P.toFixed(3) };
+    try {
+      const ds = p.depthStarts;
+      depthChartCore(p); // he is one of its better men NOW: the role and the snaps read it at once (the season opens on them)
+      p.depthStarts = ds;
+    } catch (_) {}
+    return p.arrivalV193AH;
+  }
+  // the depth chart's score: his first season at the program he arrived at
+  function arrivalDepthV193AH(e) {
+    if (!e || !ahOnV193AH()) return 0;
+    const A = e.arrivalV193AH;
+    return A && A.hit && A.at === (e.totalSeasons | 0) && A.prog === rmProgV193AA(e) ? A.depth || 0 : 0;
+  }
+  /* the personality page (src/14 fxChips): the trade-off in whole numbers, for the sliders as they stand */
+  function personaLinesV193AH(pn) {
+    if (!ahOnV193AH() || !pn) return [];
+    const pl = state && state.player,
+      e = Object.assign({}, pl || {}, { personaV13: pn }),
+      L = leansV193AH(e),
+      out = [];
+    if (L.tox >= 0.05) {
+      const g = Math.round(Math.min(TU("ahGrowMaxV193AH", 0.15), L.tox * TU("ahGrowKV193AH", 0.08)) * 100),
+        ap = Math.round(arriveOddsV193AH(L.tox) * 100),
+        c = Math.round(L.tox * TU("ahClashKV193AH", 0.05) * Math.max(0, 1 - TU("ahNodeClashCutV193AH", 0.25) * piedLvlV193AH()) * 100);
+      g > 0 && out.push({ up: !0, t: `▲ +${g}% attribute growth — a chip on his shoulder` });
+      ap > 0 && out.push({ up: !0, t: `▲ ${ap}% a new team starts him as one of its best (+${Math.round(TU("ahArriveDepthLoV193AH", 6))}–${Math.round(TU("ahArriveDepthHiV193AH", 14))} depth)` });
+      c > 0 && out.push({ up: !1, t: `▼ up to ${c}% of teammates a season leave — "Can't stand you"` });
+    }
+    const P = followPullV193AH(e),
+      F = followSayV193AH(P.pull);
+    out.push({ up: P.pull >= 0, t: `${P.pull >= 0 ? "▲" : "▼"} to a new team: 1–3 follow you ${F.p13}%, 4+ ${F.p4}%` });
+    return out;
+  }
+  function ahCssV193AH() {
+    if (typeof document > "u" || document.getElementById("ahCssV193AH")) return;
+    document.head.insertAdjacentHTML(
+      "beforeend",
+      `<style id="ahCssV193AH">
+.rm-v193aa .rm-why{display:inline-block;font:700 9.5px/1.3 Oswald,sans-serif;font-style:normal;letter-spacing:.5px;padding:0 5px;margin:1px 5px 1px 0;border-radius:6px;border:1px solid rgba(255,255,255,.25);color:#c9d3db;white-space:nowrap;vertical-align:1px}
+.rm-v193aa .rm-why.r{color:#ff9a9a;border-color:rgba(255,138,128,.6);background:rgba(255,90,90,.12)}
+.rm-v193aa .rm-why.g{color:#ffd76a;border-color:rgba(240,187,69,.75);background:rgba(240,187,69,.15)}
+.rm-v193aa .rm-note{margin:3px 0 2px;text-align:center;font:700 11px/1.3 Oswald,sans-serif;letter-spacing:.8px;color:#f0bb45;overflow-wrap:anywhere}
+.rm-v193aa .rm-note.g{color:#7fe0a0}.rm-v193aa .rm-note.r{color:#ff9a9a}
+.rm-fchip{font:700 11px Oswald,sans-serif;letter-spacing:.5px;padding:2px 7px;border-radius:9px;border:1px solid rgba(240,187,69,.6);color:#f0bb45;background:rgba(240,187,69,.1);white-space:nowrap}
+</style>`
+    );
+  }
+  window.__V193AH = {
+    on: ahOnV193AH,
+    leans: e => leansV193AH(e || state.player),
+    leaveOdds: e => leaveOddsV193AH(e || state.player),
+    drawOdds: e => drawOddsV193AH(e || state.player),
+    pull: e => followPullV193AH(e || state.player),
+    weights: pull => followWeightsV193AH(pull),
+    count: (pull, seed) => followCountV193AH(pull, seededRng("v193AH-dist", seed)),
+    // the measured distribution: n rolls, each its own seed (as each move is)
+    dist: (pull, n, salt) => {
+      const c = new Array(11).fill(0);
+      for (let i = 0; i < (n || 10000); i++) c[followCountV193AH(pull, seededRng("v193AH-dist", salt || "", i))]++;
+      return c;
+    },
+    grow: e => growNegV193AH(e || state.player),
+    growthMul: e => growthMulV192C(e || state.player) /* the multiplier the season's growth (and its preview) reads */,
+    // the depth chart's score as the game computes it (his role, snaps and starts put back)
+    depthScore: e => {
+      e = e || state.player;
+      const k = { r: e.depthRole, s: e.snapShare, d: e.depthStarts };
+      try {
+        return depthChartCore(e).score;
+      } finally {
+        (e.depthRole = k.r), (e.snapShare = k.s), (e.depthStarts = k.d);
+      }
+    },
+    arriveOdds: tox => arriveOddsV193AH(tox),
+    arriveDepth: e => arrivalDepthV193AH(e || state.player),
+    followers: e => followersOnV193AH(e || state.player),
+    personaLines: pn => personaLinesV193AH(pn),
+    record: e => lastRecordV193AH(e || state.player),
+    reasons: AH_RSN_V193AH
   };
 
   /* ===== v153 B ONE KEY STAT, OR TWO AND A RISK =====
@@ -41008,6 +41470,35 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
     }
     return { items, call, total };
   }
+  /* ===== v193 AF GROWTH FILLS THE POINTS BAR TOO =====
+   * The owner: "Can you apply attribute bonus to the upgrade exp bar as well?" The "+% attribute growth" bonuses (the tree's
+   * eGrowth nodes, chaos, gear, the school tier, the legend's growth) grew only the season-end attributes. Every game's
+   * paycheck toward the next upgrade point (`payWeekV178` → `payBankV178`, the season screen's "next point" bar) is
+   * multiplied by the same growth now: the season's sum (`ua` × 0.22, clamped 0.88–1.34, exactly as `simSeason` grows him)
+   * × the legend's `growthMult` (both ways: the Phenom's −8% slows the bar too). The bar's row says the bonus. Kill switch
+   * `v193AF` 0 = the old paycheck. */
+  function growthPayMultV193AF(e) {
+    if (!TU("v193AF", 1) || !e) return 1;
+    let ua = 0,
+      m = 1;
+    try {
+      ua = treeFx("eGrowth") + chaosGrowthV193E() + gearFx("growth") + Math.max(0, tierGrowth(e) - 1) + pathUaV193AD();
+    } catch (_) {}
+    m = clamp99(1 + ua * 0.22, 0.88, 1.34);
+    try {
+      legendsOnV193AD() && currentPath() && (m *= Math.max(0, pathVal("growthMult", 1)));
+    } catch (_) {}
+    return Math.max(0, m);
+  }
+  function growthPayTxtV193AF(e) {
+    const m = growthPayMultV193AF(e),
+      p = Math.round((m - 1) * 100);
+    return p ? ` · <span id="growPayV193AF" style="color:${p > 0 ? "var(--good)" : "#ff8a80"}" title="Your attribute growth bonus fills this bar too">🌱 ${p > 0 ? "+" : ""}${p}% growth</span>` : "";
+  }
+  window.__V193AF = {
+    mult: e => growthPayMultV193AF(e || (state && state.player)),
+    pay: (e, w, watched) => payWeekV178(JSON.parse(JSON.stringify(e)), JSON.parse(JSON.stringify(Object.assign({}, w, { payV178: null }))), { watched: !!watched })
+  };
   /* ---- the ledger ---- */
   function payWeekV178(e, w, ctx) {
     if (!on178() || !e || !w || !e.pos) return null;
@@ -41031,7 +41522,7 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
       pace = paceV178(e, w, stat),
       milePts = pace && pace.hit.length ? pace.hit.length * TU("milePtsV178", 0.75) * worth : 0,
       dbl193 = ptsEarnV193AB(e, 1) /* v193 AB: the 2× POINTS card — 2 while it holds */,
-      raw = ptsEarnV193AB(e, (pot.raw + ordPts + milePts) * wmul * Math.max(0, pathVal(watched ? "watchPayMult" : "simPayMult", 1)) /* v193 AD: The Showman / The Executive */ * heat.mult * (1 + treeFx("payMultV179")) * TU("betaPayV182", 1)) /* v179 G: Golden Paycheck (the medal is inside treeFx); v193 E: Eternal Form and Glass Cannon too; v182: the beta paycheck dial; v193 AB: ×2 on a 2× POINTS season */,
+      raw = ptsEarnV193AB(e, (pot.raw + ordPts + milePts) * wmul * Math.max(0, pathVal(watched ? "watchPayMult" : "simPayMult", 1)) /* v193 AD: The Showman / The Executive */ * heat.mult * (1 + treeFx("payMultV179")) * growthPayMultV193AF(e) /* v193 AF: attribute growth fills the bar too */ * TU("betaPayV182", 1)) /* v179 G: Golden Paycheck (the medal is inside treeFx); v193 E: Eternal Form and Glass Cannon too; v182: the beta paycheck dial; v193 AB: ×2 on a 2× POINTS season */,
       bank0 = e.payBankV178 || 0,
       bank = bank0 + raw,
       whole = Math.floor(bank + 1e-9);
@@ -41078,6 +41569,7 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
       if (wantsCardV178(e, w)) {
         /* v178 K: a tapped sim gets the scorecard; its picks wait for the card */
         V178.card = V178.card || { weeks: [], at: Date.now() };
+        batchPickV193AE(e, w); /* v193 AE: a batch's earlier games pick their cards now — only the last waits for the reel */
         V178.card.weeks.push(w);
       } else {
         autoFlipV178(e, w);
@@ -41807,7 +42299,7 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
       pace = paceV178(e, null, null),
       rows = [];
     rows.push(
-      `<div class="wk-row"><span class="ic">💰</span><span>Paid this season <b style="color:var(--gold)">+${e.paidV178 || 0}</b> · next point ${Math.round(bank * 100)}%</span>${(e.points || 0) > 0 ? `<button class="btn secondary" style="margin-left:auto;width:auto;padding:4px 10px;font-size:12px" onclick="go('upgrade')">Spend ${e.points} ▸</button>` : ""}</div>` +
+      `<div class="wk-row"><span class="ic">💰</span><span>Paid this season <b style="color:var(--gold)">+${e.paidV178 || 0}</b> · next point ${Math.round(bank * 100)}%${growthPayTxtV193AF(e) /* v193 AF */}</span>${(e.points || 0) > 0 ? `<button class="btn secondary" style="margin-left:auto;width:auto;padding:4px 10px;font-size:12px" onclick="go('upgrade')">Spend ${e.points} ▸</button>` : ""}</div>` +
         `<div class="rv-bar" style="margin:0 0 4px"><i style="width:${Math.round(bank * 100)}%"></i></div>`
     );
     const hot = heatV178(st),
@@ -42012,10 +42504,33 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
     return `<div id="pgHeroV186" style="margin:8px 0 6px"><div class="stat-sec-label" style="margin:0 0 5px">YOUR GAME <small style="color:var(--chalk-dim);letter-spacing:0">${escHtml(String(p.pos))} · game ${n} of ${G} · on pace = the full season at this rate</small></div><div style="display:flex;flex-wrap:wrap;gap:6px">${tiles}</div></div>`;
   }
   window.__V189 = Object.assign(window.__V189 || {}, { seasonBox: (p, st, w) => seasonBoxV189(p || (state && state.player), st, w), hero: (p, st, b, n) => heroHtmlV189(p, st, b, n) });
+  /* ===== v193 AE THE SEASON SIM PICKS EVERY CARD =====
+   * The owner: "Not sure the season sim is picking up random cards each game." It was not: the ⏭ season sim (`skipV178`
+   * sets a batch `V178.want`) parks every simmed week on ONE summary card, whose reel shows — and whose Continue
+   * (`closeCardV178`) auto-picks — only the LAST week's deck; a 12-game sim dealt 12 cards and applied 1. Now each earlier
+   * week of a batch picks its card (`autoFlipV178`: the best by rarity, marked `auto`, in the season's card log) the
+   * moment the next game is paid — in game order, so a Hot Streak counts down over the games after it and a 2× POINTS
+   * card doubles the paychecks that follow it. The last week still waits for the reel. A summary card that expires unseen
+   * picks its weeks before it is dropped. The card's head says how many were picked for him. Kill switch `v193AE` 0. */
+  function batchPickV193AE(e, w) {
+    if (!TU("v193AE", 1) || !V178.card) return;
+    for (const x of V178.card.weeks) if (x && x !== w && x.payV178 && !x.payV178.skipped) autoFlipV178(e, x);
+  }
+  function batchDropV193AE(C) {
+    const e = state && state.player;
+    if (!TU("v193AE", 1) || !e || !C) return;
+    for (const x of C.weeks || []) if (x && x.payV178 && !x.payV178.skipped) autoFlipV178(e, x);
+  }
+  function batchLineV193AE(ws) {
+    if (!TU("v193AE", 1) || ws.length < 2) return "";
+    const n = ws.slice(0, -1).reduce((a, x) => a + ((x.payV178.flip && x.payV178.flip.picked.filter(k => k.auto).length) || 0), 0);
+    return n ? `<div class="small center" id="batchCardsV193AE" style="color:var(--chalk-dim);margin:0 0 4px">🃏 ${n} card${n === 1 ? "" : "s"} picked for you in the simmed games · this game's card is yours to pick</div>` : "";
+  }
+  window.__V193AE = { pick: batchPickV193AE, drop: batchDropV193AE };
   function simCardV178() {
     const C = V178.card;
     if (!C || !on178("reel")) return false;
-    if (Date.now() - C.at > 90000) return (V178.card = null), false; /* a card nobody got to see in time is dropped */
+    if (Date.now() - C.at > 90000) return batchDropV193AE(C), (V178.card = null), false; /* a card nobody got to see in time is dropped (v193 AE: its cards are picked for him first) */
     if (state && state.view === "live") return false;
     if (document.getElementById("pgOverlayV13") || document.getElementById("simCardV178") || document.querySelector(".life-event-overlay-v12,#growthV42,#pregameV1513")) return false;
     if (V178.batch) return false;
@@ -42037,7 +42552,7 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
         : `<div class="decision-kicker">${w.playoff ? escHtml(w.round || "PLAYOFFS") : "WEEK " + (wk + 1)} FINAL · ${escHtml(String(w.opp || "OPPONENT"))} · SIMMED</div><div class="decision-title">${TU("v168season", 1) ? myCrestV168(e, 34) : ""}${w.won ? "✅ WIN" : "❌ LOSS"} · ${w.us} – ${w.them}${TU("v168season", 1) ? crestV168(String(w.opp || "").replace(/^.*'s /, ""), 34) : ""}</div><div class="small center" style="color:var(--chalk-dim);margin:2px 0 4px">Game grade ${Math.round(w.perf || 0)}${w.gameGrade ? " · " + escHtml(w.gameGrade) : ""}</div>`;
     document.body.insertAdjacentHTML(
       "beforeend",
-      `<div class="decision-overlay" id="simCardV178"><div class="decision-panel" style="border-color:var(--gold)">${head}${simStatsV189(e, w)}${reelHtmlV178(e, w)}${simRecapV193W(e, w) /* v193 W: the folded box */}<div class="small center watch-hint-v178" style="margin-top:8px;color:var(--cyan)">📺 Watch next week live: ×${TU("watchPayV178", 2)} points, ×2 reps, two card picks</div><button class="btn" style="margin-top:12px" onclick="window.__V178.closeCard()">Continue ›</button></div></div>`
+      `<div class="decision-overlay" id="simCardV178"><div class="decision-panel" style="border-color:var(--gold)">${head}${batchLineV193AE(ws) /* v193 AE */}${simStatsV189(e, w)}${reelHtmlV178(e, w)}${simRecapV193W(e, w) /* v193 W: the folded box */}<div class="small center watch-hint-v178" style="margin-top:8px;color:var(--cyan)">📺 Watch next week live: ×${TU("watchPayV178", 2)} points, ×2 reps, two card picks</div><button class="btn" style="margin-top:12px" onclick="window.__V178.closeCard()">Continue ›</button></div></div>`
     );
     requestAnimationFrame(() => {
       try {
@@ -42952,7 +43467,7 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
     { id: "ppPct", w: 16, rar: "common", icon: "📈", name: "+1% Prestige Points", fx: { ppMult: 0.01 }, ctx: "Every PP you earn from now on, forever: career ends, titles, bounties." },
     { id: "start", w: 22, rar: "common", icon: "🧬", name: "+1 starting ATTR", ctx: "Every future player is born with it — your next career starts ahead." },
     { id: "trust", w: 10, rar: "common", icon: "🤝", name: "+2 starting coach trust", fx: { coachStart: 2 }, ctx: "Every new player starts with a little more of the coach's faith — more snaps early." },
-    { id: "growth", w: 8, rar: "uncommon", icon: "🌱", name: "+1% attribute growth", fx: { eGrowth: 0.05 }, ctx: "Every season's development is a little bigger, every career." },
+    { id: "growth", w: 8, rar: "uncommon", icon: "🌱", name: "+1% attribute growth", fx: { eGrowth: 0.05 }, ctx: "Every season's development — and every game's upgrade points — a little bigger, every career." },
     { id: "odds", w: 8, rar: "uncommon", icon: "🎯", name: "+1% declare odds", fx: { advFlat: 1 }, ctx: "Every declare roll — to the next level, the draft, the UFF — is a point likelier." },
     { id: "luck", w: 6, rar: "rare", icon: "🍀", name: "Luckier card flips", fx: { flipLuckV179: 0.1 }, ctx: "The post-game cards turn up rare, epic and legendary 10% more often." },
     { id: "points", w: 4, rar: "rare", icon: "⭐", name: "+1 upgrade point a season", fx: { pointsFlat: 1 }, ctx: "One more skill point at the end of every season, every career." },
@@ -42964,7 +43479,7 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
     { id: "scoutsEye", icon: "🔭", name: "The Scout's Eye", fx: { advFlat: 3 }, ctx: "+3% on every declare roll, forever." },
     { id: "fourthCard", icon: "🃏", name: "The Extra Card", fx: { flipPicksV179: 1 }, ctx: "One more card pick after EVERY game (two simmed, three watched)." },
     { id: "luckyDeck", icon: "🎲", name: "Loaded Deck", fx: { flipLuckV179: 1 }, ctx: "Rare, epic and legendary post-game cards turn up twice as often." },
-    { id: "prodigy", icon: "🌟", name: "Born for It", fx: { eGrowth: 0.25 }, ctx: "+5% to every season's attribute growth, every career." },
+    { id: "prodigy", icon: "🌟", name: "Born for It", fx: { eGrowth: 0.25 }, ctx: "+5% to every season's attribute growth and every game's upgrade points, every career." },
     { id: "ironBody", icon: "🦴", name: "Iron Body", fx: { injDown: 0.08 }, ctx: "8% fewer injuries, every game, every career." },
     { id: "pedigree", icon: "🏛️", name: "Program Pedigree", fx: { teamQual: 0.05, teamLiftV190: 1.5 }, ctx: "Every teammate is rated +1.5% higher, every game (on the team nodes' +15% cap)." },
     { id: "headStart", icon: "🚀", name: "Head Start", fx: { startPointsV179: 10 }, ctx: "Every new player starts with 10 upgrade points to spend." },
@@ -44531,7 +45046,7 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
       ppMult: () => `+${pct(v)} Prestige Points from every source`,
       startAll: () => `+${nf1V179(v)} to every starting attribute (all ${ATTR_KEYS.length})`,
       coachStart: () => `+${nf1V179(v)} starting coach trust`,
-      eGrowth: () => `+${pct(v * 0.22)} attribute growth every season`,
+      eGrowth: () => `+${pct(v * 0.22)} attribute growth every season (and upgrade points)`,
       advFlat: () => `+${nf1V179(v)}% declare odds · +${nf1V179(v * TU("verdictPerOddsV179", 1))} on the scouts' verdict ceiling · +${nf1V179(v * TU("secondLookPerOddsV179", 1.5))}% GM's second look`,
       flipLuckV179: () => `rare / epic / legendary post-game cards ${pct(v)} likelier`,
       flipPicksV179: () => (onV192A("extraCardV192A") ? "The Extra Card — retired as a medal (v192: an Impossible node now)" : `+${nf1V179(v)} card pick after every game`),

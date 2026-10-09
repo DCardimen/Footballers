@@ -1620,6 +1620,24 @@ window.__visionRadiusV96 = visionRadiusV96;
   const clampY = y=>Math.max(SIDELINE_TOP,Math.min(SIDELINE_BOT,y));
   const cl = (v,a,b)=>Math.min(b,Math.max(a,v));
 
+  /* ===== v193 AJ PHYSICS THE BODY HAS MASS =====
+   * The owner: "Add real physics to the game to make it look natural." FieldSim already moves men on a rated acceleration
+   * curve (v38 / v164 I), bleeds speed through a turn by its angle, and resolves contact by momentum (`contact()`'s mass x
+   * speed). What it never did was give a man's MASS to his own feet: a 1.12 lineman stopped and turned exactly like a
+   * 0.54 receiver of the same ratings. With `v193AJphys` on, the body's mass (the same WT table `contact()` uses) scales
+   *   - how hard he can brake: `brakeRate` x (ref / m)^`massBrakePowV193` — a big man needs more ground to stop;
+   *   - what a turn costs him: the speed lost to a cut x (m / ref)^`massTurnPowV193` — momentum fights the change;
+   *   - how far his heading carries through a turn (`mv`'s carry) x (m / ref)^`massCarryPowV193` — he turns wider.
+   * Bounded both ways (`massKMinV193`..`massKMaxV193`). No random draw is spent; the stream is the same length ON or OFF.
+   * And at the end of a carry that was NOT gripped (a pile, a stick, a slow carrier) the carrier falls forward by the
+   * momentum he still had against the part of the tackler's that opposed it (`fallFwdKV193`, capped `fallFwdMaxPxV193`) —
+   * a big back moving downhill falls forward for the extra yard, a back stood up square does not.
+   * `massKV193(a)` is the one read; `root.__V193AJP` counts. Kill switch `TU("v193AJphys", 0)`. */
+  const MASS_V193 = { DT: 1.06, DE: .96, DL: 1.0, NT: 1.08, LB: .86, S: .7, CB: .58, QB: .6, RB: .72, WR: .54, TE: .82, OL: 1.12 };
+  const massOfV193 = a => MASS_V193[a && a.lb] || .75;
+  const massKV193 = (a, pow) => !TU("v193AJphys", 1) ? 1
+    : cl(Math.pow(massOfV193(a) / TU("massRefV193", .8), pow), TU("massKMinV193", .8), TU("massKMaxV193", 1.25));
+
   /* ===== v164 I THE START IS EARNED =====
    * The v38 ramp took a man from a standing start to 90% of top speed in 154 ms (rating 90) to 256 ms
    * (rating 25) of sim time — 0.4 to 0.6 real seconds, since the sim clock runs ~2.5x real
@@ -1655,8 +1673,9 @@ window.__visionRadiusV96 = visionRadiusV96;
     }
     a._hardTurning=hardTurn;
     if(turn>.04){
-      const loss=Math.max(.08,TU("turnLossBase",.30)-(agility-50)*TU("turnLossAgilityK",.0024));
-      frac*=Math.max(TU("turnRetentionFloor",.54),1-turn*loss);
+      const loss=Math.max(.08,TU("turnLossBase",.30)-(agility-50)*TU("turnLossAgilityK",.0024))*massKV193(a,TU("massTurnPowV193",.3));   // v193 AJ PHYSICS: momentum fights the cut
+      const f0V193=frac; frac*=Math.max(TU("turnRetentionFloor",.54),1-turn*loss);
+      if (TU("v193AJphys",1) && f0V193 > .3) { const V=root.__V193AJP=root.__V193AJP||{falls:0,fwdPx:0,maxPx:0}; const T=V.turns=V.turns||[]; if (T.length<400) T.push([+turn.toFixed(3),+(1-frac/f0V193).toFixed(3),+massOfV193(a).toFixed(2)]); }   // v193 AJ PHYSICS: the check reads what a cut cost
     }
     const launchAge=Math.max(0,now-(a._launchAt==null?now:a._launchAt));
     let accelRate,rollingScale;
@@ -1677,11 +1696,13 @@ window.__visionRadiusV96 = visionRadiusV96;
       accelRate=Math.max(.75,TU("accelBasePerSec",3.0)+(accel-50)*TU("accelRatingK",.040))*launch;
       rollingScale=TU("rollingAccelScale",3.0);
     }
-    const brakeRate=Math.max(1.1,TU("brakeBasePerSec",3.0)+(agility-50)*TU("brakeAgilityK",.020)+(accel-50)*TU("brakeAccelK",.006))*brakeScale;
+    const brakeRate=Math.max(1.1,TU("brakeBasePerSec",3.0)+(agility-50)*TU("brakeAgilityK",.020)+(accel-50)*TU("brakeAccelK",.006))*brakeScale/massKV193(a,TU("massBrakePowV193",.3));   // v193 AJ PHYSICS: a big man needs ground to stop
     const target=cl(targetFrac,0,TU("fieldSpeedCap",1.35));
     const rolling=target>frac&&frac>.18&&launchAge>=TU("rollingReadyMs",132)?rollingScale:1;
     const rate=target>=frac?accelRate*rolling:brakeRate;
-    frac+=Math.sign(target-frac)*Math.min(Math.abs(target-frac),rate*dt/1000);
+    const fB193=frac; frac+=Math.sign(target-frac)*Math.min(Math.abs(target-frac),rate*dt/1000);
+    if (TU("v193AJphys",1) && target<fB193) { const V=root.__V193AJP=root.__V193AJP||{falls:0,fwdPx:0,maxPx:0}; const m=massOfV193(a), k=m>=.95?"heavy":m<=.62?"light":"mid";   // v193 AJ PHYSICS: the brake, by mass, for the check
+      const B=V.brake=V.brake||{}; const b=B[k]=B[k]||{n:0,rate:0,maxRatio:0}; b.n++; b.rate+=brakeRate; b.maxRatio=Math.max(b.maxRatio,+((fB193-frac)/Math.max(1e-9,brakeRate*dt/1000)).toFixed(3)); }
     a.vel=Math.max(0,frac);
     return a.vel;
   }
@@ -1962,7 +1983,11 @@ window.__visionRadiusV96 = visionRadiusV96;
          * quarter-sines meeting at the apex: still 0 at both ends, still smooth at the top,
          * and the landing point, `dur` and every callback are untouched. */
         const af=Math.max(.2,Math.min(.8,ballFlight.apexF!=null?ballFlight.apexF:TU("arcApexFrac",.55)));
-        const hf=f<af?Math.sin(Math.PI/2*f/af):Math.sin(Math.PI/2*(1-f)/(1-af));
+        let hf=f<af?Math.sin(Math.PI/2*f/af):Math.sin(Math.PI/2*(1-f)/(1-af));
+        /* v193 AJ PHYSICS: under gravity the height is a parabola in TIME — the two halves meet at the apex with zero slope
+         * (`ajBallApexFV193`, default v109's `arcApexFrac` .55: the apex past halfway because drag bleeds the ball's speed — .5 is
+         * the vacuum parabola) */
+        if (TU("v193AJphys", 1)) { const a2 = cl(TU("ajBallApexFV193", TU("arcApexFrac", .55)), .3, .7), u = f < a2 ? (a2 - f) / a2 : (f - a2) / (1 - a2); hf = Math.max(0, 1 - u * u); }
         ball={ lx: ballFlight.x0+(ballFlight.x1-ballFlight.x0)*q, y: ballFlight.y0+(ballFlight.y1-ballFlight.y0)*q,
                h: hf*ballFlight.arc };
         if(f>=1){ const cb=ballFlight.done; ballFlight=null; cb&&cb(); } }
@@ -1982,9 +2007,19 @@ window.__visionRadiusV96 = visionRadiusV96;
     try{window.__REACT_V56={delay:routeReactDelayV56,posK:RX_POS_V56,
       rxq:(q,a,d)=>q*.55+a*.30+d*.15, iq:(q,a,d)=>a*.58+q*.24+d*.18,
       reactMs:q=>Math.max(100,340-(q-50)*2.4)}}catch(_e){}
+    // v193 AJ PHYSICS: the most stride his brakes can take off in one tick (field px)
+    const brakeStepV193 = a => Math.max(1.1, TU("brakeBasePerSec",3.0)+((a.agi||55)-50)*TU("brakeAgilityK",.020)+((a.accel||a.quick||55)-50)*TU("brakeAccelK",.006))
+      / massKV193(a, TU("massBrakePowV193", .3)) * (a.spd||140) * TU("decelKV193", 1) * (TICK/1000) * (TICK/1000);
     const mv = (a, tx, ty, mult) => { let dx=tx-a.lx, dy=ty-a.y; const d=Math.hypot(dx,dy);
       a._sidelineCross=null;
-      if(d<0.5) { evolveSpeed(a,0,TICK,t,0,1); return; } dx/=d; dy/=d;
+      if(d<0.5) {
+        // v193 AJ PHYSICS: on the spot already, but not stopped — he runs on through it what his brakes cannot take off
+        if (TU("v193AJphys", 1) && TU("decelV193", 0) && a._mvT151 !== t && a._stepTV193 === t - TICK && a._stepV193 > 0 && a._dx != null) {
+          const carryStep = a._stepV193 - brakeStepV193(a);
+          if (carryStep > .05) { a._mvT151 = t; a._mvUsed151 = carryStep; a._stepV193 = carryStep; a._stepTV193 = t;
+            a.lx += a._dx * carryStep; a.y = clampY(a.y + a._dy * carryStep); evolveSpeed(a,0,TICK,t,0,1); return; }
+        }
+        evolveSpeed(a,0,TICK,t,0,1); return; } dx/=d; dy/=d;
       let wantDx=dx,wantDy=dy;
       /* ===== v56 PERCEPTION-ACTION LATENCY =====
        * reactMs has been computed on every agent since the sim was written —
@@ -2026,7 +2061,7 @@ window.__visionRadiusV96 = visionRadiusV96;
       // (0.0022→0.0026) so cuts are visibly cleaner for elite agility and sloppier
       // for low — an elite back keeps his speed through a hard plant, a stiff one
       // bleeds it. Mirrored in turnTest() so the unit hook stays honest.
-      const carry = Math.max(0.06, (0.28 - (a.agi-50)*0.0026) * (0.6 + (a.vel||0)*0.7));
+      const carry = Math.min(.6, Math.max(0.06, (0.28 - (a.agi-50)*0.0026) * (0.6 + (a.vel||0)*0.7)) * massKV193(a, TU("massCarryPowV193", 0)));   // v193 AJ PHYSICS: his heading carries his mass
       let turn=0;
       if(a._dx!=null){
         const dot = dx*a._dx + dy*a._dy;
@@ -2065,6 +2100,20 @@ window.__visionRadiusV96 = visionRadiusV96;
       evolveSpeed(a,targetGear,TICK,t,turn,1);
       if (a.vel > 0.92) a.gas = Math.max(0, a.gas - 0.42*(a._gasBurnMul||1)); else a.gas = Math.min(100, a.gas + 0.2);
       let step=Math.min(d, a.spd*a.vel*TICK/1000);
+      /* v193 AJ PHYSICS: NO DEAD STOPS. `vel` has always been braked at a rated rate, but the ground a man covered was
+       * `min(d, …)` — a man reaching his spot stopped dead from a sprint in one tick, and a second command in a tick
+       * could halve his stride. The ground he covers now obeys the same brake his speed does: this tick's stride is at
+       * least last tick's less what his brakes (`brakeBasePerSec`, his ratings, his mass) can take off in one tick
+       * (x `decelKV193`), so he runs THROUGH a spot he cannot stop on and comes back to it — a drop, a set, a break.
+       * Only the first command of a tick is bounded (a second is a correction inside the same stride). */
+      const firstMvV193 = a._mvT151 !== t;
+      if (firstMvV193 && TU("v193AJphys", 1) && TU("decelV193", 0) && a._stepTV193 === t - TICK && a._stepV193 > 0) {
+        const minStep = a._stepV193 - brakeStepV193(a);
+        if (step < minStep) { step = minStep; const V = root.__V193AJP = root.__V193AJP || { falls: 0, fwdPx: 0, maxPx: 0 }; V.carried = (V.carried || 0) + 1; }
+        // the check reads it: the most stride any first move of a tick gave up, as a fraction of what his brakes allow
+        const V2 = root.__V193AJP = root.__V193AJP || { falls: 0, fwdPx: 0, maxPx: 0 }, bs = brakeStepV193(a);
+        V2.moves = (V2.moves || 0) + 1; V2.maxDrop = Math.max(V2.maxDrop || 0, +((a._stepV193 - step) / Math.max(1e-6, bs)).toFixed(3));
+      }
       /* ===== v151 D ONE PAIR OF LEGS A TICK =====
        * `mv` is a steering command, and a few callers issue it twice in one tick for the same man —
        * a rush lane then a sack close-out, a pursuit then a support close — so each call spent a
@@ -2080,6 +2129,7 @@ window.__visionRadiusV96 = visionRadiusV96;
         if (step > room) { step = room; const P = root.__V151D_SIM = root.__V151D_SIM || {}; P.paceClamped = (P.paceClamped || 0) + 1; }
         a._mvUsed151 += step;
       }
+      if (firstMvV193) { a._stepV193 = step; a._stepTV193 = t; } else if (a._stepTV193 === t) a._stepV193 += step;
       const x0=a.lx,y0=a.y,x1=x0+dx*step,y1=y0+dy*step;
       // Preserve the un-clamped segment long enough to resolve the exact first
       // sideline contact. Clamping alone made fast players live on the stripe for
@@ -3380,7 +3430,9 @@ window.__visionRadiusV96 = visionRadiusV96;
     // the apex of the flight follows its hang (apex ∝ dur², as a ball under gravity does; the
     // constant is a broadcast camera's exaggeration of the real parabola), with a style cap so
     // a bullet stays on a line however far it goes
-    const apexPxV109 = (dur, style) => cl(TU("arcGravK", 1.0e-4) * dur * dur
+    /* v193 AJ PHYSICS: ONE gravity — a ball in the air for `dur` rises g·dur²/8 whoever threw it and however hard; a bullet is
+     * low because it is quick, not because it obeys a different constant (the style factors and their caps go) */
+    const apexPxV109 = (dur, style) => TU("v193AJphys", 1) ? cl(TU("arcGravK", 1.0e-4) * dur * dur, TU("arcMinPx", 8), TU("ajArcCapV193", 160)) : cl(TU("arcGravK", 1.0e-4) * dur * dur
         * (style === "bullet" ? TU("arcBulletK", .7) : style === "lob" ? TU("arcLobK", 1.15) : 1),
       TU("arcMinPx", 8), style === "bullet" ? TU("arcCapBullet", 40) : style === "lob" ? TU("arcCapLob", 120) : TU("arcCapTouch", 90));
     // the audit hook the check reads: the two formulas side by side, and every throw's row
@@ -4688,6 +4740,17 @@ window.__visionRadiusV96 = visionRadiusV96;
           // grit: falls forward. v103: unless he was GRIPPED — the drag just played that out
           // for real, and paying the old blind fudge on top of it counts the yard twice.
           if (!c._wasGripped) c.lx += Math.max(0, (c.grit-50)) * 0.018 * (c.side==="off"?1:-1);
+          // v193 AJ PHYSICS: he falls forward by the momentum he still has against what the tackler brought the other way
+          if (!c._wasGripped && dfd && TU("v193AJphys", 1)) {
+            const fdir = c.side==="off"?1:-1, cdx = c._dx||0, cdy = c._dy||0;
+            if (cdx * fdir > .2) {
+              const pc = massOfV193(c) * (c.vel||0) * (c.spd||140), opp = Math.max(0, -((dfd._dx||0)*cdx + (dfd._dy||0)*cdy));
+              const pd = massOfV193(dfd) * (dfd.vel||0) * (dfd.spd||140) * opp;
+              const fwd = cl((pc - pd) * TU("fallFwdKV193", .012), 0, TU("fallFwdMaxPxV193", 3));
+              c.lx += fwd * fdir;
+              const V = root.__V193AJP = root.__V193AJP || { falls: 0, fwdPx: 0, maxPx: 0 }; V.falls++; V.fwdPx += fwd; V.maxPx = Math.max(V.maxPx, +fwd.toFixed(2));
+            }
+          }
           done = true;
           const spotLx = c._fpSpotV153A != null ? c._fpSpotV153A : c.lx;   // v153 A: forward progress — the spot, not where the pile left him
           const yds = c.side==="off" ? Math.round(spotLx/YD) : 0;
