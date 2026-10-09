@@ -1283,14 +1283,14 @@
   function build(scene, st) {
     destroyAll(st);
     const T = teamsFor(scene), space = spaceLevel();
-    let budget = 1; st.partial = false;
+    let budget = 1; st.partial = false; st.pend = null;
     ["off", "def"].forEach((team, i) => {
       if (team === "def" && !TUv("mascotBothV193AI", 1)) return;
       let S = null;
       if (!SHEETS.has(sheetKey(((Number(T[team].logo) || 0) % NLOGO + NLOGO) % NLOGO, teamColours(T[team].cols), space))) {
-        if (!budget) { st.partial = true; return; }
-        budget--; S = sheetV193AI(T[team].logo, T[team].cols, space, Math.max(1, TUv("mascotPosesPerFrameV193AI", 8)));
-        if (!S) { st.partial = true; return; }   // still drawing: the next frame carries on
+        if (!budget) { st.partial = true; st.pend = st.pend || { logo: T[team].logo, cols: T[team].cols, space }; return; }
+        budget--; S = sheetV193AI(T[team].logo, T[team].cols, space, Math.max(1, TUv("mascotPosesPerFrameV193AI", 4)));
+        if (!S) { st.partial = true; st.pend = { logo: T[team].logo, cols: T[team].cols, space }; return; }   // still drawing: the next frames carry on
       } else S = sheetV193AI(T[team].logo, T[team].cols, space);
       const key = texFor(scene, S);
       if (!key) return;
@@ -1409,9 +1409,10 @@
       const G = geo(geom); if (!G) return;
       const S = stateOf(scene);
       // who is playing: re-read on a new snap's sideline and once a second (a kit can change under a live game)
-      let stale = !S.list.length || S.partial || S.list.some((m) => !m.img || !m.img.scene);
+      let stale = (!S.list.length && !S.partial) || S.list.some((m) => !m.img || !m.img.scene);
       if (!stale && (S.side !== scene.side || t0 - (S.teamsAt || 0) > 1000)) { S.teamsAt = t0; stale = S.teamsKey !== JSON.stringify(teamsFor(scene)) + spaceLevel(); }
       if (stale) { build(scene, S); S.teamsAt = t0; }
+      else if (S.partial && S.pend) { if (sheetV193AI(S.pend.logo, S.pend.cols, S.pend.space, Math.max(1, TUv("mascotPosesPerFrameV193AI", 4)))) build(scene, S); }   // a bench's sheet still drawing: the next slice, the sprites already up stay
       if (!S.list.length) return;
       watchCelebrations(scene, S, t0);
       const cam = scene.cameras && scene.cameras.main;
@@ -1450,7 +1451,8 @@
     c.width = Math.round(w * dpr); c.height = Math.round(h * dpr); c.style.width = w + "px"; c.style.height = h + "px"; c.className = cls;
     c.__draw = (now) => {
       if (!onV193AI()) { c.getContext("2d").clearRect(0, 0, c.width, c.height); return; }
-      const T = teamFn(); const S = sheetV193AI(T.logo, T.cols, T.space);
+      const T = teamFn(); const S = sheetV193AI(T.logo, T.cols, T.space, Math.max(1, TUv("mascotPosesPerFrameV193AI", 4)));   // a cold sheet fills over a few ticks
+      if (!S) return;
       const pose = showPose(now, ph); if (c.__last === pose + S.key) return; c.__last = pose + S.key;
       const x = c.getContext("2d"); x.clearRect(0, 0, c.width, c.height);
       const k = Math.min(c.width / FW_PX, c.height / FH_PX);

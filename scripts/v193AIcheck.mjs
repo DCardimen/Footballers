@@ -153,6 +153,7 @@ for (const [W, H] of [[390, 844], [1280, 800]]) {
   const { p, context } = await open(W, H, { preview: 1, tag: 'live' + W })
   await goLive(p, 4)
   const m0 = await waitVisible(p, 'off', 25000) || await waitVisible(p, 'def', 8000)
+  for (let i = 0; i < 60 && (await where(p)).length < 2; i++) await p.waitForTimeout(250)   // the second bench's sheet is drawn a slice a frame
   const L0 = await where(p)
   if (W === 390) {
     const names = await E(p, () => ({ opp: window.S._oppName, us: window.__gridironScene.teamNames().us }))
@@ -219,7 +220,7 @@ for (const [W, H] of [[390, 844], [1280, 800]]) {
 // the Interstellar League: every mascot wears the bubble
 {
   const { p, context } = await open(400, 860, { preview: 1, tag: 'ist' })
-  await goLive(p, 8); await p.waitForTimeout(1200)
+  await goLive(p, 8); for (let i = 0; i < 80 && (await where(p)).length < 2; i++) await p.waitForTimeout(250)
   const L = await where(p)
   ok(L.length === 2 && L.every((m) => m.space), 'in the Interstellar League every mascot wears a space bubble', L.map((m) => m.arch + ':' + m.space))
   await context.close()
@@ -230,7 +231,7 @@ for (const [W, H] of [[390, 844], [1280, 800]]) {
   const { p, context } = await open(400, 860, { exp: 'member', tag: 'member' })
   const mem = await E(p, () => { const C = window.RIB_COSMETICS, R = window.RIB_MONETIZE; const o = { on: R.enabled, pv: R.preview, member: R.has('member'), owned: C.owned('mascot_team'), equip: C.equip('mascot', 'mascot_team') }; o.eq = C.equipped('mascot'); o.active = window.RIB_MASCOTS.active(true); o.tune = !!(window.RIB_TUNE || {}).mascotPreviewV193AI; return o })
   ok(mem.on && mem.pv === 'member' && mem.member && mem.owned && mem.equip && mem.eq === 'mascot_team' && mem.active && !mem.tune, 'store ON with a membership: Team Mascots is owned and equips — the mascots are his (no preview tune)', mem)
-  await goLive(p, 4); await p.waitForTimeout(1500)
+  await goLive(p, 4); for (let i = 0; i < 80 && (await where(p)).length < 2; i++) await p.waitForTimeout(250)
   const L = await where(p)
   ok(L.length === 2 && L.every((m) => m.alive), 'a member\'s broadcast draws both mascots', L.map((m) => m.team + ':' + m.arch))
   await context.close()
