@@ -280,6 +280,12 @@
     var t1 = [cx + ux * h, cy + uy * h], t2 = [cx - ux * h, cy - uy * h];
     return "M" + f1(t1[0]) + " " + f1(t1[1]) + "Q" + f1(cx - uy * wid) + " " + f1(cy + ux * wid) + " " + f1(t2[0]) + " " + f1(t2[1]) + "Q" + f1(cx + uy * wid) + " " + f1(cy - ux * wid) + " " + f1(t1[0]) + " " + f1(t1[1]) + "z";
   }
+  // a heart-shaped leaf with its point at cx,cy, opening toward `ang` degrees (the clover)
+  function heart(cx, cy, ang) {
+    var a = ang * Math.PI / 180, ux = Math.cos(a), uy = Math.sin(a), nx = -uy, ny = ux, P = function (u, n) { return [cx + ux * u + nx * n, cy + uy * u + ny * n] };
+    var c1 = P(6, 2.3), c2 = P(6, -2.3);
+    return [C(c1[0], c1[1], 2.75), C(c2[0], c2[1], 2.75), poly([P(0.6, 0), P(5.2, 4.8), P(6.6, 0), P(5.2, -4.8)])];
+  }
   // a spoke / ray set: lines from r0 to r1, n of them
   function rays(cx, cy, n, r0, r1, rot) {
     var out = "";
@@ -381,7 +387,7 @@
     runner: { m: [C(15, 3.8, 2.5)], ml: [["M13.4 8.6 10.6 14.2l3.6 2.6-1.6 5M10.6 14.2l-2.6 4-3.8.4M12.8 9.2l3.8 2.6 3.2-1.2M12.8 9.2 8.6 9.8l-2.2 3.2", 2.8]] },
     apple: { m: ["M12 7.2c1.7-1.3 4.2-1.7 6-.4 2.7 1.7 3.3 5.6 1.9 9.1-1.2 3.1-3.5 5.8-5.8 5.8-.8 0-1.4-.4-2.1-.4s-1.3.4-2.1.4c-2.3 0-4.6-2.7-5.8-5.8C2.7 12.4 3.3 8.5 6 6.8c1.8-1.3 4.3-.9 6 .4z", "M12.4 6.2c0-2.5 1.5-4 4-4.2-.2 2.5-1.7 4-4 4.2z"], hl: ["M6.6 10.6c.3-1.1 1-1.9 1.9-2.2"] },
     bone: { m: [C(5, 7.8, 2.6), C(7.8, 5, 2.6), C(16.2, 19, 2.6), C(19, 16.2, 2.6), "M5.4 9.2 9.2 5.4l9.4 9.4-3.8 3.8z"] },
-    leg: { m: ["M8 2.2h6.2l-.4 7.4c0 .8-.2 1.6-.6 2.2l-.6 1v4.4l.6 1.4 4.6 1.2c1.2.3 2 1.3 2 2.6v.4H9.2c-.6 0-1.2-.5-1.2-1.2V14c0-.8-.2-1.4-.4-2L6.6 9.2c-.2-.6-.2-1.2-.1-1.8z"], dl: ["M6.8 9.6c1.6.6 3.6.6 5.6 0"], xl: ["M12.6 17.8c.4 1 1.2 1.6 2.2 1.8"] },
+    leg: { m: ["M5.4 2.4h6.8l4.2 7.6c.6 1.1.5 2.2-.1 3.1l-3.2 5.2 4.6 1c1.3.3 2 1.1 2 2.3H8.6c-.7 0-1.1-.5-.9-1.1l.9-3.2 2.8-5.6z"], dl: ["M13.6 8.6c1 .5 1.7 1.4 1.9 2.6"], xl: ["M9 18.8h4.2"] },
     hand: { m: ["M7.2 21.6c-1.6-1.4-3.6-4-4.6-6.2-.5-1.1 0-2.2 1-2.6.8-.3 1.7 0 2.2.7l1.4 2V5.2c0-1 .8-1.7 1.7-1.7s1.7.7 1.7 1.7v5.2-7c0-1 .8-1.7 1.7-1.7s1.7.7 1.7 1.7v7-5.6c0-1 .8-1.7 1.7-1.7s1.7.7 1.7 1.7v6.4-3.6c0-1 .8-1.7 1.7-1.7s1.7.7 1.7 1.7v8.4c0 4-2.4 6.4-5.4 7.6z"], dl: [["M10.8 4.8v6.4M14.2 3.6v7.6M17.6 5.8v5.4", 1.2]] },
     trident: { ml: [["M12 6.4v15.8M5 4.4v3.8c0 2.6 3 4.1 7 4.1s7-1.5 7-4.1V4.4", 2.2]], m: ["M12 1.4l2.2 4h-4.4zM5 1.6l2.2 3.6H2.8zM19 1.6l2.2 3.6h-4.4z"] },
     rock: { m: ["M2.6 19.6 5.2 10l5.2-5 6.6 1.8 4.6 6.2-1.1 6.6z"], dl: ["M10.4 5.2 9.4 10.8l3.2 2.8M17 7l-1.6 5.6 5.2 1.2"] },
@@ -393,7 +399,7 @@
     bottle: { m: ["M9.8 2.2h4.4v2.6l1.9 2.6v13a1.4 1.4 0 0 1-1.4 1.4H9.3a1.4 1.4 0 0 1-1.4-1.4v-13l1.9-2.6z"], d: ["M7.9 11h8.2v5.8H7.9z"], ml: [["M12 2.2V.8", 1.6]] },
     drop: { m: ["M12 2.2c3.7 4.5 6.8 8.6 6.8 12.6a6.8 6.8 0 0 1-13.6 0c0-4 3.1-8.1 6.8-12.6z"], hl: ["M8.6 14.6c0 1.7 1 3.1 2.5 3.5"] },
     tag: { m: ["M2.4 4v7.6l10.2 10.2 9.2-9.2L11.6 2.4H4a1.6 1.6 0 0 0-1.6 1.6z"], d: [C(7, 7, 1.7)], xl: ["M11 12.6l3.4 3.4M13 10.6l3.4 3.4"] },
-    clover: { m: [C(12, 5.8, 3.7), C(17.8, 11, 3.7), C(6.2, 11, 3.7), C(12, 16.2, 3.7)], ml: [["M12.6 19.4c.6 1.2 1.6 2.2 3.2 2.8", 2]], d: [C(12, 11, 1.3)], xl: ["M12 9.6V3.6M13.4 11h6M10.6 11h-6M12 12.4v5.6"] },
+    clover: { m: [0, 90, 180, 270].reduce(function (a, d) { return a.concat(heart(12, 11, d)) }, []), ml: [["M12.6 14.6c.4 3 1.8 5.4 4.2 7.2", 2]], d: [C(12, 11, 1.2)] },
     lens: { ml: [[C(9.8, 9.8, 6.6), 2.8], ["M14.8 14.8l6.2 6.2", 3.8]], hl: ["M6.6 8.4c.4-1.3 1.4-2.2 2.6-2.6"] },
     ladder: { ml: [["M6.4 2.2v19.6M17.6 2.2v19.6", 2.4], ["M6.4 6.4h11.2M6.4 11h11.2M6.4 15.6h11.2M6.4 20.2h11.2", 2]] },
     quill: { m: ["M21 2.2C13.6 3.2 7.6 9 6 16.6l1.6 1.6C15.2 16.6 21 10 21 2.2z"], ml: [["M3.4 20.8l10-10", 1.6]], xl: ["M10 14.2l3.4-.4M12 11.6l3.8-.6M14.4 9l3.4-.8"] },
@@ -460,13 +466,13 @@
     // Impossible
     "\u{1F528}": "hammer", "\u{1F3D7}️": "rise", "\u{1F3D7}": "rise", "\u{1F4D0}": "ruler", "\u{1FA7A}": "cross", "\u{1F409}": "coins", "\u{1F6D1}": "stop",
     /* the cards around the career */
-    "\u{1F381}": "gift", "\u{1F9FE}": "receipt", "\u{1F4B5}": "coins", "\u{1FA99}": "coins", "\u{1F331}": "sprout", "\u{1F944}": "spoon", "❤️‍\u{1FA79}": "bandage", "\u{1FAE1}": "chevron",
+    "\u{1F381}": "gift", "\u{1F9FE}": "receipt", "\u{1F4B5}": "coins", "\u{1FA99}": "coins", "\u{1F331}": "sprout", "\u{1F944}": "spoon", "❤️‍\u{1FA79}": "bandage", "❤️": "heart", "❤": "heart", "\u{1F494}": "heart", "➕": "cross", "\u{1FAE1}": "chevron",
     "\u{1F9B5}": "leg", "✋": "hand", "\u{1FA79}": "bandage", "\u{1F45F}": "cleat", "\u{1F3BD}": "jersey", "\u{1F455}": "jersey", "\u{1F3BE}": "football", "\u{1F50A}": "speaker", "\u{1F509}": "speaker", "\u{1F4F3}": "phone",
     "\u{1F422}": "turtle", "\u{1F514}": "bell", "\u{1F465}": "family", "\u{1F4C5}": "calendar", "\u{1F5D3}️": "calendar", "\u{1F4CA}": "chart", "\u{1F3E0}": "house", "\u{1F333}": "sprout",
     "★": "star", "\u{1F396}️": "medal", "\u{1F396}": "medal", "\u{1F4BE}": "disk", "\u{1F3AE}": "gear", "\u{1F512}": "lock", "\u{1F513}": "lock", "\u{1F511}": "key", "\u{1F4A1}": "bolt",
     "\u{1F947}": "medal", "\u{1F948}": "medal", "\u{1F949}": "medal", "⏱️": "hourglass", "⏱": "hourglass", "\u{1F3A5}": "camera", "\u{1F4F9}": "camera", "\u{1F3B5}": "speaker", "\u{1F3B6}": "speaker",
     "✅": "check", "⏩": "skip", "⏭": "skip", "⏭️": "skip", "\u{1F39F}️": "ticket", "\u{1F39F}": "ticket", "\u{1F3D8}️": "house", "\u{1F3D8}": "house", "\u{1F504}": "cycle",
-    "\u{1F468}‍\u{1F466}": "family", "\u{1F9CD}": "figure", "\u{1F6F8}": "rocket", "\u{1FAAA}": "idcard", "\u{1F4C6}": "calendar", "\u{1F3CB}‍♂️": "barbell"
+    "\u{1F4E4}": "disk", "\u{1F4E5}": "disk", "⚠️": "warning", "⚠": "warning", "\u{1F468}‍\u{1F466}": "family", "\u{1F9CD}": "figure", "\u{1F6F8}": "rocket", "\u{1FAAA}": "idcard", "\u{1F4C6}": "calendar", "\u{1F3CB}‍♂️": "barbell"
   };
   /* an emoji not in the table: the node's name / description says what it is */
   var KEYWORD_ART_V193Y = [
@@ -567,7 +573,8 @@
     if (!direct) fallbacks[n] = c;
     css();
     var id = symbol(c), size = +opt.size || 20, g = grad(opt.tint), cls = "ra-v193y" + (size < 20 ? " ra-sm-v193y" : "") + (opt.cls ? " " + opt.cls : "");
-    return '<span class="' + cls + '" data-art="' + c + '" style="--ra:' + size + 'px"><svg class="ra-svg-v193y" viewBox="0 0 24 24" aria-hidden="true" focusable="false" style="--raM:url(#' + g + ');--raMu:url(#' + g + 'u)"><use href="#' + id + '"/></svg>' + (emoji && emoji !== c ? '<span class="sr-only-v193y">' + esc(emoji) + "</span>" : "") + "</span>";
+    // its own element name: a card's `span` / `i` rules (`.pl-head span`, `.mp-face i` …) never reach the drawing
+    return '<rib-art class="' + cls + '" data-art="' + c + '" style="--ra:' + size + 'px"><svg class="ra-svg-v193y" viewBox="0 0 24 24" aria-hidden="true" focusable="false" style="--raM:url(#' + g + ');--raMu:url(#' + g + 'u)"><use href="#' + id + '"/></svg>' + (emoji && emoji !== c ? '<rib-sr class="sr-only-v193y">' + esc(emoji) + "</rib-sr>" : "") + "</rib-art>";
   }
   /* an emoji at the head of a string becomes art; the rest of the string is left as it is (markup allowed) */
   var LEAD = /^(\s*)((?:\p{Extended_Pictographic}|[★∞♛])(?:️|‍(?:\p{Extended_Pictographic}|\p{Emoji_Component})|\p{Emoji_Modifier})*)\s?/u;
@@ -592,6 +599,7 @@
       ".shop-item .ic:has(.ra-v193y){display:flex;align-items:center;justify-content:center;font-size:0}",
       ".shop-item .ic .ra-v193y{--ra:34px}",
       ".ra-line-v193y{display:inline-flex;align-items:center;gap:.28em}",
+      ".pl-head .ra-line-v193y{align-self:center}",
       ".ra-sw-v193y{margin-right:.08em}"
     ].join("\n");
     (document.head || document.documentElement).appendChild(st);
@@ -609,7 +617,7 @@
     "#screen .card > .l", "#screen .card > .eyebrow", "#screen .card > details > summary .eyebrow", "#screen .card > details > summary > .l",
     "#screen .card .sg-head .eyebrow", "#screen .sg-row > span", "#seasonMathBtnV193D", "#screen .card .lab", "#screen > .h2", "#screen .hubv75-sec > .h2",
     "#dock .btn", "#dock > .small", "#dock .qa-chip-v146",
-    "#screen .toggle-label", "#screen .fx-label", ".rib-dialog h5", ".pb-v192b h5"
+    "#screen .toggle-label", "#screen .fx-label", "#screen .card > .btn", ".rib-dialog h5", ".pb-v192b h5"
   ].join(",");
   var LEAD_SW = /^(\s*)(\p{Extended_Pictographic}(?:\uFE0F|\u200D(?:\p{Extended_Pictographic}|\p{Emoji_Component})|\p{Emoji_Modifier})*)/u;
   var tpl = null;
@@ -625,7 +633,7 @@
     n.data = n.data.slice(m[0].length);
     if (/flex|grid/.test(getComputedStyle(el).display)) {
       // a flex box would lay the drawing and its words out as two items (a column chip stacks them): keep them one line
-      var w = document.createElement("span");
+      var w = document.createElement("rib-line");
       w.className = "ra-line-v193y";
       el.insertBefore(w, n);
       w.appendChild(tpl.content);

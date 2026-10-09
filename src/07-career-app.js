@@ -41666,7 +41666,7 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
   }
   function payLedgerHtmlV193D(L) {
     if (!L || !L.rows) return "";
-    let h = `<div class="card pay-ledger-v193d" id="payLedgerV193D" data-total="${L.total}" data-kind="${L.kind}"><div class="pl-head">${artV193Y("🧾", 18) /* v193 Y */} THE CAREER'S PAY<span>every number, top to bottom</span></div>`;
+    let h = `<div class="card pay-ledger-v193d" id="payLedgerV193D" data-total="${L.total}" data-kind="${L.kind}"><div class="pl-head"><rib-line class="ra-line-v193y">${artV193Y("🧾", 18) /* v193 Y */} THE CAREER'S PAY</rib-line><span>every number, top to bottom</span></div>`;
     L.rows.forEach(r => {
       if (r.kind === "head") {
         h += `<div class="pl-row k-head${r.cls ? " " + r.cls : ""}"><span class="pl-l">${artLeadV193Y(escHtml(r.label), 16) /* v193 Y */}</span></div>`;
