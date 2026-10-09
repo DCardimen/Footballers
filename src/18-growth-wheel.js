@@ -209,6 +209,7 @@
     const fx={label:out.icon+" "+out.name,story:out.story,sign:out.sign,stats:out.stats,amt:out.amt,pct:out.pct!=null?out.pct:pctOf(out.amt)/* v193 X */,permanent:!!out.permanent&&out.sign>0,gamesLeft:out.tier.games||null,seasonsLeft:out.tier.seasons?out.tier.seasons:(out.tier.season?1:null),src:out.ctx};
     if(fx.permanent){fx.amt=1+Math.round(Math.random()*2);fx.pct=pctOf(fx.amt);fx.gamesLeft=null;fx.seasonsLeft=null}   // small +1..3 forever (v193 X: as a percent)
     pl.growthFxV42.push(fx);
+    try{const Z=window.__V193Z;Z&&Z.add(pl,out)}catch(e){}   // v193 Z: the season commitment / a crossroads tilts this season's skill prices on the stats it touched
     (pl.growthHistV42=pl.growthHistV42||[]).push({card:out.card,sign:out.sign,week:pl.currentWeek||0});
     pl.growthHistV42=pl.growthHistV42.slice(-12);
     if(out.fatigue&&pl.conditionV11)pl.conditionV11.fatigue=cl((pl.conditionV11.fatigue||0)+out.fatigue,0,60);
@@ -232,6 +233,18 @@
       for(const k of fx.stats)sum[k]=(sum[k]||0)+a;
     }
     return Object.keys(sum).filter(k=>sum[k]).map(k=>pc[k]!=null?{stat:k,amt:sum[k],pct:Math.round(pc[k]),max:false}:{stat:k,amt:sum[k],max:false});
+  }
+  /* ===== v193 Z THE FOCUS ROLL TILTS THE SEASON (the wheel's result card) =====
+   * What the focus roll does to this season's skill prices — "Speed −6% now, and −12% on every Speed point you
+   * spend this season" (src/07 `focusAddV193Z` sets it when the outcome is applied); "" for a plan / a check / the switch off */
+  function tiltTxtV193Z(pl,out){
+    const Z=window.__V193Z,ctx=String(out&&out.ctx||"");
+    if(!Z||!Z.on()||!out||!(ctx==="season"||/^inseason/.test(ctx))||!Array.isArray(out.stats)||!out.stats.length)return"";
+    const p=Math.round(Math.abs(Number(out.pct)||0)),sg=out.sign<0?-1:1;if(!p)return"";
+    const t=Z.tiltFromPct(sg*p);if(!t)return"";
+    const N=out.stats.map(k=>Z.name(k)),names=N.length===1?N[0]:N.slice(0,-1).join(", ")+" and "+N[N.length-1];
+    const tt=Z.pctTxt(t),now=(sg<0?"−":"+")+p+"%";
+    return `<b>${out.permanent?names+" up for good":names+" "+now+" now"}</b>, and <b style="color:${t<0?"#ff8a80":"#7fe0a0"}">${tt}</b> on every ${N.length===1?N[0]+" point":"point on "+(N.length===2?"either":"them")} you spend this season`;
   }
   function seasonKey(pl){return(pl.level||0)+"-"+(pl.seasonsAtLevel||0)+"-"+(pl.seasonSeed||0)}
   // ---- wheel overlay (auto-rolled, personality-weighted) ----
@@ -767,6 +780,7 @@ function gateV139(root,cfg,go,DS){
         <b style="font-size:15px;display:block;padding-right:52px">${R.headline}</b>
         <div style="font-size:13px;color:#c6cdd8;margin:5px 0">${R.story||""}</div>
         <div style="font-size:13px;color:${R.band==="green"?"#6fe08a":R.band==="neutral"?"#cfd6a8":"#ff8a80"}">${R.lines||""}</div>
+        ${R.tiltV193Z?`<div class="gv-tilt-v193z" style="font-size:12.5px;color:#e8ecf2;margin-top:5px;padding:5px 8px;border-radius:8px;background:rgba(240,187,69,.08);border:1px solid rgba(240,187,69,.3)">${R.tiltV193Z}</div>`:""}
         ${R.dur?`<div style="font-size:10px;letter-spacing:2px;color:#f0bb45;margin-top:5px">${R.dur}</div>`:""}
       </div>`:"";
     (host||document.body).insertAdjacentHTML("beforeend",`<div id="growthV42" data-inline="${host?1:0}" style="${host?"position:relative;display:flex;justify-content:center;padding:0":"position:fixed;inset:0;z-index:960;background:rgba(3,7,13,.9);display:flex;align-items:center;justify-content:center;padding:14px;overflow:auto"}"><div style="max-width:440px;width:100%;background:linear-gradient(180deg,#152238,#0a111c);border:1px solid rgba(240,187,69,.45);border-radius:16px;padding:15px;font-family:Oswald,sans-serif;color:#e8ecf2">
@@ -884,6 +898,7 @@ function gateV139(root,cfg,go,DS){
         oc.style.background=band==="green"?"rgba(46,90,58,.25)":band==="neutral"?"rgba(90,96,106,.2)":"rgba(90,46,46,.25)";
         try{const sc=document.getElementById("gv50seal");
           if(sc&&!wart(sc.getContext("2d"),"seal_"+band,23,23,44))sc.style.display="none"}catch(e){}}
+      try{R&&R.hapticV193Z&&window.ribHaptic&&window.ribHaptic(R.hapticV193Z)}catch(e){}   // v193 Z: the season's tilt lands — a good one buzzes success, a bad one a warning
       const h=document.getElementById("gv50hint");if(h)h.style.display="none";
       const b=document.getElementById("gv42go");if(!b)return;
       b.style.display="";DS.disarm();
@@ -944,7 +959,8 @@ function gateV139(root,cfg,go,DS){
         headline:`<span class="gv64-head" style="font-size:15px;margin:0">${skillIco(out.card,out.icon,30)}<span>${out.name} — ${out.band==="green"?"IT PAYS OFF":out.band==="neutral"?"HALF MEASURES":"IT BACKFIRES"}</span></span>`,
         story:out.story,
         lines:out.stats.map(k=>out.permanent?(out.sign>0?"+":"−")+(pctOn()?pctOf(1)+"–"+pctOf(3)+"%":"1-3")+" "+(LBL[k]||k):statTxt(pl,k,out.sign,out.amt,out.pct,LBL[k]||k)).join(" · "),   /* v193 X */
-        dur:durTxtOf(out.tier,out.permanent)},
+        dur:durTxtOf(out.tier,out.permanent),
+        tiltV193Z:tiltTxtV193Z(pl,out),hapticV193Z:tiltTxtV193Z(pl,out)?(out.sign<0?"warning":"success"):null},   /* v193 Z */
       onDone:()=>{applyOutcome(pl,out);onDone&&onDone(out)},
     });
     if(!ok)showing=false;
