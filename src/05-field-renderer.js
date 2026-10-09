@@ -3962,7 +3962,10 @@ class Ot extends mt.Scene {
       if (m._idleHomeV144 == null) m._idleHomeV144 = { x: m.sx, y: m.sy };
       let I = m._idleV194;
       if (!I) { I = m._idleV194 = { gap: true, phase: R() * 6.283, end: (m.isLine && R() < .4) ? "knees" : ["hips", "look", "look", "headDown"][Math.floor(R() * 4)] }; }
-      if (!I.gapIn) { I.gapIn = true; I.stopAt = now + R() * TU("idleGapStopMsV194D", 320); I.nextAct = now + TU("idleActFirstMsV194D", 220) + R() * TU("idleActJitterMsV194D", 1300); I.to = null; }
+      if (!I.gapIn) { I.gapIn = true; I.stopAt = now + R() * TU("idleGapStopMsV194D", 320); I.nextAct = now + TU("idleActFirstMsV194D", 220) + R() * TU("idleActJitterMsV194D", 1300); I.to = null;
+        // a man still on his way when the whistle's gather ran out (or one in three who simply cannot stand still) walks it off
+        if ((I.started && !I.arrived) || R() < TU("idleGapWalkPV194D", .35)) { const h = m._idleHomeV144;
+          I.to = { x: h.x + (R() * 2 - 1) * TU("idleShuffleR", 18), y: h.y + (R() * 2 - 1) * TU("idleShuffleSpread", 26) }; this.idleClipEndV194D(m); H.steps++; } }
       if (!I.inPose && now >= I.stopAt && !I.to) { I.inPose = true; m._walk = false; this.idlePoseV194D(m, I.end, null); }
       if (now > I.nextAct) {
         I.nextAct = now + TU("idleActEveryMsV194D", 900) + R() * TU("idleActJitterMsV194D", 1300);
