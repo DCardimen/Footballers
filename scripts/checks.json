@@ -42,7 +42,8 @@
     "v193Ocheck",
     "v193Vcheck",
     "v193Xcheck",
-    "v193Ycheck"
+    "v193Ycheck",
+    "v193AAcheck"
    ]
   },
   "docs": {
@@ -203,7 +204,8 @@
     "v85check",
     "combinecheck",
     "tiercheck",
-    "scrollcheck"
+    "scrollcheck",
+    "v193AAcheck"
    ]
   },
   "contact": {
@@ -272,7 +274,8 @@
     "bootviewcheck",
     "walk",
     "v156Acheck",
-    "v192Dcheck"
+    "v192Dcheck",
+    "v193AAcheck"
    ]
   },
   "plan": {
@@ -1715,7 +1718,8 @@
     "v134check",
     "v147Ccheck",
     "v151Acheck",
-    "coachcheck"
+    "coachcheck",
+    "v193AAcheck"
    ]
   },
   "thumb": {
@@ -5273,6 +5277,22 @@
    "needsServer": true,
    "pureNode": false,
    "flaky": []
+  },
+  "v193AAcheck": {
+   "file": "scripts/v193AAcheck.mjs",
+   "desc": "v193 AA — the roster moves, and you feel it: a season turnover at the same program carries the roster (a star SR graduates, new faces arrive), ONE ROSTER MOVES card queues and opens at the season screen (v193AAprompt 1): the departure in red with a −N TEAM chip, arrivals in green, the big number ticks down then up digit by digit and settles on the real teamPair after-OVR (TEAM a → b (±d)); the season card's chip; shown once; tap to skip; reduced motion is the end state; RECRUIT A PLAYER lists 3 named recruits for the weakest units, priced in whole percents of the attributes the position reads least; the confirm names the loss, the gain, TEAM before → after and the 3-season lock; signing subtracts exactly those points, puts him on src/10's roster (teamPair and the watched game see him), locks him, plays the card; one a season; the pregame YOUR TEAM page shows the row and a 🔒 chip and still fits; he survives two turnovers and the lock expires on the third; the locker room's moves ride the card; a new level is A NEW TEAM and the lock ends; The Franchise Recruiter costs 1,000,000 PP at Lv 1 (QUICK BUY, v193 Y art, no ×2 tag), each level −25% price / +3 OVR / +1 season; TU v193AA 0 = the old rebuild; nothing overflows at 360 px; no page errors",
+   "areas": [
+    "v153b",
+    "league",
+    "impossible",
+    "smoke"
+   ],
+   "runtimeSec": 40,
+   "slow": false,
+   "needsServer": true,
+   "pureNode": false,
+   "flaky": [],
+   "loadSensitive": true
   }
  }
 }

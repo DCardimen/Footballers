@@ -121,6 +121,8 @@ const d = after - before
 ok(!C2.open && C2.q === 0, 'Continue closes it and empties the queue', C2)
 ok(C2.chip === `${d > 0 ? '▲' : d < 0 ? '▼' : '='} ${Math.abs(d)} since last season`, 'the season screen\'s team card says the delta: "' + C2.chip + '"', C2.last)
 ok(C2.btn, 'the team card carries RECRUIT A PLAYER')
+await M(() => document.querySelector('#teamQualV192B')?.scrollIntoView({ block: 'center' }))
+await page.screenshot({ path: '/tmp/v193AA-season.png' })
 await page.waitForTimeout(2200)
 ok(!(await M(() => !!document.getElementById('rmV193AA'))) && (await M(() => window.__V193AA.rec.shown.length)) === C2.shown, 'shown once: a redraw does not bring it back')
 
@@ -157,7 +159,7 @@ const O = await M(() => {
 })
 console.log('offers:', JSON.stringify(O.offers.map((o) => [o.tier, o.name, o.pos, o.ovr, o.old.ovr, o.cost.map((c) => c.k + ' ' + c.pct + '% ' + c.pts).join(','), o.before + '→' + o.after])))
 ok(O.n === 3 && new Set(O.offers.map((o) => o.slot)).size === 3, 'three recruits, three different slots', O.offers.map((o) => o.slot))
-ok(O.offers.every((o) => /^[A-Z][a-z]+ [A-Z][A-Za-z'-]+$/.test(o.name) && !o.onRoster && o.pos === o.slotPos && o.ovr > o.old.ovr && o.ovr >= Math.round(O.T * 0.98)), 'each a named man at the replaced man\'s position, rated above him and at the roster\'s level', O.offers.map((o) => o.name + ' ' + o.pos + ' ' + o.ovr + ' > ' + o.old.ovr))
+ok(O.offers.every((o) => /^[A-Z][A-Za-z'-]+ [A-Z][A-Za-z'-]+$/.test(o.name) && !o.onRoster && o.pos === o.slotPos && o.ovr > o.old.ovr && o.ovr >= Math.round(O.T * 0.98)), 'each a named man at the replaced man\'s position, rated above him and at the roster\'s level', O.offers.map((o) => o.name + ' ' + o.pos + ' ' + o.ovr + ' > ' + o.old.ovr))
 ok(O.offers[0].unit === O.weak[0].k, 'the first recruit fills the weakest unit (' + O.weak[0].k + ')', O.weak)
 const costOk = O.offers.every((o) => o.cost.length >= 2 && o.cost.length <= 3 && o.cost.every((c) => Number.isInteger(c.pct) && Number.isInteger(c.pts) && c.pts === Math.max(1, Math.round(O.attrs[c.k] * c.pct / 100)) && (O.w[c.k] || 0) > 0 && (O.w[c.k] || 0) <= O.leastW[o.cost.length - 1]))
 ok(costOk, 'the price is whole percents of the 2–3 attributes the position needs least among those it reads (the points beside them)', O.offers.map((o) => o.cost.map((c) => `${c.k}(w${O.w[c.k] || 0}) −${c.pct}% −${c.pts}`).join(' ')))
@@ -222,7 +224,7 @@ const PG = await M(async (nm) => {
 ok(PG && PG.row && PG.lock.includes(o1.name) && PG.chips && PG.chips.some((c) => /🔒 RECRUIT · 3 seasons/.test(c)), 'the pregame YOUR TEAM page: the row, the lock, and the recruit in the eleven with a 🔒 chip', PG)
 ok(PG && PG.fits && PG.wide === 0, 'the row adds no page scroll (the roster box gives the room) and nothing is wider than 360 px', PG && { fits: PG.fits, over: PG.over, over0: PG.over0, wide: PG.wide })
 await page.screenshot({ path: '/tmp/v193AA-pregame.png' })
-await M(() => { window.__keepGrowthAA = false; typeof closePregame === 'function' && closePregame(); window.go('season') })
+await M(() => { window.__keepGrowthAA = false; window.closePregameV1513 && window.closePregameV1513(); window.go('season') })
 // he survives the turnovers while locked (even as a senior), and the lock runs out after 3 seasons
 const life = []
 await M(() => { window.RIB_TUNE.v193AAprompt = 0 })
@@ -267,6 +269,33 @@ await M(() => { window.go('shop'); window.setBranch && window.setBranch('impossi
 await page.waitForTimeout(400)
 const TR = await M(() => { const it = [...document.querySelectorAll('#branchNodes .shop-item')].find((x) => /Franchise Recruiter/.test(x.textContent)); return it ? { buy: (it.querySelector('.buy') || {}).textContent, art: !!it.querySelector('.ra-v193y'), fx2: /×2 effect/.test(it.textContent) } : null })
 ok(TR && /1M PP/.test(TR.buy) && TR.art && !TR.fx2, 'the tree draws it at 1M PP with its art (its desc states what it pays — no ×2 tag)', TR)
+
+// ---------- the locker room's moves ride the card; a new level is A NEW TEAM (and a lock ends there) ----------
+await setup()
+await page.waitForTimeout(300)
+const LK = await M(() => { const out = window.__V153B.roll('story', { force: 'leave', dir: 'leave', count: 1 }); window.go('season'); return out.map((v) => v.name) })
+const lkOpen = await waitCard()
+if (!lkOpen) console.log('locker debug:', JSON.stringify(await M(() => ({ q: window.__V193AA.queue.map((q) => q.kind), blocked: window.__V193AA.blocked(window.__V193AA.queue[0]), view: window.__GRIDIRON_AUDIT__.getState().view, L: window.__V153B.locker(), ov: [...document.body.children].filter((x) => getComputedStyle(x).position === 'fixed' && x.getBoundingClientRect().height > 0).map((x) => x.id || x.className).slice(0, 10) }))))
+ok(lkOpen, 'a teammate walking out mid-season opens the card (not the old pop)')
+const LK2 = await M(() => ({ text: document.getElementById('rmV193AA').innerText, pop: !!document.getElementById('lockerPopV153B'), kind: window.__V193AA.rec.last.kind }))
+ok(LK.length === 1 && LK2.kind === 'locker' && /THE LOCKER ROOM/.test(LK2.text) && LK2.text.includes(LK[0]) && !LK2.pop, 'THE LOCKER ROOM card names the man who left and his replacement', { left: LK, kind: LK2.kind })
+await M(() => window.__V193AA.skip())
+await closeCard()
+const NT = await M(() => {
+  const p = window.__GRIDIRON_AUDIT__.getState().player, r = window.__V193AA.sign(0)
+  p.rmQV193AA = []
+  window.go('hub')
+  const before = window.__TEAMPAIR_V76().us
+  p.level++; p.seasonsAtLevel = 0; p.totalSeasons++
+  window.startSeasonGames()
+  return { name: r && r.man.name, before }
+})
+ok(await waitCard(), 'moving up a level opens the card at the new team')
+const NT2 = await M((nm) => { const p = window.__GRIDIRON_AUDIT__.getState().player, R = window.__V193AA.rec; return { text: document.getElementById('rmV193AA').innerText, kind: R.last.kind, n: R.nums, after: window.__TEAMPAIR_V76().us, there: window.__V158_ROSTER().some((m) => m.name === nm) } }, NT.name)
+ok(NT2.kind === 'team' && /A NEW TEAM/.test(NT2.text) && /YOU LEFT/.test(NT2.text) && /YOUR NEW TEAM/.test(NT2.text) && NT2.n.n0 === NT.before && NT2.n.n3 === NT2.after, 'A NEW TEAM: the men you leave, the men you join, the old team OVR → the new one', NT2.n)
+ok(NT.name && !NT2.there, 'the recruit could not follow to the new level: his lock ended there', NT.name)
+await M(() => window.__V193AA.skip())
+await closeCard()
 
 // ---------- 4. kill switch ----------
 await setup({ tune: { v193AA: 0 } })
