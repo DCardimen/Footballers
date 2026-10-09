@@ -222,7 +222,8 @@
     "v153 A",
     "v177 A",
     "v177 B",
-    "v193 AJ"
+    "v193 AJ",
+    "v194 D"
    ],
    "files": [],
    "checks": [
@@ -241,7 +242,8 @@
     "v151Dcheck",
     "v153Acheck",
     "scrumcheck",
-    "v193AJcheck"
+    "v193AJcheck",
+    "v194Dcheck"
    ]
   },
   "cuts": {
@@ -346,7 +348,8 @@
    "desc": "v144 — sprite scale by age, stall watchdog, between-plays shuffle, goalpost pad, apron, pylons, weather",
    "anchors": [
     "v144",
-    "v193 AG"
+    "v193 AG",
+    "v194 D"
    ],
    "files": [],
    "checks": [
@@ -380,7 +383,8 @@
     "v193Ccheck",
     "v193Icheck",
     "v193AGcheck",
-    "v193AIcheck"
+    "v193AIcheck",
+    "v194Dcheck"
    ]
   },
   "statinfo": {
@@ -5445,6 +5449,21 @@
    ],
    "runtimeSec": 420,
    "slow": true,
+   "needsServer": true,
+   "pureNode": false,
+   "flaky": [],
+   "loadSensitive": true
+  },
+  "v194Dcheck": {
+   "file": "scripts/v194Dcheck.mjs",
+   "desc": "v194 D — idle V2, the huddle faces in, the stiff arm, the turf remembers its paint: seeded games identical with v194D on and off (the stiff arm is graded, never rolled), stiff arms at a sane rate per contact, each graded (pow, drop, sick), never the tackler in his beaten window; live: every huddler faces his huddle centre (QB included), each whistle plans varied gaits/poses/gestures with staggered starts and own paces, nobody leaves his whistle-spot leash and the field keeps its spread; in the lab the arm locks out AT the man, his head snaps back, a drop goes down and up, a weak one staggers, a sick one freezes the frame, an ungraded one keeps v193 AJ shove; an impact reads white on a yard line, green on grass, paint in an end zone, with no Math.random; the kill switches; no page errors",
+   "areas": [
+    "broadcast",
+    "contact",
+    "animation"
+   ],
+   "runtimeSec": 180,
+   "slow": false,
    "needsServer": true,
    "pureNode": false,
    "flaky": [],
