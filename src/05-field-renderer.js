@@ -5961,7 +5961,7 @@ class Ot extends mt.Scene {
             : tstyle === "forward" ? TU("fallFwdMs", 260) : e.sack ? TU("sackWrapMsV146", 220) : TU("wrapBeatMsV146", 110)
         } : null;
         try { const R = window.__V146R = window.__V146R || { downs: 0, far: 0, maxD: 0, stick: 0, together: 0, sacks: 0, samples: [] };
-          if (m) { R.downs++; if (e.sack) R.sacks++;
+          if (m && !(e.oob && e.stepOut)) { R.downs++; if (e.sack) R.sacks++;   // v194 A: an untouched step-out is no down — nobody is meant to be on him
             const dd = tk ? Math.hypot(tk.sx - m.sx, tk.sy - m.sy) : 999; R.maxD = Math.max(R.maxD, Math.round(dd * 10) / 10);
             if (dd > TU("contactPxV146", 9) + 3) { R.far++; if (R.samples.length < 10) R.samples.push({ d: Math.round(dd), sack: !!e.sack, why: e.v146 && e.v146.why, fs: !!P.script.meta.fieldSim }); }
             if (F146) F146.stick ? R.stick++ : R.together++; } } catch (er) {}

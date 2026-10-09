@@ -22123,7 +22123,9 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
       }
       const stops = ne === "incomplete" || oob;
       if (!stops) {
-        let runoff = milk ? 39 : hurry ? (ne === "run" ? 16 : 11) : 24 + randInt(-3, 4);
+        /* v194 A: the hidden clock roll is gone (a play stops the clock only when the sim put it out), so fewer plays
+         * stop it — the in-bounds runoff gives that back (`runoffV194A`), keeping the plays a game where they were */
+        let runoff = milk ? 39 : hurry ? (ne === "run" ? 16 : 11) : (TU("v194A", 1) ? TU("runoffV194A", 21) : 24) + randInt(-3, 4);
         // late-half timeout: the trailing team burns one to stop the clock and save time
         const late = quarter >= 4 ? clock <= 180 : quarter === 2 && clock <= 120,
           trailing = margin < 0 ? T0 : margin > 0 ? other(T0) : null;
