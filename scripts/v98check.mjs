@@ -74,7 +74,9 @@ ok(L0.length === 4 && L0.every(l => l.glow && l.beam && l.pool), 'every mast car
 ok(L0.every((l, i) => { const tw = S0.t[i], h = tw.y - tw.top, want = tw.y - h * 0.76
   return Math.abs(l.glow.y - want) <= Math.max(3, h * 0.06) && l.glow.a > 0.3 }),
   'the glows sit up at the lamp heads and are lit', JSON.stringify(L0.map((l, i) => [l.glow.y, +(S0.t[i].y - (S0.t[i].y - S0.t[i].top) * 0.76).toFixed(0), l.glow.a])))
-ok(L0.every(l => l.beam.len > 200 && l.beam.a > 0.1 && l.beam.depth > 3.45), 'the beams reach down from the heads over the bowl toward the field', JSON.stringify(L0.map(l => [l.beam.len, l.beam.rot, l.beam.a])))
+// v194 C: with the masts on the roof the beam passes BEHIND the stands (no light across a spectator) and lands on the grass
+const roof194 = await page.evaluate(() => !!(window.__V194C && window.__V194C.lights && window.__V194C.lights.on))
+ok(L0.every(l => l.beam.len > 200 && l.beam.a > 0.1 && (roof194 ? l.beam.depth < 3.45 : l.beam.depth > 3.45)), 'the beams reach down from the heads over the bowl toward the field', JSON.stringify(L0.map(l => [l.beam.len, l.beam.rot, l.beam.a, l.beam.depth])))
 ok(L0.every(l => l.pool.y > 340 && l.pool.depth > 0.6 && l.pool.depth < 0.8 && l.pool.a > 0.05), 'the pools lie on the turf between the grass and the paint', JSON.stringify(L0.map(l => [l.pool.x, l.pool.y, l.pool.depth])))
 const glowA = samples.map(s => s.L[1] && s.L[1].glow.a), gMean = glowA.reduce((a, b) => a + b, 0) / glowA.length
 // v102: the lamps BREATHE — a few percent of slow shimmer and the odd sputter, never the old
