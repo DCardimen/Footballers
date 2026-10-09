@@ -3071,6 +3071,7 @@ class Ot extends mt.Scene {
       this.windupV107(P);   // v107: the arm starts four frames before the ball leaves
       this.plantV109(P);   // v109: and the feet plant before the cut
       this.exchangeV108(P);   // v108: and the reach two frames before the ball changes hands
+      this.ajTickV193(P, Math.max(0, P.t - (P.delay || 0)));   // v193 AJ: the lunge is seen coming; a drawn fall gives way when the sim needs him
       // v10: live yardage ticker rides the carrier, counting up as he earns it
       if (P.carrierId != null && this.markers[P.carrierId] && !P.ydDone && P.losX != null) {
         const cmY = this.markers[P.carrierId];
@@ -3237,6 +3238,7 @@ class Ot extends mt.Scene {
         // just above it. The lateral hand offset keeps either case out of the body core.
         ballDepth = holder.root.depth + (holder === centerV105 ? 0.05 : rear ? -0.06 : 0.08);
         baseSX = 0.40 * sc; baseSY = 0.36 * sc;
+        if (holder._ajHideBall) { baseSX = 0; baseSY = 0; }   // v193 AJ: the layout's cell has the ball in his arms — one football on screen
         // v107/v108: a cell that already carries a football hides ours — two otherwise. Which
         // frames those are is per cycle and MEASURED (BALL_DRAWN_V108), not the flat 0-3 v107
         // assumed: the rear throw only shows it cocked at the ear. The v1513 ball guard forces
@@ -3656,6 +3658,7 @@ class Ot extends mt.Scene {
     return TU("postPlayMs", 1450) + TU("postGatherExtraMs", 260);   /* v144 C: the gather had 600ms of a 1450ms window once the late contact had its 850 — it reaches the huddle spot now */
   }
   startPostV86(P, ms) {
+    try { this.ajPostV193(P); } catch (e) {}   // v193 AJ: the gather starts from where they are DRAWN
     const S = P.script, dir = S.meta.dir || VDIR || 1, YDF = PLAY_W / 100, MIDY = (F_TOP + F_BOT) / 2;
     const spot = { x: P._refBX != null ? P._refBX : (P.losX != null ? P.losX : PLAY_L + PLAY_W / 2), y: P._refBY != null ? P._refBY : MIDY };
     P.post = { t: 0, ms, spot, dir };
@@ -4438,6 +4441,7 @@ class Ot extends mt.Scene {
     this.crowdReact(e, P);      // v57: the stands hear every play
     try { this.coverEventV192F(e, P); } catch (er) {}   // v192 F: the coverage the sim played, for the picture
     try { this.sideReact(e); } catch (er) {}   // v79: so does the bench
+    try { this.ajGapProbeV193(e); } catch (er) {}   // v193 AJ: how far apart they are DRAWN on the contact frame
 
     switch (e.type) {
       /* ===== v109 THE RECEIVER FINDS THE BALL ===== */
@@ -4452,7 +4456,8 @@ class Ot extends mt.Scene {
         const a = PJ(m.sx, m.sy), b = PJ(e.x, e.y); if (Math.hypot(b.x - a.x, b.y - a.y) > 2) this.faceMarker(m, b.x - a.x, b.y - a.y);
         const kit = m.kit || m.team, face3 = m.dirKey === "dn" ? "dn" : (m.dirKey === "dr" || m.dirKey === "sd") ? "dr" : "up", CS = RIB.catchseqV109 || {};
         m._reachV109 = { kind: e.kind, at: e.at, t: m.tms }; m._preCatch = false; m._handfight = false; m._lookAt = null; m._tuckV109 = 0;
-        if (e.kind === "dive") { m.forceState = "diveCatchSeq"; m.seqT = m.tms; m._launchT0 = m.tms; m._launchUntil = m.tms + 285; m._launchH = 5; }
+        if (e.kind === "dive" && this.ajOnV193() && this.ajLayoutV193(m, e, P)) {}   // v193 AJ THE DIVING CATCH: the layout
+        else if (e.kind === "dive") { m.forceState = "diveCatchSeq"; m.seqT = m.tms; m._launchT0 = m.tms; m._launchUntil = m.tms + 285; m._launchH = 5; }
         else if (this.textures.exists("spr_" + kit + "_" + face3 + "_catchseq0_0")) { m._csVarV109 = (CS[e.kind] || CS.stride || {})[face3] || 0; m.forceState = "catchseqSeq"; m.seqT = m.tms;
           if (e.kind === "high") { m._launchT0 = m.tms; m._launchUntil = m.tms + TU("catchHopMs", 300); m._launchH = TU("catchHopH", 12); } }
         else { m.forceState = "catchSeq"; m.seqT = m.tms; }
@@ -4507,6 +4512,7 @@ class Ot extends mt.Scene {
           P.contestDef = null; P.awaitCatch2 = null;
         }
         const cm = this.markers[P.carrierId];
+        if (cm) cm._ajCatchT = cm.tms;   // v193 AJ: an air tackle is one that lands while he is still coming down with it
         // v21.2 HIGH-POINT CATCH: the receiver LEAPS for the ball (arms-up catch cell
         // + a launch-parabola hop) instead of a flat static grab, then settles.
         if (cm) { const diving=e.catchType==="dive";
@@ -4662,6 +4668,7 @@ class Ot extends mt.Scene {
               H151.jukeHop++;
             }
           }
+          if (mv151 && cm2.body && this.ajOnV193()) { const scr193 = Math.sign(PJ(cm2.sx, cm2.sy + (Number(e.direction) || 1) * 10).x - PJ(cm2.sx, cm2.sy).x) || 1; this.ajCutV193(cm2, e, scr193, flu); }   // v193 AJ THE MOVES
           // a spin whips the body around; a juke throws a sharp lateral lean-and-recover.
           if (cm2.body && !mv151) {
             if (isSpin) {
@@ -4687,7 +4694,8 @@ class Ot extends mt.Scene {
         const sa9 = this.sideV109(e, carrier, tk); this.hookV109().arms[sa9 > 0 ? "R" : "L"]++;
         if (carrier) { carrier._lean = sa9 * TU("stiffLean", .14); carrier._leanSrc = "stiff"; this.time.delayedCall(300, () => { if (carrier._leanSrc === "stiff") { carrier._leanSrc = null; carrier._lean = 0; } }); }
         if (tk && tk.dirKey !== "up" && tk.dirKey !== "dn") tk.flip = sa9 > 0;
-        if (tk) { tk.forceState = "grab";
+        if (tk && carrier && this.ajOnV193()) { tk._ajReach = null; this.ajShovedV193(tk, carrier, e); }   // v193 AJ: shoved off the arm, over and down, up again
+        else if (tk) { tk.forceState = "grab";
           this.time.delayedCall(160, () => { if (tk.active !== false) tk.forceState = "down"; });
           this.time.delayedCall(760, () => { if (tk.forceState === "down") tk.forceState = null; }); }
         this.popText(e.x, e.y - 22, "STIFF ARM!", "#ffd97a", 14);
@@ -4734,6 +4742,7 @@ class Ot extends mt.Scene {
         if (m) { m.forceState = null; m.cutUntil = m.tms + 200; m.body && m.body.setTint(0xbfe0ff);
           this.time.delayedCall(360, () => { m.body && m.body.clearTint(); }); }
         this.moveV164H(m, bmS, "swim", e);   // v164 H: the arm over the top, the hop past him, the blocker turned
+        if (m && this.ajOnV193()) this.ajSwimV193(m, bmS);   // v193 AJ: the rise, the arm-over, the rip and the burst; the blocker reaching after him
         this.popText(e.x, e.y - 20, "SWIM MOVE!", "#8fe7ff", 13);
         this.puffFx(e.x, e.y, 2);
         break;
@@ -4889,7 +4898,8 @@ class Ot extends mt.Scene {
           const aimK = e.aim === "low" ? TU("lungeLowHKV143", .5) : e.aim === "high" ? TU("lungeHighHKV143", 1.45) : 1;
           const aimMs = e.aim === "low" ? TU("lungeLowMsKV143", 1.18) : e.aim === "high" ? TU("lungeHighMsKV143", .88) : 1;
           const Lms = Math.round(L.ms * aimMs);
-          tk.forceState = "dive"; tk._launchT0 = tk.tms; tk._launchUntil = tk.tms + Lms; tk._launchH = L.h * aimK;
+          if (this.ajOnV193() && tk._ajLungeAt != null && Math.abs(tk._ajLungeAt - tk.tms) < 220) tk.forceState = "dive";   // v193 AJ: the lookahead already launched him at the gap
+          else { tk.forceState = "dive"; tk._launchT0 = tk.tms; tk._launchUntil = tk.tms + Lms; tk._launchH = L.h * aimK; }
           this.time.delayedCall(Lms, () => { if (tk.forceState === "dive" && !tk._whiffed) tk.forceState = null; });
         }
         // a whoosh trail sells the launch — a low dive scrapes up more of it
@@ -4913,7 +4923,8 @@ class Ot extends mt.Scene {
         if (hm) { hm.forceState="hurdleSeq"; hm.seqT=hm.tms; hm._launchT0 = hm.tms; hm._launchUntil = hm.tms + 460; hm._launchH = h9; const HH = this.hookV109().hurdleH; HH.push(h9); if (HH.length > 24) HH.shift(); }
         const htk = this.markers[this.actorIdx(e.who)];
         if (htk && htk.dirKey !== "up" && htk.dirKey !== "dn") htk.flip = this.sideV109(e, hm, htk) < 0;
-        if (htk) { htk.forceState = "dive"; this.time.delayedCall(220, () => { if (htk.active !== false) htk.forceState = "down"; });
+        if (htk && this.ajOnV193() && this.ajHurdleV193(P, e, hm, htk)) {}   // v193 AJ: he dives for the grass the hurdler's feet clear
+        else if (htk) { htk.forceState = "dive"; this.time.delayedCall(220, () => { if (htk.active !== false) htk.forceState = "down"; });
           this.time.delayedCall(820, () => { if (htk.forceState === "down") htk.forceState = null; }); }
         this.popText(e.x, e.y - 26, "HURDLED!", "#8fe7ff", 14);
         this.slowMoment(P);
@@ -5022,7 +5033,8 @@ class Ot extends mt.Scene {
           this.popText(e.x, e.y - 22, "OVERRAN IT!", "#8fe7ff", 12);
           break;
         }
-        if (tk) { tk._whiffed = true; tk.forceState = "dive";
+        if (tk && this.ajOnV193() && this.ajWhiffV193(tk, e, P)) { (window.__V191D_R = window.__V191D_R || { whiffs: 0, late: 0 }).whiffs++; }   // v193 AJ THE WHIFF SLIDE
+        else if (tk) { tk._whiffed = true; tk.forceState = "dive";
           /* v191 D: a whiff is a LAUNCH — if the lunge never got him off the ground he leaves his feet now, longer and
            * higher than a wrap, facing the man he reached for, and lands just past him */
           if (TU("v191whiff", 1)) {
@@ -5128,7 +5140,8 @@ class Ot extends mt.Scene {
           } else if (e.strain) this.popText(e.x, e.y - 46, "DROVE FOR IT", "#f0bb45", 12);
         }
         if (e.horseCollar) this.popText(e.x, e.y - 58, "HORSE COLLAR?", "#e0484f", 12);
-        if (slide && tk) {
+        const ajOob = !!(e.oob && m && this.ajOnV193() && this.ajPushOutV193(P, e, m, tk));   // v193 AJ THE PUSH: a push-out stays on its feet
+        if (slide && tk && !ajOob) {
           // he gives himself up: a low forward slide, and the man over him pulls up
           m.forceState = "dive"; m._launchT0 = m.tms; m._launchUntil = m.tms + TU("slideMs", 260); m._launchH = 3; m._lean = 0;
           this.time.delayedCall(TU("slideMs", 260), () => { if (m.active !== false && m.forceState === "dive") m.forceState = "down"; });
@@ -5137,7 +5150,7 @@ class Ot extends mt.Scene {
           this.popText(e.x, e.y - 24, "SLIDES", "#8fe7ff", 12);
           break;
         }
-        if (tk) {
+        if (tk && !ajOob) {
           // fast closers launch a flying tackle; otherwise it's a jersey-grab drag-down,
           // then the tackler folds to the turf and STAYS down — the pile holds until the
           // next snap resets the formation (no popping back up to idle mid-replay).
@@ -5194,7 +5207,7 @@ class Ot extends mt.Scene {
             if (n153) { R153.gangs++; R153.fell += n153; R153.maxN = Math.max(R153.maxN, n153); }
           }
         }
-        if (m) {
+        if (m && !ajOob) {
           if (willFly112) {
             // he does not fold, he is thrown: the arc, the landing and the skid (placeMarker)
             if (m.body) { this.tweens.killTweensOf(m.body); m.body.x = 0; m.body.y = 0; m.body.angle = 0; }
@@ -5228,6 +5241,7 @@ class Ot extends mt.Scene {
             m.forceState = "tackleSeq"; m.seqT = m.tms;
           }
         }
+        if (m && !ajOob && this.ajOnV193()) try { this.ajTackleTypeV193(P, e, m, tk, { slide, tstyle, willFly112, F146 }); } catch (er) {}   // v193 AJ THE TACKLE TYPES
         // v25 HIT STICK (defense levels the carrier): the baked dive→down flight + a
         // heavy freeze-frame. Height geometry adds flavor: high wrap = they fold
         // together, low hit = a shoestring trip.
@@ -6432,6 +6446,11 @@ class Ot extends mt.Scene {
     const air = TU("lateDiveAirMsV191", 280), delay = TU("lateDiveDelayMsV191", 90);
     this.time.delayedCall(delay, () => {
       if (m.active === false || (m.forceState && m.forceState !== "grab")) return;
+      if (this.ajOnV193() && cm.root) {   // v193 AJ: the late diver lands short of the pile and slides into it
+        let ux = cm.sx - m.sx, uy = cm.sy - m.sy; const d = Math.hypot(ux, uy) || 1; ux /= d; uy /= d;
+        (window.__V191D_R = window.__V191D_R || { whiffs: 0, late: 0 }).late++;
+        this.ajDiveSlideV193(m, ux, uy, Math.max(4, d - TU("lateDiveShortPxV193", 9)), air, Math.max(.06, d / air), { kind: "lateDive", down: TU("whiffDownMsV139", 580), h: TU("lateDiveHV191", 4.5) });
+        return; }
       m._whiffed = true; m.forceState = "dive"; m._launchT0 = m.tms; m._launchUntil = m.tms + air; m._launchH = TU("lateDiveHV191", 4.5);
       (window.__V191D_R = window.__V191D_R || { whiffs: 0, late: 0 }).late++;
       this.time.delayedCall(air, () => {
@@ -6488,8 +6507,11 @@ class Ot extends mt.Scene {
     const lo = Math.min(m.num, engaged.num), hi = Math.max(m.num, engaged.num), phase = ((lo * 7 + hi * 13) % 17) / 17 * Math.PI * 2;
     const t = (m.tms || 0) / Math.max(80, TU("shoveMsV164H", 260)), w = Math.sin(t * Math.PI * 2 + phase);
     const drive = (engaged.sSm || 0) + (m.sSm || 0) > TU("driveSpd", 22) ? TU("shoveDriveKV164H", 1.5) : 1;
+    if (this.ajOnV193() && !m._ajClip && (!m._leanSrc || m._leanSrc === "shove")) this.ajHandFightV193(m, engaged, toward);   // v193 AJ THE PUSH: hand fighting, and the lean says who is winning
+    else {
     m.body.x = toward * (TU("shovePxV164H", 1.6) * drive) * (0.5 + 0.5 * w);
     if (!m._leanSrc || m._leanSrc === "shove") { m._lean = toward * TU("shoveLeanV164H", 0.09) * (0.6 + 0.4 * w); m._leanSrc = "shove"; }
+    }
     if (!m._shoveV164H) H.shoves++;
     m._shoveV164H = 1;
   }
@@ -6581,6 +6603,7 @@ class Ot extends mt.Scene {
   strideV151D(m, dtms, dx, dy, mul) {
     const dt = Math.max(1, dtms || 16), old = dt * Math.min(2.4, m.sSm / 58) * (mul || 1);
     if (!TU("strideV151D", 1) || m.sx == null) return old;
+    if (this.ajOnV193()) return this.ajStrideV193(m, dtms, dx, dy, mul);   // v193 AJ THE STRIDE: the ground measured the same way in every direction
     const p0 = PJ(m.sx - dx, m.sy - dy), p1 = PJ(m.sx, m.sy);
     const k = Math.max(.05, (p1.s || 1) * (m._ageKV144 || 1));
     const cell = Math.hypot(p1.x - p0.x, p1.y - p0.y) / k;                 // the ground he covered, in his own sprite's pixels
@@ -6732,6 +6755,560 @@ class Ot extends mt.Scene {
     m._stumbleV109 = { t0: m.tms, until: m.tms + (ms || TU("stumbleMs", 250)), side: sideSgn };
     m._lean = -sideSgn * TU("stumbleLean", .22); m._leanSrc = "stumble"; m._leanV109 = 0;   // knocked AWAY from the contact
   }
+  /* ===== v193 AJ ANIMATION V2 =====
+   * The owner: "Improve all the animations, like running, diving catch, the distance for tackles. Sliding on the ground if
+   * missed, pushing, swim move, spin move, side step. Hurdles. Air tackle, foot tackle, etc." Presentation only: every
+   * piece below is driven by the events and the frames FieldSim already produced, spends no sim draw and moves no booked
+   * yard, name or spot. Three tools carry it:
+   *   THE CLIP (`ajClipV193`) — a short timed pose a man plays over whatever the old path would have drawn: which cell,
+   *     the rotation, a body offset and squash, his facing. A clip that owns him sets its own `forceState` ("diveAJ",
+   *     "downAJ", "fallAJ" — the prefixes the shadow and the post-play gather already read as down); an overlay clip
+   *     ("*") rides on top and gives way the moment a tackle, a get-up or a throw takes him over.
+   *   THE ANCHOR (`ajAnchorV193`) — his DRAWN spot leaves the sim's for a beat: a dive that lands and slides, a man shoved
+   *     off his feet, a push out of bounds. A path of keyframes (field points, or offsets from the sim), a hold, then a
+   *     catch-up at a capped multiple of his own top speed. The hold is cut short when the sim needs him (an event about
+   *     to name him) or when he has fallen too far behind himself (`ajLagCapPxV193`).
+   *   THE REACH (`ajReachV193`) — the commit resolves at up to 16 sim px (2.7 yd), which on a Pee Wee field is two and a
+   *     half bodies of daylight. The lunge is seen COMING (the script is known): a set man breaks down first (chop steps,
+   *     hips sink), then extends, and his drawn body closes the gap to `ajReachCellV193` sprite pixels — arms on the man —
+   *     on the frame the contact resolves, instead of hitting him from across the grass or snapping onto him a frame later.
+   * Kill switch `TU("v193AJ", 0)` = today's animations exactly. `window.__V193AJ` is the hook; `v193AJcheck`. */
+  ajOnV193() { return !!TU("v193AJ", 1); }
+  // the contact frame, measured: centre to centre on screen in drawn body widths (22 sprite px x his drawn scale — the age
+  // and the projection both backed out), and the sim's own gap in field px. Recorded whether the switch is on or off.
+  ajGapProbeV193(e) {
+    if (!/^(tackleHit|grab|tackle|stiffarm|hurdle|brokenTackle|bounce|stagger|wrapIn|tackleWhiff)$/.test(e.type) || e.oob) return;
+    const kid = e.type === "tackle" ? e.tackler : e.who, k = this.markers[this.actorIdx(kid)], c = this.markers[this.actorIdx(e.carrier)];
+    if (!k || !c || k === c || !k.root || !c.root) return;
+    const H = this.hookAJV193(), bw = 22 * Math.max(.05, (k.root.scale + c.root.scale) / 2);
+    const scr = Math.hypot(k.root.x - c.root.x, k.root.y - c.root.y), sim = Math.hypot((k._ajSimX != null ? k._ajSimX : k.sx) - (c._ajSimX != null ? c._ajSimX : c.sx), (k._ajSimY != null ? k._ajSimY : k.sy) - (c._ajSimY != null ? c._ajSimY : c.sy));
+    H.reach.n++;
+    if (H.reach.gaps.length < 600) H.reach.gaps.push({ type: e.type, bw: +(scr / bw).toFixed(2), sim: +sim.toFixed(1), on: this.ajOnV193() ? 1 : 0, age: +(k._ageKV144 || 1).toFixed(2) });
+  }
+  hookAJV193() {
+    return window.__V193AJ = window.__V193AJ || { clips: {}, seq: {}, frames: 0, reach: { n: 0, gaps: [] }, whiffs: [], anchors: 0, releases: 0, early: 0, lagMax: 0,
+      stride: { n: 0, frames: 0, cell: 0, slide: 0, slideN: 0 }, backpedal: 0, shuffle: 0, handfight: 0, falls: [], types: {}, arcs: [], bounces: [], windups: 0, lunges: 0,
+      oob: 0, layouts: [], hurdles: [], shoves: 0, swims: 0, cuts: {} };
+  }
+  /* the mass a body carries into a collision, by position — FieldSim's own WT table (contact()'s momentum) */
+  ajMassV193(m) { const W = { DT: 1.06, DE: .96, DL: 1.0, NT: 1.08, LB: .86, S: .7, CB: .58, QB: .6, RB: .72, WR: .54, TE: .82, OL: 1.12 }; return W[m && m._ajLabel] || .75; }
+  // screen-x sign of a field direction at a man's spot (the camera sits behind an end zone: field x is depth)
+  ajScrXV193(m, ux, uy) { const a = PJ(m.sx, m.sy), b = PJ(m.sx + ux * 10, m.sy + uy * 10); return { sx: b.x - a.x, sy: b.y - a.y, sgn: Math.sign(b.x - a.x) || (m.flip ? 1 : -1), k: Math.abs(b.x - a.x) / Math.max(1e-6, Math.hypot(b.x - a.x, b.y - a.y)) }; }
+  // sprite pixels → field px along a direction at his spot (so "an arm's length" is the same on a Pee Wee field and a pro one)
+  ajCellToSimV193(m, cell, ux, uy) { const a = PJ(m.sx, m.sy), b = PJ(m.sx + ux, m.sy + uy); const r = Math.max(.05, Math.hypot(b.x - a.x, b.y - a.y)); return cell * (a.s || 1) * (m._ajAgeK || m._ageKV144 || 1) / r; }
+  ajDirtV193(sx, sy, o) {   // the field's dirt marks belong to v193 AG; we only ask, through a guarded hook
+    try { const AG = window.__V193AG; if (AG && typeof AG.dirt === "function") AG.dirt(sx, sy, o || {}); } catch (e) {}
+  }
+  ajResetV193(m) {
+    if (!m) return;
+    if (m._ajClip) { m._ajClip = null; if (m.body) { m.body.x = 0; m.body.y = 0; m.body.setScale(1, 1); } }
+    m._ajAnc = null; m._ajReach = null; m._ajCadK = 1; m._ajLean = 0; m._ajFallFlip = null; m._ajBackpedal = false; m._ajHideBall = false; m._ajRot = null; m._ajLungeAt = null;
+  }
+  /* ---------- the clip ---------- */
+  ajClipV193(m, kind, ms, pose, o) {
+    if (!m || !m.root || !this.ajOnV193()) return null;
+    const H = this.hookAJV193();
+    if (m._ajClip) this.ajClipEndV193(m, false);
+    if (m.body) { this.tweens.killTweensOf(m.body); m.body.x = 0; m.body.y = 0; m.body.setScale(1, 1); m.body.angle = 0; }
+    const C = Object.assign({ kind, t0: m.tms, ms: Math.max(1, ms), pose, rec: [], fs: "*" }, o || {});
+    if (C.fs !== "*") m.forceState = C.fs;
+    m._ajClip = C; H.clips[kind] = (H.clips[kind] || 0) + 1;
+    return C;
+  }
+  ajClipEndV193(m, done) {
+    const C = m._ajClip; if (!C) return null;
+    m._ajClip = null; m._ajRot = null; m._ajHideBall = false;
+    if (m.body) { m.body.x = 0; m.body.y = 0; m.body.setScale(1, 1); }
+    const H = this.hookAJV193(), L = H.seq[C.kind] || (H.seq[C.kind] = []);
+    if (L.length < 6 && C.rec.length) L.push(C.rec.slice(0, 30));
+    let st = null;
+    if (done && C.end) st = C.end.call(this, m, C) || null;
+    else if (!done && C.abort) C.abort.call(this, m, C);
+    return st;
+  }
+  // in placeMarker, after every other rule has chosen his cell: the clip, if he is in one, has the last word
+  ajClipPoseV193(m, st) {
+    const C = m._ajClip; if (!C) return st;
+    const fs = String(m.forceState || "");
+    if ((C.fs !== "*" && fs !== C.fs) || (C.fs === "*" && /^(tackleSeq|pancakeSeq|getupSeq|celebrateSeq|throwSeq|handSeq|down|fall)$/.test(fs) && !(C.keep && C.keep.test(fs)))) {
+      this.ajClipEndV193(m, false); return st; }
+    const k = (m.tms - C.t0) / C.ms;
+    if (k >= 1) { const s2 = this.ajClipEndV193(m, true); return s2 || st; }
+    const r = C.pose.call(this, Math.max(0, k), m, C, st) || {};
+    if (r.face) { m.dirKey = r.face[0]; m.flip = r.face[1]; }
+    if (r.flip != null) m.flip = r.flip;
+    m._ajRot = r.rot != null ? r.rot : null;
+    if (m.body && !r.keepBody) { m.body.x = r.ox || 0; m.body.y = r.oy || 0; m.body.setScale(r.sx || 1, r.sy || 1); }
+    m._ajHideBall = !!r.hideBall;
+    if (r.ground) m._groundT = m.tms;
+    const s = r.st || st, key = s + "/" + m.dirKey + (m.flip ? "f" : "");
+    if (C.rec[C.rec.length - 1] !== key) C.rec.push(key);
+    this.hookAJV193().frames++;
+    return s;
+  }
+  /* ---------- the anchor ---------- */
+  ajAnchorV193(m, kf, o) {
+    if (!m || !this.ajOnV193()) return null;
+    const A = Object.assign({ kf, t0: m.tms, mode: "abs", hold: 0, vmax: (m._ajSp || 140) / 1000 * TU("ajCatchUpKV193", 1.35), lagCap: TU("ajLagCapPxV193", 46), rel: false, ox: 0, oy: 0 }, o || {});
+    m._ajAnc = A; m._ajReach = null; this.hookAJV193().anchors++;
+    return A;
+  }
+  ajAnchorAtV193(A, age) {
+    const kf = A.kf; if (age <= kf[0].t) return kf[0];
+    for (let i = 1; i < kf.length; i++) if (kf[i].t >= age) { const a = kf[i - 1], b = kf[i]; let u = (age - a.t) / Math.max(1, b.t - a.t);
+      if (b.ease === "out") u = 1 - (1 - u) * (1 - u); else if (b.ease === "in") u = u * u; else if (b.ease === "io") u = u * u * (3 - 2 * u);
+      return { x: a.x + (b.x - a.x) * u, y: a.y + (b.y - a.y) * u }; }
+    return kf[kf.length - 1];
+  }
+  ajReleaseV193(m, why) {   // the hold is over: from here his drawn spot runs back onto his sim spot
+    const A = m._ajAnc; if (!A || A.rel) return;
+    A.forceRel = why || "event";
+  }
+  // where he is DRAWN this frame, given where the sim has him
+  ajDrawnV193(m, sx, sy, dt) {
+    let x = sx, y = sy;
+    const A = m._ajAnc, H = this.hookAJV193();
+    if (A && A.post && !(m._post && m._post.grounded && !m._post.rose)) m._ajAnc = null;   // up again after the whistle: the gather has him
+    else if (A) {
+      const age = m.tms + dt - A.t0, last = A.kf[A.kf.length - 1];
+      if (!A.rel) {
+        const p = this.ajAnchorAtV193(A, age);
+        const px = A.mode === "add" ? sx + p.x : p.x, py = A.mode === "add" ? sy + p.y : p.y, lag = Math.hypot(px - sx, py - sy);
+        if (A.mode === "abs") H.lagMax = Math.max(H.lagMax, Math.round(lag));
+        const over = A.mode === "abs" && age > last.t && lag > A.lagCap;
+        if (A.forceRel || (A.mode === "abs" && age > last.t + A.hold) || over) {
+          A.rel = true; A.ox = px - sx; A.oy = py - sy; H.releases++; if (over) H.early++;
+          if (A.onRelease) A.onRelease.call(this, m, A, over || !!A.forceRel);
+        } else { x = px; y = py; }
+      }
+      if (A.rel) { const d = Math.hypot(A.ox, A.oy), step = A.vmax * Math.max(1, A.forceRel ? 1.6 : 1) * dt;
+        if (d <= step + .2) m._ajAnc = null;
+        else { A.ox -= A.ox / d * step; A.oy -= A.oy / d * step; x = sx + A.ox; y = sy + A.oy; } }
+      return [x, y];
+    }
+    /* THE REACH: closes the drawn gap to an arm's length while the lunge lands */
+    const R = m._ajReach;
+    if (R) {
+      const age = m.tms + dt - R.t0;
+      let w = age <= 0 ? 0 : age < R.ms ? (age / R.ms) * (age / R.ms) * (3 - 2 * age / R.ms) : 1;
+      if (R.until != null && m.tms > R.until) { w *= Math.max(0, 1 - (m.tms - R.until) / Math.max(1, R.fade || 140)); if (w <= 0) m._ajReach = null; }
+      const cm = R.cm;
+      if (w > 0 && cm && cm.root && cm !== m && cm.sx != null) {
+        const gx = x - cm.sx, gy = y - cm.sy, g = Math.hypot(gx, gy);
+        if (g > .01) {
+          const tgt = this.ajCellToSimV193(cm, TU("ajReachCellV193", 16), gx / g, gy / g);
+          if (g > tgt) { const k = (g - tgt) * w; x -= gx / g * k; y -= gy / g * k; R.k = k; }
+        }
+      }
+    }
+    return [x, y];
+  }
+  /* ---------- per frame: the lookahead (the lunge is seen coming) and the hold that has to end ---------- */
+  ajTickV193(P, T) {
+    if (!this.ajOnV193() || !P || !P.script) return;
+    const S = P.script, ev = S.events || [];
+    if (this._ajP !== P) {
+      this._ajP = P; P._ajSeen = {};
+      this.markers.forEach((m, k) => { this.ajResetV193(m); const a = S.actors[k]; if (a && m) { m._ajSide = a.side; m._ajLabel = a.label; m._ajSp = a.sp || 140; } });
+      const sn = ev.find(q => q.type === "snap"); P._ajSnapT = sn ? sn.t : 0;
+    }
+    const lungeMs = TU("ajLungeMsV193", 150), windMs = TU("ajWindupMsV193", 170);
+    for (let i = P.evIdx || 0; i < ev.length; i++) {
+      const e = ev[i]; if (e.t > T + lungeMs + windMs) break;
+      if (P._ajSeen[i]) continue;
+      if (e.type === "tackleLunge") {
+        const tk = this.markers[this.actorIdx(e.who)], cm = this.markers[this.actorIdx(e.carrier)], lead = e.t - T;
+        if (!tk || !cm || tk === cm) { P._ajSeen[i] = 1; continue; }
+        if (lead > lungeMs) {
+          const w = ev[i - 1] && ev[i - 1].type === "tackleWindup" && ev[i - 1].who === e.who ? ev[i - 1] : null;
+          if (w && w.set && !P._ajSeen["w" + i] && !tk.forceState && !tk._ajClip) { P._ajSeen["w" + i] = 1; this.ajWindupV193(tk, cm, lead - lungeMs); }
+          continue;
+        }
+        P._ajSeen[i] = 1;
+        if (tk.forceState && tk.forceState !== "grab") continue;   // a man already on the ground, or mid-move, does not lunge
+        this.ajLungeV193(tk, cm, e, Math.max(33, lead));
+      } else if (e.type === "wrapIn" && e.t - T <= lungeMs) {
+        P._ajSeen[i] = 1;
+        const sm = this.markers[this.actorIdx(e.who)], cm = this.markers[this.actorIdx(e.carrier)];
+        if (sm && cm && sm !== cm && !sm._ajAnc) sm._ajReach = { cm, t0: sm.tms, ms: Math.max(33, e.t - T), until: sm.tms + Math.max(33, e.t - T) + TU("ajReachHoldMsV193", 380), fade: 140 };
+      }
+    }
+    // a man held down by a drawn fall has to be back on his own legs before the sim needs him again
+    const IDS = ["who", "tackler", "by", "on", "carrier", "off", "def"];
+    this.markers.forEach((m, k) => {
+      const A = m && m._ajAnc; if (!A || A.rel || A.mode !== "abs") return;
+      const id = S.actors[k] && S.actors[k].id; if (!id) return;
+      const lag = Math.hypot(m.sx - (m._ajSimX != null ? m._ajSimX : m.sx), m.sy - (m._ajSimY != null ? m._ajSimY : m.sy));
+      const need = lag / Math.max(.02, A.vmax * .6) + TU("ajNeedPadMsV193", 140);
+      for (let i = P.evIdx || 0; i < ev.length; i++) { const e = ev[i]; if (e.t > T + need) break;
+        if (IDS.some(f => e[f] === id) || (Array.isArray(e.sup) && e.sup.indexOf(id) >= 0) || (Array.isArray(e.downV153A) && e.downV153A.indexOf(id) >= 0)) {
+          if (e.type === "turn" || e.type === "plant" || e.type === "effort") continue;
+          this.ajReleaseV193(m, "event"); break; } }
+    });
+  }
+  /* the whistle. The play-ending tackle is usually the script's last event, so its fall plays out in the post-play gather:
+   * a clip runs on, a man in a drawn fall is marked down (the gather gets him up on its own clock), and an anchor is
+   * frozen onto the field — an offset from a sim spot that the gather is about to move would add itself every frame —
+   * and dropped the moment he is up and walking (his drawn spot IS where the gather starts from). */
+  ajPostV193(P) {
+    if (!this.ajOnV193()) return;
+    this.markers.forEach((m) => {
+      if (!m) return;
+      m._ajReach = null; m._ajCadK = 1; m._ajBackpedal = false;
+      const A = m._ajAnc;
+      if (A) { if (A.mode === "add") { const bx = m._ajSimX != null ? m._ajSimX : m.sx, by = m._ajSimY != null ? m._ajSimY : m.sy;
+          A.kf = A.kf.map(q => ({ t: q.t, x: bx + q.x, y: by + q.y, ease: q.ease })); A.mode = "abs"; }
+        A.hold = 1e9; A.lagCap = 1e9; A.post = true; }
+      const C = m._ajClip; if (C && C.grounded && C.grounded(m, C)) m._groundT = m.tms;
+    });
+  }
+  /* ===== v193 AJ THE TACKLE REACH =====
+   * A SET man (v143's windup) breaks down: chop steps (the cadence up, the stride short), the hips sink, the chest comes up.
+   * Then the lunge: the facing's own reaching cell (`dive_<dd>`) going into the full extension (the flat dive) as he leaves
+   * his feet, and the drawn gap closes to an arm's length on the contact frame. A rushed man gets no gather — the tell. */
+  ajWindupV193(tk, cm, ms) {
+    const H = this.hookAJV193(); H.windups++;
+    const fx = this.ajScrXV193(tk, cm.sx - tk.sx, cm.sy - tk.sy).sgn;
+    tk._ajCadK = TU("ajChopCadKV193", 1.7);
+    this.ajClipV193(tk, "windup", ms, function (k) {
+      const q = Math.sin(Math.PI * Math.min(1, k * 1.3));
+      return { sy: 1 - TU("ajSinkV193", .08) * q, sx: 1 + .04 * q, oy: 1.2 * q, rot: -fx * .1 * q };
+    }, { end: function (m) { m._ajCadK = 1; }, abort: function (m) { m._ajCadK = 1; } });
+  }
+  ajLungeV193(tk, cm, e, ms) {
+    const H = this.hookAJV193(); H.lunges++;
+    const a = PJ(tk.sx, tk.sy), b = PJ(cm.sx, cm.sy); if (Math.hypot(b.x - a.x, b.y - a.y) > 1) this.faceMarker(tk, b.x - a.x, b.y - a.y);
+    tk._ajCadK = 1;
+    tk._ajReach = { cm, t0: tk.tms, ms, until: tk.tms + ms + TU("ajReachHoldMsV193", 380), fade: 140 };
+    tk._ajLungeAt = tk.tms + ms;
+    const after = TU("ajLungeAfterMsV193", 110), D = ms + after, hDecl = e.aim === "low" ? 2.5 : e.aim === "high" ? 9 : 5.5;
+    // the airborne part ENDS just after the contact; a low dive leaves the ground late and skims
+    const air = Math.min(D, Math.sqrt(8 * hDecl / Math.max(1e-5, TU("ajGravV193", .001))));
+    tk._launchT0 = tk.tms + Math.max(0, D - air); tk._launchUntil = tk.tms + D; tk._launchH = hDecl;
+    const fx = Math.sign(b.x - a.x) || (tk.flip ? 1 : -1), flat = Math.abs(b.x - a.x) > .45 * Math.hypot(b.x - a.x, b.y - a.y);
+    this.ajClipV193(tk, "lunge", D, function (k) {
+      const ext = k > TU("ajExtendAtV193", .4);
+      return ext && flat ? { st: "dive", face: ["sd", fx > 0], rot: fx * (.12 + .18 * k), sx: 1.06, sy: .96 } : { st: "divex", sx: ext ? 1.06 : .96, sy: ext ? .96 : 1.02 };
+    }, { keep: /^grab$/ });
+  }
+  /* ===== v193 AJ THE WHIFF SLIDE =====
+   * The man who misses does not snap to the turf and pop up. He leaves his feet on the line he was on, carried PAST the
+   * spot by his own speed, lands on his belly, slides to a stop on the grass (friction: the slide is v²/2μ of what the
+   * landing left him, in dust), lies there `ajWhiffDownMsV193`, then gets up on the drawn get-up. Against a SPIN he never
+   * leaves his feet: he grabs at the spot the man spun out of — arms closing on air — stumbles on and goes to a knee. */
+  ajWhiffV193(tk, e, P) {
+    const cm = this.markers[this.actorIdx(e.carrier)]; if (!tk || !tk.root) return false;
+    const cut = (P.script.events || []).find(q => q.type === "cut" && Math.abs(q.t - e.t) < 1 && q.carrier === e.carrier);
+    tk._whiffed = true; tk._ajReach = null;
+    let ux = cm ? cm.sx - tk.sx : (tk._ajVx || 1), uy = cm ? cm.sy - tk.sy : (tk._ajVy || 0); const g = Math.hypot(ux, uy) || 1; ux /= g; uy /= g;
+    const v = Math.max(TU("ajWhiffVMinV193", .07), Math.min(.3, Math.hypot(tk._ajVx || 0, tk._ajVy || 0)));
+    if (cut && cut.kind === "spin") return this.ajGraspV193(tk, ux, uy, v, e);
+    const air = TU("ajWhiffAirMsV193", 240);
+    const dist = Math.min(TU("ajWhiffMaxPxV193", 30), Math.max(g + TU("ajWhiffPastPxV193", 5), v * air));
+    return this.ajDiveSlideV193(tk, ux, uy, dist, air, v, { kind: "whiffDive", down: TU("ajWhiffDownMsV193", 420), h: 7, rec: true });
+  }
+  // the dive, the landing, the slide, the lie, the get-up — one shape for a whiff, a late diver and the man under a hurdle
+  ajDiveSlideV193(m, ux, uy, dist, air, v, o) {
+    const H = this.hookAJV193(), mu = TU("ajFrictionV193", .0007);
+    const x0 = m.sx, y0 = m.sy, lx = x0 + ux * dist, ly = y0 + uy * dist;
+    const vLand = Math.max(.03, (dist / Math.max(1, air)) * TU("ajLandKeepV193", .55));
+    const slide = Math.min(TU("ajSlideMaxPxV193", 11), vLand * vLand / (2 * mu)), slideMs = Math.max(60, 2 * slide / vLand);
+    const down = o.down != null ? o.down : 360, getMs = 8 * TU("getupFrameMs", 85);
+    const S = this.ajScrXV193(m, ux, uy), fx = S.sgn, flat = S.k > .45;
+    m._launchT0 = m.tms; m._launchUntil = m.tms + air; m._launchH = o.h != null ? o.h : 5;
+    const rec = o.rec ? { kind: o.kind, air, slidePlan: +slide.toFixed(1), down, landT: null, slidPx: 0, groundMs: 0, lag: 0 } : null;
+    if (rec && H.whiffs.length < 60) H.whiffs.push(rec);
+    let land = null, lastPuff = 0;
+    this.ajAnchorV193(m, [{ t: 0, x: x0, y: y0 }, { t: air, x: lx, y: ly }, { t: air + slideMs, x: lx + ux * slide, y: ly + uy * slide, ease: "out" }],
+      { hold: down + getMs, onRelease: function (mm, A, early) { if (early && mm._ajClip && mm._ajClip.kind === o.kind) mm._ajClip.ms = Math.min(mm._ajClip.ms, mm.tms - mm._ajClip.t0 + 1); } });
+    const C = this.ajClipV193(m, o.kind, air + slideMs + down, function (k, mm, CC) {
+      const age = k * CC.ms;
+      if (age < air) return flat ? { st: "dive", face: ["sd", fx > 0], rot: fx * .22, sx: 1.05, sy: .95 } : { st: "divex", sx: 1.05, sy: .95 };
+      if (!land) { land = { x: mm.sx, y: mm.sy, t: mm.tms }; this.puffFx(mm.sx, mm.sy + 2, 3, 0x8a7a55, .5); this.skidFx(mm.sx, mm.sy);
+        try { this.addWearV86(mm.sx, mm.sy, 6, .08); } catch (er) {}
+        this.ajDirtV193(mm.sx, mm.sy, { kind: "slide", dx: ux, dy: uy, len: slide });
+        if (rec) rec.landT = Math.round(mm.tms); }
+      if (age < air + slideMs) { if (mm.tms - lastPuff > 60) { lastPuff = mm.tms; this.puffFx(mm.sx, mm.sy + 3, 1, 0x8a7a55, .38); }
+        return { st: "tackle4", flip: fx < 0, ground: true, oy: 1 }; }
+      return { st: "down", flip: fx < 0, ground: true };
+    }, { fs: o.fs || "diveAJ", grounded: function (mm, CC) { return mm.tms - CC.t0 > air; },
+      end: function (mm) { if (rec && land) { rec.slidPx = +Math.hypot(mm.sx - land.x, mm.sy - land.y).toFixed(1); rec.groundMs = Math.round(mm.tms - land.t); }
+        mm._whiffed = false; mm.forceState = "getupSeq"; mm.seqT = mm.tms; mm._groundT = 0; return "getup0"; } });
+    if (C && rec) C.recW = rec;
+    return true;
+  }
+  ajGraspV193(m, ux, uy, v, e) {
+    const H = this.hookAJV193();
+    const g1 = 170, g2 = 210, g3 = 130, down = TU("ajGraspDownMsV193", 260), getMs = 8 * TU("getupFrameMs", 85);
+    const x0 = m.sx, y0 = m.sy, d1 = v * g1 * .8, d2 = d1 + v * g2 * .5, d3 = d2 + Math.min(4, v * g3 * .2);
+    const fx = this.ajScrXV193(m, ux, uy).sgn;
+    const rec = { kind: "grasp", air: 0, slidePlan: +(d3 - d2).toFixed(1), down, landT: null, slidPx: 0, groundMs: 0 };
+    if (H.whiffs.length < 60) H.whiffs.push(rec);
+    let fell = null;
+    this.ajAnchorV193(m, [{ t: 0, x: x0, y: y0 }, { t: g1, x: x0 + ux * d1, y: y0 + uy * d1, ease: "out" }, { t: g1 + g2, x: x0 + ux * d2, y: y0 + uy * d2, ease: "out" },
+      { t: g1 + g2 + g3, x: x0 + ux * d3, y: y0 + uy * d3, ease: "out" }], { hold: down + getMs });
+    this.ajClipV193(m, "grasp", g1 + g2 + g3 + down, function (k, mm, CC) {
+      const age = k * CC.ms;
+      if (age < g1) return { st: "grab", rot: fx * .1 * (age / g1), sx: 1.06 };   // arms out, closing on the spot he spun out of
+      if (age < g1 + g2) return { st: "hurt" + (Math.floor((age - g1) / 70) % 2), rot: fx * (.15 + .25 * (age - g1) / g2) };
+      if (!fell) { fell = { x: mm.sx, y: mm.sy, t: mm.tms }; rec.landT = Math.round(mm.tms); this.puffFx(mm.sx, mm.sy + 3, 2, 0x8a7a55, .45); }
+      if (age < g1 + g2 + g3) return { st: "fall", rot: fx * .2, ground: true };
+      return { st: "down", flip: fx < 0, ground: true };
+    }, { fs: "fallAJ", grounded: function (mm, CC) { return mm.tms - CC.t0 > g1 + g2; },
+      end: function (mm) { if (fell) { rec.slidPx = +Math.hypot(mm.sx - fell.x, mm.sy - fell.y).toFixed(1); rec.groundMs = Math.round(mm.tms - fell.t); }
+        mm._whiffed = false; mm.forceState = "getupSeq"; mm.seqT = mm.tms; return "getup0"; } });
+    return true;
+  }
+  /* ===== v193 AJ THE MOVES =====
+   * JUKE — the plant, the head-and-shoulder fake the OTHER way, the drawn juke cells with the hips swinging through, then
+   *   the push off into the burst. SIDE STEP — his facing stays where it was (that is the read: sideways, not turned), a
+   *   quick lateral hop with the feet together, the landing squash. SPIN — v151 D's walk through the facings, recorded.
+   * SWIM — the rusher rises into the arm-over (the stiff-arm row is the atlas's one raised arm), rips through low and
+   *   bursts; the blocker reaches after him, turned, off balance. HURDLE — the man under him dives for the spot the hurdler's
+   *   apex is over, so the carrier's feet clear a body on the grass. STIFF ARM — the tackler is shoved back off the arm, his
+   *   head snaps back, he goes over and down and gets up. */
+  ajCutV193(cm, e, scrDir, flu) {
+    const H = this.hookAJV193(); H.cuts[e.kind] = (H.cuts[e.kind] || 0) + 1;
+    if (e.kind === "juke") {
+      const ms = 4 * TU("jukeFrameMsV164H", 95);
+      return this.ajClipV193(cm, "juke", ms, function (k) {
+        if (k < .18) return { st: "cut", rot: -scrDir * .2 * (k / .18), ox: -scrDir * 1.5, sy: .94 };
+        if (k < .74) { const q = (k - .18) / .56; return { st: "juke" + Math.min(3, Math.floor(q * 4)), rot: scrDir * .3 * Math.sin(Math.PI * q), ox: scrDir * (3 + 2 * flu) * q * (2 - q) }; }
+        const q = (k - .74) / .26; return { rot: scrDir * .14 * (1 - q), ox: scrDir * (3 + 2 * flu) * (1 - q) };
+      }, { keep: /^jukeSeq$/ });
+    }
+    if (e.kind === "sidestep") {
+      const F0 = [cm.dirKey, cm.flip], ms = TU("ajStepMsV193", 280) - flu * 50;
+      return this.ajClipV193(cm, "sidestep", ms, function (k) {
+        if (k < .22) return { st: "cut", face: F0, sy: .92, sx: 1.05 };
+        if (k < .66) { const q = (k - .22) / .44; return { st: "plant", face: F0, oy: -TU("ajStepHopV193", 3) * Math.sin(Math.PI * q), ox: scrDir * 3.5 * q }; }
+        const q = (k - .66) / .34; return { st: q < .4 ? "cut" : null, face: F0, ox: scrDir * 3.5 * (1 - q), sy: q < .4 ? .93 : 1 };
+      });
+    }
+    if (e.kind === "spin") {
+      const ms = cm._spinV151 ? cm._spinV151.ms : TU("spinMsV151D", 420);
+      return this.ajClipV193(cm, "spin", ms, function (k) { return { keepBody: true, rot: 0 }; });
+    }
+    return null;
+  }
+  ajSwimV193(rm, bm) {
+    const H = this.hookAJV193(); H.swims++;
+    const tgt = bm && bm.root ? bm : null;
+    const bx = tgt ? Math.sign(PJ(tgt.sx, tgt.sy).x - PJ(rm.sx, rm.sy).x) || 1 : 1;
+    const run = this.ajScrXV193(rm, (rm._ajVx || 0) || 1, rm._ajVy || 0).sgn;
+    this.ajClipV193(rm, "swim", TU("ajSwimMsV193", 380), function (k) {
+      if (k < .3) { const q = k / .3; return { st: "stiff1", flip: bx > 0, oy: -3 * Math.sin(q * Math.PI / 2), rot: bx * .1 * q }; }
+      if (k < .6) { const q = (k - .3) / .3; return { st: "stiff3", flip: bx > 0, oy: -3 * (1 - q), rot: run * .26 * q, sy: 1 - .06 * q }; }
+      const q = (k - .6) / .4; return { rot: run * .22 * (1 - q), sy: .95 + .05 * q };
+    });
+    if (tgt) {
+      this.ajClipV193(tgt, "beaten", TU("ajBeatenMsV193", 420), function (k, m) {
+        const a = PJ(m.sx, m.sy), b = PJ(rm.sx, rm.sy), dx = b.x - a.x, dy = b.y - a.y; if (Math.hypot(dx, dy) > 1) this.faceMarker(m, dx, dy);
+        const s = Math.sign(dx) || 1;
+        if (k < .55) return { st: "grab", rot: s * .26 * Math.sin(Math.PI * k / .55 * .5), ox: s * 2.5 * Math.sin(Math.PI * k / .55) };
+        return { st: "hurt" + (Math.floor(k * 10) % 2), rot: s * .3 * (1 - (k - .55) / .45) };
+      });
+    }
+  }
+  ajHurdleV193(P, e, hm, htk) {
+    const H = this.hookAJV193();
+    if (!htk || !hm) return false;
+    // where the hurdler's apex will be: his own script frames, half his hang from now
+    const ci = this.actorIdx(e.carrier), A = P.script.actors[ci], T = Math.max(0, P.t - (P.delay || 0));
+    const hang = (hm._launchUntil || (hm.tms + 460)) - (hm._launchT0 || hm.tms), tA = T + hang * .5;
+    let ax = hm.sx, ay = hm.sy;
+    if (A && A.frames && A.frames.length) { const fr = A.frames; let p = fr[fr.length - 1];
+      for (let i = 1; i < fr.length; i++) if (fr[i].t >= tA) { const a0 = fr[i - 1], b0 = fr[i], q = (tA - a0.t) / ((b0.t - a0.t) || 1); p = { x: a0.x + (b0.x - a0.x) * q, y: a0.y + (b0.y - a0.y) * q }; break; }
+      ax = p.x; ay = p.y; }
+    let ux = ax - htk.sx, uy = ay - htk.sy; const d = Math.hypot(ux, uy) || 1; ux /= d; uy /= d;
+    if (H.hurdles.length < 30) H.hurdles.push({ apexDt: Math.round(hang * .5), under: +d.toFixed(1) });
+    htk._ajReach = null; htk._whiffed = true;
+    return this.ajDiveSlideV193(htk, ux, uy, d, Math.max(120, hang * .5), Math.max(.06, d / Math.max(1, hang * .5)), { kind: "diveUnder", down: TU("ajHurdleDownMsV193", 380), h: 3 });
+  }
+  ajShovedV193(tk, cm, e) {
+    const H = this.hookAJV193(); H.shoves++;
+    let ux = tk.sx - cm.sx, uy = tk.sy - cm.sy; const d = Math.hypot(ux, uy) || 1; ux /= d; uy /= d;
+    const push = TU("ajStiffPushPxV193", 7) * Math.max(.6, Math.min(1.5, 1 + Number(e.armEdge || 0) / 40)), t1 = 170, t2 = 120, down = TU("ajStiffDownMsV193", 360), getMs = 8 * TU("getupFrameMs", 85);
+    const x0 = tk.sx, y0 = tk.sy, fx = this.ajScrXV193(tk, ux, uy).sgn;
+    this.ajAnchorV193(tk, [{ t: 0, x: x0, y: y0 }, { t: t1, x: x0 + ux * push, y: y0 + uy * push, ease: "out" }, { t: t1 + t2, x: x0 + ux * (push + 3), y: y0 + uy * (push + 3), ease: "out" }], { hold: down + getMs });
+    let fell = false;
+    this.ajClipV193(tk, "shoved", t1 + t2 + down, function (k, mm, CC) {
+      const age = k * CC.ms;
+      if (age < t1) return { st: "hurt0", rot: fx * .38 * Math.sin(Math.PI / 2 * age / t1), ox: fx * 1.5 };   // the head snaps back off the arm
+      if (!fell) { fell = true; this.puffFx(mm.sx, mm.sy + 3, 2, 0x8a7a55, .45); }
+      if (age < t1 + t2) return { st: "fall", rot: fx * .3, ground: true };
+      return { st: "down", flip: fx < 0, ground: true };
+    }, { fs: "fallAJ", grounded: function (mm, CC) { return mm.tms - CC.t0 > t1; }, end: function (mm) { mm.forceState = "getupSeq"; mm.seqT = mm.tms; return "getup0"; } });
+  }
+  /* ===== v193 AJ THE DIVING CATCH =====
+   * A layout: he plants, leaves his feet and flies flat at the ball so the HANDS — not his belly — are on the spot the ball
+   * arrives at, the cell switches to the one with the ball in his arms the frame it is his, he lands on his chest past the
+   * spot and slides on the turf in dust (the field's dirt marks are v193 AG's: asked through a guarded hook), lies a beat
+   * and gets up into his run. */
+  ajLayoutV193(m, e, P) {
+    if (!m || !m.root) return false;
+    const H = this.hookAJV193(), T = Math.max(0, P.t - (P.delay || 0)), lead = Math.max(80, Math.min(420, (e.at || (T + 180)) - T));
+    let ux = e.x - m.sx, uy = e.y - m.sy; let d = Math.hypot(ux, uy);
+    if (d < 2) { ux = m._ajVx || 1; uy = m._ajVy || 0; d = 0; }
+    const n = Math.hypot(ux, uy) || 1; ux /= n; uy /= n;
+    const arm = this.ajCellToSimV193(m, TU("ajArmCellV193", 15), ux, uy), plant = 50, past = TU("ajLayoutPastPxV193", 2), after = 90;
+    const x0 = m.sx, y0 = m.sy, hx = e.x - ux * arm, hy = e.y - uy * arm, Lx = e.x + ux * past, Ly = e.y + uy * past;
+    const vf = Math.hypot(Lx - x0, Ly - y0) / (lead + after - plant), vLand = Math.max(.04, vf * TU("ajLandKeepV193", .55)), mu = TU("ajFrictionV193", .0007);
+    const slide = Math.min(TU("ajLayoutSlideMaxPxV193", 13), vLand * vLand / (2 * mu)), slideMs = Math.max(80, 2 * slide / vLand), down = TU("ajLayoutDownMsV193", 200), getMs = 8 * TU("getupFrameMs", 85);
+    const S = this.ajScrXV193(m, ux, uy), fx = S.sgn, flat = S.k > .45;
+    m.forceState = "diveCatchSeq"; m.seqT = m.tms;
+    m._launchT0 = m.tms + plant; m._launchUntil = m.tms + lead + after; m._launchH = 8;
+    const rec = { lead: Math.round(lead), arm: +arm.toFixed(1), slidePlan: +slide.toFixed(1), handsAt: null, slidPx: 0, frames: [] };
+    if (H.layouts.length < 30) H.layouts.push(rec);
+    this.ajAnchorV193(m, [{ t: 0, x: x0, y: y0 }, { t: plant, x: x0 + ux * vf * plant * .5, y: y0 + uy * vf * plant * .5 }, { t: lead, x: hx, y: hy, ease: "lin" },
+      { t: lead + after, x: Lx, y: Ly }, { t: lead + after + slideMs, x: Lx + ux * slide, y: Ly + uy * slide, ease: "out" }], { hold: down + getMs });
+    let land = null, lastPuff = 0;
+    this.ajClipV193(m, "layout", lead + after + slideMs + down, function (k, mm, CC) {
+      const age = k * CC.ms, P2 = this.play, mine = P2 && P2.ballHolderId != null && this.markers[P2.ballHolderId] === mm;
+      if (rec.handsAt == null && age >= lead) rec.handsAt = +Math.hypot(mm.sx + ux * arm - e.x, mm.sy + uy * arm - e.y).toFixed(1);
+      if (age < plant) return { st: "plant", sy: .9, sx: 1.06 };
+      if (age < lead + after) return mine ? (flat ? { st: "divecatch2", face: ["sd", fx > 0], rot: fx * .08, hideBall: true } : { st: "divecatch2", hideBall: true }) : (flat ? { st: "dive", face: ["sd", fx > 0], rot: fx * .14, sx: 1.05 } : { st: "divex", sx: 1.05 });
+      if (!land) { land = { x: mm.sx, y: mm.sy, t: mm.tms }; this.puffFx(mm.sx, mm.sy + 2, 4, 0x8a7a55, .55); this.skidFx(mm.sx, mm.sy);
+        try { this.addWearV86(mm.sx, mm.sy, 6, .08); } catch (er) {}
+        this.ajDirtV193(mm.sx, mm.sy, { kind: "slide", dx: ux, dy: uy, len: slide }); }
+      if (age < lead + after + slideMs && mm.tms - lastPuff > 55) { lastPuff = mm.tms; this.puffFx(mm.sx, mm.sy + 3, 1, 0x8a7a55, .4); }
+      return flat ? { st: "divecatch2", face: ["sd", fx > 0], ground: true, hideBall: mine } : { st: "divecatch2", ground: true, hideBall: mine };
+    }, { grounded: function (mm, CC) { return mm.tms - CC.t0 > lead + after; },
+      end: function (mm) { if (land) rec.slidPx = +Math.hypot(mm.sx - land.x, mm.sy - land.y).toFixed(1);
+        mm.forceState = "getupSeq"; mm.seqT = mm.tms; mm._groundT = 0; return "getup0"; } });
+    return true;
+  }
+  /* ===== v193 AJ THE TACKLE TYPES =====
+   * How a man goes down is read off the collision: an AIR tackle (the carrier still in the air off a catch) — the hitter
+   *   leaps, the carrier is tipped over backward in the air; an ANKLE tackle (the low aim) — a flat dive at the feet and the
+   *   carrier trips, pitching forward over the top; a WRAP — the two of them twist down together; a HIT STICK — the hitter
+   *   extends through him and recoils on his feet (v112 throws the carrier); a GANG — v191's pile.
+   * And WHERE they fall is the momentum of both men: the drawn fall faces the combined momentum vector m₁v₁ + m₂v₂ (the
+   *   masses are FieldSim's own), and with v193 AJ PHYSICS on the pile slides along it as one body — the inelastic
+   *   collision's common speed |p|/(m₁+m₂), stopped by friction (v²/2μ, capped). The spot is the sim's (forward progress)
+   *   and does not move. */
+  ajTackleTypeV193(P, e, m, tk, o) {
+    if (!m || !m.root) return;
+    const H = this.hookAJV193();
+    const mT = tk ? this.ajMassV193(tk) : 0, mC = this.ajMassV193(m);
+    const vT = tk ? [tk._ajVx || 0, tk._ajVy || 0] : [0, 0], vC = [m._ajVx || 0, m._ajVy || 0];
+    let Fx = mT * vT[0] + mC * vC[0], Fy = mT * vT[1] + mC * vC[1], F = Math.hypot(Fx, Fy);
+    if (F < 1e-4) { Fx = -(P.script.meta.dir || 1); Fy = 0; F = 1e-4; }
+    const ux = Fx / F, uy = Fy / F, v0 = F / Math.max(.1, mT + mC);
+    const fs = this.ajScrXV193(m, ux, uy), fsx = fs.sgn;
+    const lastCatch = m._ajCatchT != null && m.tms - m._ajCatchT < TU("ajAirWindowMsV193", 380);
+    const kind = e.hitStick ? "hitstick" : (e.catchTackle || lastCatch || (m._launchUntil > m.tms)) ? "air" : e.style === "low" ? "ankle" : e.gang ? "gang" : "wrap";
+    H.types[kind] = (H.types[kind] || 0) + 1;
+    const flips = !o.willFly112;
+    if (flips) { m._ajFallFlip = fsx < 0; if (tk && !(o.F146 && o.F146.stick)) tk._ajFallFlip = fsx < 0; }
+    const foldMs = Math.max(140, (o.F146 && o.F146.foldMs) || 160);
+    const fx = tk ? this.ajScrXV193(tk, m.sx - tk.sx, m.sy - tk.sy).sgn : fsx;
+    if (kind === "air") {
+      if (tk && !(o.F146 && o.F146.stick) && /^(dive|grab)$/.test(String(tk.forceState || ""))) {
+        tk._launchT0 = tk.tms; tk._launchUntil = tk.tms + 300; tk._launchH = 10;
+        this.ajClipV193(tk, "airTackle", 300, function (k) { return k < .45 ? { st: "divex" } : { st: "dive", face: ["sd", fx > 0], rot: fx * (.1 + .25 * k) }; });
+      }
+      if (!o.willFly112) this.ajClipV193(m, "airFall", foldMs, function (k) { return { st: k < .45 ? "hurt0" : "fall", rot: fsx * 1.1 * k * k, oy: -2 * (1 - k) }; });
+    } else if (kind === "ankle") {
+      if (tk && /^(dive|grab)$/.test(String(tk.forceState || ""))) {
+        tk._launchT0 = tk.tms; tk._launchUntil = tk.tms + 140; tk._launchH = 2;
+        this.ajClipV193(tk, "ankleDive", 220, function (k) { return { st: "dive", face: ["sd", fx > 0], rot: fx * .06, oy: 2 }; });
+      }
+      this.ajClipV193(m, "trip", foldMs, function (k) { return { st: k < .35 ? "cut" : "fall", rot: fsx * 1.1 * Math.pow(k, 1.5), oy: -1.5 * Math.sin(Math.PI * k) }; });
+    } else if (kind === "hitstick") {
+      if (tk && tk !== m) this.ajClipV193(tk, "stick", 320, function (k) { return { st: k < .35 ? "divex" : "grab", rot: fx * .18 * (1 - k), ox: -fx * 3 * Math.sin(Math.PI * k) }; }, { keep: /^grab$/ });
+    } else if (kind === "wrap" && !o.slide && !o.willFly112 && m.forceState !== "dive") {
+      this.ajClipV193(m, "wrapTwist", foldMs, function (k) { return { rot: fsx * .38 * k, keepBody: false }; });
+    }
+    const sl = this.ajPileSlideV193 ? this.ajPileSlideV193(P, e, m, tk, o, ux, uy, v0, fsx, flips, foldMs) : { d: 0, ms: 0 }, d = sl.d, ms = sl.ms;
+    if (H.falls.length < 80) H.falls.push({ kind, ux: +ux.toFixed(3), uy: +uy.toFixed(3), v0: +v0.toFixed(3), d: +d.toFixed(2), ms: Math.round(ms), mT: +mT.toFixed(2), mC: +mC.toFixed(2),
+      vT: vT.map(q => +q.toFixed(3)), vC: vC.map(q => +q.toFixed(3)), flip: flips ? (fsx < 0) : null, fsx, x0: m.sx, y0: m.sy, idx: this.markers.indexOf(m) });
+  }
+  /* ===== v193 AJ THE PUSH =====
+   * Pushed out of bounds: the tackler's arms extend into him (the stiff-arm row is the atlas's outstretched arm), the
+   * carrier is driven off his line and stumbles out past the paint, upright, and pulls up — nobody folds on a push-out. */
+  ajPushOutV193(P, e, m, tk) {
+    const H = this.hookAJV193(); H.oob++;
+    const MIDY = (F_TOP + F_BOT) / 2, sy = Math.sign(m.sy - MIDY) || 1;
+    let pux = 0, puy = sy;
+    if (tk && tk !== m) { const dx = m.sx - tk.sx, dy = m.sy - tk.sy, n = Math.hypot(dx, dy) || 1; pux = dx / n * .5; puy = sy * .8 + dy / n * .3; const q = Math.hypot(pux, puy) || 1; pux /= q; puy /= q; }
+    const away = this.ajScrXV193(m, pux, puy).sgn, drift = TU("ajOobDriftPxV193", 9);
+    this.ajAnchorV193(m, [{ t: 0, x: 0, y: 0 }, { t: 420, x: pux * drift, y: puy * drift, ease: "out" }], { mode: "add", hold: 1e9 });
+    this.ajClipV193(m, "shovedOut", 560, function (k) { return k < .7 ? { st: "hurt" + (Math.floor(k * 12) % 2), rot: away * .3 * Math.sin(Math.PI * Math.min(1, k / .7)) } : { st: "idle", rot: 0 }; });
+    if (tk && tk !== m && tk.root) {
+      const a = PJ(tk.sx, tk.sy), b = PJ(m.sx, m.sy); if (Math.hypot(b.x - a.x, b.y - a.y) > 1) this.faceMarker(tk, b.x - a.x, b.y - a.y);
+      const fx = Math.sign(b.x - a.x) || 1;
+      this.ajAnchorV193(tk, [{ t: 0, x: 0, y: 0 }, { t: 300, x: pux * drift * .4, y: puy * drift * .4, ease: "out" }], { mode: "add", hold: 1e9 });
+      this.ajClipV193(tk, "shove", 380, function (k) { return { st: k < .6 ? "stiff2" : "idle", flip: fx > 0, rot: fx * .2 * Math.sin(Math.PI * Math.min(1, k / .6)), ox: fx * 3 * Math.sin(Math.PI * Math.min(1, k / .6)) }; });
+    }
+    return true;
+  }
+  /* hand fighting: each man punches into the other on a sharp jab and a slow give, half a beat apart, and leans by who is
+   * winning — the man moving INTO his partner leans in, the man being driven back is bent back off his feet */
+  ajHandFightV193(m, engaged, toward) {
+    const H = this.hookAJV193(); H.handfight++;
+    const T = (m.tms || 0) / Math.max(80, TU("ajPunchMsV193", 300)), off = ((m.num || 0) % 7) / 7 * .2 + (m._ajSide === "def" ? .5 : 0);
+    const ph = (T + off) % 1, punch = ph < .2 ? ph / .2 : 1 - (ph - .2) / .8;
+    const dx = engaged.sx - m.sx, dy = engaged.sy - m.sy, d = Math.hypot(dx, dy) || 1;
+    const into = ((m._ajVx || 0) * dx + (m._ajVy || 0) * dy) / d;   // field px a ms, toward him
+    const drive = into > TU("ajDriveVelV193", .015) ? 1 : into < -TU("ajDriveVelV193", .015) ? -1 : 0;
+    m.body.x = toward * TU("ajPunchPxV193", 2.2) * (.25 + .9 * punch);
+    const lean = drive > 0 ? TU("ajPushLeanV193", .18) : drive < 0 ? -TU("ajDrivenLeanV193", .1) : .09;
+    m._lean = toward * lean * (.8 + .2 * punch); m._leanSrc = "shove";
+    m._ajDrive = drive;
+  }
+  /* ===== v193 AJ THE STRIDE =====
+   * The run cycle is paced by ground covered, as v151 D made it — but measured ISOTROPICALLY: v151 D divided SCREEN
+   * distance by his scale, and the broadcast foreshortens depth (field x) ~3x against width, so a man running up the field
+   * churned his legs a third as fast as one running across it. The ground is now field distance at his spot's across-field
+   * scale. One 8-cell cycle is a stride of `ajStrideCellV193` sprite px — the drawing's own stride — stretched by at most
+   * a fifth with speed (a sprinter's stride is longer, his cadence higher), so the feet never skate more than that against
+   * the turf. He leans INTO speed and acceleration (back on a hard brake); a defensive back dropping in coverage before the
+   * throw BACKPEDALS — square to the line, the cycle run in reverse on short steps — and a set breaks down on chop steps. */
+  ajStrideV193(m, dtms, dx, dy, mul) {
+    const dt = Math.max(1, dtms || 16), H = this.hookAJV193(), R = this.hookV151D().stride;
+    const p1 = PJ(m.sx, m.sy), pl = PJ(m.sx, m.sy + 1);
+    const k = Math.max(.05, (p1.s || 1) * (m._ageKV144 || 1)), lat = Math.max(.05, Math.hypot(pl.x - p1.x, pl.y - p1.y));
+    const cell = Math.min(Math.hypot(dx, dy) * lat / k, TU("strideTeleCellV151D", 24));
+    const v = cell / dt * 1000;
+    m._cellVV151 = m._cellVV151 == null ? v : m._cellVV151 * .75 + v * .25;
+    const art = TU("ajStrideCellV193", 52), sf = Math.max(0, Math.min(1.3, m._cellVV151 / TU("ajStrideVRefV193", 260)));
+    let L = Math.max(30, Math.min(84, art * (TU("ajStrideMinKV193", .88) + TU("ajStrideSpdKV193", .2) * sf)));
+    if (m._ajBackpedal) L *= TU("ajBackpedalStrideKV193", .72);
+    const cad = (mul || 1) * (m._ajCadK || 1), frames = cell / L * 8 * cad;
+    R.frames += frames; R.cell += cell; R.n++;
+    const sp = (window.__getGridironLiveSpeed && window.__getGridironLiveSpeed()) || 1, b = R.by[sp] = R.by[sp] || { frames: 0, cell: 0, n: 0 };
+    b.frames += frames; b.cell += cell; b.n++;
+    if (cad === 1 && !m._ajBackpedal && cell > .4) { H.stride.n++; H.stride.frames += frames; H.stride.cell += cell; H.stride.slide += Math.abs(L / art - 1) * cell; H.stride.slideN += cell; }
+    return frames * 96;
+  }
+  // the run's lean and the backpedal — called on a man whose rules have picked a run cell
+  ajRunV193(m, st, dtms) {
+    const dt = Math.max(1, dtms || 16);
+    if (!/^run\d/.test(st) || m.forceState || m._ajClip) { m._ajLean = (m._ajLean || 0) * .8; if (Math.abs(m._ajLean) < .003) m._ajLean = 0; m._ajBackpedal = false; return st; }
+    // the backpedal
+    const P = this.play; m._ajBackpedal = false;
+    if (P && P.snapped && !P._thrown && m._ajSide === "def" && /^(CB|S|LB)$/.test(String(m._ajLabel || "")) && P.payload && P.payload.event === "pass"
+        && Math.max(0, P.t - (P.delay || 0)) - (P._ajSnapT || 0) < TU("ajBackpedalMsV193", 1500)) {
+      const dir = (P.script.meta && P.script.meta.dir) || 1, vx = m._ajVx || 0, vy = m._ajVy || 0, v = Math.hypot(vx, vy);
+      if (v > .02 && vx * dir / v > TU("ajBackpedalDotV193", .6) && v < (m._ajSp || 140) / 1000 * TU("ajBackpedalMaxKV193", .8)) {
+        const a = PJ(m.sx, m.sy), b = PJ(m.sx - dir * 10, m.sy); this.faceMarker(m, b.x - a.x, b.y - a.y);
+        m._ajBackpedal = true; this.hookAJV193().backpedal++;
+        m._ajLean = -this.ajScrXV193(m, -dir, 0).sgn * TU("ajBackpedalLeanV193", .06);
+        return "run" + ((8 - (Number(st.slice(3)) || 0)) % 8);
+      }
+    }
+    // the lean: into his speed, more while he is still building it, back off it on a hard brake
+    if (m._leanSrc && m._leanSrc !== "turn") { m._ajLean = 0; return st; }
+    const vx = m._ajVx || 0, vy = m._ajVy || 0, v = Math.hypot(vx, vy);
+    const acc = m._ajVPrev != null ? (v - m._ajVPrev) / dt : 0; m._ajVPrev = v;
+    m._ajAcc = (m._ajAcc || 0) * .8 + acc * .2;
+    let tgt = 0;
+    if (v > .02) { const S = this.ajScrXV193(m, vx / v, vy / v), sf = Math.min(1.2, v / Math.max(.05, (m._ajSp || 140) / 1000));
+      tgt = S.sgn * S.k * (TU("ajLeanSpdV193", .1) * sf + TU("ajLeanAccV193", .16) * Math.max(-.6, Math.min(1, m._ajAcc / TU("ajAccRefV193", .0006)))); }
+    m._ajLean = (m._ajLean || 0) + (tgt - (m._ajLean || 0)) * Math.min(1, dt / 90);
+    return st;
+  }
   /* ===== v105.2 THE KIT FOLLOWS THE TEAM =====
    * The kits are registered by PALETTE — "off" is the user's team's colours, "def" the
    * opponent's — but every marker was dressed by its SIDE (`a.side === "off" ? "off" : "def"`),
@@ -6860,10 +7437,13 @@ class Ot extends mt.Scene {
     return true;
   }
   placeMarker(m, sx, sy, dtms) {
+    m._ajSimX = sx; m._ajSimY = sy;
+    if ((m._ajAnc || m._ajReach) && this.ajOnV193()) { const d193 = this.ajDrawnV193(m, sx, sy, Math.max(1, dtms || 16)); sx = d193[0]; sy = d193[1]; }   // v193 AJ: a drawn fall, a slide, a reach
     const dx = sx - m.sx, dy = sy - m.sy;
     m.prevSx=m.sx; m.prevSy=m.sy;
     m.sx = sx; m.sy = sy; m.tms += (dtms || 16);
     m._stepDxV151 = dx; m._stepDyV151 = dy;   // v151 D: the stride reads the ground this step covered
+    if (m.prevSx != null) { const dtA = Math.max(1, dtms || 16); m._ajVx = (m._ajVx || 0) * .6 + dx / dtA * .4; m._ajVy = (m._ajVy || 0) * .6 + dy / dtA * .4; }   // v193 AJ: his drawn velocity, field px a ms
     const spdPx = Math.hypot(dx, dy) / Math.max(1, dtms || 16) * 1000;
     m.sSm = m.sSm == null ? spdPx : m.sSm * 0.7 + spdPx * 0.3;   // v11: smoothed speed kills state flicker
     const lineLocked = m.isLine && !m.forceState && m.sSm < TU("blockBand",78);   // engaged linemen hold their facing
@@ -6969,6 +7549,7 @@ class Ot extends mt.Scene {
       st = "backpedal" + (Math.floor(m.bpt / TU("backpedalFrameMs", 110)) % 6);
       const V7 = (window.__V107 = window.__V107 || { throws: [] }); V7.backpedalFrames = (V7.backpedalFrames || 0) + 1;
     }
+    if (this.ajOnV193()) st = this.ajRunV193(m, st, dtms);   // v193 AJ THE STRIDE: the lean, the backpedal
     // v11: engaged linemen BLOCK across the whole grind band — one stable state, no flapping
     if (!scrum7 && !m.forceState && m.isLine && m.sSm > 3 && m.sSm < TU("blockBand",78) && (st === "idle" || st.indexOf("run") === 0)) st = "block";
     // v83: anyone squared up on a partner is blocking (or being blocked) — and the pair's own
@@ -6983,6 +7564,7 @@ class Ot extends mt.Scene {
     // last frame he was on the turf; the moment he's free and roughly stationary,
     // play a brief crouch (stance) → stand (idle) recovery before normal states
     // resume — killing the pile "pop" and reading as the get-up the sim implies.
+    if (m._ajClip) st = this.ajClipPoseV193(m, st);   // v193 AJ: a clip has the last word on his cell
     const _grounded = st === "down" || st.indexOf("tackle") === 0 || st.indexOf("pancake") === 0;
     if (_grounded) m._groundT = m.tms;
     else if (m._groundT && !m.forceState && m.sSm < TU("getupSpd", 30)) {
@@ -7047,10 +7629,11 @@ class Ot extends mt.Scene {
       const lv = Math.max(0, Math.min(255, Math.round(lb * 255 / 8) * 8));
       m.body.setTint((lv << 16) | (lv << 8) | lv);
     }
+    if (m._ajFallFlip != null && TU("v193AJ", 1)) { if (st === "down" || st.indexOf("tackle") === 0) m.flip = m._ajFallFlip; else if (st.indexOf("getup") === 0) m._ajFallFlip = null; }   // v193 AJ: he lies the way the momentum put him
     m.body.setFlipX(m.flip && (m.dirKey === "sd" || m.dirKey === "dr" || m.dirKey === "ur" || st === "down" || st === "dive" || st === "grab" || st === "stance" || st.indexOf("tackle") === 0));
     // flat, clean sprites — only the diving tackle gets a slight tilt
     // v112: and a man in the air off a hit keeps turning through the flight, then settles as he skids
-    m.body.setRotation((st === "dive" ? (m.flip ? 0.3 : -0.3) : (m._lean || 0)) + (m._flySpinV112 || 0));   // v86: a lean survives the frame
+    m.body.setRotation((m._ajClip && m._ajRot != null ? m._ajRot : (st === "dive" ? (m.flip ? 0.3 : -0.3) : (m._lean || 0)) + (m._ajLean || 0)) + (m._flySpinV112 || 0));   // v193 AJ: a clip's rotation, and the run's lean   // v86: a lean survives the frame
     this.skinSyncV151D(m, tex);
     // v41: side profiles NEVER show a number (chest/back art isn't visible from the
     // side, any state), while linemen keep their numbers even in the pre-snap stance.
