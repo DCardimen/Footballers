@@ -23971,7 +23971,7 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
       row = M.find(m => m[0] === cur) || M[1];
     return `<div class="fx-row" id="bigSlowRowV193W" style="margin:8px 0 2px">
         <div class="fx-head"><span class="fx-label">🎬 Big-play slow motion</span><span class="fx-val" id="bigSlowValV193W">${row[1]}</span></div>
-        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin:2px 0 4px">${M.map(m => `<button class="btn bigslow-v193w ${m[0] === cur ? "secondary" : "ghost"}" data-mode="${m[0]}" style="padding:8px 2px;font-size:12px" onclick="setBigSlowV193W('${m[0]}')">${m[1]}</button>`).join("")}</div>
+        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin:2px 0 4px">${M.map(m => `<button class="btn bigslow-v193w ${m[0] === cur ? "secondary" : "ghost"}" data-mode="${m[0]}" style="padding:8px 2px;font-size:12px;min-height:36px" onclick="setBigSlowV193W('${m[0]}')">${m[1]}</button>`).join("")}</div>
         <div class="fx-desc" id="bigSlowDescV193W">${row[2]} Touchdowns, turnovers, sacks, big hits and 20+ yard gains.</div>
       </div>`;
   }
