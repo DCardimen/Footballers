@@ -160,7 +160,8 @@
     const trust=pl.coachTrust==null?50:pl.coachTrust;
     const mom=pl.momentum103==null?50:pl.momentum103, compz=pl.composure103==null?50:pl.composure103;
     const fatg=(pl.conditionV11&&pl.conditionV11.fatigue)||0;
-    const nudge=cl(-(win.risk/100-.42)*.34+(trust-50)*.003+(mom-50)*.0015+(compz-50)*.0015-fatg*.003+(R("nz")-.5)*.10,-.22,.22);
+    const nudge=cl(-(win.risk/100-.42)*.34+(trust-50)*.003+(mom-50)*.0015+(compz-50)*.0015-fatg*.003+(R("nz")-.5)*.10,-.22,.22)
+      +(window.ribPathValV193AD?(+window.ribPathValV193AD("planClick",0)||0):0);   // v193 AD: The Field General — every game plan's "it clicks" odds
     const odds=g.bandOdds(jive,nudge);
     const rr=R("rr");
     const band=rr<odds.g?"green":rr<odds.g+odds.n?"neutral":"red";

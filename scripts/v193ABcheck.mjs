@@ -308,6 +308,11 @@ const N = await M(() => {
   const k0 = V.keys()[0], k1 = V.keys()[1]
   window.__V179.applyFlip('spill:common:' + k0 + ':10', {})
   S.tree = { spillCoach: 2 }; r.aim2 = V.aim(0, k1); S.tree = { spillCoach: 3 }; r.aim3 = V.aim(0, k1); r.aimed = V.spill().list[0].attr === k1
+  // v193 AD's legends: The Card Shark (rare cards ×2, percents ×1.25) and The Collector (percents ×0.6) reach the new cards
+  const path0 = S.path
+  S.path = 'cardshark'; r.shark = { hot: V.hotRange('legendary').pct, spill: V.spillRange('common'), dbl: V.dblOdds() }
+  S.path = 'collector'; r.coll = { hot: V.hotRange('legendary').pct, spill: V.spillRange('common'), dbl: V.dblOdds() }
+  S.path = path0
   S.tree = { doubleShift: 4 }; r.d4 = V.dblOdds()
   let n = 0, d = 0; for (let wk = 0; n < 5000; wk++) for (const id of V.deck({ week: wk, opp: 'E' + wk }, 50)) { n++; if (id === 'dbl') d++ }
   r.d4share = d / n
@@ -331,6 +336,7 @@ ok(N.h0.pct.join() === '5,50' && N.h0.games.join() === '1,10' && N.h0.cap === 60
 ok(N.s0.join() === '5,50' && N.s5.join() === '30,75', 'Spill Coach Lv 5: 5–50% → 30–75%', { lv0: N.s0, lv5: N.s5 })
 ok(!N.aim2 && N.aim3 && N.aimed, 'Spill Coach Lv 3 lets you aim a Spillover at a key stat (Lv 2 does not)', { lv2: N.aim2, lv3: N.aim3 })
 ok(Math.abs(N.d4 - 0.02 * Math.pow(1.5, 4)) < 1e-12 && Math.abs(N.d4share - N.d4) < 0.015, 'Double Shift Lv 4: the 2× card ×1.5 a level → ~1 in 10 (dealt ' + (N.d4share * 100).toFixed(1) + '%)', { odds: N.d4, share: N.d4share })
+ok(N.shark.hot.join() === '50,63' && N.shark.spill.join() === '6,15' && Math.abs(N.shark.dbl - 0.04) < 1e-12 && N.coll.hot.join() === '24,30' && N.coll.spill.join() === '3,7' && Math.abs(N.coll.dbl - 0.02) < 1e-12, 'v193 AD\'s legends reach the new cards: The Card Shark ×1.25 percents and ×2 the 2× card, The Collector ×0.6 percents', { shark: N.shark, collector: N.coll })
 ok(N.say === 2 && N.carry && N.mults.join() === '2,2,1', 'Double Shift Lv 4: the card lasts into the first 2 games of next season (then ×1)', { next: N.say, carry: N.carry, mults: N.mults, err: N.err })
 ok(/20–65%/.test(nd.hotHands.desc) && /6–15 games/.test(nd.hotHands.desc) && /30–75%/.test(nd.spillCoach.desc) && /1 card in 10/.test(nd.doubleShift.desc), 'each desc states its totals at max', N.nodes.slice(0, 3).map((x) => x.desc))
 

@@ -108,7 +108,7 @@ const nodes = await E(() => {
   const art = await E(() => document.querySelectorAll('#screen .medal-art-v156a .lg-medal-v152').length)
   ok(art > 0, 'a locked node draws the medal it needs', art)
   const dock = await txt('#dock')
-  ok(/Path \(🎖️?12 medals\)/.test(dock), 'the locked Path asks for 12 medals', (dock.match(/.{0,6}Path \([^)]*\)/) || [''])[0])
+  ok(/Path \(🎖️?12 medals\)/.test(dock) || /Legends · 0\/24/.test(dock), 'the locked Path asks for 12 medals (v193 AD: the tree\'s dock counts the legends, 0/24)', (dock.match(/.{0,6}(Path \([^)]*\)|Legends · \d+\/\d+)/) || [''])[0])
   await E(() => window.go('path')); await page.waitForTimeout(400)
   const path = await txt('#screen')
   ok(/Reach 🎖️? ?12 medals/.test(path) && !/honou?rs?/i.test(path), 'the Path screen asks for medals, not Honors', (path.match(/Reach.{0,60}/) || [''])[0])
@@ -204,8 +204,10 @@ const nodes = await E(() => {
 {
   const r = await E(() => {
     const A = __GRIDIRON_AUDIT__, S = A.getState(), V = window.__V156A, out = {}
-    S.tree = {}; S.path = null; V.seed(11); out.open11 = V.pathOpen()
-    V.seed(12); out.open12 = V.pathOpen()
+    /* v193 AD: each legend has its own milestone — Phenom and Grinder keep this gate (12 medals) */
+    const L = window.__V193AD && window.__V193AD.on() ? window.__V193AD : null, open = () => (L ? L.unlocked('phenom') && L.unlocked('grinder') : V.pathOpen())
+    S.tree = {}; S.path = null; L && (S.pathUnlocksV193AD = {}); V.seed(11); out.open11 = open()
+    V.seed(12); out.open12 = open()
     const keys = V.paths(); out.keys = keys.length
     S.pp = 1000; window.choosePath(keys[0]); out.first = S.path === keys[0] && S.pp === 1000
     const mir = S.prestige; window.choosePath(keys[1]); out.second = S.path === keys[1] && S.pp === 750 && S.prestige === mir

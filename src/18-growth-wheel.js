@@ -184,7 +184,8 @@
       +(trust-50)*.003
       +(mom-50)*.0015+(compz-50)*.0015-fatg*.003
       +cl(dial("luck",0)*.06,-.12,.12)+(lastBad?.05:0)+(streak>=2?.04:0)
-      +(rand()-.5)*.10, -.22,.22);
+      +(rand()-.5)*.10, -.22,.22)
+      +(ctx!=="sim"&&window.ribPathValV193AD?(+window.ribPathValV193AD("wheelLuck",0)||0):0);   // v193 AD: The Lucky Charm — every growth-wheel roll's "it pays" odds (season commitments, crossroads)
     const odds=bandOdds(jive,nudge);
     const r2=rand();
     const band=r2<odds.g?"green":r2<odds.g+odds.n?"neutral":"red";
