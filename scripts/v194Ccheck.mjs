@@ -54,10 +54,14 @@ const got = await p.evaluate(async () => {
   const t0 = performance.now()
   while (book.length < 1 && performance.now() - t0 < 200000) await new Promise(r => setTimeout(r, 250))
   window.__holdV194C = true
-  await new Promise(r => setTimeout(r, 2500))
-  return book.length
+  // the live game's own play (a kick, a return …) must be over before a replay is measured: wait it out, then settle
+  const t1 = performance.now()
+  while (sc.play && !sc.play.done && performance.now() - t1 < 30000) await new Promise(r => setTimeout(r, 200))
+  await new Promise(r => setTimeout(r, 1500))
+  const b = book[0]
+  return { n: book.length, event: b && b.event, offense: b && b.offense, startBall: b && b.startBall, kickKeys: b ? Object.keys(b).filter(k => /kick|punt|fg|xp|return/i.test(k)) : null, liveIdle: !sc.play || !!sc.play.done }
 })
-ok(got >= 1, 'a live play was captured to replay', got)
+ok(got.n >= 1 && /^(run|pass|scramble|sack)$/.test(String(got.event)) && got.liveIdle, 'a live SCRIMMAGE play was captured to replay, and the live game is idle', got)
 
 // ---------------- LIGHTS
 const lights = (los, tune, fresh) => p.evaluate(({ los, tune, fresh }) => {
@@ -125,7 +129,7 @@ const kick = (off, ev, sb, from, tune) => p.evaluate(async ({ off, ev, sb, from,
     const tick = () => {
       if (done) return
       const P = sc.play, c = sc.cameras.main, wv = c.worldView
-      if (!P0 && P && P.script && performance.now() - t0 < 4000) P0 = P
+      if (!P0 && P && P.script && P.payload === et && performance.now() - t0 < 4000) P0 = P   // OUR replay's play, never the live game's
       if (!P0) { if (performance.now() - t0 > 4000) setTimeout(fin, 100); else requestAnimationFrame(tick); return }
       if (!P || P !== P0 || P.done) { setTimeout(fin, 100); return }   // this play's frames only (the next state re-frames from scratch)
       let s = 0; for (const m of sc.markers) { if (!m || !m.root || !m.root.visible) continue; const x = m.root.x, y = m.root.y; if (x > wv.x && x < wv.x + wv.width && y > wv.y && y < wv.y + wv.height) s = Math.max(s, m.root.scaleY || m.root.scale) }
