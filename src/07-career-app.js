@@ -23784,6 +23784,9 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
   function sitOutWeekV18(e, s) {
     const c = cv18(e),
       inj = c.injury;
+    try {
+      hotRefundV193AB(e, s); /* v193 AB: a week booked and then sat out (hurt) gives its Hot Streak game back */
+    } catch (_) {}
     s.played = !0;
     s.satOut = !0;
     s.statLine = null;
@@ -40423,6 +40426,21 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
     const L = hotListV193AB(pl);
     L.length && (wk._hotV193AB = L.map(b => Object.assign({}, b)));
     pl.hotV193AB = L.map(b => Object.assign({}, b, { gamesLeft: (b.gamesLeft | 0) - 1 })).filter(b => b.gamesLeft > 0);
+  }
+  /* a week whose game was booked (and counted) but which he then sits out hurt: the count goes back — an injured game
+   * does not spend a Hot Streak game */
+  function hotRefundV193AB(e, wk) {
+    const B = wk && wk._hotV193AB;
+    if (!e || !Array.isArray(B)) return;
+    delete wk._hotV193AB;
+    const L = Array.isArray(e.hotV193AB) ? e.hotV193AB : (e.hotV193AB = []),
+      done = new Set();
+    B.forEach(b => {
+      const m = L.find(x => !done.has(x) && x.attr === b.attr && x.pct === b.pct && (x.games | 0) === (b.games | 0) && (x.gamesLeft | 0) === (b.gamesLeft | 0) - 1);
+      if (m) m.gamesLeft = b.gamesLeft;
+      else L.push(Object.assign({}, b));
+      done.add(m || L[L.length - 1]);
+    });
   }
   /* ---- a card lands ---- */
   function abApplyV193AB(e, id, w) {

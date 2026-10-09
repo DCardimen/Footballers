@@ -129,6 +129,11 @@ const G = await M(() => {
   const wk2 = p.weekResults.findIndex((w) => !w.played)
   try { window.playWeek(false) } catch (e) { r.err2 = String(e) }
   r.satOut = !!p.weekResults[wk2].satOut; r.afterSat = mine()
+  // a week whose game was booked (and counted) but which he then sits out hurt gives the game back
+  const w2b = p.weekResults.find((w) => !w.played); window.__V111.decay(p, w2b); r.booked = mine()
+  cv.injury = { name: 'Sprain', weeksRemaining: 1, severity: 2, seasonEnding: false }
+  try { window.playWeek(false) } catch (e) { r.err2b = String(e) }
+  r.bookedSat = !!w2b.satOut; r.afterRefund = mine()
   cv.injury = null
   delete window.__youTempBuffsV25; window.__youTempBuffsV25 = null
   // the watched game: playWeek(true) hands `_raw` wearBuffsV111(player) (window.__V111.buffs) — the boost is in it; a
@@ -145,6 +150,7 @@ ok(G.buffs.length === 1 && G.buffs[0].stat === 'speed' && G.buffs[0].pct === 22 
 ok(G.quick && G.quick.join() === 'speed 22' && G.wkPlayed, 'the quick sim plays with it: __aiSeasonGame hands __simGameV2 the boost', { seen: G.quick, err: G.err })
 ok(G.live && G.watched && G.watched.join() === 'speed 22', 'the watched game plays with it: the list playWeek(true) hands the live game\'s `_raw` (wearBuffsV111) carries the boost', { watched: G.watched })
 ok(G.lift > 0, 'rollGamePerf reads the OVR it adds', G.lift)
+ok(G.booked.join() === '2' && G.bookedSat && G.afterRefund.join() === '3', 'a week booked (counted 3 → 2) and then sat out hurt gives the game back (3)', { booked: G.booked, sat: G.bookedSat, after: G.afterRefund })
 ok(G.afterQuick.join() === '3' && G.satOut && G.afterSat.join() === '3' && G.afterWatch.join() === '2', 'it counts down once per played game (4 → 3), a sat-out week does not count (3), a watched week (spent twice: pre-booked, then played) once (2)', { quick: G.afterQuick, sat: G.afterSat, watched: G.afterWatch })
 
 // a measurable stat delta in the sim, seeded; stacking; expiry
@@ -309,10 +315,10 @@ const N = await M(() => {
   window.__V179.applyFlip('spill:common:' + k0 + ':10', {})
   S.tree = { spillCoach: 2 }; r.aim2 = V.aim(0, k1); S.tree = { spillCoach: 3 }; r.aim3 = V.aim(0, k1); r.aimed = V.spill().list[0].attr === k1
   // v193 AD's legends: The Card Shark (rare cards ×2, percents ×1.25) and The Collector (percents ×0.6) reach the new cards
-  const path0 = S.path
+  const path0 = S.path, tree0 = S.tree; S.tree = {}
   S.path = 'cardshark'; r.shark = { hot: V.hotRange('legendary').pct, spill: V.spillRange('common'), dbl: V.dblOdds() }
   S.path = 'collector'; r.coll = { hot: V.hotRange('legendary').pct, spill: V.spillRange('common'), dbl: V.dblOdds() }
-  S.path = path0
+  S.path = path0; S.tree = tree0
   S.tree = { doubleShift: 4 }; r.d4 = V.dblOdds()
   let n = 0, d = 0; for (let wk = 0; n < 5000; wk++) for (const id of V.deck({ week: wk, opp: 'E' + wk }, 50)) { n++; if (id === 'dbl') d++ }
   r.d4share = d / n
