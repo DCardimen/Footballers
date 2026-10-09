@@ -126,6 +126,14 @@ await page.screenshot({ path: '/tmp/v193AA-season.png' })
 await page.waitForTimeout(2200)
 ok(!(await M(() => !!document.getElementById('rmV193AA'))) && (await M(() => window.__V193AA.rec.shown.length)) === C2.shown, 'shown once: a redraw does not bring it back')
 
+// the key moves twice a season (the end's seasonsAtLevel, the start's seed): ONE turnover a season
+const twice = await M(() => {
+  const p = window.__GRIDIRON_AUDIT__.getState().player, a = window.__V158_ROSTER().map((m) => m.name + m.ovr).join()
+  p.seasonsAtLevel++; window.__V158_ROSTER(); window.startSeasonGames(); window.__V158_ROSTER()
+  return { same: window.__V158_ROSTER().map((m) => m.name + m.ovr).join() === a, q: (p.rmQV193AA || []).length }
+})
+ok(twice.same && twice.q === 0, 'a second rebuild in the same season keeps the men (one turnover a season, no second card)', twice)
+
 // tap to skip
 await nextSeason()
 ok(await waitCard(), 'the next season\'s card opens')

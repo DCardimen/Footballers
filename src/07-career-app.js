@@ -37707,8 +37707,9 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
       return r;
     }
     const T = M0 && M0.target > 0 ? M0.target : target;
-    if (M0 && M0.key === key) {
-      // the same season, rebuilt (a club re-signed, a nulled key): the men stay exactly as they were
+    if (M0 && (M0.key === key || (M0.at | 0) === (p.totalSeasons | 0))) {
+      // the same season, rebuilt (a club re-signed, a nulled key, the new season's seed after the offseason's
+      // turnover — the key moves twice a season, at the end and at the start): the men stay exactly as they were
       prevR.forEach((m, i) => (players[i] = m));
       p.rosterMetaV193AA = Object.assign({}, M0, { key, prog });
       p.rosterMetaV193AA.dev = +rmDevOfV193AA(players, T).toFixed(3);
@@ -37837,6 +37838,11 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
       // a level's new roster, then the club he signs with: one card, the old team to the last new one
       Object.assign(last, { toName: it.toName, arr: it.arr, more: [last.more ? last.more[0] : 0, it.more ? it.more[1] : 0], target: it.target, chem: [last.chem ? last.chem[0] : it.chem[0], it.chem[1]] });
       return last;
+    }
+    if (last && !last.opened && last.kind === "season" && it.kind === "team" && last.at === it.at) {
+      // the offseason's turnover, then a level up before he saw it: the old team (as he last saw it) to the new one
+      it.before = last.before != null ? last.before : it.before;
+      Q.splice(Q.length - 1, 1);
     }
     Q.push(it);
     Q.length > 6 && Q.splice(0, Q.length - 6);
