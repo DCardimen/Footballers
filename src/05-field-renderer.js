@@ -2736,15 +2736,20 @@ class Ot extends mt.Scene {
    * lamp bank was drawn straight over the upper deck's crowd, and the bloom (just in front of the mast) and the beam
    * (`crowdDepth + 0.006`, in front of the lower bowl too) washed a cone of light across both decks of spectators.
    * Now a far mast stands ON the roof: its foot is the highest point of the stadium's skyline (the v193 AG canopy's top
-   * edge, the same chain of ground samples the rim and the decks ride) anywhere under the mast's drawn width
-   * (`mastRoofSpanV194C` of it, plus `mastRoofPadV194C` px for the sway), sunk `mastRoofSinkV194C` px into the canopy
-   * so it is bolted on, not floating. Its x is still v164 A's field spot (so it is anchored to the stadium and moves
-   * only as the stadium does when the perspective re-anchors on the other half of the field, never with the camera),
-   * and its size is still the bowl's perspective. The glow and the beam are drawn just BEHIND the far stands
-   * (`lightBehindV194C`, their depth − 0.02), so the lamp blooms against the sky above the roof and the beam shows in
-   * the air and lands on the grass, but never crosses a spectator. Nothing in the sim: the key light reads the mast's
-   * head as before (a few px higher). With the far stands off (v193 AG 0) the masts stand where v164 A put them.
-   * Kill switch `TU("v194Clights", 0)`. `window.__V194C.lights` (`on`, `masts`: x, foot, roof, top, skyline under it). ===== */
+   * edge, the same chain of ground samples the rim and the decks ride) under the pole, sunk `mastRoofSinkV194C` px into
+   * the canopy so it is bolted on, and its lamp bank clears the skyline anywhere under the mast's drawn width
+   * (`mastRoofSpanV194C` of it, plus `mastRoofPadV194C` px for the sway). It is seated ONCE per side of the ground — the
+   * far end (VDIR, which flips with possession), the perspective sliders, the house's tier and the rig's dials are the
+   * key (`_mastHoldV194C`) — and every later snap from that side keeps its spot (x and foot; its size still follows the
+   * bowl), although the perspective re-anchors at every snap and moves the roof up the screen as a drive advances. The
+   * masts, their glow and their beam are drawn just BEHIND the far stands (`mastBehindV194C` 0.01 / `lightBehindV194C`
+   * 0.02 under them), so a roof that has risen past the feet hides the pole and the mast reads as standing on it, and
+   * nothing of theirs is ever drawn over a spectator; the light shows against the sky and lands on the grass. One
+   * exception (`mastHoldV194C` 0 turns the hold off): a line BEHIND every line seen from that side drops the roof below
+   * the held feet, and the mast steps down onto it rather than float over sky — a ratchet, only ever down. Nothing in
+   * the sim: the key light reads the drawn mast's head. With the far stands off (v193 AG 0) the masts stand where v164 A
+   * put them. Kill switch `TU("v194Clights", 0)`. `window.__V194C.lights` (`on`, `masts` (x, foot, roof, sky, head,
+   * seated), `side`, `drops`, `skyline()`, `reset()`). ===== */
   mastsOnRoofV194C(far) {
     const V = this.v194C().lights; V.builds++; V.on = false; V.masts = [];
     if (!TU("v194Clights", 1) || !far || !far.length) return false;
@@ -2767,6 +2772,22 @@ class Ot extends mt.Scene {
       return y;
     };
     const flip = !!TU("lightFlipV112", 1);
+    /* the side: which end of the ground is the far one (VDIR — it flips with possession) and what shapes the stadium
+     * (the perspective sliders, the house's tier). The perspective re-anchors on every snap, so the roof's row moves up
+     * as a drive advances; the masts are seated on the roof at the first snap seen from a side and STAY there for every
+     * snap after it from that side (a midfield line would make them hop on a two-yard gain).
+     * They are drawn just behind the far stands, so when the roof rises past their feet it hides the pole — they read
+     * as standing on it — and nothing of theirs is ever drawn over a spectator. */
+    const los = this._lastField && Number.isFinite(+this._lastField[0]) ? +this._lastField[0] : null;
+    let memo = null;
+    if (los != null && TU("mastHoldV194C", 1)) {
+      const FX = window.__FIELD_FX || {}, fx = Object.keys(FX).filter((k) => !/light|shadow|sound|vol/i.test(k) && typeof FX[k] !== "object").sort().map((k) => k + "=" + FX[k]).join(",");
+      const dials = [(far[0].h / Math.max(1e-6, far[0].sk)).toFixed(2), TU("lightFlipV112", 1), TU("mastRoofSinkV194C", 3), TU("mastRoofSpanV194C", 0.5), TU("mastRoofPadV194C", 6)].join(",");   // the rig's own dials re-seat it
+      const key = VDIR + "|" + (AG.tier || "") + "|" + AG.deck + "|" + FW + "|" + fx + "|" + dials;
+      const M = this._mastHoldV194C || (this._mastHoldV194C = {});
+      memo = M[key] || (M[key] = { key, at: {} });
+    }
+    V.reset = () => { this._mastHoldV194C = {}; };
     for (const sp of far) {
       // the drawn fixture (v92's sheet): the pole stands in one side of the cell, the lamp bank fills the top three quarters
       const inward = sp.x < FW / 2, face = (flip ? !inward : inward) ? RIB_META_V92.faces.right : RIB_META_V92.faces.left;
@@ -2775,10 +2796,20 @@ class Ot extends mt.Scene {
       const pole = skyAbove(x0 + w * P[0] - pad * 0.5, x0 + w * P[1] + pad * 0.5);                // ...and under the pole's foot
       if (!isFinite(sky) || !isFinite(pole)) continue;
       // the pole stands on the roof under it; the lamp bank clears the whole skyline (on a raked roof the pole is the taller)
-      sp.footY = Math.min(pole + sink * sp.sk, sky + sp.h * MAST_HEAD_LIFT_V194C); sp.roofV194C = pole;
-      V.masts.push({ x: Math.round(sp.x), foot: Math.round(sp.footY), roof: Math.round(pole), sky: Math.round(sky), top: Math.round(sp.footY - sp.h), head: Math.round(sp.footY - sp.h * MAST_HEAD_LIFT_V194C), h: Math.round(sp.h), half: Math.round(half), face });
+      let foot = Math.min(pole + sink * sp.sk, sky + sp.h * MAST_HEAD_LIFT_V194C), h = sp.h, seated = true;
+      // ...seated ONCE per side: later snaps from the same side keep that spot (the stands re-project, the masts stay)
+      const mk = String(sp.i), have = memo && memo.at[mk];
+      let dx = sp.x;
+      // its size still follows the bowl (v164 A). The one exception: when the line goes BACK past every line this side
+      // has seen, the roof drops below the held feet and the mast would float over a strip of sky — it steps down onto
+      // the roof (a ratchet: only ever down, so a drive moving forward never moves it)
+      if (have && have.foot >= foot - 0.5) { foot = have.foot; dx = have.x; seated = false; }
+      else if (memo) { if (have) memo.drops = (memo.drops || 0) + 1; memo.at[mk] = { foot, x: sp.x }; }
+      // the drawn mast (`drawXV194C`); `sp.x` stays this snap's field projection, which v164 A's reads and the rig's aim use
+      sp.footY = foot; sp.h = h; sp.drawXV194C = dx; sp.roofV194C = pole; sp.depthV194C = S.depth - TU("mastBehindV194C", 0.01);
+      V.masts.push({ x: Math.round(sp.x), foot: Math.round(sp.footY), roof: Math.round(pole), sky: Math.round(sky), top: Math.round(sp.footY - sp.h), head: Math.round(sp.footY - sp.h * MAST_HEAD_LIFT_V194C), h: Math.round(sp.h), half: Math.round(half), face, seated });
     }
-    V.anchored++; V.on = V.masts.length > 0; V.standsDepth = S.depth;
+    V.anchored++; V.on = V.masts.length > 0; V.standsDepth = S.depth; V.side = memo ? memo.key : null; V.drops = memo ? memo.drops || 0 : 0;
     V.skyline = () => R.map((q) => [Math.round(q.x), Math.round(q.y)]);
     return V.on;
   }
@@ -9633,9 +9664,10 @@ class Ot extends mt.Scene {
           const inward = sp.x < FW / 2, side = flip ? !inward : inward;
           const face = side ? RIB_META_V92.faces.right : RIB_META_V92.faces.left;
           tw._face = face; tw.setFrame(face * RIB_META_V92.frames);
-          tw._bx = sp.x; tw._by = sp.footY; tw._sway = [0, 1, 0, 0.7][i] || 0; tw._mastV164 = sp.i; tw._k = sp.k;
+          const bx = sp.drawXV194C != null ? sp.drawXV194C : sp.x;   // v194 C: held for the side
+          tw._bx = bx; tw._by = sp.footY; tw._sway = [0, 1, 0, 0.7][i] || 0; tw._mastV164 = sp.i; tw._k = sp.k;
           tw._aimX = sp.aim.x; tw._aimY = sp.aim.y; tw._poolX = sp.pool.x; tw._poolY = sp.pool.y;
-          tw.setPosition(sp.x, sp.footY).setScale(sp.h / RIB_META_V92.cell[1]).setDepth(depT).setVisible(true);
+          tw.setPosition(bx, sp.footY).setScale(sp.h / RIB_META_V92.cell[1]).setDepth(sp.depthV194C != null ? sp.depthV194C : depT).setVisible(true);   // v194 C: behind the far stands
           { const lm = this.lightMulV100() * this.dayMulV144(), g = Math.max(0, Math.min(255, Math.round(255 * Math.min(1, 0.28 + 0.72 * lm))));
             tw.setTint((g << 16) | (g << 8) | g); }
           tw._poolK = TU("lightPoolKV112", 1) * sp.pool.k;
