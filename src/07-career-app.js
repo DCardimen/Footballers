@@ -26386,7 +26386,9 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
       ".up-tilt-v193z{flex:none;display:inline-block;padding:1px 6px;border-radius:9px;font:700 10.5px Oswald,sans-serif;letter-spacing:.4px;white-space:nowrap}",
       ".up-tilt-v193z.neg{color:#ff8a80;border:1px solid rgba(255,138,128,.45);background:rgba(201,74,58,.14)}",
       ".up-tilt-v193z.pos{color:#7fe0a0;border:1px solid rgba(127,224,160,.45);background:rgba(63,158,90,.14)}",
-      ".step .stepcost.tilt-neg{color:#ff8a80}.step .stepcost.tilt-pos{color:#7fe0a0}"
+      ".step .stepcost.tilt-neg{color:#ff8a80}.step .stepcost.tilt-pos{color:#7fe0a0}",
+      ".up-tiltslot-v193z:empty{display:none}",
+      ".up-v153 .up-line-v153.tilt-v193z{flex-wrap:wrap;row-gap:2px;white-space:normal}" /* the chip and the tilted price both read, on two lines if they must */
     ].join("");
     (document.head || document.documentElement).appendChild(st);
   }
@@ -26543,7 +26545,7 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
                 " more");
       /* v193 Z: a tilted row — the chip, and the readout states the tilted price */
       const tl = byId("tilt-" + a);
-      tl && (tl.innerHTML = focusChipV193Z(e, a));
+      tl && ((tl.innerHTML = focusChipV193Z(e, a)), tl.parentElement && tl.parentElement.classList.toggle("tilt-v193z", !!ch.tilt));
       cp &&
         ch.tilt &&
         (e.attrs[a] || 0) < attrCap() &&
