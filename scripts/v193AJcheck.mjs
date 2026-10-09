@@ -88,7 +88,8 @@ const phys = (tune) => page.evaluate(({ G, tune }) => {
   return { logs: rec.length, stopsPer1k: +(1000 * stops / Math.max(1, ticks)).toFixed(2), P: window.__V193AJP ? JSON.parse(JSON.stringify(window.__V193AJP)) : null, arcP50: +(arcs[Math.floor(arcs.length / 2)] || 0).toFixed(3), arcN: arcs.length, apexK: K }
 }, { G: G + 2, tune })
 const PH1 = await phys({ v193AJphys: 1 }), PH0 = await phys({ v193AJphys: 0 }), PHD = await phys({ v193AJphys: 1, decelV193: 1 })
-console.log('physics ON :', JSON.stringify(PH1)); console.log('physics OFF:', JSON.stringify(PH0))
+const brief = R => JSON.stringify(Object.assign({}, R, { P: R.P && Object.assign({}, R.P, { turns: R.P.turns ? R.P.turns.length : 0 }) }))
+console.log('physics ON :', brief(PH1)); console.log('physics OFF:', brief(PH0))
 const B = (PH1.P && PH1.P.brake) || {}, bk = Object.values(B)
 ok(bk.length >= 2 && bk.every(b => b.maxRatio <= 1.001) && B.heavy && B.light && B.heavy.rate / B.heavy.n < B.light.rate / B.light.n, 'deceleration is bounded: a man never brakes harder than his (mass-scaled) brakes, and a heavy man brakes softer than a light one',
   JSON.stringify(Object.fromEntries(Object.entries(B).map(([k, b]) => [k, { n: b.n, meanRate: +(b.rate / b.n).toFixed(2), worst: b.maxRatio }]))))
@@ -127,13 +128,13 @@ for (let i = 0; i < 8 && !live; i++) {
 ok(live, 'the broadcast came up')
 if (live) {
   await page.evaluate(() => {
-    window.__AJ_SPEED = 2; window.__getGridironLiveSpeed = () => window.__AJ_SPEED
+    window.__AJ_SPEED = 4; window.__getGridironLiveSpeed = () => window.__AJ_SPEED
     const sc = window.__gridironScene, T = window.__AJT = { on: { ms: 0, n: 0 }, off: { ms: 0, n: 0 } }
     const pm = sc.placeMarker.bind(sc)
     sc.placeMarker = function (...a) { const t0 = performance.now(), r = pm(...a); const k = window.TU('v193AJ', 1) ? 'on' : 'off'; T[k].ms += performance.now() - t0; T[k].n++; return r }
   })
   const runFor = async (ms) => { const t0 = Date.now(); while (Date.now() - t0 < ms) { await page.evaluate(() => { const b = [...document.querySelectorAll('button')].find(q => /^(CONTINUE|NEXT PLAY|NEXT)$/i.test((q.innerText || '').trim()) && q.offsetParent); if (b) b.click() }); await page.waitForTimeout(300) } }
-  const LIVE = Number(process.env.LIVE_MS || 40000)
+  const LIVE = Number(process.env.LIVE_MS || 60000)
   await runFor(LIVE)
   await page.evaluate(() => { window.RIB_TUNE = Object.assign(window.RIB_TUNE || {}, { v193AJ: 0 }) })
   await runFor(LIVE * .8)
@@ -150,7 +151,7 @@ if (live) {
   })
   console.log('live:', JSON.stringify(LV))
   ok(LV.n1 >= 15 && LV.n0 >= 10, 'sampled contact frames with the switch on and off', `${LV.n1} on, ${LV.n0} off (age scale ${LV.age})`)
-  ok(LV.p90on != null && LV.p90on <= 1.15 && LV.p50on < LV.p50off, 'the contact gap: drawn within an arm\'s length on the frame it resolves, and closer than OFF', `body widths p50 ${LV.p50on} / p90 ${LV.p90on} ON vs p50 ${LV.p50off} / p90 ${LV.p90off} OFF; the sim's own gap is unchanged (p50 ${LV.simP50on} vs ${LV.simP50off} field px)`)
+  ok(LV.p90on != null && LV.p90on <= 1.15 && LV.p90on < LV.p90off, 'the contact gap: drawn within an arm\'s length on the frame it resolves, and closer than OFF', `body widths p50 ${LV.p50on} / p90 ${LV.p90on} ON vs p50 ${LV.p50off} / p90 ${LV.p90off} OFF; the sim's own gap is unchanged (p50 ${LV.simP50on} vs ${LV.simP50off} field px)`)
   const slide = LV.stride && LV.stride.slideN ? LV.stride.slide / LV.stride.slideN : 1
   ok(slide < .15 && LV.band >= 8 / 84 && LV.band <= 8 / 30, 'the run cycle\'s stride matches the ground covered', `mean foot slide ${(slide * 100).toFixed(1)}% of a stride over ${LV.stride && LV.stride.n} steps; ${LV.band && LV.band.toFixed(3)} frames a sprite px (band ${(8 / 84).toFixed(3)}..${(8 / 30).toFixed(3)})`)
   ok(LV.lunges > 0 && LV.handfight > 0, 'the lunge is seen coming and every engaged pair hand-fights', `${LV.lunges} lunges (${LV.windups} with a windup), ${LV.handfight} hand-fight frames, ${LV.backpedal} backpedal frames`)

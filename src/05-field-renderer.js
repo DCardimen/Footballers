@@ -7002,6 +7002,7 @@ class Ot extends mt.Scene {
     const fx = Math.sign(b.x - a.x) || (tk.flip ? 1 : -1), flat = Math.abs(b.x - a.x) > .45 * Math.hypot(b.x - a.x, b.y - a.y);
     this.ajClipV193(tk, "lunge", D, function (k) {
       const ext = k > TU("ajExtendAtV193", .4);
+      if (k < TU("ajLoadAtV193", .18)) return { st: "plant", sy: .92, sx: 1.05 };   // the load: the last step planted, hips down
       return ext && flat ? { st: "dive", face: ["sd", fx > 0], rot: fx * (.12 + .18 * k), sx: 1.06, sy: .96 } : { st: "divex", sx: ext ? 1.06 : .96, sy: ext ? .96 : 1.02 };
     }, { keep: /^grab$/ });
   }
@@ -7177,7 +7178,8 @@ class Ot extends mt.Scene {
     const rec = { lead: Math.round(lead), arm: +arm.toFixed(1), slidePlan: +slide.toFixed(1), handsAt: null, slidPx: 0, frames: [] };
     this.ajLogV193(H.layouts, rec, 30);
     this.ajAnchorV193(m, [{ t: 0, x: x0, y: y0 }, { t: plant, x: x0 + ux * vf * plant * .5, y: y0 + uy * vf * plant * .5 }, { t: lead, x: hx, y: hy, ease: "lin" },
-      { t: lead + after, x: Lx, y: Ly }, { t: lead + after + slideMs, x: Lx + ux * slide, y: Ly + uy * slide, ease: "out" }], { hold: down + getMs });
+      { t: lead + after, x: Lx, y: Ly }, { t: lead + after + slideMs, x: Lx + ux * slide, y: Ly + uy * slide, ease: "out" }],
+      { hold: down + getMs, onRelease: function (mm, A, early) { if (early && mm._ajClip && mm._ajClip.kind === "layout" && mm.tms - mm._ajClip.t0 > lead + after) mm._ajClip.ms = Math.min(mm._ajClip.ms, mm.tms - mm._ajClip.t0 + 1); } });
     let land = null, lastPuff = 0;
     this.ajClipV193(m, "layout", lead + after + slideMs + down, function (k, mm, CC) {
       const age = k * CC.ms, P2 = this.play, mine = P2 && P2.ballHolderId != null && this.markers[P2.ballHolderId] === mm;
@@ -7188,9 +7190,10 @@ class Ot extends mt.Scene {
         try { this.addWearV86(mm.sx, mm.sy, 6, .08); } catch (er) {}
         this.ajDirtV193(mm.sx, mm.sy, { kind: "slide", dx: ux, dy: uy, len: slide }); }
       if (age < lead + after + slideMs && mm.tms - lastPuff > 55) { lastPuff = mm.tms; this.puffFx(mm.sx, mm.sy + 3, 1, 0x8a7a55, .4); }
+      if (age >= lead + after + slideMs && !rec.slidDone) { rec.slidDone = true; rec.slidPx = +Math.hypot(mm.sx - land.x, mm.sy - land.y).toFixed(1); }
       return flat ? { st: "divecatch2", face: ["sd", fx > 0], ground: true, hideBall: mine } : { st: "divecatch2", ground: true, hideBall: mine };
     }, { grounded: function (mm, CC) { return mm.tms - CC.t0 > lead + after; },
-      end: function (mm) { if (land) rec.slidPx = +Math.hypot(mm.sx - land.x, mm.sy - land.y).toFixed(1);
+      end: function (mm) { if (land && !rec.slidDone) rec.slidPx = +Math.hypot(mm.sx - land.x, mm.sy - land.y).toFixed(1);
         mm.forceState = "getupSeq"; mm.seqT = mm.tms; mm._groundT = 0; return "getup0"; } });
     return true;
   }
@@ -7228,7 +7231,7 @@ class Ot extends mt.Scene {
     } else if (kind === "ankle") {
       if (tk && /^(dive|grab)$/.test(String(tk.forceState || ""))) {
         tk._launchT0 = tk.tms; tk._launchUntil = tk.tms + 140; tk._launchH = 2;
-        this.ajClipV193(tk, "ankleDive", 220, function (k) { return { st: "dive", face: ["sd", fx > 0], rot: fx * .06, oy: 2 }; });
+        this.ajClipV193(tk, "ankleDive", 220, function (k) { return k < .3 ? { st: "divex", sy: .94 } : { st: "dive", face: ["sd", fx > 0], rot: fx * .06, oy: 2 }; });
       }
       this.ajClipV193(m, "trip", foldMs, function (k) { return { st: k < .35 ? "cut" : "fall", rot: fsx * 1.1 * Math.pow(k, 1.5), oy: -1.5 * Math.sin(Math.PI * k) }; });
     } else if (kind === "hitstick") {
