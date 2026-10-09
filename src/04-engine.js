@@ -3210,7 +3210,8 @@ window.__visionRadiusV96 = visionRadiusV96;
        * A violent stop (the hit stick) and a wrap into a waiting crowd still end it where they
        * land — nobody carries three men — so the instantaneous path below is still the common one. */
       const canGripV103 = TU("gripV103", 1) && !bigStick && !c._grip && !done
-        && handsOn < TU("gripMaxHands", 3) && cSpd > TU("gripMinSpd", 34);
+        && ((handsOn < TU("gripMaxHands", 3) && cSpd > TU("gripMinSpd", 34))
+          || (oobOnV194A && TU("pushOutV194A", 1) && !isKick && edgeV194A(c) < TU("pushOutZonePxV194A", 40)));   // v194 A: at the paint every wrap is a grip, so the push-out can be rolled
       if (canGripV103) {
         // how long he stays up: the collision he just lost, plus his own refusal to go down
         const gripMs = cl(TU("gripBaseMs", 130) - collEdge * TU("gripEdgeMs", 130)
@@ -3363,6 +3364,87 @@ window.__visionRadiusV96 = visionRadiusV96;
       : runConcept === "sweep" ? (Math.random() < .7 ? "D" : "C") : runConcept === "power" ? (Math.random() < .6 ? "B" : "A")
       : runConcept === "draw" ? "A" : (Math.random() < .55 ? "A" : "B");
     const holeY = kind === "run" ? GAP_Y[holeGapKey][Math.random() < .8 ? holeSide : 1 - holeSide] : MIDY;
+    /* ===== v194 A THE MESH =====
+     * The owner: "On handoff, sometimes it looks like a throw. Ensure the qb is making contact with the runner."
+     * The sim staged no mesh: the ball changed hands at `HANDOFF_T` (420 ms) wherever the two men were, and they were
+     * 43 px apart at the median (~7 yards: the back never left his alignment, the under-center reverse covered 9 px),
+     * so the broadcast had to FLY the ball across that gap. Now a handoff is a meeting. From the snap the quarterback
+     * goes to his mesh spot (the reverse pivot to `meshUcLxV194A` from under center, a step back of `meshGunBackPxV194A`
+     * from the gun or the pistol) and the back runs his path up to the quarterback's hip on the hole side
+     * (`meshSidePxV194A` off him, `meshRbLeadPxV194A` past him, at `meshRbPaceV194A`); the ball changes hands only
+     * when they are within `meshContactPxV194A` of each other (centre to centre — bodies touching), the back level with the
+     * quarterback's hip (`meshLevelPxV194A`), and no earlier than
+     * `meshMinMsV194A`. Past `HANDOFF_T + meshQbChaseMsV194A` the quarterback also closes on the back, so a slow back is
+     * met rather than thrown to; `meshMaxLateMsV194A` is a failsafe that counts a miss. A PITCH is a different play —
+     * the called toss family (`toss`, `jet`, `pnp`, `rev`) keeps the old timing and the event says `pitch:true`, so the
+     * broadcast may fly that one (a pitch may fly, a handoff never). The `handoff` event carries `mesh:true` and the
+     * centre-to-centre distance `d`. A draw keeps its own choreography (the QB drops onto the back).
+     * No random draws. Kill switch `TU("v194A", 0)` or `TU("meshV194A", 0)`. `root.__V194A.mesh`; `v194Acheck`. */
+    const pitchV194A = kind === "run" && !!(opts && /^(toss|jet|pnp|rev)$/.test(String(opts.play || "")));
+    const meshOnV194A = kind === "run" && !!TU("v194A", 1) && !!TU("meshV194A", 1);
+    const V194A = root.__V194A = root.__V194A || { mesh: { n: 0, dSum: 0, dMax: 0, miss: 0, pitch: 0, msSum: 0 }, oob: { carries: 0, out: 0, step: 0, push: 0, bail: 0, late: 0, lateOut: 0 } };
+    let meshPlanV194A = null;
+    const meshTickV194A = () => {
+      const qb = S.off[8], rb = S.off[9];
+      if (!meshPlanV194A) {
+        const under = !!(S.formV164P && S.formV164P.under);
+        const s = !under && Math.abs(rb.y - qb.y) > 10 ? Math.sign(rb.y - qb.y) : (Math.sign(holeY - MIDY) || (rb.y >= qb.y ? 1 : -1));
+        // the mesh spot: `meshQbShareV194A` of the way from the quarterback to the back — he goes to the back
+        const w = TU("meshQbShareV194A", 1);
+        meshPlanV194A = { s, mx: qb.lx + (rb.lx - qb.lx) * w, my: qb.y + (rb.y - qb.y) * w };
+      }
+      const M = meshPlanV194A, side = TU("meshSidePxV194A", 3);
+      if (isDraw) {   // the draw: the quarterback drops onto the back (the draw branch moves him); late in the drop the back slides to his hip
+        if (t < HANDOFF_T - TU("meshDrawLeadMsV194A", 260)) return;
+        mv(rb, qb.lx + 2, qb.y + M.s * side, TU("meshDrawRbPaceV194A", .5));
+        if (t >= HANDOFF_T) mv(qb, rb.lx - 2, rb.y - M.s * side, TU("meshQbPaceV194A", 1.0));
+        return; }
+      if (pitchV194A) return;   // a pitch: the back is on his path, the ball comes to him
+      if (t >= HANDOFF_T + TU("meshQbChaseMsV194A", 60)) {   // late: they close on each other
+        mv(qb, rb.lx + 2, rb.y - M.s * side, TU("meshQbPaceV194A", 1.0)); mv(rb, qb.lx - 2, qb.y + M.s * side, TU("meshRbPaceV194A", .15)); return; }
+      mv(qb, M.mx + 2, M.my - M.s * side, TU("meshQbPaceV194A", 1.0));
+      mv(rb, M.mx, M.my + M.s * side, TU("meshRbPaceV194A", .15));
+    };
+    const meshReadyV194A = () => {
+      if (pitchV194A) return t >= HANDOFF_T;
+      const qb = S.off[8], rb = S.off[9], d = Math.hypot(qb.lx - rb.lx, qb.y - rb.y);
+      // touching, and the back up LEVEL with him (no more than `meshLevelPxV194A` deeper) — the ball goes into his belly, not back to him
+      if (t >= (isDraw ? HANDOFF_T : TU("meshMinMsV194A", 260)) && d <= TU("meshContactPxV194A", 8) && rb.lx - qb.lx >= -TU("meshLevelPxV194A", 3.5)) return true;
+      if (t >= HANDOFF_T + TU("meshMaxLateMsV194A", 700)) { V194A.mesh.miss++; return true; }
+      return false;
+    };
+    /* ===== v194 A OUT OF BOUNDS =====
+     * The owner: "Not enough plays go out of bounds, please add that functionality." Measured before: 0.0% of sim
+     * runs, 2.5-4.6% of catches and 0% of scrambles ended out of bounds; the game rolled a hidden 12% / 18% for the
+     * clock, so the clock stopped on plays the broadcast showed tackled in the field. Now the sim puts them out:
+     *   - THE STEP-OUT (v41's sideline economy, widened): a carrier inside `oobEdgePxV194A` of the paint with a
+     *     defender closing on the inside (`oobGapV194A`) takes what is there and runs out (`oobBailPV194A`); the read
+     *     is re-made every `oobReadMsV194A` rather than once a carry. The clock steers him (`opts.clockV194A` from the
+     *     game): late in a half and trailing he gets out whenever he is near it (`oobBailOutPV194A`, wider zone,
+     *     no defender needed past `oobGapOutV194A`); late in the fourth with the lead he stays in (`oobBailInPV194A`).
+     *     An untouched step-out names NO tackler (stat-credit truth: nobody tackled him) — `tackle{oob, stepOut}`.
+     *   - THE PUSH-OUT: a grip that lands inside `pushOutZonePxV194A` of the paint can be driven over it — rolled
+     *     once a grip on the tackler's leverage (from the inside), strength and the carrier's intent; the pair then
+     *     travels toward the paint at `pushOutPaceV194A` of his speed and the play ends where the carrier crosses,
+     *     spotted at his forward progress, the GRIPPING man credited as the tackler (`tackle{oob, pushOut}`).
+     * The ball is spotted at the hash on the next snap (every snap lines up between the hashes). The game books the
+     * row's `oob` (the clock stop) from the sim's dead ball and says it in the play-by-play. Spends extra Math.random()
+     * draws, so compare seeds. Kill switch `TU("v194A", 0)`. `root.__V194A.oob`; `v194Acheck`. */
+    const oobOnV194A = !!TU("v194A", 1);
+    const clkV194A = (opts && opts.clockV194A) || null;
+    const oobWantV194A = c => !clkV194A || isKick || c.side !== "off" ? null : clkV194A.trailing ? "out" : clkV194A.leading ? "in" : null;
+    const edgeV194A = c => Math.min(c.y - SIDELINE_TOP, SIDELINE_BOT - c.y);
+    const meshEvV194A = () => {
+      const qb = S.off[8], rb = S.off[9], d = Math.hypot(qb.lx - rb.lx, qb.y - rb.y);
+      if (pitchV194A) { V194A.mesh.pitch++;
+        // a pitch is the loudest key on the field: the perimeter (the force corner, the safeties, the linebackers) reads it
+        // `pitchReadMsV194A` after it leaves the hand, so the contain is set before the back reaches the edge
+        if (TU("pitchReadV194A", 1)) S.def.forEach(a => { if (a.lb !== "DL") a._seenAt = Math.min(a._seenAt == null ? 1e9 : a._seenAt, t + TU("pitchReadMsV194A", 150)); });
+        return { pitch: true, d: +d.toFixed(1), x: rb.lx, y: rb.y }; }
+      rb.vel = Math.min(rb.vel || 0, TU("meshExitVelV194A", .4));   // he gathers the ball in: the mesh is a meeting, not a running start
+      V194A.mesh.n++; V194A.mesh.dSum += d; V194A.mesh.dMax = Math.max(V194A.mesh.dMax, d); V194A.mesh.msSum += t;
+      return { mesh: true, d: +d.toFixed(1), x: (qb.lx + rb.lx) / 2, y: (qb.y + rb.y) / 2 };
+    };
     const rollBlockV81 = (o, r) => {
       const edge = (o.blk * .6 + o.str * .4) - (r.str * .55 + r.quick * .25 + r.tkl * .2) + (Math.random() * 24 - 12);
       let bk = "stalemate";
@@ -3983,7 +4065,8 @@ window.__visionRadiusV96 = visionRadiusV96;
       else if (phase === "handoff") {
         /* v164 P: from under center the quarterback reverses to the mesh and the back steps to it — the ball changes
          * hands at the same tick it always did, between two men who are now within an arm of each other */
-        const ucV164P = TU("ucMeshV164P", 1) && !isDraw && t < HANDOFF_T && S.formV164P && S.formV164P.under && S.formV164P.rb0;
+        if (meshOnV194A) meshTickV194A();   // v194 A THE MESH: the two men meet; the old under-center reverse stands down
+        const ucV164P = !meshOnV194A && TU("ucMeshV164P", 1) && !isDraw && t < HANDOFF_T && S.formV164P && S.formV164P.under && S.formV164P.rb0;
         if (ucV164P) { const qb = S.off[8], rb = S.off[9], R0 = S.formV164P.rb0;
           mv(qb, R0.lx + TU("ucMeshDxV164P", 10), R0.y + (qb.y - R0.y) * 0.5, TU("ucQbPaceV164P", 1.2));
           if (TU("ucRbPaceV164P", 0) > 0) mv(rb, R0.lx + TU("ucRbStepV164P", 8), R0.y, TU("ucRbPaceV164P", 0));   // the back waits for him (a running start at the mesh outran the defense: +8 points a game) }
@@ -3997,11 +4080,11 @@ window.__visionRadiusV96 = visionRadiusV96;
           rushers.forEach(r=>{ if(!r.shed && r.engaging && !(r.stunned && t<r.stunned)){
             const wide = r.edge ? (r.y<MIDY?-1:1)*0.5 : 0;
             r.engaging.lx -= Math.max(0,(r.str-r.engaging.str))*0.000027*TICK; r.engaging.y = clampY(r.engaging.y + wide); }});   // v153 A: the edge drift never carries a blocker over the sideline
-          mv(qb, -58, qb.y, 0.8); mv(rb, rb.lx - 2, rb.y, 0.25);
+          mv(qb, -58, qb.y, 0.8); if (!(meshOnV194A && t >= HANDOFF_T - TU("meshDrawLeadMsV194A", 260))) mv(rb, rb.lx - 2, rb.y, 0.25);   // v194 A: late in the drop the mesh moves the back
           rushers.filter(r=>r.shed).forEach(r=>mv(r, qb.lx, qb.y, 1.0));
           if (!S.off[8]._drawAnn) { S.off[8]._drawAnn = 1; emit("playfake",{x:qb.lx,y:qb.y,draw:true}); }
         }
-        else if (t >= HANDOFF_T) { carrier = S.off[9]; emit("handoff",{}); phase = "carry";
+        else if (meshOnV194A ? meshReadyV194A() : t >= HANDOFF_T) { carrier = S.off[9]; emit("handoff", meshOnV194A ? meshEvV194A() : {}); phase = "carry";
           if (TU("accelV164", 1) && TU("meshRollV164I", 1)) { carrier._standingV164I = null; carrier.vel = Math.max(carrier.vel || 0, TU("meshVelV164I", .35)); }   // v164 I: the back takes the ball moving through the mesh — never from a standstill
           // v81: every block at the point of attack is rolled at the mesh
           blockers.forEach(o=>{ const r=o.engagedBy; if(!r||r.shed||(r.stunned&&t<r.stunned)) return;
@@ -5010,6 +5093,20 @@ window.__visionRadiusV96 = visionRadiusV96;
                 rec(); continue;
               }
             }
+            // ---- v194 A THE PUSH-OUT: near the paint the tackler can drive him over it (rolled once a grip)
+            if (G.poV194A === undefined) {
+              G.poV194A = null;
+              if (oobOnV194A && TU("pushOutV194A", 1) && !G.scrum && edgeV194A(c) < TU("pushOutZonePxV194A", 40)
+                && t >= (dfd.beaten || 0) && !(dfd.stunned && t < dfd.stunned)) {   // only the man with HOLD of him, and never one just beaten (a stiff arm, a juke)
+                const want = oobWantV194A(c), inside = Math.abs(dfd.y - MIDY) < Math.abs(c.y - MIDY) + 2;
+                const pPO = cl(TU("pushOutPV194A", .6) + ((dfd.str || 50) - (c.str || 50)) * TU("pushOutStrKV194A", .006)
+                  + (inside ? TU("pushOutInsideV194A", .2) : -TU("pushOutOutsideV194A", .3))
+                  - edgeV194A(c) / TU("pushOutZonePxV194A", 40) * TU("pushOutEdgeKV194A", .25)
+                  + (want === "out" ? TU("pushOutWantV194A", .3) : want === "in" ? -TU("pushOutWantV194A", .3) : 0), 0, .95);
+                if (Math.random() < pPO) { G.poV194A = { dir: c.y < MIDY ? -1 : 1, t0: t, p: +pPO.toFixed(2) };
+                  emit("pushOutV194A", { who: dfd.id, carrier: c.id, x: c.lx, y: c.y, dir: G.poV194A.dir, cid: G.hit.cid }); }
+              }
+            }
             // ---- they travel together
             const pull = cl(TU("gripPace", .13) + (c.str - dfd.str) * TU("gripStrPace", .0022)
               + Math.max(0, c.grit - 50) * TU("gripGritPace", .0014) + strain
@@ -5045,6 +5142,14 @@ window.__visionRadiusV96 = visionRadiusV96;
               const bp = cl((G.collEdge - TU("pushBackEdgeV151D", 1.5)) * TU("pushBackPaceV151D", .15) + .06, .05, TU("pushBackMaxPaceV151D", .25));
               c.vel = Math.min(c.vel || 0, bp); c.lx -= dsg * bp * c.spd * TICK / 1000;
             }
+            else if (G.poV194A) {   // v194 A: driven toward the paint — the pair moves together, a hair upfield, and stops ON the line
+              const plane = G.poV194A.dir < 0 ? SIDELINE_TOP : SIDELINE_BOT;
+              const lat = Math.max(TU("pushOutMinPxV194A", 1.6), TU("pushOutPaceV194A", .8) * (c.spd || 120) * TICK / 1000);
+              const y1 = c.y + G.poV194A.dir * lat;
+              c.lx += dsg * lat * TU("pushOutFwdKV194A", .15); c._dx = dsg * .15; c._dy = G.poV194A.dir; c.vel = Math.max(.2, Math.min(c.vel || 0, .5));
+              if ((G.poV194A.dir < 0 && y1 <= plane) || (G.poV194A.dir > 0 && y1 >= plane)) { c.y = plane; G.poV194A.out = true; }
+              else c.y = y1;
+            }
             else mv(c, c.lx + dsg * 46, c.y, pull);
             // v153 A: the furthest point his forward progress reached inside this grip (see the landing)
             if (G.fpLxV153A == null) G.fpLxV153A = G.x0;
@@ -5066,8 +5171,22 @@ window.__visionRadiusV96 = visionRadiusV96;
             if (G.lastSay == null || t - G.lastSay >= TU("dragSayMs", 99)) { G.lastSay = t;
               emit("drag", { carrier: c.id, by: dfd.id, x: c.lx, y: c.y, pull: +pull.toFixed(2), n: G.joined.length + 1,
                 strain: !!G.strain, vel: +(c.vel || 0).toFixed(2), cid: G.hit.cid }); }
+            // ---- v194 A: over the paint — whistle at the crossing, the gripping man is the tackler, forward progress is the spot
+            if (G.poV194A && G.poV194A.out && t < (dfd.beaten || 0)) G.poV194A = null;   // v194 A: shed while driving him (a stiff arm): no push-out, the grip plays on
+            if (G.poV194A && G.poV194A.out) {
+              const youIn = (!!G.gang && S.all.some(a => a.player && a.player.you && a.side !== c.side && a !== dfd
+                && (G.joined.indexOf(a.id) >= 0 || G.sup.indexOf(a.id) >= 0))) || undefined;
+              let fp = null;
+              if (G.fpLxV153A != null && (G.fpLxV153A - c.lx) * dsg > TU("fwdProgMinPxV153A", 2)) { c._fpSpotV153A = G.fpLxV153A; fp = { fpX: G.fpLxV153A, fpYd: +((G.fpLxV153A - c.lx) * dsg / YD).toFixed(2) }; }
+              V194A.oob.out++; V194A.oob.push++;
+              emit("tackle", { tackler: dfd.id, carrier: c.id, x: c.lx, y: c.y, ...(fp || null), oob: true, plane: "sideline", pushOut: true,
+                gang: !!G.gang, sup: G.sup.concat(G.joined), youIn, handsOn: G.handsOn + G.joined.length, dragMs: Math.round(age), cid: G.hit.cid });
+              c._grip = null; dfd._gripOn = null; c._wasGripped = true;
+              endTackle(dfd);
+              rec(); continue;
+            }
             // ---- the landing: the tackle is booked on the ground they actually covered
-            if (age >= G.ms) {
+            if (age >= G.ms && !(G.poV194A && age < G.ms + TU("pushOutMaxMsV194A", 500))) {
               // v177 A: a pile with two or more defenders in it does not land yet — it is fought over first
               if (scrumStartV177A(c, G, dfd, dsg, isKick)) { rec(); continue; }
               landGripV177A(); rec(); continue;
@@ -5217,6 +5336,36 @@ window.__visionRadiusV96 = visionRadiusV96;
         // the sprite animation. The plant lasts briefly and then releases back to
         // normal path-finding, so it can shake a poor angle without becoming a
         // permanent sideline sprint.
+        /* v194 A THE BOUNCE: an outside run (C or D gap) whose inside is crowded — more live men inside him than
+         * outside — is bounced to the boundary (`bounceP194A`): he aims `bounceEdgePxV194A` off the paint and turns it
+         * up the sideline, which is where a strung-out run ends — out of bounds, pushed out, or run down at the paint.
+         * Read once a carry, past `bounceFromLxV194A`. Without it a run never got within 100 px of a sideline. */
+        if (oobOnV194A && kind === "run" && c.side === "off" && TU("bounceV194A", 1)) {
+          if (!c._bounceV194A && t >= (c._bounceReadV194A || 0) && c.lx > TU("bounceFromLxV194A", 6) && c.lx < TU("bounceToLxV194A", 90)) {
+            const wide = holeGapKey === "C" || holeGapKey === "D";
+            c._bounceReadV194A = t + TU("bounceReadMsV194A", 300);
+            const s = Math.sign(c.y - MIDY) || (holeY >= MIDY ? 1 : -1);
+            const live = S.def.filter(a => !(a.stunned && t < a.stunned) && t > (a.beaten || 0) && !(t < (a.held || 0)) && !(a.lb === "DL" && !a.shed)
+              && Math.abs(a.lx - c.lx) < TU("bounceLookPxV194A", 50));
+            const inside = live.filter(a => (a.y - c.y) * s < 0 && Math.abs(a.y - c.y) < 60).length, outside = live.filter(a => (a.y - c.y) * s >= 0).length;
+            // strung out, not sprung: there must be a contain man outside him too (`bounceContainV194A`) — a bounce into
+            // an empty perimeter was measured at +1.2 yards a carry; with the edge set he is run to the paint instead
+            const contain = !TU("bounceContainV194A", 1) || outside >= 1;
+            if (contain && (wide ? inside >= outside && inside > 0 : inside > outside + 1) && Math.random() < (wide ? TU("bounceP194A", .8) : TU("bounceInsideP194A", .15))) {
+              c._bounceV194A = { s, y: s < 0 ? SIDELINE_TOP + TU("bounceEdgePxV194A", 12) : SIDELINE_BOT - TU("bounceEdgePxV194A", 12), t0: t };
+              c._cut = true;   // he has committed to the boundary: no cutback back into the pursuit he is running from
+              emit("bounceV194A", { carrier: c.id, x: c.lx, y: c.y, toY: c._bounceV194A.y, inside, outside });
+            }
+          }
+          // he attacks the boundary at a steep angle (aiming `bounceOverPxV194A` past the paint) and turns it up the
+          // sideline once he is inside `bounceTurnPxV194A` of it
+          // a PITCH is a perimeter play: the back runs for the numbers before he turns it up (`sweepEdgePxV194A` off the paint)
+          if (pitchV194A && !c._bounceV194A && c.lx < TU("sweepTurnLxV194A", 8)) {
+            laneY = holeY < MIDY ? SIDELINE_TOP + TU("sweepEdgePxV194A", 50) : SIDELINE_BOT - TU("sweepEdgePxV194A", 50);
+            c._sweepV194A = t; }
+          if (c._bounceV194A) laneY = edgeV194A(c) < TU("bounceTurnPxV194A", 22) ? c._bounceV194A.y
+            : c._bounceV194A.y + c._bounceV194A.s * TU("bounceOverPxV194A", 40);
+        }
         if(c._jukeUntil&&t<c._jukeUntil)laneY=c._jukeY;
         const hole = kind==="run" && c.lx > -8 && c.lx < 24;
         // v16.1: springing clean into the open field. Once the back clears the
@@ -5245,7 +5394,23 @@ window.__visionRadiusV96 = visionRadiusV96;
           // defender leveraged upfield-inside with a closing gap and the wheels to
           // meet him — the runner takes what's there and steps out of bounds
           // instead of cutting back into the pursuit or dragging a pile.
-          if (nb && c._oobBail === undefined && Math.abs(c.y - MIDY) > TU("oobWideY", 116) && c.lx > 6
+          if (oobOnV194A) {
+            // v194 A THE STEP-OUT: inside the zone with a man closing on the inside, he takes it out — re-read every
+            // `oobReadMsV194A`; the clock widens the zone and drops the threat test when he needs it stopped
+            const want = oobWantV194A(c), edge = edgeV194A(c);
+            const zone = want === "out" ? TU("oobEdgeOutPxV194A", 110) : TU("oobEdgePxV194A", 80);
+            if (!c._oobBail && t >= (c._oobReadV194A || 0) && edge < zone && (c.side !== "off" || c.lx > 6)) {
+              c._oobReadV194A = t + TU("oobReadMsV194A", 330);
+              const threat = !!nb && (want === "out" ? nd < TU("oobGapOutV194A", 90)
+                : nd < TU("oobGapV194A", 75) && (nb.lx - c.lx) * dirSign > -6 && Math.abs(nb.y - MIDY) < Math.abs(c.y - MIDY) - 4);
+              if (threat) {
+                const p = want === "out" ? TU("oobBailOutPV194A", .92) : want === "in" ? TU("oobBailInPV194A", .06) : TU("oobBailPV194A", .85);
+                c._oobBail = Math.random() < p;
+                if (c._oobBail) { V194A.oob.bail++; c._oobWhyV194A = want || "angle"; emit("oobBailV194A", { carrier: c.id, x: c.lx, y: c.y, why: c._oobWhyV194A }); }
+              }
+            }
+          }
+          else if (nb && c._oobBail === undefined && Math.abs(c.y - MIDY) > TU("oobWideY", 116) && c.lx > 6
               && nd < TU("oobGap", 46) && nb.lx > c.lx - 4
               && Math.abs(nb.y - MIDY) < Math.abs(c.y - MIDY) - 8
               && nb.spd > c.spd - TU("oobSpdMargin", 5))
@@ -5285,7 +5450,9 @@ window.__visionRadiusV96 = visionRadiusV96;
         if (esc153) mv(c, c.lx - dirSign * TU("escapeBackPxV153A", 30), clampY(c.y + esc153.side * TU("escapeLatPxV153A", 22)), TU("escapePaceV153A", .75));
         else if (brk177 && t < brk177.backUntil) mv(c, c.lx - dirSign * TU("brkBackPxV177B", 40), clampY(c.y + brk177.side * TU("brkBackLatPxV177B", 24)), TU("brkBackPaceV177B", .8));
         else if (brk177) mv(c, c.lx + dirSign * TU("brkBounceFwdPxV177B", 8), clampY(c.y + brk177.side * TU("brkBounceLatPxV177B", 60)), TU("brkBouncePaceV177B", 1.05));
-        else mv(c, c.lx + dirSign*carrot9, laneY, gear9);
+        // v194 A: the sweep's angle to the perimeter (`sweepFwdKV194A` of the carrot upfield)
+        // and a man taking it out of bounds turns for the paint (`oobOutFwdKV194A` of the carrot upfield) — he does not run on along it
+        else mv(c, c.lx + dirSign*carrot9*(c._sweepV194A === t ? TU("sweepFwdKV194A", 1) : oobOnV194A && c._oobBail ? TU("oobOutFwdKV194A", .35) : 1), laneY, gear9);
         // A catch/return secured on the boundary is dead at that possession
         // point. It has no incoming carry segment this tick, so preserve the
         // exact spot explicitly instead of letting the runner turn back infield.
@@ -5656,9 +5823,13 @@ window.__visionRadiusV96 = visionRadiusV96;
         // forced him out, never a random slot across the field
         if (!done && c._sidelineCross) {
           const boundary=c._sidelineCross; c.lx=boundary.x; c.y=boundary.y;
-          const push = chasers.filter(a=>Math.hypot(a.lx-c.lx,a.y-c.y)<TU("tackleCreditPx",20))
+          const push = chasers.filter(a=>Math.hypot(a.lx-c.lx,a.y-c.y)<TU("tackleCreditPx",20) && t >= (a.beaten||0))   // v194 A: a man in his beaten window (stiff-armed) never takes the credit
             .sort((p,q)=>Math.hypot(p.lx-c.lx,p.y-c.y)-Math.hypot(q.lx-c.lx,q.y-c.y))[0];
-          emit("tackle",{tackler:push?push.id:null, carrier:c.id, x:boundary.x, y:boundary.y, oob:true, plane:"sideline"});
+          if (oobOnV194A) {   // v194 A: nobody had hold of him — an untouched step-out names no tackler (a push-out is booked by the grip)
+            V194A.oob.out++; V194A.oob.step++;
+            emit("tackle",{tackler:null, carrier:c.id, x:boundary.x, y:boundary.y, oob:true, plane:"sideline", stepOut:true, why:c._oobWhyV194A||null});
+          }
+          else emit("tackle",{tackler:push?push.id:null, carrier:c.id, x:boundary.x, y:boundary.y, oob:true, plane:"sideline"});
           done = true; if (isKick) out = { kind, yards: 0, ret: Math.round(((c._catchLx||0) - c.lx) / YD), spotLx: c.lx }; else if (!out) out = { kind, yards: Math.round(c.lx/YD) };
         }
         // v82: the return team forms in front of the returner
@@ -5841,10 +6012,22 @@ window.__visionRadiusV96 = visionRadiusV96;
        * after the whistle: the spot is already booked. */
       const BRAKE9 = { OL: ["brakeMassOL", .78], DL: ["brakeMassDL", .85], CB: ["brakeMassDB", 1.15], S: ["brakeMassDB", 1.15], WR: ["brakeMassDB", 1.15] };
       const brakeMassV109 = a => { const b = BRAKE9[a.lb]; return b ? TU(b[0], b[1]) : TU("brakeMassMid", 1); };
+      const tkOobV194A = oobOnV194A && downMan ? events.filter(e => e.type === "tackle").pop() : null;
+      const oobEndV194A = tkOobV194A && tkOobV194A.oob && tkOobV194A.plane === "sideline" ? { dir: tkOobV194A.y < MIDY ? -1 : 1, plane: tkOobV194A.y < MIDY ? SIDELINE_TOP : SIDELINE_BOT,
+        fwd: downMan.side === "off" ? 1 : -1, by: tkOobV194A.pushOut ? tkOobV194A.tackler : null } : null;
       for (let ct = 0; ct < 30; ct++) {
         t += TICK;
         const ease = Math.max(0, 1 - ct/22);
         S.all.forEach(a => {
+          // v194 A: a man who went out of bounds carries over the paint — the step-out runs off on his feet, a push-out
+          // pair goes over together — and pulls up `oobRunOutPxV194A` past the line (the whistle and the spot are booked)
+          if (oobEndV194A && (a === downMan || a.id === oobEndV194A.by)) {
+            const lim = oobEndV194A.plane + oobEndV194A.dir * TU("oobRunOutPxV194A", 16);
+            const s = (a === downMan ? 1 : .9) * TU("oobCoastPxV194A", 2.6) * Math.max(0, 1 - ct / 16);
+            a.y = oobEndV194A.dir < 0 ? Math.max(lim, a.y + oobEndV194A.dir * s) : Math.min(lim, a.y + oobEndV194A.dir * s);
+            a.lx += oobEndV194A.fwd * s * .35; a._dx = oobEndV194A.fwd * .35; a._dy = oobEndV194A.dir; a.vel = Math.max(0, (a.vel || 0) * .9);
+            return;
+          }
           if (a === downMan) {
             // v19: the tackled man is NOT frozen at the point of contact — he finishes
             // his motion into the whistle. A won collision DRAGS him forward a beat
@@ -6012,6 +6195,38 @@ window.__visionRadiusV96 = visionRadiusV96;
      * original dead-ball tackle goes, because the synthetic one below replaces it. */
     const events = log.events.filter(e => e !== dead)
       .map(e => e.t <= tCut ? e : Object.assign({}, e, { t: tCut, v139cut: true }));
+    /* v194 A OUT OF BOUNDS — a play the sim ended over the sideline and the book spotted shorter is still OUT OF
+     * BOUNDS: from the cut he carries on over the paint at the booked yard line (the pusher with him), and the whistle
+     * is where he crosses — the picture keeps the number AND the crossing. One too far in from the paint to get there
+     * in a stride or two (`oobCutMaxPxV194A`) becomes the in-field stop the cut shows, and loses its out-of-bounds flags,
+     * so the game (which reads this log) books what the broadcast draws. */
+    const oobV194A = dead && dead.oob && dead.plane === "sideline" && (dead.stepOut || dead.pushOut) && TU("v194A", 1);
+    if (oobV194A) {
+      const plane = dead.y < MIDY ? SIDELINE_TOP : SIDELINE_BOT, dir = dead.y < MIDY ? -1 : 1, lat = Math.abs(plane - cf.y);
+      if (lat <= TU("oobCutMaxPxV194A", 60)) {
+        const ms = Math.max(TICK, lat / TU("oobCutPxPerSV194A", 170) * 1000), n = Math.ceil(ms / TICK), over = TU("oobRunOutPxV194A", 16), nCoast = 8;
+        const pusher = dead.pushOut && dead.tackler ? actors.find(a => a.id === dead.tackler) : null;
+        actors.forEach(a => {
+          const l = a.frames[a.frames.length - 1]; if (!l) return;
+          const mover = a === ca || a === pusher;
+          for (let k = 1; k <= n + nCoast; k++) {
+            const t = tCut + k * TICK;
+            const dy = !mover ? 0 : k <= n ? dir * lat * (k / n) : dir * (lat + over * Math.min(1, (k - n) / nCoast));
+            a.frames.push({ t, x: l.x, y: Math.round((l.y + dy) * 10) / 10 });
+          }
+        });
+        const lb = ball[ball.length - 1];
+        for (let k = 1; k <= n + nCoast; k++) { const cfk = ca ? ca.frames[ca.frames.length - (n + nCoast) + k - 1] : null;
+          ball.push(Object.assign({}, lb, { t: tCut + k * TICK, x: cfk ? cfk.x : lb.x, y: cfk ? cfk.y : lb.y })); }
+        events.push(Object.assign({}, dead, { t: tCut + n * TICK, x: cf.x, y: plane, v139: true, v194A: "cut" }));
+        events.sort((a, b) => a.t - b.t);
+        return { duration: tCut + (n + nCoast) * TICK, events, ball, actors };
+      }
+      const D = Object.assign({}, dead); delete D.oob; delete D.plane; delete D.stepOut; delete D.pushOut;
+      events.push(Object.assign(D, { t: tCut, x: cf.x, y: cf.y, v139: true, v194A: "infield" }));
+      events.sort((a, b) => a.t - b.t);
+      return { duration: tCut, events, ball, actors };
+    }
     events.push(Object.assign({}, dead || { type: "tackle" },
       { t: tCut, x: cf.x, y: cf.y, v139: true }));
     events.sort((a, b) => a.t - b.t);
