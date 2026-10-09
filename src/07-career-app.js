@@ -11722,9 +11722,10 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
   function gearFlatToPctV193X(v, tier) {
     const f = Number(v) || 0;
     /* never past the cap: one piece cannot carry more than the whole slot-set may (an early-tier roll against a small sheet) */
-    /* `gearRefMinTierV193X` (0): price a piece from below that tier against that tier's sheet instead — the lever if early
-     * drops (a small sheet, so a big percent) crowd the late ones out */
-    const t = Math.max(tier | 0, TU("gearRefMinTierV193X", 0) | 0);
+    /* `gearRefMinTierV193X` (2, Middle School): a piece from below that tier is priced against that tier's sheet — a Pee
+     * Wee common's +3 is ~9%, not the 19% a Pee Wee sheet makes it, so early drops do not crowd the late ones out at the
+     * UFF (still +2 points at Pee Wee, ~+13 at the UFF). 0 = every tier against its own sheet. */
+    const t = Math.max(tier | 0, TU("gearRefMinTierV193X", 2) | 0);
     return f > 0 ? Math.min(gearPctCapV193X(), Math.max(1, Math.round((f / refAttrV193X(t, true)) * 100))) : 0;
   }
   /* once per piece, while on: the a_* modifiers become percents (the flat value kept for the kill switch) */

@@ -91,7 +91,7 @@ const B = await M(() => {
   // the fate roll: re-based on the calibration, whole
   for (const k in p.attrs) p.attrs[k] = 40
   window.__GRIDIRON_AUDIT__.startSeasonGames(); S.view = 'season'
-  r.fate = window.__fateAttrFor('explosive'); r.fateWant = X.pct(20)
+  r.fate = window.__fateAttrFor('explosive'); r.fateWant = X.pct(20); r.fateBase = p.attrs[r.fate.attr]   // startSeasonGames can move a stat off 40 (v193 N's personality flat, the season snapshot) — the roll reads the sheet as it stands
   return r
 })
 ok(B.growth.length === 12 && B.growth.every((g) => g.optPct && g.outPct), 'growth wheel: every option and outcome carries its flat roll as a whole percent', B.growth.map((g) => g.tag))
@@ -103,7 +103,7 @@ ok(pl.every((x) => /^[+−]\d+% [A-Za-z ]+ \([+−]\d+\)( · [+−]\d+% [A-Za-z 
 ok(B.story.length >= 20 && B.story.every((s) => s.ok) && B.story.every((s) => /^[+−]\d+% .+ \([+−]\d+\)$/.test(s.t)), 'story wheel: its buffs are percents, in points off the sheet', B.story.slice(0, 3).map((s) => s.t))
 ok(B.flipAttr.length === 1 && B.flipAttr[0].d === B.flipAttr[0].want && B.flipAttr[0].d >= 2, '"+1 Permanent" is a percent of the stat (150 → +' + (B.flipAttr[0] || {}).d + ')', B.flipAttr)
 ok(B.flipReps.bank.length === 1 && Math.abs(B.flipReps.bank[0] - B.flipReps.want) < 1e-6, 'Extra reps banks a percent of the stat', B.flipReps)
-ok(B.fate.pct === B.fateWant && Number.isInteger(B.fate.pct) && B.fate.amount === Math.max(1, Math.round(40 * B.fate.pct / 100)), 'the fate roll is re-based on the calibration, a whole percent', B.fate)
+ok(B.fate.pct === B.fateWant && Number.isInteger(B.fate.pct) && B.fate.amount === Math.max(1, Math.round(B.fateBase * B.fate.pct / 100)), 'the fate roll is re-based on the calibration, a whole percent', { fate: B.fate, base: B.fateBase })
 
 // the projection prices a click / backfire as the percent, per stat
 await setup()
