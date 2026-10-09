@@ -121,6 +121,8 @@ const d = after - before
 ok(!C2.open && C2.q === 0, 'Continue closes it and empties the queue', C2)
 ok(C2.chip === `${d > 0 ? '▲' : d < 0 ? '▼' : '='} ${Math.abs(d)} since last season`, 'the season screen\'s team card says the delta: "' + C2.chip + '"', C2.last)
 ok(C2.btn, 'the team card carries RECRUIT A PLAYER')
+const W2 = await M(() => { const r = document.querySelector('#screen #rmTeamRowV193AA_season'), b = document.querySelector('#screen #rmRecruitBtnV193AA_season'); return { right: r ? Math.round(r.getBoundingClientRect().right) : 999, bh: b ? Math.round(b.getBoundingClientRect().height) : 0, sw: document.scrollingElement.scrollWidth - innerWidth } })
+ok(W2.right <= 360 && W2.sw <= 0 && W2.bh >= 36, 'the row fits 360 px and the button is a 36 px target', W2)
 await M(() => document.querySelector('#teamQualV192B')?.scrollIntoView({ block: 'center' }))
 await page.screenshot({ path: '/tmp/v193AA-season.png' })
 await page.waitForTimeout(2200)
