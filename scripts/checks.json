@@ -41,7 +41,8 @@
     "v193Icheck",
     "v193Ocheck",
     "v193Vcheck",
-    "v193Xcheck"
+    "v193Xcheck",
+    "v193Ycheck"
    ]
   },
   "docs": {
@@ -322,7 +323,8 @@
     "walk",
     "v193Ccheck",
     "v193Mcheck",
-    "v193Vcheck"
+    "v193Vcheck",
+    "v193Ycheck"
    ],
    "look": [
     "`node scripts/v146Eshot.mjs`"
@@ -1634,7 +1636,8 @@
     "palettecheck",
     "numsewcheck",
     "v177FGHcheck",
-    "v193Qcheck"
+    "v193Qcheck",
+    "v193Ycheck"
    ]
   },
   "audio": {
@@ -5240,6 +5243,21 @@
    "needsServer": true,
    "pureNode": false,
    "flaky": []
+  },
+  "v193Ycheck": {
+   "file": "scripts/v193Ycheck.mjs",
+   "desc": "v193 Y — the emoji become art: ONE renderer (window.ribArtV193Y, a <symbol> sprite tinted by CSS custom properties); every one of the ~178 prestige-tree nodes in every branch maps to a drawn concept straight from NODE_ART_V193Y and renders an <svg><use> that resolves to a defined symbol, 30-40 px, in its branch's metal, the emoji kept as screen-reader text; QUICK BUY tiles small (14-18 px, fine detail off); the hub card, dock, medal chip and chooser cards (in their rarity), the season cards, Settings rows and headers, the Locker slots and a piece in its rarity, the career-end receipt draw art; TU v193Y 0 = the emoji everywhere; nothing overflows at 360 px; no page errors",
+   "areas": [
+    "shell",
+    "cosmetics",
+    "smoke"
+   ],
+   "runtimeSec": 55,
+   "slow": false,
+   "needsServer": true,
+   "pureNode": false,
+   "flaky": [],
+   "loadSensitive": true
   },
   "v193Xcheck": {
    "file": "scripts/v193Xcheck.mjs",

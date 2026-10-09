@@ -26842,7 +26842,7 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
   let branchTab = "physical";
   /* ===== v193 V ICONS IN THE MENU'S STYLE (07's share: the tree's branch tabs) =====
    * each branch tab wears its glyph from the menu-style icon set (src/24-bottom-nav.js `ribIconV193V`) in the
-   * branch's own colour as the metal; the node icons in the lists stay emoji. Before 24 has loaded (the boot's
+   * branch's own colour as the metal; the node icons in the lists are v193 Y's (`nodeArtV193Y`). Before 24 has loaded (the boot's
    * first draw) and under `TU("v193V", 0)` it is the emoji. */
   function branchIconV193V(key, branch) {
     try {

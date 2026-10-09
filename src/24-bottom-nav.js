@@ -16,7 +16,7 @@
  * (`nav:hub`), a section key (`sec:now`), a branch key (`branch:physical`) or the emoji itself (the spray's
  * pages). An unknown name, the kill switch `TU("v193V", 0)` or an image that fails to load all give the emoji
  * back (the error listener swaps a broken <img> for `<span class="ric-fb-v193v">emoji</span>`). The node icons
- * inside the tree's lists stay emoji (~150 of them). `window.__V193V`; scripts/v193Vcheck.mjs. */
+ * inside the tree's lists are v193 Y's (below). `window.__V193V`; scripts/v193Vcheck.mjs. */
 (function () {
   "use strict";
   function on() { try { var t = window.RIB_TUNE; return !(t && t.v193V !== undefined && !t.v193V) } catch (e) { return true } }
