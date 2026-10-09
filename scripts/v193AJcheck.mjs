@@ -79,7 +79,11 @@ const phys = (tune) => page.evaluate(({ G, tune }) => {
         const v0 = Math.hypot(fr[i].x - fr[i - 1].x, fr[i].y - fr[i - 1].y) / Math.max(1, fr[i].t - fr[i - 1].t), v1 = Math.hypot(fr[i + 1].x - fr[i].x, fr[i + 1].y - fr[i].y) / Math.max(1, fr[i + 1].t - fr[i].t)
         ticks++; if (v0 > .1 && v1 < .01 && a.label !== 'OL' && a.label !== 'DL') stops++ } }
     const thr = ev.find(e => e.type === 'throw' && e.dur), end = thr && ev.find(e => e.t > thr.t && /^(catch|incomplete|pick|swat)$/.test(e.type))
-    if (thr && end && arcs.length < 60) { const seg = (lg.ball || []).filter(b => b.t >= thr.t && b.t <= end.t && b.h > 0).map(b => [b.t, b.h]); if (seg.length > 6) arcs.push(fit(seg)) }
+    // each leg of the flight (up to the apex, down from it) is fitted on its own: under gravity both are parabolas, whatever
+    // drag does to where the apex falls; v109's quarter-sines are not
+    if (thr && end && arcs.length < 60) { const seg = (lg.ball || []).filter(b => b.t >= thr.t && b.t <= end.t && b.h > 0).map(b => [b.t, b.h])
+      if (seg.length > 10) { let im = 0; seg.forEach((p, i) => { if (p[1] > seg[im][1]) im = i })
+        const up = seg.slice(0, im + 1), dn = seg.slice(im); if (up.length > 4 && dn.length > 4) arcs.push(Math.max(fit(up), fit(dn))) } }
     if (thr && thr.apex > 8 && thr.dur > 200) { const k = thr.style || 'touch'; (apexK[k] = apexK[k] || []).push(thr.apex / (thr.dur * thr.dur) * 1e4) }
   }
   arcs.sort((a, b) => a - b)
@@ -98,7 +102,7 @@ const lossK = w => { const r = TT.filter(q => (w ? q[2] >= .95 : q[2] <= .62) &&
 ok(TT.length >= 50 && corr > .8 && lossK(1) > lossK(0), 'a cut costs speed in proportion to its angle, and more for a heavier man', `${TT.length} cuts, corr(angle, speed lost) ${corr.toFixed(2)}; lost per unit of turn heavy ${(lossK(1) || 0).toFixed(3)} vs light ${(lossK(0) || 0).toFixed(3)}`)
 ok(PHD.P && PHD.P.moves > 1000 && PHD.P.maxDrop <= 1.001, 'no dead stops (decelV193): the ground a man covers obeys the same brake — he runs through a spot he cannot stop on', PHD.P && `${PHD.P.moves} bounded strides, ${PHD.P.carried} carried through, worst ${PHD.P.maxDrop} of the brake; free-running dead stops ${PHD.stopsPer1k}/1k ticks vs ${PH0.stopsPer1k} OFF (off by default: it moved yards per carry, see docs/CHANGELOG.md)`)
 ok(PH1.P && PH1.P.falls > 0 && PH1.P.fwdPx > 0 && !(PH0.P && PH0.P.falls), 'a carrier who was not gripped falls forward on his momentum (ON only)', PH1.P && `${PH1.P.falls} falls, ${(PH1.P.fwdPx / Math.max(1, PH1.P.falls)).toFixed(2)} px mean, max ${PH1.P.maxPx} px`)
-ok(PH1.arcN > 10 && PH1.arcP50 <= .035 && PH1.arcP50 < PH0.arcP50, 'a pass climbs and falls on a parabola in time', `quadratic-fit residual p50 ${PH1.arcP50} of the apex ON vs ${PH0.arcP50} OFF over ${PH1.arcN} throws`)
+ok(PH1.arcN > 10 && PH1.arcP50 <= .03 && PH1.arcP50 < PH0.arcP50, 'a pass climbs and falls on a parabola in time (each leg)', `quadratic-fit residual p50 ${PH1.arcP50} of the apex ON vs ${PH0.arcP50} OFF over ${PH1.arcN} throws`)
 const kv = Object.values(PH1.apexK), kv0 = Object.values(PH0.apexK)
 const spread = a => a.length > 1 ? (Math.max(...a) - Math.min(...a)) / Math.min(...a) : 0
 ok(kv.length >= 2 && spread(kv) < .12 && spread(kv) < spread(kv0), 'one gravity: apex / hang² is the same for every style of throw', `ON ${JSON.stringify(PH1.apexK)} (spread ${spread(kv).toFixed(2)}) vs OFF ${JSON.stringify(PH0.apexK)} (spread ${spread(kv0).toFixed(2)})`)
