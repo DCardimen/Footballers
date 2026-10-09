@@ -4488,16 +4488,20 @@ class Ot extends mt.Scene {
   // the turf thrown up by a collision: chunky clods on short arcs and a puff of dust, all sized by the hit
   dirtBurstV193AG(x, y, ang, s) {
     if (REDUCED_MOTION || !this.add || !this.tweens || !TU("dirtBurstV193AG", 1)) return 0;
+    /* its own seeded stream (a hash of the spot and a running count), never rnd(): the sim draws from that
+     * stream in this same page, so a burst must not shift a later play's rolls (CLAUDE.md: randomness changes sample paths) */
+    let st = ((Math.round(x * 131 + y * 977) ^ ((this._burstNV193AG = (this._burstNV193AG | 0) + 1) * 2654435761)) >>> 0) || 1;
+    const rnd = () => { st = (st + 0x6D2B79F5) | 0; let t = Math.imul(st ^ (st >>> 15), 1 | st); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
     const n = Math.max(0, Math.round(TU("dirtClodsMinV193AG", 2) + TU("dirtClodsMaxV193AG", 8) * s));
     const p0 = PJ(x, y), px = Math.max(TU("dirtPxMinV193AG", 2), Math.round(TU("dirtPxV193AG", 2) * Math.max(0.5, p0.s)));
     const cols = [0x5a4326, 0x6b5232, 0x4a3720, 0x6f9c45, 0x8fbf5a];
     for (let i = 0; i < n; i++) {
-      const spread = (i / Math.max(1, n - 1) - 0.5) * 2.2, a = ang + spread + (Math.random() - 0.5) * 0.4;
-      const dist = (6 + Math.random() * 10) * (0.6 + s), q = PJ(x + Math.cos(a) * dist, y + Math.sin(a) * dist);
-      const sz = px * (Math.random() < 0.3 ? 2 : 1) * (1 + Math.round(s));
+      const spread = (i / Math.max(1, n - 1) - 0.5) * 2.2, a = ang + spread + (rnd() - 0.5) * 0.4;
+      const dist = (6 + rnd() * 10) * (0.6 + s), q = PJ(x + Math.cos(a) * dist, y + Math.sin(a) * dist);
+      const sz = px * (rnd() < 0.3 ? 2 : 1) * (1 + Math.round(s));
       try {
         const c = this.add.rectangle(Math.round(p0.x), Math.round(p0.y), sz, sz, cols[i % cols.length]).setDepth(TU("dirtBurstDepthV193AG", 3.52));
-        const up = (8 + Math.random() * 14) * (0.6 + s) * p0.s, dur = 380 + Math.random() * 260;
+        const up = (8 + rnd() * 14) * (0.6 + s) * p0.s, dur = 380 + rnd() * 260;
         this.tweens.addCounter({ from: 0, to: 1, duration: dur, onUpdate: (tw) => { const k = tw.getValue();
             c.setPosition(Math.round(p0.x + (q.x - p0.x) * k), Math.round(p0.y + (q.y - p0.y) * k - up * 4 * k * (1 - k))); },
           onComplete: () => { try { c.destroy(); } catch (e) {} } });
@@ -4507,8 +4511,8 @@ class Ot extends mt.Scene {
     const nd = Math.round(1 + 3 * s);
     for (let i = 0; i < nd; i++) {
       try {
-        const sz = px * (2 + Math.round(s * 2)), d0 = this.add.rectangle(Math.round(p0.x + (Math.random() - 0.5) * 8 * p0.s), Math.round(p0.y + 4 * p0.s), sz, sz, 0xc8b48a, 0.55).setDepth(TU("dirtBurstDepthV193AG", 3.52));
-        this.tweens.add({ targets: d0, y: d0.y - (6 + Math.random() * 8) * p0.s, x: d0.x + (Math.random() - 0.5) * 10 * p0.s, alpha: 0, duration: 520 + Math.random() * 300, onComplete: () => { try { d0.destroy(); } catch (e) {} } });
+        const sz = px * (2 + Math.round(s * 2)), d0 = this.add.rectangle(Math.round(p0.x + (rnd() - 0.5) * 8 * p0.s), Math.round(p0.y + 4 * p0.s), sz, sz, 0xc8b48a, 0.55).setDepth(TU("dirtBurstDepthV193AG", 3.52));
+        this.tweens.add({ targets: d0, y: d0.y - (6 + rnd() * 8) * p0.s, x: d0.x + (rnd() - 0.5) * 10 * p0.s, alpha: 0, duration: 520 + rnd() * 300, onComplete: () => { try { d0.destroy(); } catch (e) {} } });
       } catch (e) {}
     }
     const V = (window.__V193AG = window.__V193AG || {}); V.bursts = (V.bursts || 0) + 1; V.lastBurst = n;
