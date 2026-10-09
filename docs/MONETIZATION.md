@@ -89,6 +89,11 @@ MEMBER LOOKS, SUPER LOOKS`; kill switch TU `v156Ccos`):
   never live in the save.
 - **Free, waaay later**: Nebula Fade + The Void (Legacy medal 300), Golden Laurel (3 UFF titles), Crown of the League
   + Phoenix (5 UFF titles), The Family Name + Holy Light (the fifth generation).
+- **Team Mascots** (v193 AI, `mascot_team` in the MASCOTS slot, legendary, `source:"member"`): every crest's dancing
+  mascot on both benches of the broadcast and beside his crest on the season hero. The same door as every member look:
+  store ON + `member` / `founder` → owned and equippable; store OFF → listed "🔒 Membership", never owned, never drawn in
+  the game (the Locker tile still plays it). A new look — nothing free became paid. `TU("mascotPreviewV193AI", 1)` is the
+  owner's / the checks' preview, `TU("v193AI", 0)` removes them. `src/35-mascots.js`, `scripts/v193AIcheck.mjs`.
 - **Super looks** (`source:"super"`): the season ladder's super challenges (docs/SEASONS.md §8) — Angel Wings among
   them. Never sold, never on the pass.
 
