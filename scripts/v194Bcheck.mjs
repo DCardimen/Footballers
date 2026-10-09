@@ -121,8 +121,11 @@ const PAY = { td: { event: 'pass', yards: 30, scored: true, offense: 'us', desc:
   })
   ok(pure.calls === 0 && pure.s1 === pure.s2, 'cosmetic only: 300 mascot frames (a celebration, a meltdown) draw no Math.random, and a seeded sim is unchanged around them', pure)
   // the kill switch: v193 AI's two benches
-  const kill = await E(p, async () => { window.RIB_TUNE.v194B = 0; await new Promise((r) => setTimeout(r, 2500)); const a = window.RIB_MASCOTS.live().filter((m) => m.alive).map((m) => m.team + (m.home ? '*' : ''))
-    window.RIB_TUNE.v194B = 1; await new Promise((r) => setTimeout(r, 2000)); return { off: a, back: window.RIB_MASCOTS.live().filter((m) => m.alive).map((m) => m.team + (m.home ? '*' : '')) } })
+  // (polled, not a fixed wait: the second bench's sheet is drawn a slice a frame, slow under load)
+  const kill = await E(p, async () => { const L = () => window.RIB_MASCOTS.live().filter((m) => m.alive).map((m) => m.team + (m.home ? '*' : ''))
+    const until = async (f) => { for (let i = 0; i < 60 && !f(L()); i++) await new Promise((r) => setTimeout(r, 250)); return L() }
+    window.RIB_TUNE.v194B = 0; const a = await until((x) => x.length === 2)
+    window.RIB_TUNE.v194B = 1; const b = await until((x) => x.length === 1 && x[0] === 'off*'); return { off: a, back: b } })
   ok(kill.off.length === 2 && kill.back.length === 1 && kill.back[0] === 'off*', 'TU v194B 0: v193 AI\'s two benches come back; on again, only the home mascot', kill)
   await context.close()
 }
