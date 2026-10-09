@@ -44,7 +44,8 @@
     "v193Xcheck",
     "v193Ycheck",
     "v193Zcheck",
-    "v193AAcheck"
+    "v193AAcheck",
+    "v193AEcheck"
    ]
   },
   "docs": {
@@ -390,7 +391,8 @@
     "capcheck",
     "v193Ncheck",
     "v193Zcheck",
-    "v193ABcheck"
+    "v193ABcheck",
+    "v193AEcheck"
    ]
   },
   "sim-keys": {
@@ -640,7 +642,8 @@
     "declarecheck",
     "walk",
     "v156Acheck",
-    "v193ABcheck"
+    "v193ABcheck",
+    "v193AEcheck"
    ]
   },
   "grow": {
@@ -5338,6 +5341,19 @@
     "statinfo"
    ],
    "runtimeSec": 150,
+   "slow": false,
+   "needsServer": true,
+   "pureNode": false,
+   "flaky": []
+  },
+  "v193AEcheck": {
+   "file": "scripts/v193AEcheck.mjs",
+   "desc": "v193 AE — the ⏭ season sim picks every card: the REAL season-dock ⏭ sims the regular season; every simmed game but the last has its card picked for him (best by rarity, marked auto, in the season's card log) before the summary card opens; the card says how many; Continue picks the last (one card a game, every game); a summary card that expires unseen picks its weeks first; no overflow at 360 px; v193AE 0 restores the old one-card behaviour.",
+   "areas": [
+    "goals",
+    "statinfo"
+   ],
+   "runtimeSec": 40,
    "slow": false,
    "needsServer": true,
    "pureNode": false,

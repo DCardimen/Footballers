@@ -41078,6 +41078,7 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
       if (wantsCardV178(e, w)) {
         /* v178 K: a tapped sim gets the scorecard; its picks wait for the card */
         V178.card = V178.card || { weeks: [], at: Date.now() };
+        batchPickV193AE(e, w); /* v193 AE: a batch's earlier games pick their cards now — only the last waits for the reel */
         V178.card.weeks.push(w);
       } else {
         autoFlipV178(e, w);
@@ -42012,10 +42013,33 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
     return `<div id="pgHeroV186" style="margin:8px 0 6px"><div class="stat-sec-label" style="margin:0 0 5px">YOUR GAME <small style="color:var(--chalk-dim);letter-spacing:0">${escHtml(String(p.pos))} · game ${n} of ${G} · on pace = the full season at this rate</small></div><div style="display:flex;flex-wrap:wrap;gap:6px">${tiles}</div></div>`;
   }
   window.__V189 = Object.assign(window.__V189 || {}, { seasonBox: (p, st, w) => seasonBoxV189(p || (state && state.player), st, w), hero: (p, st, b, n) => heroHtmlV189(p, st, b, n) });
+  /* ===== v193 AE THE SEASON SIM PICKS EVERY CARD =====
+   * The owner: "Not sure the season sim is picking up random cards each game." It was not: the ⏭ season sim (`skipV178`
+   * sets a batch `V178.want`) parks every simmed week on ONE summary card, whose reel shows — and whose Continue
+   * (`closeCardV178`) auto-picks — only the LAST week's deck; a 12-game sim dealt 12 cards and applied 1. Now each earlier
+   * week of a batch picks its card (`autoFlipV178`: the best by rarity, marked `auto`, in the season's card log) the
+   * moment the next game is paid — in game order, so a Hot Streak counts down over the games after it and a 2× POINTS
+   * card doubles the paychecks that follow it. The last week still waits for the reel. A summary card that expires unseen
+   * picks its weeks before it is dropped. The card's head says how many were picked for him. Kill switch `v193AE` 0. */
+  function batchPickV193AE(e, w) {
+    if (!TU("v193AE", 1) || !V178.card) return;
+    for (const x of V178.card.weeks) if (x && x !== w && x.payV178 && !x.payV178.skipped) autoFlipV178(e, x);
+  }
+  function batchDropV193AE(C) {
+    const e = state && state.player;
+    if (!TU("v193AE", 1) || !e || !C) return;
+    for (const x of C.weeks || []) if (x && x.payV178 && !x.payV178.skipped) autoFlipV178(e, x);
+  }
+  function batchLineV193AE(ws) {
+    if (!TU("v193AE", 1) || ws.length < 2) return "";
+    const n = ws.slice(0, -1).reduce((a, x) => a + ((x.payV178.flip && x.payV178.flip.picked.filter(k => k.auto).length) || 0), 0);
+    return n ? `<div class="small center" id="batchCardsV193AE" style="color:var(--chalk-dim);margin:0 0 4px">🃏 ${n} card${n === 1 ? "" : "s"} picked for you in the simmed games · this game's card is yours to pick</div>` : "";
+  }
+  window.__V193AE = { pick: batchPickV193AE, drop: batchDropV193AE };
   function simCardV178() {
     const C = V178.card;
     if (!C || !on178("reel")) return false;
-    if (Date.now() - C.at > 90000) return (V178.card = null), false; /* a card nobody got to see in time is dropped */
+    if (Date.now() - C.at > 90000) return batchDropV193AE(C), (V178.card = null), false; /* a card nobody got to see in time is dropped (v193 AE: its cards are picked for him first) */
     if (state && state.view === "live") return false;
     if (document.getElementById("pgOverlayV13") || document.getElementById("simCardV178") || document.querySelector(".life-event-overlay-v12,#growthV42,#pregameV1513")) return false;
     if (V178.batch) return false;
@@ -42037,7 +42061,7 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
         : `<div class="decision-kicker">${w.playoff ? escHtml(w.round || "PLAYOFFS") : "WEEK " + (wk + 1)} FINAL · ${escHtml(String(w.opp || "OPPONENT"))} · SIMMED</div><div class="decision-title">${TU("v168season", 1) ? myCrestV168(e, 34) : ""}${w.won ? "✅ WIN" : "❌ LOSS"} · ${w.us} – ${w.them}${TU("v168season", 1) ? crestV168(String(w.opp || "").replace(/^.*'s /, ""), 34) : ""}</div><div class="small center" style="color:var(--chalk-dim);margin:2px 0 4px">Game grade ${Math.round(w.perf || 0)}${w.gameGrade ? " · " + escHtml(w.gameGrade) : ""}</div>`;
     document.body.insertAdjacentHTML(
       "beforeend",
-      `<div class="decision-overlay" id="simCardV178"><div class="decision-panel" style="border-color:var(--gold)">${head}${simStatsV189(e, w)}${reelHtmlV178(e, w)}${simRecapV193W(e, w) /* v193 W: the folded box */}<div class="small center watch-hint-v178" style="margin-top:8px;color:var(--cyan)">📺 Watch next week live: ×${TU("watchPayV178", 2)} points, ×2 reps, two card picks</div><button class="btn" style="margin-top:12px" onclick="window.__V178.closeCard()">Continue ›</button></div></div>`
+      `<div class="decision-overlay" id="simCardV178"><div class="decision-panel" style="border-color:var(--gold)">${head}${batchLineV193AE(ws) /* v193 AE */}${simStatsV189(e, w)}${reelHtmlV178(e, w)}${simRecapV193W(e, w) /* v193 W: the folded box */}<div class="small center watch-hint-v178" style="margin-top:8px;color:var(--cyan)">📺 Watch next week live: ×${TU("watchPayV178", 2)} points, ×2 reps, two card picks</div><button class="btn" style="margin-top:12px" onclick="window.__V178.closeCard()">Continue ›</button></div></div>`
     );
     requestAnimationFrame(() => {
       try {
