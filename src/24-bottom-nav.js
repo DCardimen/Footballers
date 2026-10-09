@@ -433,7 +433,7 @@
     "⚡": "bolt", "\u{1F40E}": "horseshoe", "\u{1F98D}": "fist", "\u{1F9EA}": "flask", "\u{1F9B8}": "mask", "\u{1F998}": "spring", "⚓": "anchor", "\u{1F9CA}": "crystal",
     "\u{1F50B}": "battery", "\u{1F6DE}": "wheel",
     // Mental
-    "\u{1F9D8}": "lotus", "\u{1FA9E}": "mirror", "⭐": "star", "\u{1F4CB}": "clipboard", "\u{1F39E}️": "film", "\u{1F39E}": "film", "\u{1F525}": "flame", "\u{1F9E4}": "glove",
+    "\u{1F9D8}": "lotus", "\u{1FA9E}": "mirror", "\u{1F4EF}": "megaphone" /* v193 AH: Pied Piper */, "⭐": "star", "\u{1F4CB}": "clipboard", "\u{1F39E}️": "film", "\u{1F39E}": "film", "\u{1F525}": "flame", "\u{1F9E4}": "glove",
     "\u{1F3AF}": "target", "\u{1F6E1}️": "shield", "\u{1F6E1}": "shield", "\u{1F4DA}": "book", "\u{1F9D3}": "chevron", "\u{1F31F}": "nova", "\u{1F9E9}": "puzzle", "♟️": "pawn", "♟": "pawn",
     "\u{1F976}": "crystal", "\u{1F3AD}": "mask", "\u{1F5E3}️": "speech", "\u{1F5E3}": "speech", "\u{1F624}": "fist", "\u{1F441}️": "eye", "\u{1F441}": "eye",
     // Career

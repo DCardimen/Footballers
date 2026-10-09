@@ -259,6 +259,8 @@
       if(ch.tox>0.005)  out.push({up:false,t:'▼ TOXIC lean '+ch.tox.toFixed(2)+(ch.tox>=.35?' (teammates may quit)':'')});
       if(ch.team>0.005) out.push({up:true, t:'▲ TEAM lean '+ch.team.toFixed(2)+(ch.team>=.35?' (a teammate may improve)':'')});
     }
+    // v193 AH: the TOXIC trade-off (grows faster, arrives as one of a new team's best; more teammates walk) and the followers
+    try{ const AH=window.__V193AH; if(AH&&AH.on()) AH.personaLines(pn).forEach(x=>out.push(x)); }catch(e){}
     if(masteryLvl()>0)  out.push({up:true, t:'🧘 Sports Psychologist L'+masteryLvl()+': drawbacks −'+Math.round((1-softMult())*100)+'%'});
     return out;
   }
