@@ -3178,7 +3178,13 @@ class Ot extends mt.Scene {
       let ballX = bpp.x, ballY = bpp.y - airY, ballDepth = flight ? 20 : loose ? 30 : 9;
       let baseSX = (flight ? 0.58 : loose ? 0.52 : 0.40) * airSw * bpp.s;
       let baseSY = (flight ? 0.52 : loose ? 0.45 : 0.36) * airSw * bpp.s;
-      if (mode === "bounce") {
+      if (mode === "bounce" && this.ajOnV193() && TU("v193AJphys", 1)) {
+        /* v193 AJ PHYSICS: an incompletion hits the turf and bounces (a swat first deflects it: back the way it came, popped up) */
+        const age = Math.max(0, P.t - (P.ballReleaseAt || P.t)), sw = !!P._ajSwatV193, seed = String(P.__ballTokenV1514 || P.ballReleaseAt || 1).split("").reduce((h, ch) => (h * 31 + ch.charCodeAt(0)) % 9973, 7);
+        const R = this.ajBounceV193("inc:" + seed + ":" + Math.round(P.ballReleaseAt || 0), seed, sw ? { z0: TU("ajSwatZ0V193", 12), vz0: TU("ajSwatPopV193", .12), vx0: -TU("ajSwatBackV193", .05) } : { z0: TU("ajIncZ0V193", 6), vz0: -TU("ajIncVinV193", .05), vx0: TU("ajIncSkipV193", .045) });
+        const B = this.ajBounceAtV193(R, age);
+        ballX += (P.ballBounceDir || 1) * B.x * bpp.s; ballY -= B.z * bpp.s;
+      } else if (mode === "bounce") {
         const age = Math.max(0, P.t - (P.ballReleaseAt || P.t)), decay = Math.max(0, 1 - age / 720);
         ballX += (P.ballBounceDir || 1) * Math.min(18, age * 0.024) * bpp.s;
         ballY -= Math.abs(Math.sin(age / 92)) * 13 * decay * bpp.s;
@@ -3188,6 +3194,12 @@ class Ot extends mt.Scene {
        * this is the bounce on top of it: an oval tumbling end over end with a jittered hop, phased
        * from the play's token so a replay bounces the same way, dying as the ball settles. Open
        * from `fumble`/`looseBall` until `recover`; the `loose` mode alone used to ride the straight path. */
+      else if (loose && P.__looseV109 && this.ajOnV193() && TU("v193AJphys", 1)) {   // v193 AJ PHYSICS: a prolate ball's bounces
+        const Lb = P.__looseV109, age = Math.max(0, P.t - Lb.t0), R = this.ajBounceV193("loose:" + Lb.seed + ":" + Lb.t0, Lb.seed, { z0: TU("ajLooseZ0V193", 7), vz0: TU("ajLooseVz0V193", .07), vx0: 0 }), B = this.ajBounceAtV193(R, age);
+        ballY -= B.z * bpp.s; ballX += B.x * bpp.s;
+        const sq = B.rest ? 0 : Math.abs(Math.sin(age * TU("ajBallTumbleV193", .02) + Lb.seed)); baseSX *= 1 + .32 * sq; baseSY *= 1 - .22 * sq;
+        P._looseDrawV109 = (P._looseDrawV109 || 0) + 1;
+      }
       else if (loose && P.__looseV109) {
         const Lb = P.__looseV109, age = Math.max(0, P.t - Lb.t0), decay = Math.max(0, 1 - age / TU("looseBounceMs", 520));
         const ph = age / TU("looseHopMs", 78) + Lb.seed, hop = Math.abs(Math.sin(ph)), sq = Math.abs(Math.cos(ph * .5 + Lb.seed));
@@ -5468,7 +5480,7 @@ class Ot extends mt.Scene {
         this.puffFx(e.x, e.y, 1); this.popText(e.x, e.y - 20, "JAMMED", "#93a0b1", 11); break; }
       case "rollout": this.popText(e.x, e.y - 22, "ROLLOUT", "#8ec3ee", 12); break;
       case "stepUp": this.popText(e.x, e.y - 22, "STEPS UP", "#bfe3ae", 11); break;
-      case "swat": {
+      case "swat": { P._ajSwatV193 = true;   // v193 AJ PHYSICS: the incompletion that follows is a deflection
         /* ===== v109 A PASS BREAK-UP IS CONTACT ===== the arm goes THROUGH the hands: both men face the
          * ball, the defender takes the grab pose ON the catch point for swatHoldMs (pulled onto it the
          * way the receiver is on an incompletion, from the side `from` says the arm came from), and
@@ -6850,7 +6862,7 @@ class Ot extends mt.Scene {
   ajAnchorV193(m, kf, o) {
     if (!m || !this.ajOnV193()) return null;
     const A = Object.assign({ kf, t0: m.tms, mode: "abs", hold: 0, vmax: (m._ajSp || 140) / 1000 * TU("ajCatchUpKV193", 1.35), lagCap: TU("ajLagCapPxV193", 46), rel: false, ox: 0, oy: 0 }, o || {});
-    m._ajAnc = A; m._ajReach = null; this.hookAJV193().anchors++;
+    m._ajAnc = A; if (A.mode !== "add") m._ajReach = null; this.hookAJV193().anchors++;
     return A;
   }
   ajAnchorAtV193(A, age) {
@@ -6884,7 +6896,7 @@ class Ot extends mt.Scene {
       if (A.rel) { const d = Math.hypot(A.ox, A.oy), step = A.vmax * Math.max(1, A.forceRel ? 1.6 : 1) * dt;
         if (d <= step + .2) m._ajAnc = null;
         else { A.ox -= A.ox / d * step; A.oy -= A.oy / d * step; x = sx + A.ox; y = sy + A.oy; } }
-      return [x, y];
+      if (A.mode !== "add") return [x, y];
     }
     /* THE REACH: closes the drawn gap to an arm's length while the lunge lands */
     const R = m._ajReach;
@@ -6908,7 +6920,7 @@ class Ot extends mt.Scene {
     if (!this.ajOnV193() || !P || !P.script) return;
     const S = P.script, ev = S.events || [];
     if (this._ajP !== P) {
-      this._ajP = P; P._ajSeen = {};
+      this._ajP = P; P._ajSeen = {}; this._ajBnc = {};
       this.markers.forEach((m, k) => { this.ajResetV193(m); const a = S.actors[k]; if (a && m) { m._ajSide = a.side; m._ajLabel = a.label; m._ajSp = a.sp || 140; } });
       const sn = ev.find(q => q.type === "snap"); P._ajSnapT = sn ? sn.t : 0;
     }
@@ -7256,6 +7268,82 @@ class Ot extends mt.Scene {
     const lean = drive > 0 ? TU("ajPushLeanV193", .18) : drive < 0 ? -TU("ajDrivenLeanV193", .1) : .09;
     m._lean = toward * lean * (.8 + .2 * punch); m._leanSrc = "shove";
     m._ajDrive = drive;
+  }
+  /* ===== v193 AJ PHYSICS: BODIES IN THE AIR =====
+   * Every hop in the broadcast — a catch, a high point, a lunge, a hurdle, a whiff, a slide — was a sin() hump of a height
+   * somebody typed over a duration somebody else typed. With `v193AJphys` on, a hop is a launch under ONE gravity (the same
+   * `launchG` v112's thrown men fly on): the height he was given is his launch speed (vz = √(2gh)), the hang is 2vz/g, and
+   * the lift is the parabola vz·t − ½gt², so a long hang is a high one and nobody floats. The hang may stretch at most
+   * `ajHopStretchV193` over the time the old path allowed, so every timer that lands him still lands him. */
+  hopLiftV193(m, convert) {
+    if (!m._launchUntil || m.tms >= m._launchUntil) return 0;
+    const t0 = m._launchT0 != null ? m._launchT0 : m.tms;
+    if (m.tms < t0) return 0;
+    const phys = this.ajOnV193() && TU("v193AJphys", 1);
+    if (phys && convert && m._ajHopKey !== t0 + "/" + m._launchUntil + "/" + m._launchH) {
+      const g = Math.max(1e-5, TU("ajGravV193", .001)), D = Math.max(1, m._launchUntil - t0), h = Math.max(.3, m._launchH || 11);
+      const D2 = Math.min(Math.sqrt(8 * h / g), D * TU("ajHopStretchV193", 1.15));
+      m._launchUntil = t0 + D2; m._launchH = g * D2 * D2 / 8; m._ajHopKey = t0 + "/" + m._launchUntil + "/" + m._launchH;
+      const H = this.hookAJV193(); if (H.arcs.length < 40) { m._ajArc = { D: Math.round(D2), h: +m._launchH.toFixed(2), was: { D: Math.round(D), h: +h.toFixed(2) }, s: [] }; H.arcs.push(m._ajArc); } else m._ajArc = null;
+      if (m.tms >= m._launchUntil) return 0;
+    }
+    const kk = Math.max(0, Math.min(1, (m.tms - t0) / Math.max(1, m._launchUntil - t0)));
+    const lift = (phys ? 4 * kk * (1 - kk) : Math.sin(kk * Math.PI)) * (m._launchH || 11);
+    if (convert && m._ajArc && m._ajArc.s.length < 24 && m._ajHopKey === t0 + "/" + m._launchUntil + "/" + m._launchH) m._ajArc.s.push([+kk.toFixed(3), +lift.toFixed(3)]);
+    return lift;
+  }
+  /* ===== v193 AJ PHYSICS: THE BALL ON THE GROUND =====
+   * A football that hits the turf does not bob on a sine. It drops, and every bounce is a prolate spheroid's: it leaves the
+   * grass at `ajBallRestV193` of the speed it came in with, give or take an odd hop (`ajBallOddV193` — the long axis lands
+   * at a different angle every time), kicks sideways a little each time, and the hops die away until it lies there. A swat
+   * DEFLECTS it first: back the way it came, popped up. The bounces are seeded off the play's ball token, so a replay
+   * bounces the same way; the ground path (where it ends, who picks it up) is still the sim's. */
+  ajBounceV193(key, seed, o) {
+    const C = this._ajBnc || (this._ajBnc = {});
+    if (C[key]) return C[key];
+    let s = (seed * 2654435761) >>> 0; const rnd = () => { s = (s + 0x6D2B79F5) >>> 0; let v = Math.imul(s ^ s >>> 15, 1 | s); v = v + Math.imul(v ^ v >>> 7, 61 | v) ^ v; return ((v ^ v >>> 14) >>> 0) / 4294967296; };
+    const g = TU("ajBallGravV193", .0012), e0 = TU("ajBallRestV193", .52), odd = TU("ajBallOddV193", .55);
+    let t = 0, z = o.z0 != null ? o.z0 : 8, vz = o.vz0 != null ? o.vz0 : .08, vx = o.vx0 || 0, x = 0;
+    const segs = [], apex = [];
+    for (let i = 0; i < 10; i++) {
+      const tg = (vz + Math.sqrt(vz * vz + 2 * g * z)) / g;   // time to the grass
+      segs.push({ t0: t, z0: z, vz, vx, x0: x });
+      apex.push(+(z + vz > 0 ? z + vz * vz / (2 * g) : z).toFixed(2));
+      t += tg; x += vx * tg;
+      const vin = Math.abs(vz - g * tg);
+      vz = vin * e0 * (1 + odd * (rnd() - .5)); z = 0;
+      vx = vx * TU("ajBallSkidKeepV193", .6) + (rnd() - .5) * TU("ajBallKickV193", .05);
+      if (vz < TU("ajBallStopVzV193", .03)) break;
+    }
+    const R = { segs, apex, end: t, xEnd: x };
+    C[key] = R;
+    const H = this.hookAJV193(); if (H.bounces.length < 30) H.bounces.push({ key: String(key).slice(0, 24), apex: apex.slice(0, 8) });
+    return R;
+  }
+  ajBounceAtV193(R, age) {
+    if (age >= R.end) return { z: 0, x: R.xEnd, rest: true };
+    let s = R.segs[0]; for (const q of R.segs) { if (q.t0 <= age) s = q; else break; }
+    const t = age - s.t0, g = TU("ajBallGravV193", .0012);
+    return { z: Math.max(0, s.z0 + s.vz * t - .5 * g * t * t), x: s.x0 + s.vx * t, rest: false };
+  }
+  /* ===== v193 AJ PHYSICS: THE PILE SLIDES =====
+   * The tackle's two bodies are one body the instant they lock: the common speed of a perfectly inelastic collision,
+   * v = |m1v1 + m2v2| / (m1 + m2), along the combined momentum. Once they are down, friction takes it out of them — a
+   * constant deceleration μ, so the slide is v²/2μ long (`ajPileSlideKV193` of it, capped `ajPileSlideMaxPxV193`) and the
+   * pile decelerates into its rest the way a sliding body does (quadratic ease-out is exactly s = vt − ½μt²). Drawn only:
+   * the spot was booked at forward progress and does not move. Every man in the heap slides with it. */
+  ajPileSlideV193(P, e, m, tk, o, ux, uy, v0, fsx, flips, foldMs) {
+    let d = 0, ms = 0;
+    if (!TU("v193AJphys", 1) || o.willFly112 || o.slide) return { d, ms };
+    const mu = TU("ajFrictionV193", .0007);
+    d = Math.min(TU("ajPileSlideMaxPxV193", 6), v0 * v0 / (2 * mu) * TU("ajPileSlideKV193", .5)); ms = d > .2 ? 2 * d / Math.max(.02, v0) : 0;
+    if (d > .2) {
+      const who = [m].concat(tk && tk !== m && !(o.F146 && o.F146.stick) ? [tk] : []).concat((e.downV153A || []).concat(e.sup || []).map(id => this.markers[this.actorIdx(id)]).filter(q => q && q !== m && q !== tk));
+      for (const q of who) { if (q._ajAnc) continue;
+        this.ajAnchorV193(q, [{ t: 0, x: 0, y: 0 }, { t: foldMs, x: 0, y: 0 }, { t: foldMs + ms, x: ux * d, y: uy * d, ease: "out" }], { mode: "add", hold: 1e9 });
+        if (q !== m && flips) q._ajFallFlip = fsx < 0; }
+    }
+    return { d, ms };
   }
   /* ===== v193 AJ THE STRIDE =====
    * The run cycle is paced by ground covered, as v151 D made it — but measured ISOTROPICALLY: v151 D divided SCREEN
@@ -7697,6 +7785,7 @@ class Ot extends mt.Scene {
     /* v139: a man in a v112 F flight is NOT also hopping — the two lifts used to stack and put him
      * above his own arc. The flight is the authority while it lasts. */
     if (m._flyV112) { if (m._launchUntil) { m._launchUntil = 0; m._launchH = 0 } }
+    else if (m._launchUntil && m.tms < m._launchUntil && this.ajOnV193()) { liftV99 = this.hopLiftV193(m, true); p.y -= liftV99 * p.s; }   // v193 AJ PHYSICS: a launch under one gravity
     else if (m._launchUntil && m.tms < m._launchUntil) { const kk = (m.tms - (m._launchT0 || m.tms)) / (m._launchUntil - (m._launchT0 || m.tms));
       liftV99 = Math.sin(Math.max(0, Math.min(1, kk)) * Math.PI) * (m._launchH || 11); p.y -= liftV99 * p.s; }
     else if (m._launchUntil) m._launchUntil = 0;
@@ -7779,7 +7868,7 @@ class Ot extends mt.Scene {
       const ndx = m.root.x - px0[i], ndy = m.root.y - py0[i], nd = Math.hypot(ndx, ndy);
       m._nudgeV109 = nd > 0.01 ? { dx: ndx, dy: ndy } : null;
       if (nd > 0.01 && TU("shadowFollowV109", 1)) { V9.nudged++;
-        let lift = 0; if (m._launchUntil && m.tms < m._launchUntil) { const kk = (m.tms - (m._launchT0 || m.tms)) / (m._launchUntil - (m._launchT0 || m.tms)); lift = Math.sin(Math.max(0, Math.min(1, kk)) * Math.PI) * (m._launchH || 11); }
+        let lift = 0; if (m._launchUntil && m.tms < m._launchUntil && this.ajOnV193()) lift = this.hopLiftV193(m, false); else if (m._launchUntil && m.tms < m._launchUntil) { const kk = (m.tms - (m._launchT0 || m.tms)) / (m._launchUntil - (m._launchT0 || m.tms)); lift = Math.sin(Math.max(0, Math.min(1, kk)) * Math.PI) * (m._launchH || 11); }
         if (m.shadow && this.silOnV164()) {
           const down = /^(down|dive|tackleSeq|pancakeSeq|getup)/.test(String(m.forceState || "")) || (m._groundT > 0 && m.tms - m._groundT < 400);
           this.castSilV164(m, m.root.x, m.root.y + lift * m.root.scale, lift, m._spdPx || 0, down); V9.recast++; }
