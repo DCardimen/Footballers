@@ -225,16 +225,18 @@
   function forTeam(name, logo) { return forLogo(logo != null ? logo : logoForTeam(name)); }
 
   /* ---------------- the painter (logical px, canvas paths; snapped to pixels afterwards) ---------------- */
-  function painter(c) {
+  // v195 B: `snap` (a crest's palette) turns every colour a costume is painted with into one of its crest's own colours
+  function painter(c, snap, soft) {
+    const k = snap || ((col) => col);
     const D = {
-      c,
-      circ(x, y, r, col) { c.beginPath(); c.arc(x, y, Math.max(0.3, r), 0, Math.PI * 2); c.fillStyle = col; c.fill(); },
-      ell(x, y, rx, ry, col, rot) { c.beginPath(); c.ellipse(x, y, Math.max(0.3, rx), Math.max(0.3, ry), rot || 0, 0, Math.PI * 2); c.fillStyle = col; c.fill(); },
-      poly(p, col) { c.beginPath(); c.moveTo(p[0], p[1]); for (let i = 2; i < p.length; i += 2) c.lineTo(p[i], p[i + 1]); c.closePath(); c.fillStyle = col; c.fill(); },
-      line(x1, y1, x2, y2, w, col) { c.beginPath(); c.moveTo(x1, y1); c.lineTo(x2, y2); c.lineWidth = w; c.strokeStyle = col; c.lineCap = "round"; c.lineJoin = "round"; c.stroke(); },
-      pl(p, w, col) { c.beginPath(); c.moveTo(p[0], p[1]); for (let i = 2; i < p.length; i += 2) c.lineTo(p[i], p[i + 1]); c.lineWidth = w; c.strokeStyle = col; c.lineCap = "round"; c.lineJoin = "round"; c.stroke(); },
-      arc(x, y, r, a0, a1, w, col) { c.beginPath(); c.arc(x, y, r, a0, a1); c.lineWidth = w; c.strokeStyle = col; c.lineCap = "round"; c.stroke(); },
-      rect(x, y, w, h, col) { c.fillStyle = col; c.fillRect(x, y, w, h); },
+      c, k,
+      circ(x, y, r, col) { c.beginPath(); c.arc(x, y, Math.max(0.3, r), 0, Math.PI * 2); c.fillStyle = k(col); c.fill(); },
+      ell(x, y, rx, ry, col, rot) { c.beginPath(); c.ellipse(x, y, Math.max(0.3, rx), Math.max(0.3, ry), rot || 0, 0, Math.PI * 2); c.fillStyle = k(col); c.fill(); },
+      poly(p, col) { c.beginPath(); c.moveTo(p[0], p[1]); for (let i = 2; i < p.length; i += 2) c.lineTo(p[i], p[i + 1]); c.closePath(); c.fillStyle = k(col); c.fill(); if (soft) { c.lineJoin = "round"; c.lineWidth = 0.8; c.strokeStyle = c.fillStyle; c.stroke(); } },   // v195 B chibi: soft, rounded corners
+      line(x1, y1, x2, y2, w, col) { c.beginPath(); c.moveTo(x1, y1); c.lineTo(x2, y2); c.lineWidth = w; c.strokeStyle = k(col); c.lineCap = "round"; c.lineJoin = "round"; c.stroke(); },
+      pl(p, w, col) { c.beginPath(); c.moveTo(p[0], p[1]); for (let i = 2; i < p.length; i += 2) c.lineTo(p[i], p[i + 1]); c.lineWidth = w; c.strokeStyle = k(col); c.lineCap = "round"; c.lineJoin = "round"; c.stroke(); },
+      arc(x, y, r, a0, a1, w, col) { c.beginPath(); c.arc(x, y, r, a0, a1); c.lineWidth = w; c.strokeStyle = k(col); c.lineCap = "round"; c.stroke(); },
+      rect(x, y, w, h, col) { c.fillStyle = k(col); c.fillRect(x, y, w, h); },
       // both sides: fn(s) with s = -1 (his right, screen left) and +1
       sym(fn) { fn(-1); fn(1); },
       save() { c.save(); }, restore() { c.restore(); },
@@ -244,8 +246,10 @@
   }
   const INK = "#17131c";
   // eyes: kind "angry" (white, pupil, a brow), "beady", "glow" (one colour, no white), "slit" (an iris with a slit), "big"
+  let CUTE_V195B = null;   // v195 B chibi: set while a cute head is drawn
   function eyes(D, dx, y, kind, iris, o) {
     o = o || {};
+    if (CUTE_V195B) return cuteEyesV195B(D, dx, y, kind, iris, o);
     D.sym((s) => {
       const x = s * dx;
       if (kind === "beady") { D.circ(x, y, 1.25, INK); D.rect(x - 0.6, y - 0.9, 0.8, 0.8, "#ffffff"); }
@@ -258,12 +262,19 @@
   }
   function grin(D, y, w, o) {
     o = o || {};
+    if (CUTE_V195B) {   // v195 B chibi: a small open smile, the fangs little nubs
+      D.poly([-w * 0.6, y - 0.3, w * 0.6, y - 0.3, w * 0.3, y + 1.8, -w * 0.3, y + 1.8], o.col || "#5a1420");
+      D.ell(0, y + 1.2, w * 0.25, 0.6, "#e8789a");
+      if (o.fangs) D.sym((s) => D.poly([s * (w * 0.55), y - 0.3, s * (w * 0.55 - 1), y - 0.3, s * (w * 0.55 - 0.5), y + 0.8], "#ffffff"));
+      return;
+    }
     D.poly([-w, y - 0.5, w, y - 0.5, w * 0.55, y + (o.h || 2.4), -w * 0.55, y + (o.h || 2.4)], o.col || "#5a1420");
     D.rect(-w + 0.6, y - 0.6, w * 2 - 1.2, 0.9, "#ffffff");
     if (o.fangs) D.sym((s) => D.poly([s * (w - 0.6), y, s * (w - 1.9), y, s * (w - 1.2), y + 1.8], "#ffffff"));
   }
   function teethRow(D, x0, x1, y, dir, n) {
     const step = (x1 - x0) / n;
+    if (CUTE_V195B) { for (let i = 0; i < n; i += 2) D.poly([x0 + i * step, y, x0 + (i + 1) * step, y, x0 + (i + 0.5) * step, y + dir * 0.9], "#ffffff"); return; }   // v195 B chibi: a few soft nubs
     for (let i = 0; i < n; i++) D.poly([x0 + i * step, y, x0 + (i + 1) * step, y, x0 + (i + 0.5) * step, y + dir * 1.7], "#ffffff");
   }
 
@@ -696,6 +707,14 @@
     },
     robot(D, v, T) {
       const m = v.metal, dk = shade(m, 0.65);
+      if (v.mine) {   // v195 B: the naval mine (its crest is one): a round spiked shell, a lamp, rivets
+        for (let k = 0; k < 9; k++) { const a = -Math.PI + (k / 8) * Math.PI * 1.0 - 0.0; D.poly([Math.cos(a - 0.16) * 8.6, Math.sin(a - 0.16) * 8.6, Math.cos(a) * 12.4, Math.sin(a) * 12.4, Math.cos(a + 0.16) * 8.6, Math.sin(a + 0.16) * 8.6], dk); D.circ(Math.cos(a) * 12.6, Math.sin(a) * 12.6, 1.1, shade(m, 1.4)); }
+        D.circ(0, 0, 9.6, m); D.ell(-3.4, -4.4, 3, 1.6, shade(m, 1.35), -0.5);
+        D.circ(0, -6.4, 1.6, v.led);
+        D.sym((s) => { D.circ(s * 3.6, 0.2, 1.7, v.led); D.circ(s * 7.2, 3.6, 0.6, dk); });
+        D.arc(0, 3.4, 2.2, 0.3, Math.PI - 0.3, 1, INK);
+        return;
+      }
       if (v.golem) {
         D.poly([-9.6, -2, -8, -8.6, -2, -10.6, 4, -10, 9.2, -6.6, 10, 2, 7.6, 8.6, 0, 10, -7.6, 8.4], m);
         D.poly([4, -10, 9.2, -6.6, 10, 2, 7.6, 8.6, 5, 9.4, 6, 0], dk);
@@ -797,6 +816,10 @@
   /* ---------------- the rig: a pose → joints (logical px; the ground at GY, the centre at CX) ---------------- */
   const LW = 52, LH = 62, GY = 59, CX = 26, SCALE = 2;   // the sheet holds each pose at ×2
   const THIGH = 6.6, SHIN = 6, UARM = 6.2, FARM = 6, TORSO = 12.6, HEADR = 9;
+  // the build: v193 AI's, and (v195 B, TU v195Bchibi) the chibi one — a head half his height, a short torso, short legs,
+  // stubby arms, a wider stance and a rounder body
+  const PR_V193AI = { thigh: THIGH, shin: SHIN, uarm: UARM, farm: FARM, torso: TORSO, headS: 1, neck: 1.6, hipW: 3.4, shW: 7, bodyW: 7.6, limbW: 4.2, armW: 3.6 };
+  const PR_CHIBI_V195B = { thigh: 5.8, shin: 5.2, uarm: 4.6, farm: 4.2, torso: 9.6, headS: 1.16, neck: 3.0, hipW: 4.3, shW: 7.4, bodyW: 8.8, limbW: 5, armW: 4.4 };
   // a pose: legs [L thigh, L shin, R thigh, R shin] and arms [L shoulder, L elbow, R shoulder, R elbow] in degrees —
   // 0 is straight down, positive swings OUT and up (90 = level out to his side, 180 = straight up); the elbow adds to the
   // shoulder in the same sense. lean tilts the torso (+ to screen right), tilt the head; ball: "R" in the right hand,
@@ -872,25 +895,28 @@
   };
   const POSE_NAMES = Object.keys(POSES);
   const POSE_IX = {}; POSE_NAMES.forEach((n, i) => { POSE_IX[n] = i; });
-  function rig(P) {
-    const lg = P.legs, am = P.arms, lean = (P.lean || 0) * DEG, tl = TORSO * (P.tl || 1);
-    const leg = (s, h, k) => { const kx = s * Math.sin(h * DEG) * THIGH, ky = Math.cos(h * DEG) * THIGH; return { kx, ky, fx: kx + s * Math.sin(k * DEG) * SHIN, fy: ky + Math.cos(k * DEG) * SHIN }; };
+  // v195 B: `pr` (the chibi build, `PR_CHIBI_V195B`) — the bone lengths, the head's scale, the stance; none = v193 AI's
+  function rig(P, pr) {
+    const B = pr || PR_V193AI;
+    const lg = P.legs, am = P.arms, lean = (P.lean || 0) * DEG, tl = B.torso * (P.tl || 1);
+    const leg = (s, h, k) => { const kx = s * Math.sin(h * DEG) * B.thigh, ky = Math.cos(h * DEG) * B.thigh; return { kx, ky, fx: kx + s * Math.sin(k * DEG) * B.shin, fy: ky + Math.cos(k * DEG) * B.shin }; };
     const L = leg(-1, lg[0], lg[1]), R = leg(1, lg[2], lg[3]);
     const low = P.front ? Math.max(L.fy, R.fy, 4) : Math.max(L.fy, R.fy);
     const hip = { x: CX + (P.dx || 0), y: GY - 2.2 - low };
     const up = { x: Math.sin(lean), y: -Math.cos(lean) }, perp = { x: Math.cos(lean), y: Math.sin(lean) };
     const sh = { x: hip.x + up.x * tl, y: hip.y + up.y * tl };
     const tilt = lean + (P.tilt || 0) * DEG;
-    const head = { x: sh.x + Math.sin(tilt) * (HEADR - 1.6), y: sh.y - Math.cos(tilt) * (HEADR - 1.6), rot: tilt };
-    const J = { hip, sh, head, lean, up, perp, tl, P };
-    J.hipL = { x: hip.x - perp.x * 3.4, y: hip.y - perp.y * 3.4 }; J.hipR = { x: hip.x + perp.x * 3.4, y: hip.y + perp.y * 3.4 };
+    const hr = HEADR * B.headS - B.neck;
+    const head = { x: sh.x + Math.sin(tilt) * hr, y: sh.y - Math.cos(tilt) * hr, rot: tilt, s: B.headS };
+    const J = { hip, sh, head, lean, up, perp, tl, P, B };
+    J.hipL = { x: hip.x - perp.x * B.hipW, y: hip.y - perp.y * B.hipW }; J.hipR = { x: hip.x + perp.x * B.hipW, y: hip.y + perp.y * B.hipW };
     J.legL = { k: { x: J.hipL.x + L.kx, y: J.hipL.y + L.ky }, f: { x: J.hipL.x + L.fx, y: J.hipL.y + L.fy } };
     J.legR = { k: { x: J.hipR.x + R.kx, y: J.hipR.y + R.ky }, f: { x: J.hipR.x + R.fx, y: J.hipR.y + R.fy } };
     const arm = (s, a, e) => {
-      const o = { x: sh.x + s * perp.x * 7 + up.x * -1.4, y: sh.y + s * perp.y * 7 - up.y * 1.4 };
+      const o = { x: sh.x + s * perp.x * B.shW + up.x * -1.4, y: sh.y + s * perp.y * B.shW - up.y * 1.4 };
       const a1 = a * DEG + s * lean, a2 = (a + e) * DEG + s * lean;
-      const el = { x: o.x + s * Math.sin(a1) * UARM, y: o.y + Math.cos(a1) * UARM };
-      const h = { x: el.x + s * Math.sin(a2) * FARM, y: el.y + Math.cos(a2) * FARM };
+      const el = { x: o.x + s * Math.sin(a1) * B.uarm, y: o.y + Math.cos(a1) * B.uarm };
+      const h = { x: el.x + s * Math.sin(a2) * B.farm, y: el.y + Math.cos(a2) * B.farm };
       return { o, el, h, dir: { x: s * Math.sin(a2), y: Math.cos(a2) } };
     };
     J.armL = arm(-1, am[0], am[1]); J.armR = arm(1, am[2], am[3]);
@@ -898,9 +924,10 @@
   }
 
   /* ---------------- the accessories ---------------- */
-  function weaponDraw(D, kind, h, dir, T, v) {
+  function weaponDraw(D, kind, h, dir, T, v, ws) {
     const ang = Math.atan2(dir.y, dir.x);   // along the forearm, out of the fist
     D.at(h.x, h.y, ang);
+    if (ws) D.c.scale(ws, ws);   // v195 B chibi: a prop for small hands
     const blade = "#e8ecf2", edge = "#9aa3b0", wood = "#8a5a2c", gold = "#f2c84a";
     if (kind === "sword" || kind === "katana" || kind === "rapier" || kind === "cutlass") {
       const len = kind === "rapier" ? 15 : kind === "katana" ? 14 : kind === "cutlass" ? 11 : 13, w = kind === "rapier" ? 0.9 : kind === "cutlass" ? 2.6 : 2;
@@ -935,7 +962,7 @@
     } else if (kind === "bolt") {
       D.poly([0, -1, 6, -3, 4, 0, 11, -1, 3, 3, 5, 0.6, -1, 2], "#ffe14a");
     } else if (kind === "lasso") {
-      D.pl([0, 0, 4, 1, 6, 4], 0.8, "#c8a06a"); D.c.beginPath(); D.c.ellipse(9, 6, 4.4, 2.6, 0.4, 0, Math.PI * 2); D.c.lineWidth = 0.9; D.c.strokeStyle = "#c8a06a"; D.c.stroke();
+      D.pl([0, 0, 4, 1, 6, 4], 0.8, "#c8a06a"); D.c.beginPath(); D.c.ellipse(9, 6, 4.4, 2.6, 0.4, 0, Math.PI * 2); D.c.lineWidth = 0.9; D.c.strokeStyle = D.k("#c8a06a"); D.c.stroke();
     }
     D.restore();
   }
@@ -1041,8 +1068,9 @@
 
   /* ---------------- one pose, drawn ---------------- */
   function drawPose(c, P, L) {
-    const D = painter(c), J = rig(P), T = L.T, v = L.v;
-    const limbW = 4.2, armW = 3.6;
+    if (L.cute) P = Object.assign({}, P, { lean: (P.lean || 0) * 1.3, tilt: (P.tilt || 0) * 1.3 });   // v195 B chibi: the body carries the move (short limbs can't)
+    const D = painter(c, L.snap, !!L.cute), J = rig(P, L.pr), T = L.T, v = L.v;
+    const limbW = J.B.limbW, armW = J.B.armW, bw = J.B.bodyW;
     backDraw(D, J, L, T);
     const legs = () => {
       [J.legL, J.legR].forEach((g, i) => {
@@ -1061,8 +1089,8 @@
       D.poly([-6.4, -ry, 6.4, -ry, 9.4, ry + 2.6, -9.4, ry + 2.6], L.limb);
       D.rect(-7.6, ry - 1, 15.2, 1.6, L.trim);
     } else {
-      D.ell(0, 0, 7.6, ry, L.jersey);
-      D.c.save(); D.c.beginPath(); D.c.ellipse(0, 0, 7.6, ry, 0, 0, Math.PI * 2); D.c.clip();
+      D.ell(0, 0, bw, ry, L.jersey);
+      D.c.save(); D.c.beginPath(); D.c.ellipse(0, 0, bw, ry, 0, 0, Math.PI * 2); D.c.clip();
       D.rect(-8, ry - 3.4, 16, 3.4, L.trim);
       D.rect(-8, -2.2, 16, 1.6, L.trim);
       D.rect(3.6, -ry, 5, ry * 2, "rgba(0,0,0,0.22)");
@@ -1071,6 +1099,7 @@
       D.c.restore();
       D.ell(0, -ry + 0.6, 3.2, 1.3, L.trim);
     }
+    if (L.motif) { try { motifBadgeV195B(D, L, ry); } catch (e) { err(e); } }   // v195 B: the crest's own mark on his chest
     D.restore();
     if (L.cape && L.arch !== "spook") D.sym((s) => D.circ(J.sh.x + s * 5.8, J.sh.y + 0.4, 1.3, "#f2c84a"));
     if (P.front) legs();
@@ -1081,16 +1110,20 @@
       if (L.gloveKind === "claw") {
         const an = Math.atan2(a.dir.y, a.dir.x);
         D.at(a.h.x, a.h.y, an); D.ell(1.6, 0, 3.4, 2.6, L.glove); D.poly([2, -0.2, 6.4, -2.6, 5, 0.6], L.glove); D.poly([2, 0.6, 6, 3, 3.6, 2.4], shade(L.glove, 0.8)); D.restore();
-      } else D.circ(a.h.x, a.h.y, 2.3, L.glove);
+      } else D.circ(a.h.x, a.h.y, L.cute ? 2.7 : 2.3, L.glove);
       if (L.gloveKind === "white") D.line(a.h.x - a.dir.x * 1.8 - 1, a.h.y - a.dir.y * 1.8, a.h.x - a.dir.x * 1.8 + 1, a.h.y - a.dir.y * 1.8, 1, "#d8d8de");
-      if (isR && P.w && L.weapon && !P.ball) weaponDraw(D, L.weapon, a.h, a.dir, T, v);
+      if (isR && P.w && L.weapon && !P.ball) weaponDraw(D, L.weapon, a.h, a.dir, T, v, L.cute ? 0.8 : 0);
       if (!isR && P.s && L.shield) shieldDraw(D, L.shield, { x: a.el.x * 0.4 + a.h.x * 0.6, y: a.el.y * 0.4 + a.h.y * 0.6 }, T, v);
     };
     const headDraw = () => {
       D.at(J.head.x, J.head.y, J.head.rot);
+      if (J.head.s !== 1) D.c.scale(J.head.s, J.head.s);   // v195 B chibi: the big head (its ears, horns, helmets and visors with it)
+      CUTE_V195B = L.cute ? { eyes: 0, L } : null;
       try { (HEADS[L.arch] || HEADS.bear)(D, v, T); } catch (e) { err(e); }
+      if (CUTE_V195B) { try { cuteFaceV195B(D, L, v); } catch (e) { err(e); } }
+      CUTE_V195B = null;
       if (L.space) {   // the Interstellar League: a bubble helmet
-        D.c.beginPath(); D.c.arc(0, -1, 13.4, 0, Math.PI * 2); D.c.lineWidth = 1.1; D.c.strokeStyle = "#bfeaff"; D.c.stroke();
+        D.c.beginPath(); D.c.arc(0, -1, 13.4, 0, Math.PI * 2); D.c.lineWidth = 1.1; D.c.strokeStyle = D.k("#bfeaff"); D.c.stroke();
         D.arc(0, -1, 11.6, Math.PI * 1.15, Math.PI * 1.45, 1.4, "#ffffff");
         D.rect(-6, 11, 12, 2.2, "#c8ced8");
       }
@@ -1100,7 +1133,7 @@
     headDraw();
     if (P.wheel != null) {   // v194 B: the imaginary car's steering wheel, between his two fists
       const cx = (J.armL.h.x + J.armR.h.x) / 2, cy = (J.armL.h.y + J.armR.h.y) / 2, r = Math.max(4.6, Math.hypot(J.armR.h.x - J.armL.h.x, J.armR.h.y - J.armL.h.y) / 2);
-      D.c.beginPath(); D.c.arc(cx, cy, r, 0, Math.PI * 2); D.c.lineWidth = 1.6; D.c.strokeStyle = "#2a2a30"; D.c.stroke();
+      D.c.beginPath(); D.c.arc(cx, cy, r, 0, Math.PI * 2); D.c.lineWidth = 1.6; D.c.strokeStyle = D.k("#2a2a30"); D.c.stroke();
       D.at(cx, cy, P.wheel * DEG); D.line(-r, 0, r, 0, 1.1, "#3a3a42"); D.line(0, 0, 0, r, 1.1, "#3a3a42"); D.circ(0, 0, 1.6, T.p2); D.restore();
     }
     armDraw(J.armL, false);
@@ -1108,7 +1141,7 @@
     // the ball
     if (P.ball === "R" || P.ball === "E") ballDraw(D, J.armR.h.x + J.armR.dir.x * 1.2, J.armR.h.y - 1 + J.armR.dir.y * 1.2, P.ball === "E" ? 1.4 : 0.4);
     if (P.ball === "G") ballDraw(D, J.armR.h.x + 1, GY - 2.2, 0);
-    if (P.bow) { const h = J.armL.h; D.c.beginPath(); D.c.arc(h.x + 1, h.y, 7, -1.2, 1.2); D.c.lineWidth = 1.3; D.c.strokeStyle = "#8a5a2c"; D.c.stroke(); D.line(h.x + 3.6, h.y - 6.6, J.armR.h.x, J.armR.h.y, 0.5, "#f4f0e8"); D.line(h.x + 3.6, h.y + 6.6, J.armR.h.x, J.armR.h.y, 0.5, "#f4f0e8"); D.line(J.armR.h.x, J.armR.h.y, h.x + 5, h.y, 0.8, "#c8a06a"); }
+    if (P.bow) { const h = J.armL.h; D.c.beginPath(); D.c.arc(h.x + 1, h.y, 7, -1.2, 1.2); D.c.lineWidth = 1.3; D.c.strokeStyle = D.k("#8a5a2c"); D.c.stroke(); D.line(h.x + 3.6, h.y - 6.6, J.armR.h.x, J.armR.h.y, 0.5, "#f4f0e8"); D.line(h.x + 3.6, h.y + 6.6, J.armR.h.x, J.armR.h.y, 0.5, "#f4f0e8"); D.line(J.armR.h.x, J.armR.h.y, h.x + 5, h.y, 0.8, "#c8a06a"); }
     if (P.saber) { const h = { x: (J.armL.h.x + J.armR.h.x) / 2, y: (J.armL.h.y + J.armR.h.y) / 2 }; D.line(h.x, h.y - 1, h.x, h.y - 16, 2.2, shade(T.p2, 1.3)); D.line(h.x, h.y - 1, h.x, h.y - 16, 0.8, "#ffffff"); }
     return J;
   }
@@ -1117,10 +1150,18 @@
   }
 
   /* ---------------- pixels: a hard alpha edge and a one-pixel outline, the field's own style ---------------- */
-  function pixelate(cv) {
+  function pixelate(cv, pal) {
     const x = cv.getContext("2d"), W = cv.width, H = cv.height, im = x.getImageData(0, 0, W, H), d = im.data, n = W * H;
     const A = new Uint8Array(n);
     for (let i = 0; i < n; i++) { if (d[i * 4 + 3] >= 110) { A[i] = 1; d[i * 4 + 3] = 255; } else d[i * 4 + 3] = 0; }
+    if (pal) {   // v195 B: the anti-aliased seams between two shapes are blends — each pixel takes its nearest crest colour
+      for (let i = 0; i < n; i++) {
+        if (!A[i]) continue;
+        const o = i * 4; let best = pal[0], bd = 1e9;
+        for (let j = 0; j < pal.length; j++) { const c = pal[j], dd = (d[o] - c[0]) * (d[o] - c[0]) + (d[o + 1] - c[1]) * (d[o + 1] - c[1]) + (d[o + 2] - c[2]) * (d[o + 2] - c[2]); if (dd < bd) { bd = dd; best = c; } }
+        d[o] = best[0]; d[o + 1] = best[1]; d[o + 2] = best[2];
+      }
+    }
     const ink = rgbOf(INK);
     for (let y = 0; y < H; y++) for (let xx = 0; xx < W; xx++) {
       const i = y * W + xx; if (A[i]) continue;
@@ -1137,39 +1178,41 @@
     const ok = (h) => (typeof h === "string" && /^#[0-9a-f]{6}$/i.test(h) ? h : null);
     return { p1: ok(T && T[0]) || "#1f4fd0", p2: ok(T && T[1]) || "#e8c86a" };
   }
-  function sheetKey(logo, cols, space) { return "m193ai_" + logo + "_" + cols.p1.slice(1) + cols.p2.slice(1) + (space ? "_s" : ""); }
+  function sheetKey(logo, cols, space) { return "m193ai_" + logo + "_" + cols.p1.slice(1) + cols.p2.slice(1) + (space ? "_s" : "") + (on195() ? "_v195b" : "") + (chibiOnV195B() ? "_c" : ""); }   // v195 B: the crest's colours and the in-betweens are their own sheet
   // a sheet is drawn pose by pose; `step` (the broadcast) draws at most that many poses a call and answers null until the
   // sheet is whole, so a cold sheet (~20-50 ms warm, ~150 ms on a cold page) is spread over a few frames
   const BUILDING = new Map();
   function sheetV193AI(logo, colsIn, space, step) {
-    const cols = teamColours(colsIn), id = forLogo(logo), key = sheetKey(id.logo, cols, space);
+    const cols0 = teamColours(colsIn), id = forLogo(logo), key = sheetKey(id.logo, cols0, space);
+    const v2 = on195(), names = v2 ? NAMES_V195B : POSE_NAMES;   // v195 B: the crest's own colours, the in-between poses
+    const cols = v2 ? logoColsV195B(id.logo, cols0) : cols0;
     let S = SHEETS.get(key);
     if (S) { SHEETS.delete(key); SHEETS.set(key, S); return S; }   // most recently used last
     let B = BUILDING.get(key);
     if (!B) {
-      const L = lookFor(id, cols, space), rows = Math.ceil(POSE_NAMES.length / COLS);
+      const L = v2 ? lookV195B(lookFor(logoWinsV195B(id), cols, space), id.logo) : lookFor(id, cols, space), rows = Math.ceil(names.length / COLS);
       const cv = document.createElement("canvas"); cv.width = COLS * FW_PX; cv.height = rows * FH_PX;
       const x = cv.getContext("2d"); x.imageSmoothingEnabled = false;
       const one = document.createElement("canvas"); one.width = LW; one.height = LH;
       B = { L, cv, x, one, ox: one.getContext("2d", { willReadFrequently: true }), frames: [], i: 0, ms: 0 };   // read back 37 times a sheet: keep it on the CPU
       BUILDING.set(key, B);
     }
-    const t0 = performance.now(), end = step ? Math.min(POSE_NAMES.length, B.i + step) : POSE_NAMES.length;
+    const t0 = performance.now(), end = step ? Math.min(names.length, B.i + step) : names.length;
     for (; B.i < end; B.i++) {
-      const n = POSE_NAMES[B.i], i = B.i;
+      const n = names[B.i], i = B.i;
       B.ox.clearRect(0, 0, LW, LH);
       let J = null; try { J = drawPose(B.ox, POSES[n], B.L); } catch (e) { err(e); }
-      pixelate(B.one);
+      pixelate(B.one, B.L.snapPx);
       const fx = (i % COLS) * FW_PX, fy = Math.floor(i / COLS) * FH_PX;
       B.x.drawImage(B.one, 0, 0, LW, LH, fx, fy, FW_PX, FH_PX);
       B.frames.push({ name: n, x: fx, y: fy, w: FW_PX, h: FH_PX, hipY: J ? J.hip.y : 40,
         head: J ? { x: J.head.x, y: J.head.y } : { x: CX, y: 24 }, hands: J ? [{ x: J.armL.h.x, y: J.armL.h.y }, { x: J.armR.h.x, y: J.armR.h.y }] : [{ x: CX - 8, y: 30 }, { x: CX + 8, y: 30 }] });   // v194 B: where his eyes and fists are (tears, the sign, the merch)
     }
     const dt = performance.now() - t0; B.ms += dt; V.stepMax = Math.max(V.stepMax || 0, dt); V.steps = (V.steps || 0) + 1;
-    if (B.i < POSE_NAMES.length) return null;
+    if (B.i < names.length) return null;
     BUILDING.delete(key);
     const L = B.L;
-    S = { key, id, cols, space: !!space, cv: B.cv, frames: B.frames, ms: B.ms, look: { arch: id.arch, variant: id.variant, weapon: L.weapon, shield: L.shield, tail: L.tail, wings: L.wings, cape: L.cape } };
+    S = { key, id, cols, space: !!space, v2, ix: v2 ? IX_V195B : POSE_IX, cv: B.cv, frames: B.frames, ms: B.ms, look: { arch: id.arch, variant: id.variant, weapon: L.weapon, shield: L.shield, tail: L.tail, wings: L.wings, cape: L.cape } };
     V.builds++; V.buildMs += B.ms; V.buildMax = Math.max(V.buildMax, B.ms);
     SHEETS.set(key, S);
     const cap = Math.max(2, TUv("mascotCacheV193AI", 8));
@@ -1178,7 +1221,7 @@
   }
   // one frame of a sheet as its own small canvas (the cards and the Locker)
   function frameInto(ctx, S, pose, dx, dy, dw, dh, o) {
-    const f = S.frames[POSE_IX[pose] != null ? POSE_IX[pose] : 0];
+    const f = S.frames[fiV195B(S, pose)];
     o = o || {};
     ctx.save();
     ctx.imageSmoothingEnabled = false;
@@ -1226,6 +1269,7 @@
   function celPose(cel, t) {
     const out = { pose: "stand", lift: 0, rot: 0, sx: 1, sy: 1, dx: 0 };
     if (cel.kind === "cycle") {
+      if (on195()) return celCycleV195B(cel, t, out);   // v195 B: the cheer through its in-betweens
       const i = Math.floor(t / Math.max(40, cel.fm)) % 4; out.pose = "cheer" + i;
       if (i === 3 && !REDUCED) out.lift = 3 * Math.sin(((t % cel.fm) / cel.fm) * Math.PI);
       return out;
@@ -1260,6 +1304,7 @@
     return out;
   }
   function idlePose(t, excite, ph) {
+    if (on195()) return idleV195B(t, excite, ph);   // v195 B: the idle sway, eased
     const out = { pose: "idleA", lift: 0, rot: 0, sx: 1, sy: 1, dx: 0 };
     const ms = TUv("mascotIdleMsV193AI", 420);
     if (excite > TUv("mascotWaveAtV193AI", 0.4)) {
@@ -1302,7 +1347,7 @@
   }
   function destroyAll(st) {
     if (!st) return;
-    (st.list || []).forEach((m) => { try { m.img && m.img.destroy(); } catch (e) {} try { m.sh && m.sh.destroy(); } catch (e) {} try { m.v194 && dropV194B(m); } catch (e) {} });
+    (st.list || []).forEach((m) => { try { if (m.v194 && on195() && m.S) st.keepV195B = { logo: m.S.id.logo, team: m.team, A: m.v194 }; } catch (e) {} try { m.img && m.img.destroy(); } catch (e) {} try { m.sh && m.sh.destroy(); } catch (e) {} try { m.v194 && dropV194B(m); } catch (e) {} });   // v195 B: his state is kept for the rebuilt bench
     st.list = [];
   }
   function stateOf(scene) {
@@ -1325,14 +1370,14 @@
       let S = null;
       if (!SHEETS.has(sheetKey(((Number(T[team].logo) || 0) % NLOGO + NLOGO) % NLOGO, teamColours(T[team].cols), space))) {
         if (!budget) { st.partial = true; st.pend = st.pend || { logo: T[team].logo, cols: T[team].cols, space }; return; }
-        budget--; S = sheetV193AI(T[team].logo, T[team].cols, space, Math.max(1, TUv("mascotPosesPerFrameV193AI", 4)));
+        budget--; S = sheetV193AI(T[team].logo, T[team].cols, space, posesPerStepV195B());
         if (!S) { st.partial = true; st.pend = { logo: T[team].logo, cols: T[team].cols, space }; return; }   // still drawing: the next frames carry on
       } else S = sheetV193AI(T[team].logo, T[team].cols, space);
       const key = texFor(scene, S);
       if (!key) return;
-      const img = scene.add.image(0, 0, key, POSE_IX.idleA);
+      const img = scene.add.image(0, 0, key, POSE_IX.idleA);   // (a base pose: the same frame in both sheets)
       const sh = scene.add.ellipse(0, 0, 10, 3, 0x000000, TUv("sideShadowA", 0.26));
-      st.list.push({ team, bank: team === "def" ? -1 : 1, S, key, img, sh, u: null, ph: i * 210, cel: null, lastPose: -1, vis: true, colsKey: S.key, name: T[team].name, other: T[team === "off" ? "def" : "off"].name, cols: teamColours(T[team].cols) });
+      st.list.push({ team, bank: team === "def" ? -1 : 1, S, key, img, sh, u: null, ph: i * 210, cel: null, lastPose: -1, vis: true, colsKey: S.key, name: T[team].name, other: T[team === "off" ? "def" : "off"].name, cols: S.v2 ? S.cols : teamColours(T[team].cols) });   // v195 B: his merch and his sign in the crest's colours
     });
     st.teamsKey = teamsKeyV194B(scene, T, space);
   }
@@ -1411,7 +1456,7 @@
     }
     const ex = S ? S.excite || 0 : 0;
     if (!o) o = idlePose(m.moving ? now * 2.2 : now, m.moving ? 0 : ex, m.ph);   // jogging: the same two steps, quicker
-    const fi = POSE_IX[o.pose] != null ? POSE_IX[o.pose] : 0, f = m.S.frames[fi];
+    const fi = fiV195B(m.S, o.pose), f = m.S.frames[fi];
     if (fi !== m.lastPose) { img.setFrame(fi); m.lastPose = fi; }
     m.pose = o.pose;
     const flip = m.bank < 0 ? -1 : 1;   // each faces a little toward the field's middle
@@ -1453,7 +1498,7 @@
       if (!stale && (S.side !== scene.side || t0 - (S.teamsAt || 0) > 1000)) { S.teamsAt = t0; stale = S.teamsKey !== teamsKeyV194B(scene, teamsFor(scene), spaceLevel()); }
       S.geom = geom;   // v194 B: the check drives frame() directly with the hook's own geometry
       if (stale) { build(scene, S); S.teamsAt = t0; }
-      else if (S.partial && S.pend) { if (sheetV193AI(S.pend.logo, S.pend.cols, S.pend.space, Math.max(1, TUv("mascotPosesPerFrameV193AI", 4)))) build(scene, S); }   // a bench's sheet still drawing: the next slice, the sprites already up stay
+      else if (S.partial && S.pend) { if (sheetV193AI(S.pend.logo, S.pend.cols, S.pend.space, posesPerStepV195B())) build(scene, S); }   // a bench's sheet still drawing: the next slice, the sprites already up stay
       if (!S.list.length) return;
       watchCelebrations(scene, S, t0);
       const cam = scene.cameras && scene.cameras.main;
@@ -1504,7 +1549,7 @@
   const on194 = () => !!TUv("v194B", 1);
   const V194 = (window.__V194B = window.__V194B || { home: null, team: "", mood: null, moodScore: 0, margin: 0, momentum: 0, record: 0, act: null, bubble: null, phrases: 0, buckets: {}, reactions: [], said: [], bubbles: 0, maxBubbles: 0, merch: { spawned: 0, landed: 0, inStands: 0, flying: 0, last: null }, spot: null, ez: 0, side: 0, moves: 0, teleports: 0, judged: 0, onField: 0, errs: [] });
   function homeTeamV194B() { return window.__homeGameV93 === false ? "def" : "off"; }
-  function teamsKeyV194B(scene, T, space) { return JSON.stringify(T) + space + (on194() ? "|v194B:" + homeTeamV194B() : ""); }
+  function teamsKeyV194B(scene, T, space) { return JSON.stringify(T) + space + (on194() ? "|v194B:" + homeTeamV194B() : "") + (on195() ? "|v195B" + (chibiOnV195B() ? "c" : "") : ""); }
   // a private stream (mulberry32): the mascot never draws from Math.random, so it can never move the sim's sample path
   function rngV194B(seed) { let a = seed >>> 0; return () => { a = (a + 0x6d2b79f5) >>> 0; let t = a; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }; }
   const QUIET_V194B = rngV194B(0x194b);
@@ -1538,7 +1583,7 @@
   V194.phrases = PHRASE_N_V194B; V194.buckets = Object.fromEntries(Object.keys(PHRASES_V194B).map((k) => [k, PHRASES_V194B[k].length]));
   const nickV194B = (name, dflt) => { const w = String(name || "").replace(/^.*'s /, "").trim().split(/\s+/).filter(Boolean); const n = w[w.length - 1] || ""; return (n && !/^(HOME|AWAY)$/i.test(n) ? n : dflt).toUpperCase(); };
   function phraseV194B(A, bucket) {
-    const L = PHRASES_V194B[bucket] || PHRASES_V194B.good;
+    const PH = phrasesNowV195B(), L = PH[bucket] || PH.good;   // v195 B: the funnier lines
     let s = null;
     for (let i = 0; i < 6; i++) { s = pickV194B(A, L); if (A.recent.indexOf(s) < 0) break; }
     A.recent.push(s); if (A.recent.length > 10) A.recent.shift();
@@ -1547,7 +1592,7 @@
 
   /* ---- the acts: f(t, A) → the pose at t (ms into the act), its lift / turn (logical px, deg), its OUTWARD travel dx and
    * its along-the-sideline travel dy (logical px), and what it shows (tears, steam, a red face, a sign, a throw) ---- */
-  const cyc = (t, ms, list) => list[Math.floor(t / ms) % list.length];
+  const cyc = (t, ms, list) => (on195() ? grooveNameV195B(t, ms, list) : list[Math.floor(t / ms) % list.length]);   // v195 B: through the in-betweens
   const RUN_V194B = ["run0", "run1", "run2", "run3"];
   const ACTS_V194B = {
     cartwheel: { ms: 1500, f(t, A) { const u = t / 750, k = Math.floor(u), w = u - k; return { pose: w < 0.06 || w > 0.94 ? "armsUp" : "star", rot: (k % 2 ? -1 : 1) * 360 * w, lift: 9 * Math.sin(Math.PI * w) * A.big, dx: (k % 2 ? 1 - w : w) * 26 }; } },
@@ -1662,6 +1707,7 @@
   }
   function say(A, scene, bucket, force) {
     if (!bucket || !TUv("mascotBubblesV194B", 1)) return null;
+    if (on195()) return sayV195B(A, bucket, force);   // v195 B: the typewriter
     const now = performance.now();
     if (!force && now - A.sayAt < TUv("mascotBubbleGapMsV194B", 3800)) return null;
     if (A.bubble && now < A.bubble.until && !force) return null;   // never two at once
@@ -1682,7 +1728,7 @@
     return A.act;
   }
   function signTextV194B(A, ctx) {
-    const pool = SIGNS_V194B[ctx || (A.oppBall ? "defense" : A.mood)] || SIGNS_V194B.confident;
+    const SG = signsNowV195B(), pool = SG[ctx || (A.oppBall ? "defense" : A.mood)] || SG.confident;
     return pickV194B(A, pool).replace(/\{T\}/g, A.T);
   }
   // a whistle: judge the play, move the mood, start the reaction and say something
@@ -1877,7 +1923,7 @@
       // the size on screen first (a far end zone is a speck), then the end zone's pull: "near the endzone most times"
       let s = (q.k / maxK) * TUv("mascotSizeWV194B", 3) + (c.ez ? TUv("mascotEzBiasV194B", 2.4) : 0);
       if (A.pos) { s -= Math.abs(c.u - A.pos.u) / (YD * 40); if (Math.sign(w) !== Math.sign(A.pos.w)) s -= liveSnap ? 6 : 2; }
-      if (cur && Math.abs(cur.u - c.u) < 3 * YD && Math.sign(cur.w) === Math.sign(w)) s += TUv("mascotStayBonusV194B", 1);
+      if (cur && Math.abs(cur.u - c.u) < 3 * YD && Math.sign(cur.w) === Math.sign(w)) s += on195() ? TUv("v195BstayBonus", 4) : TUv("mascotStayBonusV194B", 1);   // v195 B: he usually stays
       if (marks.some((r) => Math.abs(r.x - q.x) < tall * 0.6 && Math.abs(r.y - q.y) < tall * 0.5)) s -= 3;   // a player is standing there
       if (s > bestS) { bestS = s; best = { u: c.u, w, ez: c.ez, bank: c.bank }; }
     });
@@ -1892,7 +1938,7 @@
 
   /* ---- one frame of the home mascot ---- */
   function placeV194B(scene, st, m, G, now, cam) {
-    const img = m.img, A = m.v194 || initV194B(m), YD = G.PLAY_W / 100;
+    const img = m.img, A = m.v194 || keepV195B(st, m) || initV194B(m), YD = G.PLAY_W / 100, v2 = on195();   // v195 B: a rebuilt bench keeps him
     const dt = Math.max(0, Math.min(100, now - (m.lastT || now))); m.lastT = now;
     if (m.ageK == null || now - (m.ageAt || 0) > 2000) { m.ageAt = now; m.ageK = Math.max(TUv("mascotAgeMinV193AI", 0.7), (() => { try { return window.__V144 && window.__V144.ageK ? window.__V144.ageK() : 1; } catch (e) { return 1; } })()); }
     // 1. the game: a new snap, a whistle, the score
@@ -1904,7 +1950,14 @@
     const lf = scene._lastField, adj = (x) => (G.VDIR > 0 ? x : G.FW - x);
     const losU = lf ? adj(G.PLAY_L + (Math.max(0, Math.min(100, lf[0])) / 100) * G.PLAY_W) : G.FW / 2;
     const wv = cam && cam.worldView;
+    if (!A.pos && v2) { const b0 = spotV194B(scene, st, m, G, now, cam, losU); if (b0) { A.pos = { u: b0.u, w: b0.w }; A.tgt = b0; A.tgtAt = now; A.path = []; } }   // v195 B: the broadcast opens on him where he will stand
     if (!A.pos) { const w0 = laneW(scene, G, m, G.PLAY_L * 0.5, 1); A.pos = { u: losU < G.FW / 2 ? G.PLAY_L * 0.5 : G.FW - G.PLAY_L * 0.5, w: w0 }; }
+    let moving = false, vx = 0, J = null;
+    if (v2) {   // v195 B: he holds his spot, re-places only when he is out of the picture, and runs in from its edge — and the jumbotron
+      const mv = whereV195B(scene, st, m, G, now, cam, losU, wv, dt); moving = mv.moving; vx = mv.vx;
+      J = jumboV195B(scene, m, A, wv, m.vis && inViewV194B(projV194B(scene, G, m, A.pos.u, A.pos.w), wv, 0.3));
+      if (J) moving = false;
+    } else {
     const tgtGone = A.tgt && !inViewV194B(projV194B(scene, G, m, A.tgt.u, A.tgt.w), wv, 1);
     if (!A.tgt || tgtGone || now - A.tgtAt > TUv("mascotSpotMsV194B", 1400)) {
       A.tgtAt = now;
@@ -1916,7 +1969,6 @@
       }
     }
     // 3. run along the path
-    let moving = false, vx = 0;
     if (A.path.length && !(A.act && A.act.react && m.vis)) {   // a reaction is played where he stands
       const spd = TUv("mascotRunYdV194B", 10) * YD * (A.mood === "furious" ? 1.25 : 1) * (dt / 1000);
       let left = spd;
@@ -1927,7 +1979,8 @@
       }
       moving = A.path.length > 0;
     }
-    const p = projV194B(scene, G, m, A.pos.u, A.pos.w), sc = p.sc, k = sc * SCALE;
+    }
+    const p = J || projV194B(scene, G, m, A.pos.u, A.pos.w), sc = p.sc, k = sc * SCALE;
     const outS = A.pos.w >= 0 ? 1 : -1;   // + screen x is away from the field on the right bank
     // 4. what he is doing
     let o = null, celO = null;
@@ -1936,8 +1989,9 @@
       if (t >= m.cel.ms) m.cel.alive = false; else celO = celPose(m.cel, t);
     }
     if (A.act && now - A.act.t0 >= A.act.ms) { if (A.act.react && A.queue.length) nextAct(A, now); else { A.act = null; A.idleAt = now + TUv("mascotIdleGapMsV194B", 500); } }
+    if (J && (!A.act || (!A.act.react && A.act.name !== "groove"))) A.act = { name: "groove", t0: now, ms: ACTS_V194B.groove.ms, react: false };   // v195 B: on the big screen's deck, he dances
     if (moving && !(A.act && A.act.react)) {
-      o = { pose: cyc(now, 85, RUN_V194B), lift: Math.abs(Math.sin(now / 85)) * 1.5, face: Math.abs(vx) > 1e-3 ? Math.sign(vx) : outS };
+      o = { pose: cyc(now, 85, RUN_V194B), lift: v2 ? 1.5 * 4 * ((now / 170) % 1) * (1 - ((now / 170) % 1)) : Math.abs(Math.sin(now / 85)) * 1.5, face: Math.abs(vx) > 1e-3 ? Math.sign(vx) : outS };
     } else if (celO && (!A.act || !A.act.react || (m.cel && m.cel.kind !== "cycle"))) o = celO;   // HIS mirrored body (v161 A / v177 I) or a scorer's cheer
     else {
       if (!A.act && now >= A.idleAt) idleV194B(A, scene, now);
@@ -1949,9 +2003,10 @@
     }
     if (!o) o = idlePose(now, 0, m.ph);
     if (REDUCED) { o.rot = 0; o.lift = Math.min(o.lift || 0, 2); }
+    if (v2) { motionV195B(A, o, now, dt, moving); if (J) { o.face = p.face; o.dx = (o.dx || 0) * 0.5; o.dy = 0; } }   // v195 B: squash and stretch; on the deck, he faces the screen
     V194.act = A.act ? A.act.name : moving ? "run" : null; V194.mood = A.mood; V194.moodScore = A.moodScore; V194.margin = A.margin; V194.momentum = A.momentum; V194.record = +A.record.toFixed(3);
     // 5. draw him
-    const fi = POSE_IX[o.pose] != null ? POSE_IX[o.pose] : 0, f = m.S.frames[fi];
+    const fi = fiV195B(m.S, o.pose), f = m.S.frames[fi];
     if (fi !== m.lastPose) { img.setFrame(fi); m.lastPose = fi; }
     m.pose = o.pose;
     const flip = o.face ? (o.face > 0 ? 1 : -1) : -outS;   // standing, he faces the field
@@ -1959,13 +2014,14 @@
     img.setOrigin(0.5, f.hipY / LH);
     img.setScale(flip * sc * (o.sx || 1), sc * (o.sy || 1));
     img.setRotation(flip * (o.rot || 0) * DEG);
-    const hx = p.x + ox, hy = p.y - (GY - f.hipY) * k - (o.lift || 0) * k + oy;
+    const hx = p.x + ox, hy = p.y - (GY - f.hipY) * k * (v2 ? o.sy || 1 : 1) - (o.lift || 0) * k + oy;   // v195 B: a squash keeps his feet on the ground
     img.setPosition(hx, hy);
-    let depth = 3.5; try { depth = scene.sideDepth(p.y + oy) + 0.0016; } catch (e) {}
+    let depth = 3.5; try { depth = J ? TUv("crowdDepth", 3.45) + TUv("v195BjumboDepth", 0.08) : scene.sideDepth(p.y + oy) + 0.0016; } catch (e) {}
     img.setDepth(depth);
     m.sh.setPosition(p.x + ox, p.y + oy - 0.4 * k).setSize(11 * k * (1 - Math.min(0.5, (o.lift || 0) / 30)), 3 * k).setDepth(depth - 0.0006);
     // the light (the bench's shade, re-read now and then), and the temper's red face
-    if (now - (m.lightAt || 0) > 600) { m.lightAt = now; try { const f0 = scene.sideShadeBase(A.pos.u, p.k, outS); m.lv = Math.max(0, Math.min(255, Math.round((f0 * 255) / 8) * 8)); } catch (e) { m.lv = 230; } }
+    if (J) { m.lv = 240; m.lightAt = 0; }   // v195 B: up on the deck, in the screen's light
+    else if (now - (m.lightAt || 0) > 600) { m.lightAt = now; try { const f0 = scene.sideShadeBase(A.pos.u, p.k, outS); m.lv = Math.max(0, Math.min(255, Math.round((f0 * 255) / 8) * 8)); } catch (e) { m.lv = 230; } }
     const lv = m.lv == null ? 230 : m.lv, red = o.red ? Math.min(1, o.red) * (0.75 + 0.25 * Math.sin(now / 70)) : 0;
     const tint = ((Math.round(lv * 0.98) << 16) | (Math.round(lv * (0.99 - 0.55 * red)) << 8) | Math.round(Math.min(255, lv * 1.02) * (1 - 0.6 * red))) >>> 0;
     if (tint !== m.tintNow) { m.tintNow = tint; img.setTint(tint); }
@@ -1983,6 +2039,8 @@
     if (Math.abs(A.pos.w) < ((scene.side && scene.side.paint) || 206) && A.pos.u > 0 && A.pos.u < G.FW) V194.onField++;
     V194.spot = { u: Math.round(A.pos.u), w: Math.round(A.pos.w), ez: !!(A.tgt && A.tgt.ez), moving, visible: vis, x: Math.round(img.x), y: Math.round(img.y) };
     m.sx = p.x; m.sy = p.y; m.k = k;
+    try { trackV195B(A, m, G, now, dt, vis, !!J, wv); } catch (e) { err(e); }   // v195 B: the teleport measure (read only, both modes)
+    if (J) { const JV = V195.jumbo; JV.frames++; if (JV.lastPose !== fi) { JV.poses++; JV.lastPose = fi; } JV.last = { x: Math.round(img.x), y: Math.round(img.y), h: Math.round(img.displayHeight), visible: vis, pose: o.pose, act: A.act ? A.act.name : null, side: A.jumboV195B ? A.jumboV195B.side : 0, at: Math.round(now) }; }
     // 6. the extras: world points of his eyes and fists
     const at = (lx, ly) => ({ x: hx + (lx - LW / 2) * k * flip, y: hy + (ly - f.hipY) * k });
     const fxD = depth + 0.002;
@@ -2016,7 +2074,8 @@
     } else if (A.signBox) { A.signBox.setVisible(false); V194.sign = null; }
     // the bubble over his head: a constant size on screen, one at a time
     const B = A.bubble;
-    if (B && now < B.until && vis) {
+    if (v2 && (!B || B.plan)) bubbleV195B(scene, A, B, now, vis, cam, wv, hx, hy, f, k, wantSign);   // v195 B: the typewriter
+    else if (B && now < B.until && vis) {
       if (B.drawn !== B.text || !A.bubbleBox) {
         try { A.bubbleBox && A.bubbleBox.destroy(); } catch (e) {}
         A.bubbleBox = boxV194B(scene, B.text, { fs: 20, fill: 0xffffff, tail: true, padX: 16, padY: 8, wrap: 230 }); B.drawn = B.text;
@@ -2040,7 +2099,7 @@
   }
   // the check's and the dev harness's handles: judge a payload now, say a bucket now
   const API_V194B = {
-    phrases: () => JSON.parse(JSON.stringify(PHRASES_V194B)), count: () => PHRASE_N_V194B, classify: classifyV194B, acts: () => Object.keys(ACTS_V194B),
+    phrases: () => JSON.parse(JSON.stringify(phrasesNowV195B())), count: () => (on195() ? PHRASE_N_V195B : PHRASE_N_V194B), classify: classifyV194B, acts: () => Object.keys(ACTS_V194B),
     mascot: () => { const sc = window.__gridironScene, st = sc && sc.__mascotV193AI; return st && st.list ? st.list.find((q) => q.v194) || null : null; },
     react: (pay) => { const sc = window.__gridironScene, m = API_V194B.mascot(); return m ? judgeV194B(sc, m, pay) : null; },
     say: (bucket) => { const sc = window.__gridironScene, m = API_V194B.mascot(); return m ? say(m.v194, sc, bucket, true) : null; },
@@ -2048,6 +2107,633 @@
     state: () => { const m = API_V194B.mascot(), A = m && m.v194; return A ? { home: A.home, team: A.T, opp: A.O, mood: A.mood, moodScore: A.moodScore, margin: A.margin, momentum: A.momentum, act: A.act ? A.act.name : null, queue: A.queue.slice(), bubble: A.bubble ? A.bubble.text : null, sign: A.signTxt, pos: A.pos, tgt: A.tgt, fx: A.fx.length, merch: A.merch.length } : null; }
   };
   V194.api = API_V194B;
+
+  /* ===== v195 B THE MASCOT, V2 =====
+   * The owner: "Overhaul the mascots. I love them, but I want a v2 version. Colors exact to mascot logos. Text should be
+   * typewriter (one letter at a time) and have comedic timing. Improve the text to be funnier. The mascot is teleporting
+   * everywhere on the field, ensure that doesn't happen as often for the 'my plays only' sim. Have him dance and be in
+   * frame of the jumbotron, right now he freezes. Make dance moves more natural instead of blocky."
+   *   THE CREST'S COLOURS  the 90 v44 crests are painted raster art, so `scripts/build-mascot-palettes.mjs` reads each one's
+   *                 palette off public/rib_logos_v44.png (the interior's k-means clusters in Lab, every colour named by a
+   *                 pixel the crest really has, plus its KEYLINE — the wolf's cyan, the boar's red) into `LOGO_PAL_V195B`.
+   *                 A v2 sheet paints EVERY colour through `snapperV195B(logo)` (the painter's `k`): the fur, the trim, the
+   *                 horns, the shading the rig derives — each becomes the nearest crest colour (Lab ΔE, a small pull to the
+   *                 crest's big colours, never a light part onto the dark ink); only the pure white of eyes and teeth and
+   *                 the outline ink stay. The jersey and its trim come off the crest too (`logoColsV195B`: the biggest
+   *                 colour that is not the fur and not ink; the trim the keyline when it is a real colour), and so do his
+   *                 merch and his sign. TU `v195Bcolours` 0 keeps v194 B's costume colours with the rest of v2.
+   *   THE TYPEWRITER  `typePlanV195B(raw)`: one letter at a time (`v195BtypeMs` 40), a beat on commas (`v195BcommaMs`) and on
+   *                 a sentence's end (`v195BstopMs`), an ellipsis drawn dot … by … dot (`v195BdotMs`), and the comedian's
+   *                 pause: a "|" in a line is a held beat (`v195BbeatMs` 620) before the punchline, which types a touch
+   *                 quicker and pops the bubble. The box is drawn at its FINAL size (`boxV195B`: Phaser wraps the whole
+   *                 line once, each wrapped line is its own left-anchored Text), so it never jumps while the letters come;
+   *                 the full line holds `v195BholdMs` + `v195BholdPerCharMs` a letter, and the next one waits
+   *                 `v195BgapMs` after it.
+   *   FUNNIER       `PHRASES_V195B`: the same 21 buckets (+ "jumbo"), setup → beat → punchline, the man in the suit (the
+   *                 humid head, the foam hands, union rules); `SIGNS_V195B`. Clean, and the league is the UFF.
+   *   NO TELEPORTS  v194 B re-chose his spot every 1.4 s and, whenever the camera had left it (every skipped play under MY
+   *                 PLAYS ONLY moves the field), put him straight on the new one — in the middle of the shot. Now
+   *                 (`whereV195B`): a CUT (the line jumps `v195BcutYd` 12 yd) waits `v195BsettleMs` for the camera; he
+   *                 HOLDS his spot while it is in the picture (re-chosen only every `v195BspotMs` 6 s between snaps, a
+   *                 `v195BstayBonus` pull to stay); only once it has been out of the shot `v195BgoneMs` (between snaps;
+   *                 `v195BgoneLiveMs` during one) does he pick a spot in it — and he RUNS there from where he is: out of
+   *                 the shot he covers ground fast (`v195BhiddenYdS`, capped at `v195BhiddenStepYd` a frame), so he comes
+   *                 into the picture from its edge at his running pace, never out of thin air. His state survives a
+   *                 rebuild of the bench (`keepV195B`). `__V195B.track` counts world jumps and on-screen pops per minute.
+   *   THE JUMBOTRON  the v175 pan to the screen (and its v177 C party) used to freeze him: the post phase and the gap after
+   *                 it never call `updateSideline`, so his frame stopped — 05's `mascotGapV195B` now ticks him there. And
+   *                 the shot is up at the far bowl's screen, so while it is (`jumboV195B`: the pan has started and his
+   *                 own spot has left the picture), he stands on the bowl's top deck BESIDE the screen (`v195BjumboH` of
+   *                 the panel tall, the side with room), facing it, DANCING the groove, says a "jumbo" line, and stays
+   *                 there until the screen has left the frame on the way home.
+   *   THE DANCE     the poses were hard switches between a few keys. A v2 sheet adds two IN-BETWEENS for every step of every
+   *                 cycle (`CYCLES_V195B`, `tweenPoseV195B`: the body leads, the arms and the head DRAG behind it — the
+   *                 follow-through), and a four-count GROOVE (`groove0-3`, his dance on the screen and in a celebration).
+   *                 `grooveV195B` plays any cycle pose → in-between → in-between → pose on an ease (the keys held, the
+   *                 moves quick), with a swing on alternate beats and the tempo breathing; `motionV195B` adds squash on a
+   *                 landing, stretch on the way up, a breath standing, all anchored at his feet. A v2 sheet (~2.4x the poses) draws
+   *                 `v195BposesPerFrame` 6 poses a frame (a cold slice ~8 ms), so he is up about as soon as before.
+   * Kill switch TU `v195B` 0: v194 B exactly (its sheet, colours, lines, bubbles, spots and poses). Cosmetic only — no
+   * Math.random, nothing written to the play, the sim or the save. `window.__V195B`; `v195Bcheck`. */
+  const on195 = () => on194() && !!TUv("v195B", 1);
+  // a v2 sheet is ~2.4x the poses (the in-betweens): a cold one is drawn a few more a frame, so he is up as soon as before
+  function posesPerStepV195B() { return Math.max(1, on195() ? TUv("v195BposesPerFrame", 6) : TUv("mascotPosesPerFrameV193AI", 4)); }
+  const V195 = (window.__V195B = window.__V195B || { type: null, typeLog: [], bubbles: 0, cuts: 0, enters: 0, holds: 0, respots: 0, jumbo: { frames: 0, entered: 0, poses: 0, last: null }, track: { ms: 0, jumps: 0, pops: 0, popIns: 0, frames: 0, log: [] }, keeps: 0, errs: [] });
+
+  /* ---- 1. the crest's own colours ---- */
+  /* <generated by scripts/build-mascot-palettes.mjs: LOGO_PAL_V195B> */
+  /* the 90 crests in LOGO_DB order: "rrggbb:share%,…|keyline" read off public/rib_logos_v44.png */
+  const LOGO_PAL_V195B = [
+    "020202:35,636a6a:20,434a4a:19,c9cbca:9,1a1b1b:6,7b8281:6,acb1b1:5|1ae3f2", "020100:43,8a531b:25,5a310b:14,aa6a23:7,3a220a:6,f0e2ba:2|f2d2a2", "010100:55,404343:36,222223:5,403a4a:3|49494a", "020101:39,faf9f2:25,aba391:13,cac3b2:7,f1ac03:7,39322b:4,c38a12:4,412901:3|f2ca0a", "010201:41,73ab1a:16,2a6912:21,0a1a02:6,122902:6,f0eae1:5,a1c034:5|a2d29a",
+    "010201:32,5b9aa9:16,caecf2:14,025b72:23,021a21:7,91e1ea:6,491108:2|4adaf1", "010000:40,a21911:20,720b0b:20,ecd19a:7,2a0303:6,a28b5a:5,423a28:3|f2d1a1", "020100:32,816a53:27,33312b:17,625242:9,a28a71:7,823b29:6,f4eaca:3|f21a09", "020101:34,ebe9e1:16,5b492c:10,daba7a:10,7a7a73:9,21201b:8,bbbab1:6,826a42:6|ebe2d1", "010100:40,92531a:25,5a3211:11,221104:8,3b210b:7,93815a:6,413c34:4|eab28a",
+    "020101:39,da6a0a:20,f2ebda:12,aba38b:7,2a1202:7,9b4a09:6,421b01:5,4a4232:4|f3cb9a", "020100:35,f2aa12:17,aa6a09:13,da920a:10,623a03:7,1a1101:7,f3daa2:5,392202:5|f9c22b", "020100:38,eaa20a:24,a96a09:13,eae2cb:8,2a1a02:6,4a3103:6,9a948a:3|f3e26a", "010101:55,0a324a:27,2a3a42:9,12618a:5,e1e2e4:4|a2daf1", "020201:33,e1f4f8:29,9acadb:10,5291ab:18,13222a:5,225a7a:5|caeaf3",
+    "010101:68,222222:17,dcd8d1:4,5a1321:3,130a19:3,391119:3,5c5050:2|cac2c0", "010200:32,4a8222:20,1a521a:15,0a220a:8,12421a:8,93b22c:7,705b12:5,a98021:4|f2ca3b", "838989:36,020101:28,4b5151:21,222222:7,a1a3a3:4,ead8b3:4|f3d1aa", "82020b:43,f22a03:35,f28902:10,a20909:7,f9a902:4|fada5a", "426aa9:40,010101:23,213a62:11,32538a:10,13223a:7,0b1222:5,9bbae2:3|32518a",
+    "020101:55,32424a:26,7b888b:8,525a5b:7,eae9e2:2|f2d2a2", "020201:37,707371:28,c3c2b9:14,424341:19|f3dab2", "010002:72,222222:18,120a22:6,1c1139:3|7c6870", "020200:36,a3c121:27,397b13:24,142803:6,dae983:4,7b8434:3|ebd282", "020101:33,42423b:21,99917b:28,5a5a52:9,1b1a19:7|eaab9a",
+    "023962:28,7bb2d1:15,7293ab:11,badaea:21,52738a:11,010202:8,0a1a2a:6|7ad2f2", "020100:30,936129:31,6a4219:13,533213:10,ead2a2:9,322212:7|f1daab", "010100:44,232a29:32,f3b913:7,b37009:7,4a3102:5,221803:3,992b20:2|f2aa1a", "e1e1e4:40,01040a:21,9b9ab2:14,b3b1bb:13,737282:5,333242:5,bc790b:2|f3f2f3", "04101b:29,126371:18,4ab9b2:27,339392:12,123a43:7,0a222a:7|a2d3ea",
+    "020100:30,192330:16,c2821b:14,835112:12,b21b1b:11,322211:8,621111:5,faf8f3:3|825a2a", "010202:33,929aa9:25,2a2a2a:10,193252:9,1252a2:8,03295a:16|535259", "020101:33,8a4912:15,522a0a:13,aa5b1a:11,e0c193:8,2a2a2a:8,727c88:7,826c51:5|525253", "020100:41,313133:16,230203:11,620a0b:9,d28a0a:8,5a3303:7,991213:6,72725b:3|514a51", "020100:27,a2630a:20,714312:15,9a1111:10,221302:10,3a2209:9,5a0b0b:6,b3a06b:5|c3c1c3",
+    "010201:38,493b30:12,996211:11,928b83:9,12437a:8,092a52:15,031222:6|4c4a4b", "020101:35,523a22:14,7b5933:22,322112:11,1b314a:9,e3b281:9|dbdada", "12233a:36,010101:30,2a3952:12,f2ebda:9,69635a:7,425059:4,83530b:4|ebeaeb", "020202:43,424241:14,59636a:11,8a816b:11,f2f1ea:9,a26a1b:7,59421a:6|f3f1f3", "020202:33,18232a:24,323232:12,5a5b5b:12,8b8a89:9,e2d9c9:7|525253",
+    "010101:45,232423:24,521011:12,b18352:8,a21314:7,821113:4|f3f2f3", "010101:69,1b1b1b:13,110a1a:5,302214:3,a87c3c:3,f2cc5a:3,9a7c48:2|f3f1f2", "010201:41,033b3a:20,dbd1c3:10,79726a:8,4b4a4a:7,303c50:7,09192a:7|ebeaeb", "020201:33,333122:28,928242:14,524a2a:10,c3b263:8,695b32:8|e3e1e3", "010202:26,033a6a:18,2aa9da:15,126292:13,f1f3f3:10,022a4a:10,323131:5,596363:4|f1f1f2",
+    "020200:42,516331:17,213122:14,384a31:8,8a922b:7,eaeb5b:6,816212:5|d4ea3b", "010101:88,110b21:6,18183a:2,212121:2|f2f2f3", "020100:28,e29b12:16,8a4b0a:14,6a3a0a:12,522a0a:10,221103:8,f2ca5a:7,7a2212:6|6a420a", "020202:33,a1825b:13,09194a:12,032142:20,435b8b:10,f3daaa:8,92a4c8:3|eae9eb", "010102:39,1a212a:19,4a596b:21,1a192c:9,382c50:6,748292:6|e9e9e9",
+    "020101:42,2a1b11:13,422a19:25,6a4321:8,c99363:8,4b4132:4|ece9ea", "020201:28,413329:28,91735a:16,624b3a:12,21242b:8,c2996b:5,791212:3|dbd9db", "010102:36,627389:17,1a293a:21,e2dad2:12,81838a:8,49525b:6|f3f3f4", "020101:27,724311:15,a26212:12,e19b1a:11,4a2a0a:11,091b32:10,321b09:8,044289:5|e3e2e3", "010101:40,121a22:24,2b3949:8,d31b1a:8,9a1919:7,5a0a0a:5,2a0302:4,899299:3|f2f1f2",
+    "020201:29,0a2a32:16,724a1a:14,ba7a22:14,33220a:10,d9b133:8,015a6a:6,f2f2f2:3|f1ebf0", "020101:35,9a8162:16,332a22:25,4b4131:11,d3c2a9:7,43421b:4,7b891b:3|f3f2f3", "020201:29,cabaaa:25,895113:12,ebb10b:9,623911:9,5a5a5a:8,424241:8|525153", "020202:33,141b22:18,5a524a:31,7a6c62:9,e9e3da:9|625b5a", "020101:39,1b1a19:21,f15901:10,321203:8,6b2101:8,41322b:7,ea8100:4,7c6043:2|ebeaeb",
+    "020201:42,f3b300:15,d1d0cc:15,fafaf9:10,b97901:7,5c5c5b:4,323232:4,412b01:3|f2f2f3", "010201:37,52920a:23,427a0b:21,224203:7,9ac23b:5,122202:5,94a06b:2|fafbfa", "010102:56,3c315a:12,211a33:10,3a3b3b:9,22212a:5,595461:4,f3f3f3:3|f3f2f3", "010922:66,03234a:14,d1191b:8,22518a:8,787280:3|f2f1f3", "010202:27,92d1ea:22,eaeb10:13,417993:12,123243:10,324a04:6,daebf2:6,fbfaea:4|f9faf9",
+    "020201:36,c9c4ba:18,f2b201:16,f3f3f2:10,2b2a29:6,aa6a00:5,5b5a5a:5,3b2901:3|f9faf9", "020101:42,ba1a0b:22,2a3232:10,82120a:7,1a0101:6,390302:5,f3f3f2:5,c94433:4|f3f2f3", "d33819:36,030101:25,c0a379:11,a9190a:11,8b1a09:5,290301:5,3a3122:4,f2f2f2:3|f3f2f3", "011823:43,fbe3aa:18,527a59:14,325342:20,8b8b7a:5|fbfafa", "01223a:51,9bd3b9:16,235a5b:21,f3f3f3:7,9aa2ab:5|f9fafa",
+    "425973:37,01030a:31,a1b1c2:9,22334b:8,fafafb:6,2249f2:6,101a2b:3|f9f9f9", "090301:29,fbc222:20,f29a01:14,311100:11,fbda5b:8,f3ebc2:6,592300:6,734902:5|f3f2f2", "130800:39,c31b01:21,f38b00:20,fbd339:11,ea7202:3,6a5a1a:3,331b00:3|fbfaf9", "fafbfb:21,92d2f1:29,027aba:17,1aa1da:12,025992:8,023361:6,011a3a:6|f1f2f3", "1a191b:35,5a3322:25,da2203:11,321a1a:10,8a4b23:10,7a1a12:6,fcd213:3|f3f2f3",
+    "090a12:28,c21b09:18,7a695c:17,fce29a:13,f38a2a:10,433a39:6,690303:4,a08c7a:4|fbf9fa", "020103:48,32343a:13,737372:12,1a1b22:11,b9b3ab:7,2a0408:4,a2131b:3,f3f3f1:3|fafafa", "030102:40,da2b00:17,4b423a:11,fa9a02:9,320a01:7,621202:6,796b5b:5,fce24a:5|f3f2f2", "020203:39,f8b029:37,f3f2f1:10,8a8a8a:4,2b2a2a:4,616162:3,f3bb5b:3|fafafa", "020101:33,523922:28,f3c28a:12,9a100c:11,2b3133:9,5a0a09:4,595a59:3|f2f2f2",
+    "031122:49,536073:20,fafaf9:10,222a3a:9,828b9a:7,c2c3ca:5|f9f9f9", "01030a:27,698a29:17,1a321a:16,29421a:15,122212:10,426222:8,d2d2d3:6|fafafa", "0a0301:27,ecd2a9:21,db7921:28,927249:8,321101:6,4a4232:5,824211:4|fafaf9", "01091a:49,0b416b:30,73747a:9,f2f2f2:7,3a3b42:5|f2f2f3", "3993a9:32,114b61:35,010a19:21,092a3a:8,eaeaea:4|f3f2f3",
+    "fbfbfa:30,c0c4c8:17,020309:13,314354:21,818b99:13,aacbd9:6|f9faf9", "01020a:43,293843:22,011222:14,fbfbf9:12,7a8389:8|f2f2f2", "000109:48,e3eb92:14,79ab24:12,092331:7,193b19:6,2a5212:6,4a92b3:4,f4f4f3:2|f3f2f3", "031921:40,020203:24,dcd1ba:20,323332:5,522b10:5,727169:4,f3f2f2:2|f9f9f9", "01010a:33,536071:37,1a2a3b:24,818992:7|f9faf9"
+  ];
+  /* </generated LOGO_PAL_V195B> */
+  function labV195B(h) {
+    const r = rgbOf(h), l = (v) => { v /= 255; return v <= 0.04045 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4); };
+    const R = l(r[0]), G = l(r[1]), B = l(r[2]);
+    const X = (R * 0.4124 + G * 0.3576 + B * 0.1805) / 0.95047, Y = R * 0.2126 + G * 0.7152 + B * 0.0722, Z = (R * 0.0193 + G * 0.1192 + B * 0.9505) / 1.08883;
+    const f = (t) => (t > 0.008856 ? Math.cbrt(t) : 7.787 * t + 16 / 116);
+    return [116 * f(Y) - 16, 500 * (f(X) - f(Y)), 200 * (f(Y) - f(Z))];
+  }
+  const dEV195B = (a, b) => Math.hypot(a[0] - b[0], a[1] - b[1], a[2] - b[2]);
+  const PAL_V195B = new Map();
+  // [{ hex, share, L, rim }] — the crest's colours by share, its keyline last
+  function logoPalV195B(i) {
+    i = ((Number(i) || 0) % NLOGO + NLOGO) % NLOGO;
+    if (PAL_V195B.has(i)) return PAL_V195B.get(i);
+    const [body, rim] = String(LOGO_PAL_V195B[i] || "").split("|"), out = [];
+    body.split(",").filter(Boolean).forEach((e) => { const [h, s] = e.split(":"); out.push({ hex: "#" + h, share: (Number(s) || 0) / 100, L: labV195B("#" + h), rim: false }); });
+    if (rim) out.push({ hex: "#" + rim, share: 0, L: labV195B("#" + rim), rim: true });
+    if (!out.length) out.push({ hex: "#888888", share: 1, L: labV195B("#888888"), rim: false });
+    PAL_V195B.set(i, out);
+    return out;
+  }
+  const chromaV195B = (L) => Math.hypot(L[1], L[2]);
+  // any colour → the nearest crest colour (cached); the outline ink and pure white stay
+  const SNAP_V195B = new Map();
+  function snapperV195B(i) {
+    const key = ((Number(i) || 0) % NLOGO + NLOGO) % NLOGO;
+    if (SNAP_V195B.has(key)) return SNAP_V195B.get(key);
+    const pal = logoPalV195B(key), memo = new Map();
+    const f = (col) => {
+      if (typeof col !== "string" || col.charAt(0) !== "#") return col;   // rgba() shadows and glass stay
+      const c = col.length === 4 ? col.replace(/^#(.)(.)(.)$/, "#$1$1$2$2$3$3").toLowerCase() : col.toLowerCase();
+      if (c === INK || c === "#ffffff") return c;
+      let r = memo.get(c); if (r) return r;
+      const L = labV195B(c); let bd = 1e9; r = pal[0].hex;
+      for (const p of pal) {
+        let d = dEV195B(L, p.L) + TUv("v195BsmallPenalty", 5) * (1 - Math.min(1, p.share / 0.12));   // a pull to the crest's big colours
+        if (p.L[0] < 16 && L[0] > 34) d += 40;                                                        // a light part never onto the dark ink
+        if (d < bd) { bd = d; r = p.hex; }
+      }
+      memo.set(c, r);
+      return r;
+    };
+    SNAP_V195B.set(key, f);
+    return f;
+  }
+  // the jersey and its trim off the crest: the biggest colour that is not the fur and not ink; the trim its keyline when that
+  // is a real colour, else the next distinct one. A crest with nothing else keeps the team's (snapped)
+  function logoColsV195B(i, cols0) {
+    if (!TUv("v195Bcolours", 1)) return cols0;
+    const id = forLogo(i), snap = snapperV195B(id.logo), pal = logoPalV195B(id.logo).filter((p) => !p.rim);
+    let limb = null; try { limb = labV195B(snap(lookFor(id, cols0, false).limb)); } catch (e) { limb = pal[0].L; }
+    const lit = pal.filter((p) => p.L[0] >= 14);
+    const p1 = lit.find((p) => dEV195B(p.L, limb) >= 22) || lit[0] || pal[0];
+    const rim = logoPalV195B(id.logo).find((p) => p.rim);
+    let p2 = rim && chromaV195B(rim.L) >= 28 && dEV195B(rim.L, p1.L) >= 22 ? rim : null;
+    if (!p2) p2 = lit.find((p) => p !== p1 && dEV195B(p.L, p1.L) >= 24) || (rim && dEV195B(rim.L, p1.L) >= 12 ? rim : null) || { hex: snap(cols0.p2) };
+    return { p1: p1.hex, p2: p2.hex };
+  }
+  function lookV195B(L, logo) {
+    if (TUv("v195Bcolours", 1)) { L.snap = snapperV195B(logo); L.snapPx = logoPalV195B(logo).map((p) => rgbOf(p.hex)).concat([rgbOf(INK), [255, 255, 255]]); }
+    if (chibiOnV195B()) chibiLookV195B(L, logo);   // the chibi build, the cute face, the crest's mark
+    return L;
+  }
+
+  /* ---- 2. the in-betweens and the groove ---- */
+  Object.assign(POSES, {
+    groove0: { legs: [8, 3, 34, -22], arms: [38, 72, 124, 34], lean: -6, tilt: 9, w: 0, s: 0 },
+    groove1: { legs: [30, -20, 30, -20], arms: [64, 96, 64, 96], tilt: -3, tl: 0.94, w: 0, s: 0 },
+    groove2: { legs: [34, -22, 8, 3], arms: [124, 34, 38, 72], lean: 6, tilt: -9, w: 0, s: 0 },
+    groove3: { legs: [22, -12, 22, -12], arms: [150, 22, 150, 22], tilt: 3, w: 0, s: 0 }
+  });
+  const CYCLES_V195B = {
+    cheer: ["cheer0", "cheer1", "cheer2", "cheer3"], idle: ["idleA", "idleB"], wave: ["wave0", "wave1"], hips: ["hips0", "hips1"],
+    run: ["run0", "run1", "run2", "run3"], sign: ["sign0", "sign1"], cry: ["cry0", "cry1"], mad: ["mad0", "mad1"], steer: ["steer1", "steer0", "steer2", "steer0"],
+    nails: ["nails0", "nails1"], slump: ["slump0", "slump1"], throw: ["throw0", "throw1", "hips0"], moon: ["moon0", "moon1"], griddy: ["griddy0", "griddy1"],
+    point: ["point", "armsUp"], groove: ["groove0", "groove1", "groove2", "groove3"], star: ["stand", "star"]
+  };
+  const tweenNameV195B = (a, b, k) => a + "~" + b + "~" + k;
+  // the body leads, the arms and the head drag behind it (and catch up on the key): the follow-through
+  const TW_W_V195B = { 1: { body: 0.36, arms: 0.22, head: 0.18 }, 2: { body: 0.74, arms: 0.6, head: 0.52 } };
+  function tweenPoseV195B(a, b, k) {
+    const A = POSES[a], B = POSES[b], w = TW_W_V195B[k], mix = (x, y, u) => (x || 0) + ((y || 0) - (x || 0)) * u;
+    const near = k === 1 ? A : B, P = Object.assign({}, near);
+    P.legs = A.legs.map((v, i) => mix(v, B.legs[i], w.body));
+    P.arms = A.arms.map((v, i) => mix(v, B.arms[i], w.arms));
+    P.lean = mix(A.lean, B.lean, w.body); P.tilt = mix(A.tilt, B.tilt, w.head); P.tl = mix(A.tl || 1, B.tl || 1, w.body); P.dx = mix(A.dx, B.dx, w.body);
+    if (A.wheel != null && B.wheel != null) P.wheel = mix(A.wheel, B.wheel, w.arms);
+    return P;
+  }
+  const TWEENS_V195B = [];
+  (function () {
+    const seen = {};
+    Object.keys(CYCLES_V195B).forEach((c) => { const L = CYCLES_V195B[c]; L.forEach((a, i) => { const b = L[(i + 1) % L.length]; if (a === b || seen[a + ">" + b]) return; seen[a + ">" + b] = 1; [1, 2].forEach((k) => { const n = tweenNameV195B(a, b, k); POSES[n] = tweenPoseV195B(a, b, k); TWEENS_V195B.push(n); }); }); });
+  })();
+  const NAMES_V195B = POSE_NAMES.concat(["groove0", "groove1", "groove2", "groove3"], TWEENS_V195B);
+  const IX_V195B = {}; NAMES_V195B.forEach((n, i) => { IX_V195B[n] = i; });
+  // a pose's frame in a sheet; an in-between a v1 sheet lacks falls back to its nearer key
+  function fiV195B(S, name) {
+    const ix = (S && S.ix) || POSE_IX;
+    if (ix[name] != null) return ix[name];
+    if (S && S.v2 === false && String(name).indexOf("~") > 0) { const p = String(name).split("~"); const n = p[2] === "1" ? p[0] : p[1]; if (ix[n] != null) return ix[n]; }
+    return 0;
+  }
+  // pose → in-between → in-between → pose: the keys held, the moves quick (an ease), a swing on alternate beats
+  function grooveV195B(t, ms, list, o) {
+    o = o || {};
+    const n = list.length; if (n < 2) return { pose: list[0], u: 0, beat: 0 };
+    const sw = o.swing != null ? o.swing : TUv("v195Bswing", 0.12), pair = 2 * ms;
+    let tt = Math.max(0, t);
+    if (o.breathe) tt += ms * o.breathe * Math.sin((2 * Math.PI * tt) / (ms * n * 4));   // the tempo breathes
+    const k = Math.floor(tt / pair), r = tt - k * pair, long = ms * (1 + sw);
+    const beat = 2 * k + (r < long ? 0 : 1), u = r < long ? r / long : (r - long) / Math.max(1, pair - long);
+    const i = ((beat % n) + n) % n, a = list[i], b = list[(i + 1) % n];
+    const e = u < 0.5 ? 2 * u * u : 1 - 2 * (1 - u) * (1 - u);
+    const pose = e < 0.17 ? a : e < 0.5 ? tweenNameV195B(a, b, 1) : e < 0.83 ? tweenNameV195B(a, b, 2) : b;
+    return { pose: POSES[pose] ? pose : e < 0.5 ? a : b, u, beat };
+  }
+  const grooveNameV195B = (t, ms, list) => grooveV195B(t, ms, list).pose;
+  // the cheer cycle (a scorer's, the bench's): smooth, a real hop on the fourth count
+  function celCycleV195B(cel, t, out) {
+    const g = grooveV195B(t, Math.max(40, cel.fm), CYCLES_V195B.cheer, { swing: 0.08 });
+    out.pose = g.pose;
+    if (!REDUCED && g.beat % 4 === 2) out.lift = 4 * 4 * g.u * (1 - g.u);   // up from cheer2 into the arms-up cheer3
+    return out;
+  }
+  function idleV195B(t, excite, ph) {
+    const out = { pose: "idleA", lift: 0, rot: 0, sx: 1, sy: 1, dx: 0 }, ms = TUv("mascotIdleMsV193AI", 420) * 1.25;
+    const wave = excite > TUv("mascotWaveAtV193AI", 0.4);
+    const g = grooveV195B(t + ph, wave ? ms * 0.6 : ms, wave ? CYCLES_V195B.wave : CYCLES_V195B.idle, { breathe: 0.12 });
+    out.pose = g.pose;
+    if (!REDUCED) { out.lift = 4 * g.u * (1 - g.u) * (wave ? 2.6 * Math.min(1, excite) : TUv("mascotBobPxV193AI", 1.5)); out.rot = 2.2 * Math.sin(((t + ph) / ms) * Math.PI); }
+    return out;
+  }
+  // his dance: the four-count groove, on the screen and when he celebrates
+  ACTS_V194B.groove = { ms: 3400, f(t, A) {
+    const ms = { ecstatic: 250, confident: 290, nervous: 330, desperate: 360, furious: 230 }[A.mood] || 290;
+    const g = grooveV195B(t, ms, CYCLES_V195B.groove, { breathe: 0.1 });
+    const step = g.beat % 2 === 0;
+    return { pose: g.pose, lift: step ? 3.2 * A.big * 4 * g.u * (1 - g.u) : 0, rot: 3.5 * Math.sin((Math.PI * (t / ms)) / 2), dx: 2.4 * Math.sin((Math.PI * t) / (2 * ms)) };
+  } };
+  // squash on a landing, stretch going up, a breath standing — the scale anchored at his feet (`placeV194B` keeps them down)
+  function motionV195B(A, o, now, dt, moving) {
+    if (REDUCED || !TUv("v195Bsquash", 1)) return o;
+    const lift = o.lift || 0, prev = A.liftPrevV195B == null ? lift : A.liftPrevV195B;
+    A.liftPrevV195B = lift;
+    if (prev > 1.6 && lift <= 0.6) { A.squashAtV195B = now; A.squashKV195B = Math.min(1, 0.35 + prev / 14); }
+    const q = A.squashAtV195B != null ? (now - A.squashAtV195B) / TUv("v195BsquashMs", 170) : 9;
+    let sx = o.sx || 1, sy = o.sy || 1;
+    if (q < 1) { const s = Math.sin(Math.PI * Math.min(1, q)) * A.squashKV195B * TUv("v195BsquashK", 0.14); sy *= 1 - s; sx *= 1 + s * 0.7; }
+    else if (lift > 1 && dt > 0) { const v = (lift - prev) / dt * 1000, s = Math.max(-1, Math.min(1, v / 90)) * TUv("v195BstretchK", 0.06); sy *= 1 + Math.abs(s); sx *= 1 - Math.abs(s) * 0.6; }
+    else if (!moving && lift < 0.3) sy *= 1 + 0.014 * Math.sin(now / 430);
+    o.sx = sx; o.sy = sy;
+    return o;
+  }
+
+  /* ---- 3. the lines (a "|" is the comedian's beat) ---- */
+  const PHRASES_V195B = {
+    td: ["TOUCHDOWN!| I'D DO A BACKFLIP, BUT THE HEAD IS RENTED.", "SIX POINTS!| I'M GONNA NEED A BIGGER DANCE.", "SCORE!| SOMEBODY TELL MY MOM I'M FAMOUS.", "IN THE END ZONE!| ...WHICH IS ALSO WHERE I LIVE NOW.",
+      "{T} SCORE!| FREE HUGS!| (NOT REALLY. I'M VERY DAMP.)", "TOUCHDOWN! I'M CRYING!| THE HEAD HAS NO DRAIN, SO IT JUST POOLS.", "PUT IT ON THE JUMBOTRON!| ...ACTUALLY, PUT ME ON IT.",
+      "I CALLED IT!| I CALL IT EVERY PLAY.| TODAY I WAS RIGHT.", "SIX POINTS!| THAT'S LIKE...| A LOT OF POINTS!", "HE SCORED!| I'M TAKING PARTIAL CREDIT."],
+    big: ["LOOK AT HIM GO!| ...SOMEBODY SHOULD FOLLOW HIM.", "HE'S FASTER THAN ME!| LOW BAR. I'M IN A FOAM SUIT.", "ZOOM!| THAT'S THE SOUND.| THAT'S ALL I GOT.", "MOVE THE CHAINS!| NOT LITERALLY, GARY. PUT THEM DOWN.",
+      "HIGHLIGHT REEL!| I'M IN THE BACK, WAVING.", "BEEP BEEP!| THAT WAS HIM. I DON'T BEEP.| ...ANYMORE.", "DID YOU SEE THAT?!| I DIDN'T. MY EYEHOLES ARE IN MY NECK."],
+    takeaway: ["OUR BALL!| FINDERS KEEPERS, {O}!", "THANK YOU, {O}!| WE'LL TAKE GOOD CARE OF IT.", "TURNOVER!| THE BALL WANTED TO BE WITH US.| IT TOLD ME.", "GIMME THAT!| ...SAID OUR DEFENSE. POLITELY.",
+      "TAKEAWAY!| LIKE TAKEOUT,| BUT WITH MORE YELLING.", "{O}, YOU DROPPED THIS.| AND BY THIS I MEAN THE GAME."],
+    sack: ["SACK!| QB, MEET GRASS.| GRASS, QB.", "THAT'S A SACK LUNCH!| ...SORRY. I'M HUNGRY.", "PLANTED HIM!| WATER HIM TWICE A WEEK.", "SACKED!| HE DIDN'T EVEN FINISH SAYING HIKE.",
+      "NOWHERE TO RUN!| I KNOW THE FEELING.| THIS SUIT ZIPS FROM THE OUTSIDE."],
+    good: ["THAT'S MY TEAM!| ...SPIRITUALLY. LEGALLY, I'M A CONTRACTOR.", "YES! YES! YES!| ...WAIT, WHAT HAPPENED?| YES!", "LOVE TO SEE IT!| THROUGH TWO TINY MESH HOLES!", "STOPPED COLD!| LIKE MY HEART WHEN THE HEAD SLIPS.",
+      "KEEP IT COMIN'!| MY KNEES CAN TAKE IT.| THEY CAN'T.", "NICE!| I'D HIGH FIVE SOMEONE,| BUT EVERYONE'S SCARED OF ME."],
+    bad: ["NOOOOO!| ...OKAY. I'M FINE.| NOOOOO!", "MY HEART CAN'T TAKE THIS.| NEITHER CAN MY KNEES.", "I CAN'T WATCH...| *PEEKS*| I SHOULDN'T HAVE PEEKED.", "THAT'S NOT IN THE PLAYBOOK!| I'VE READ IT. IT HAS PICTURES.",
+      "WHY?!| WHY?!| ...WHY?!", "IT'S FINE.| IT'S FINE.| IT IS NOT FINE.", "WHO DREW UP THAT PLAY?!| ...WAS IT ME? I LEFT A NAPKIN IN THE BOOTH."],
+    giveaway: ["GIVE IT BACK!| ...PLEASE?| WE SAID PLEASE!", "BUTTERFINGERS!| AND I'D KNOW. I HAVE FOAM HANDS.", "THAT'S OUR BALL, {O}!| WE HAD IT FIRST!", "NOT THE TURNOVER!| ANYTHING BUT THE TURNOVER!| ...AND THERE IT IS.",
+      "HOLD ON TO IT!| LIKE I HOLD ON TO MY DREAMS!| ...LOOSELY."],
+    sackTaken: ["PROTECT THE QB!| HE'S BABY!", "BLOCK SOMEBODY!| ANYBODY!| I'LL BLOCK SOMEBODY!", "OUCH.| JUST...| OUCH. I FELT THAT IN MY FOAM.", "WHERE WAS THE LINE?!| ...I SAW THEM AT THE NACHO STAND."],
+    oppTd: ["THAT DIDN'T COUNT,| RIGHT?| ...RIGHT?!", "I NEED A MINUTE.| AND A JUICE BOX.", "{O}?!| ARE YOU KIDDING ME?!", "I'M NOT CRYING.| THE HEAD IS JUST VERY HUMID.",
+      "BOO!| ...I'M NOT ALLOWED TO BOO.| BOOOOO!", "DEFENSE, WAKE UP!| I BROUGHT AN AIR HORN!", "COOL.| COOL COOL COOL.| I'M GONNA LIE DOWN IN THE TUNNEL."],
+    penalty: ["REF!| GET YOUR EYES CHECKED!| I'LL DRIVE YOU!", "FLAG?!| ON WHAT?!| ON VIBES?!", "I'VE SEEN BETTER CALLS| AT BINGO NIGHT.", "THAT'S A TERRIBLE CALL!| AND I'M A GROWN MAN IN A {T} SUIT.",
+      "REF, I KNOW WHERE YOU PARKED.| ...SAME LOT. WANNA CARPOOL?"],
+    flagThem: ["THROW THE FLAG!| THROW TWO!", "FREE YARDS!| MY FAVORITE KIND OF YARDS!", "CHEATERS NEVER PROSPER,| {O}!", "SEE?| THE REF LOVES US!| I KNEW IT!"],
+    idleConfident: ["WE GOT THIS.| PROBABLY.| DEFINITELY.| PROBABLY.", "TOO EASY.| ...I SHOULDN'T HAVE SAID THAT.", "{T} NATION, STAND UP!| ...OKAY, SIT. YOU'RE BLOCKING SOMEONE.", "IS THAT ALL YOU GOT, {O}?| ...ASKING FOR REAL. IT'S A LONG GAME.",
+      "FEELING GOOD.| LOOKING GOOD.| SMELLING... NOT GREAT.", "SWAG LEVEL:| MAXIMUM.", "I HAVE NEVER LOST A DANCE-OFF.| I'VE NEVER BEEN IN ONE."],
+    idleNervous: ["I'M NOT NERVOUS.| YOU'RE NERVOUS.", "C'MON...| C'MON...| C'MOOOON.", "DEEP BREATHS.| ...IN THE SUIT. THAT WAS A MISTAKE.", "THIS IS FINE.| EVERYTHING'S FINE.",
+      "MY NAILS ARE GONE.| I HAVE FOAM HANDS. THAT'S HOW BAD IT IS.", "COME ON, {T}!| I'VE GOT RENT DUE!"],
+    idleEcstatic: ["BEST.| DAY.| EVER.", "SOMEBODY PINCH ME!| NOT THERE!", "WE'RE UNSTOPPABLE!| CALL THE UFF!| CALL EVERYBODY!", "I LOVE THIS TEAM!| I LOVE THIS GRASS!| I LOVE YOU, SECTION 104!",
+      "I'M SO HAPPY I COULD TAKE THE HEAD OFF.| (I WON'T. UNION RULES.)"],
+    idleDesperate: ["WE NEED A MIRACLE!| OR A VERY CONFUSED {O}.", "STILL TIME!| ...IS THERE? SOMEONE CHECK.", "I BELIEVE!| DO YOU BELIEVE?!| ...SOMEBODY BELIEVE!", "ANYBODY GOT A MIRACLE?| I'LL TRADE A FOAM FINGER.",
+      "IF WE WIN THIS,| I'LL WASH THE SUIT."],
+    idleFurious: ["I'M SO MAD I COULD EAT MY OWN HEAD.| IT'S FOAM. IT'D TAKE A WHILE.", "SOMEBODY HOLD MY FOAM FINGER!| I'M GOING IN!| ...I'M NOT GOING IN.", "GRRRR!| THAT'S NOT A BIT.| I'M ACTUALLY MAD.",
+      "I'M FINE!| I'M TOTALLY FINE!| *KICKS A COOLER*", "WHO'S IN CHARGE HERE?!| ...OH, THE GUY WITH THE HEADSET. CARRY ON."],
+    blowoutWin: ["CALL THE MERCY RULE!| ...FOR THEM. NEVER US.", "SCOREBOARD!| LOOK AT THE SCOREBOARD!| I'LL WAIT.", "THIS IS A PARADE NOW.| I'M THE FLOAT.", "{O} WANTS TO GO HOME.| SO DO I.| BUT FOR HAPPY REASONS."],
+    blowoutLoss: ["IT'S A REBUILDING YEAR...| IT'S BEEN ONE FOR SIX YEARS.", "WAIT 'TIL NEXT SEASON!| ...I SAY THAT A LOT.", "AT LEAST THE HOT DOGS ARE GOOD.| ...THEY'RE NOT.", "STILL DANCING.| NOBODY CAN STOP ME.| NOBODY'S TRYING."],
+    redZone: ["PUNCH IT IN!| GENTLY!| NO, HARD!", "I CAN SMELL THE END ZONE!| ...THAT MIGHT BE ME.", "SO CLOSE I CAN TASTE IT!| TASTES LIKE GRASS.", "FINISH THE DRIVE!| I'LL WAIT IN THE END ZONE.| WITH SNACKS."],
+    thirdDown: ["THIRD DOWN!| GET LOUD!", "MAKE SOME NOISE!| ...NOT THAT NOISE, SIR.", "BIG DOWN!| BIG DOWN!| MEDIUM-SIZED ME!", "LOUDER!| I CAN'T HEAR YOU!| THE HEAD IS VERY THICK!"],
+    defense: ["DE-FENSE!| DE-FENSE!", "HOLD THAT LINE!| ...OR A LINE. ANY LINE.", "STOP 'EM!| WITH YOUR BODIES!| NOT WITH FEELINGS!"],
+    jumbo: ["I'M ON THE BIG SCREEN!| HI MOM!", "LOOK!| IT'S ME!| ...I LOOK TALLER IN PERSON.", "JUMBOTRON!| THIS IS MY GOOD SIDE.| THEY'RE ALL MY GOOD SIDE.", "ZOOM IN!| ...NOT THAT MUCH. THE SUIT HAS A STAIN.",
+      "DANCE CAM!| I'VE TRAINED FOR THIS MY WHOLE LIFE."]
+  };
+  const SIGNS_V195B = { defense: ["DE-FENSE", "HOLD THAT LINE", "NO YARDS 4 U"], offense: ["GO {T}!", "TD PLZ", "LOUDER!"], thirdDown: ["MAKE SOME NOISE", "3RD DOWN = LOUD", "LOUDER!"], flag: ["REF?!", "BOO!", "FREE GLASSES 4 REF"],
+    ecstatic: ["WE'RE #1", "SCOREBOARD!", "HI MOM!"], confident: ["GO {T}!", "#1 FANS", "LET'S GO!"], nervous: ["PLEASE?", "BELIEVE", "MY NAILS: GONE"], desperate: ["BELIEVE", "MIRACLE?", "PRAYING"], furious: ["REF?!", "GRRR!", "I'M FINE"] };
+  const PHRASE_N_V195B = Object.keys(PHRASES_V195B).reduce((a, k) => a + PHRASES_V195B[k].length, 0);
+  const phrasesNowV195B = () => (on195() ? PHRASES_V195B : PHRASES_V194B);
+  const signsNowV195B = () => (on195() ? SIGNS_V195B : SIGNS_V194B);
+  const cleanV195B = (raw) => String(raw || "").replace(/\|/g, "");
+
+  /* ---- 4. the typewriter ---- */
+  // every visible letter's time (ms after the bubble opens), the beats ("|"), and how long the whole line takes
+  function typePlanV195B(raw) {
+    raw = String(raw || "");
+    const base = TUv("v195BtypeMs", 40), times = [], beats = [];
+    let text = "", t = 0, punch = false;
+    for (let i = 0; i < raw.length; i++) {
+      const ch = raw.charAt(i);
+      if (ch === "|") { t += TUv("v195BbeatMs", 620); beats.push(text.length); punch = true; continue; }
+      times.push(Math.round(t)); text += ch;
+      const nx = raw.charAt(i + 1) === "|" ? raw.charAt(i + 2) : raw.charAt(i + 1);
+      let d = (ch === " " ? 0.55 : 1) * base * (punch ? TUv("v195BpunchK", 0.85) : 1);
+      if (ch === "." && nx === ".") d = TUv("v195BdotMs", 230);                       // an ellipsis, dot … by … dot
+      else if (/[.!?]/.test(ch) && !/[.!?]/.test(nx) && nx) d += TUv("v195BstopMs", 300); // a sentence lands
+      else if (/[!?]/.test(ch) && /[!?]/.test(nx)) d = base * 1.6;
+      else if (/[,;:]/.test(ch)) d += TUv("v195BcommaMs", 170);
+      else if (ch === "*" && /\*/.test(raw.slice(0, i))) d += 180;                   // *an action*, a breath after it
+      t += d;
+    }
+    const total = times.length ? times[times.length - 1] : 0;
+    const hold = TUv("v195BholdMs", 1500) + TUv("v195BholdPerCharMs", 26) * text.length;
+    return { raw, text, times, beats, total, hold, life: total + hold };
+  }
+  // letters shown at ms into the bubble
+  function shownV195B(plan, ms) { const T = plan.times; let lo = 0, hi = T.length; while (lo < hi) { const mid = (lo + hi) >> 1; if (T[mid] <= ms) lo = mid + 1; else hi = mid; } return lo; }
+  // the box at its FINAL size; each wrapped line its own left-anchored Text, so the letters come without the box or the lines moving
+  function boxV195B(scene, text) {
+    const style = { fontFamily: FONT_V194B, fontSize: "20px", fontStyle: "700", color: "#1a1420", align: "left" };
+    const meas = scene.add.text(0, 0, text, Object.assign({}, style, { wordWrap: { width: 230 } })).setOrigin(0.5, 0.5);
+    let lines = [String(text)]; try { lines = meas.getWrappedText(text).map((l) => l.replace(/\s+$/, "")); } catch (e) {}
+    const tw = Math.ceil(meas.width), th = Math.ceil(meas.height), padX = 16, padY = 8, w = tw + padX, h = th + padY, B = 3, ink = 0x17131c;
+    const g = scene.add.graphics();
+    g.fillStyle(ink, 1); g.fillRect(-w / 2 + B, -h / 2, w - 2 * B, h); g.fillRect(-w / 2, -h / 2 + B, w, h - 2 * B);
+    g.fillStyle(0xffffff, 1); g.fillRect(-w / 2 + B, -h / 2 + B, w - 2 * B, h - 2 * B);
+    const lh = th / Math.max(1, lines.length), parts = [g], rows = [];
+    // align each wrapped line to the clean text: which letter of the line is which letter of the text
+    let ci = 0;
+    lines.forEach((ln, j) => {
+      const T = scene.add.text(0, 0, ln, style).setOrigin(0, 0.5), lw = Math.ceil(T.width);
+      T.setPosition(-lw / 2, -th / 2 + lh * (j + 0.5)); T.setText("");
+      while (ci < text.length && /\s/.test(text.charAt(ci)) && ln.charAt(0) !== text.charAt(ci)) ci++;
+      const idx = []; for (let c = 0; c < ln.length; c++) { while (ci < text.length && text.charAt(ci) !== ln.charAt(c)) ci++; idx.push(ci); ci++; }
+      rows.push({ T, ln, idx, shown: -1 }); parts.push(T);
+    });
+    meas.destroy();
+    const t = scene.add.graphics();
+    t.fillStyle(ink, 1); t.fillRect(-9, -B, 14, 6); t.fillRect(-6, 3, 9, 5); t.fillRect(-3, 8, 5, 4); t.fillStyle(0xffffff, 1); t.fillRect(-6, -B - 1, 8, 6); t.fillRect(-3, 2, 3, 5);
+    const box = scene.add.container(0, 0, parts); box.__h = h; box.__w = w; box.__tail = t; box.__rows = rows;
+    box.once("destroy", () => { try { t.destroy(); } catch (e) {} });
+    return box;
+  }
+  // show the first n letters of the line (each row's letters whose text index is under n)
+  function revealV195B(box, n) {
+    let changed = false;
+    (box.__rows || []).forEach((r) => { let k = 0; while (k < r.idx.length && r.idx[k] < n) k++; if (k !== r.shown) { r.shown = k; r.T.setText(r.ln.slice(0, k)); changed = true; } });
+    return changed;
+  }
+  function sayV195B(A, bucket, force) {
+    const now = performance.now();
+    if (!force && A.bubble && now < A.bubble.until + TUv("v195BgapMs", 1600)) return null;   // one at a time, a breath between them
+    if (!force && now - A.sayAt < TUv("v195BminGapMs", 2400)) return null;
+    const raw = phraseV194B(A, bucket), plan = typePlanV195B(raw);
+    A.sayAt = now; A.bubble = { text: plan.text, raw, plan, bucket, at: now, until: now + plan.life, drawn: null, shown: -1, popAt: -1e9, beatI: 0 };
+    V194.bubbles++; V194.said.push({ bucket, text: plan.text }); if (V194.said.length > 40) V194.said.shift();
+    V195.bubbles++; V195.type = { text: plan.text, raw, total: plan.text.length, shown: 0, beats: plan.beats.slice(), revealMs: plan.total, life: plan.life }; V195.typeLog = [];
+    return plan.text;
+  }
+  // one frame of the bubble: the letters due, a pop on the punchline, held inside the shot
+  function bubbleV195B(scene, A, B, now, vis, cam, wv, hx, hy, f, k, wantSign) {
+    if (!(B && now < B.until && vis)) {
+      if (A.bubbleBox) { A.bubbleBox.setVisible(false); if (A.bubbleBox.__tail) A.bubbleBox.__tail.setVisible(false); }
+      if (B && now >= B.until) A.bubble = null;
+      V194.bubble = null;
+      return;
+    }
+    if (B.drawn !== B.text || !A.bubbleBox || !A.bubbleBox.__rows) {
+      try { A.bubbleBox && A.bubbleBox.destroy(); } catch (e) {}
+      A.bubbleBox = boxV195B(scene, B.text); B.drawn = B.text; B.shown = -1;
+    }
+    const age = now - B.at, n = shownV195B(B.plan, age);
+    if (n !== B.shown) {
+      revealV195B(A.bubbleBox, n); B.shown = n;
+      const bi = B.plan.beats.indexOf(n - 1); if (bi >= 0 && bi >= B.beatI) { B.popAt = now; B.beatI = bi + 1; }   // the punchline's first letter
+      if (V195.type && V195.type.text === B.text) { V195.type.shown = n; if (V195.typeLog.length < 400) V195.typeLog.push([Math.round(age), n]); }
+    }
+    const z = (cam ? cam.zoom || 1 : 1) * kcssV194B(scene, A, now), want = TUv("mascotBubbleCssPxV194B", 12) / (20 * z);
+    const pop0 = REDUCED ? 1 : 0.6 + 0.4 * Math.min(1, age / 140), pq = (now - B.popAt) / 220, pop = pop0 * (REDUCED || pq >= 1 ? 1 : 1 + 0.1 * Math.sin(Math.PI * pq));
+    const fade = Math.min(1, (B.until - now) / 250);
+    const topY = hy - f.hipY * k - 4 * k - (wantSign ? 30 * k : 0);
+    const bw2 = (A.bubbleBox.__w / 2) * want, bh = A.bubbleBox.__h * want;
+    let bx = hx, by = topY - (A.bubbleBox.__h / 2 + 12) * want;
+    if (wv && wv.width > 0) { bx = Math.max(wv.x + bw2 + 3, Math.min(wv.x + wv.width - bw2 - 3, bx)); by = Math.max(wv.y + bh / 2 + 2, by); }
+    A.bubbleBox.setScale(want * pop).setPosition(bx, by).setAlpha(fade).setDepth(TUv("mascotBubbleDepthV194B", 18)).setVisible(true);
+    const tl = A.bubbleBox.__tail;
+    if (tl) tl.setScale(want * pop).setPosition(Math.max(bx - bw2 + 12 * want, Math.min(bx + bw2 - 12 * want, hx)), by + (bh / 2) * pop).setAlpha(fade).setDepth(TUv("mascotBubbleDepthV194B", 18) + 0.001).setVisible(true);
+    V194.bubble = { text: B.text, bucket: B.bucket, x: Math.round(A.bubbleBox.x), y: Math.round(A.bubbleBox.y), shown: n, total: B.text.length, w: A.bubbleBox.__w, h: A.bubbleBox.__h, lines: A.bubbleBox.__rows.length };
+  }
+
+  /* ---- 5. where: hold the spot, re-place only when he is out of the picture, and run in from its edge ---- */
+  function whereV195B(scene, st, m, G, now, cam, losU, wv, dt) {
+    const A = m.v194, YD = G.PLAY_W / 100;
+    if (A.losPrevV195B != null && Math.abs(losU - A.losPrevV195B) > TUv("v195BcutYd", 12) * YD) { A.cutAtV195B = now; V195.cuts++; }
+    A.losPrevV195B = losU;
+    const settling = now - (A.cutAtV195B == null ? -1e9 : A.cutAtV195B) < TUv("v195BsettleMs", 900);
+    const liveSnap = !!(scene.play && !scene.play.done);
+    const seen = inViewV194B(projV194B(scene, G, m, A.pos.u, A.pos.w), wv, 0.6);
+    if (seen) A.goneV195B = null; else if (A.goneV195B == null) A.goneV195B = now;
+    const gone = A.goneV195B == null ? 0 : now - A.goneV195B;
+    let want = !A.tgt;
+    if (!want && !settling) {
+      if (gone > (liveSnap ? TUv("v195BgoneLiveMs", 3000) : TUv("v195BgoneMs", 700)) && !(A.path.length && A.tgt && inViewV194B(projV194B(scene, G, m, A.tgt.u, A.tgt.w), wv, 1))) want = true;   // out of the picture (and not already on his way into it)
+      else if (!liveSnap && !A.path.length && now - A.tgtAt > TUv("v195BspotMs", 6000)) want = true;   // now and then, between snaps: is there a better spot? (he usually stays)
+    }
+    if (want && !settling) {
+      A.tgtAt = now;
+      const best = spotV194B(scene, st, m, G, now, cam, losU);
+      if (best && (!A.tgt || Math.abs(best.u - A.tgt.u) > 0.5 * YD || Math.sign(best.w) !== Math.sign(A.tgt.w))) {
+        A.tgt = best; A.path = pathTo(A, G, best); V194.moves++; V195.respots++;
+        if (!seen) V195.enters++;   // he comes into the picture from its edge
+      } else if (best) V195.holds++;
+    }
+    // run along the path: his pace in the picture, quick out of it (never more than a short step a frame)
+    let moving = false, vx = 0;
+    if (A.path.length && !(A.act && A.act.react && m.vis && seen)) {
+      const ydS = seen ? TUv("mascotRunYdV194B", 10) * (A.mood === "furious" ? 1.25 : 1) : TUv("v195BhiddenYdS", 45);
+      let left = Math.min(ydS * (dt / 1000), seen ? 1e9 : TUv("v195BhiddenStepYd", 1.6)) * YD;
+      while (left > 0 && A.path.length) {
+        const wp = A.path[0], du = wp.u - A.pos.u, dw = wp.w - A.pos.w, d = Math.hypot(du, dw);
+        if (d <= left) { A.pos = { u: wp.u, w: wp.w }; A.path.shift(); left -= d; }
+        else { A.pos = { u: A.pos.u + (du / d) * left, w: A.pos.w + (dw / d) * left }; vx = dw; left = 0; }
+      }
+      moving = A.path.length > 0;
+    }
+    return { moving, vx };
+  }
+  // a bench rebuilt mid-game (a kit re-read, a new snap's sideline) keeps HIS state: where he is, his mood, what he says
+  function keepV195B(st, m) {
+    const K = st.keepV195B;
+    if (!on195() || !K || K.logo !== m.S.id.logo || K.team !== m.team) return null;
+    st.keepV195B = null; V195.keeps++;
+    const A = K.A; A.bubbleBox = null; A.signBox = null; A.fx = []; A.merch = []; if (A.bubble) A.bubble.drawn = null;
+    m.v194 = A;
+    return A;
+  }
+
+  /* ---- 6. the jumbotron: while the shot is up on the screen, he dances on the top deck beside it ---- */
+  function jumboV195B(scene, m, A, wv, fieldSeen) {
+    if (!on195() || !TUv("v195Bjumbo", 1)) { A.jumboV195B = null; return null; }
+    const ST = scene.stadium, R = ST && ST.rect, BZ = ST && ST.bezelV177C, PN = scene._panV175;
+    if (!R || !BZ || !ST.on || !(wv && wv.width > 0)) { A.jumboV195B = null; return null; }
+    const panning = !!(PN && PN.t >= TUv("screenPanDelayMsV175", 350));
+    const cx = R.x + R.w / 2, cy = R.y + R.h / 2, screenIn = cx > wv.x && cx < wv.x + wv.width && cy > wv.y && cy < wv.y + wv.height;
+    if (!A.jumboV195B) {
+      if (!panning || fieldSeen) return null;   // he goes up only once his own spot has left the picture (never two places at once)
+      const H = R.h * TUv("v195BjumboH", 0.95), halfW = H * 0.3, gap = R.h * 0.12;
+      const right = { x: BZ.x + BZ.w + gap + halfW, side: 1 }, left = { x: BZ.x - gap - halfW, side: -1 };
+      const roomR = wv.x + wv.width - (BZ.x + BZ.w), roomL = BZ.x - wv.x;
+      const pick = (roomR >= roomL ? right : left);
+      A.jumboV195B = { side: pick.side, x: pick.x, at: performance.now() };
+      V195.jumbo.entered++;
+      try { if (A.act && !A.act.react) A.act = null; say(A, scene, "jumbo", true); } catch (e) {}
+    } else if (!panning && !screenIn) { A.jumboV195B = null; return null; }   // the camera has gone home: back to the sideline
+    const J = A.jumboV195B, H = R.h * TUv("v195BjumboH", 0.95), sc = H / FH_PX;
+    J.x = J.side > 0 ? BZ.x + BZ.w + R.h * 0.12 + H * 0.3 : BZ.x - R.h * 0.12 - H * 0.3;
+    return { x: J.x, y: (ST.top != null ? ST.top : BZ.y + BZ.h) + R.h * TUv("v195BjumboFootK", 0.05), sc, k: 1, face: -J.side, jumbo: true };
+  }
+
+  /* ---- 7. the measure: world jumps and on-screen pops (read only; both modes, so before / after are measured alike) ---- */
+  function trackV195B(A, m, G, now, dt, vis, jumbo, wv) {
+    const T = V195.track, YD = G.PLAY_W / 100, x = m.img.x, y = m.img.y;
+    const P = A.trkV195B;
+    A.trkV195B = { u: A.pos.u, w: A.pos.w, vis, jumbo, x, y, seenU: vis && !jumbo ? A.pos.u : P ? P.seenU : null, seenW: vis && !jumbo ? A.pos.w : P ? P.seenW : null };
+    if (!P) return;
+    T.ms += dt; T.frames++;
+    if (jumbo || P.jumbo) return;
+    const d = Math.hypot(A.pos.u - P.u, A.pos.w - P.w) / YD;
+    if (d > TUv("v195BjumpYd", 2)) { T.jumps++; if (T.log.length < 60) T.log.push({ kind: "jump", yd: +d.toFixed(1), vis, at: Math.round(now) }); }
+    if (vis && P.vis && d > TUv("v195BjumpYd", 2)) T.pops++;
+    else if (vis && !P.vis && P.seenU != null && wv && wv.width > 0) {
+      // he came into the picture: from its edge (a run in), or out of thin air in the middle of it (a pop)?
+      const mx = wv.width * 0.15, my = wv.height * 0.15, inside = x > wv.x + mx && x < wv.x + wv.width - mx && y > wv.y + my && y < wv.y + wv.height - my;
+      const far = Math.hypot(A.pos.u - P.seenU, A.pos.w - P.seenW) / YD > 3;
+      if (inside && far) { T.popIns++; if (T.log.length < 60) T.log.push({ kind: "popIn", vis, at: Math.round(now) }); }
+    }
+  }
+  V195.perMin = () => { const T = V195.track, min = Math.max(1e-6, T.ms / 60000); return { minutes: +min.toFixed(2), jumps: T.jumps, pops: T.pops, popIns: T.popIns, jumpsPerMin: +(T.jumps / min).toFixed(2), visiblePerMin: +((T.pops + T.popIns) / min).toFixed(2) }; };
+  V195.reset = () => { V195.track = { ms: 0, jumps: 0, pops: 0, popIns: 0, frames: 0, log: [] }; V195.cuts = 0; V195.enters = 0; V195.respots = 0; V195.holds = 0; V195.jumbo = { frames: 0, entered: 0, poses: 0, last: null }; };
+  V195.api = {
+    palette: (i) => logoPalV195B(i).map((p) => ({ hex: p.hex, share: p.share, rim: p.rim })), snap: (i, col) => snapperV195B(i)(col), cols: (i, c) => logoColsV195B(i, teamColours(c || ["#1f4fd0", "#e8c86a"])),
+    plan: (raw) => { const p = typePlanV195B(raw); return { text: p.text, times: p.times, beats: p.beats, total: p.total, hold: p.hold, life: p.life }; },
+    phrases: () => JSON.parse(JSON.stringify(PHRASES_V195B)), count: () => PHRASE_N_V195B, tweens: () => TWEENS_V195B.slice(), names: () => NAMES_V195B.slice(),
+    groove: (t, ms, list) => grooveV195B(t, ms, list || CYCLES_V195B.groove),
+    // the check's handle: put this exact line (with its "|" beats) in his bubble now
+    sayLine: (raw) => { const m = API_V194B.mascot(), A = m && m.v194; if (!A || !on195()) return null; const plan = typePlanV195B(raw), now = performance.now();
+      A.sayAt = now; A.bubble = { text: plan.text, raw, plan, bucket: "check", at: now, until: now + plan.life, drawn: null, shown: -1, popAt: -1e9, beatI: 0 };
+      V195.type = { text: plan.text, raw, total: plan.text.length, shown: 0, beats: plan.beats.slice(), revealMs: plan.total, life: plan.life }; V195.typeLog = []; return plan.text; }
+  };
+
+  /* ---- 8. CHIBI, CUTE, AND THE CREST'S OWN MARK (TU v195Bchibi; only with v195B on) ----
+   * The owner: "make the mascots CHIBI-styled … Make more cutesy as well, and ensure their logo's feel is in the mascot."
+   *   THE BUILD   `PR_CHIBI_V195B` through `rig(P, pr)`: the head ×1.24 sunk onto the shoulders (about half his height),
+   *               a short torso, short legs, stubby arms, a wider stance, a rounder body; the poses lean and tilt ×1.3 so
+   *               the body carries the dance. Everything that rides the rig re-fits by itself (the head's ears, horns,
+   *               helmets and visors scale with it; capes, wings, tails, the stinger, weapons (×0.8), the shield, the
+   *               steering wheel, the ball, and the frames' hip / head / hands anchors that the bubble, the sign, the merch,
+   *               the tears and the shadow use).
+   *   CUTE        `cuteEyesV195B` (big eyes: a white ellipse, a 3 px iris and pupil, a 1 px highlight, a small brow — cross,
+   *               never menacing), `grin` / `teethRow` soften to a small open smile and little nubs, the painter rounds
+   *               every corner (horns, claws, fangs), blush on the cheeks (`BLUSH_V195B`, kept through the palette snap),
+   *               and the heads with no eyes of their own (helms, visors, robots, the shark, the bugs, the skull) get big
+   *               round glowing ones (`cuteFaceV195B`, `CUTE_EYE_V195B`).
+   *   THE CREST   `MOTIF_V195B[logo]` names each of the 90 crests' signature mark (the bolt, the flame, the stripes, the crown,
+   *               the moon, the anchor of its shape …); `motifBadgeV195B` draws it on a round chest patch in the crest's most
+   *               vivid colour on its contrast colour (`motifColsV195B`). Where the crest and the costume disagree the crest
+   *               wins (`LOGO_WINS_V195B`: the naval mine is a spiked mine, not a miner; the demon crest a dark helm).
+   * The sheet key carries "_c" (`sheetKey`, `portraitURL`, `teamsKeyV194B`). TU v195Bchibi 0: v2 at v194 B's proportions. */
+  const chibiOnV195B = () => on195() && !!TUv("v195Bchibi", 1);
+  const BLUSH_V195B = "#ff8fa8";
+  const LOGO_WINS_V195B = { 46: ["knight", "flail"], 89: ["robot", "mine"] };   // the demon crest is a dark horned helm; the mine a naval mine
+  VAR.robot.mine = { name: "Sea Mine", metal: "#3a3e48", led: "#ff5a3a", mine: 1 };
+  const MOTIF_V195B = [
+    "paw", "paw", "claw", "feather", "teeth", "fin", "horns", "tusks", "spiral", "horns",
+    "stripes", "sunburst", "spots", "feather", "snowflake", "fang", "flame", "horn", "flame", "tentacle",
+    "paw", "eyes", "stinger", "leaf", "spots", "snowflake", "antlers", "ankh", "unihorn", "wave",
+    "lambda", "cross", "horns", "mon", "plume", "crown", "axe", "feather", "cross", "skull",
+    "star", "ghost", "scythe", "crack", "crystal", "sparkle", "horns", "sun", "moon", "feather",
+    "claw", "tusks", "claw", "crown", "flame", "beetle", "flame", "wings", "spikeball", "flame",
+    "stripes", "leaf", "stinger", "hourglass", "bulb", "stripes", "stripes", "pincer", "tree", "wave",
+    "bolt", "bolt", "flame", "crystal", "volcano", "meteor", "gear", "ibeam", "derrick", "axe",
+    "mountain", "leaf", "steer", "bulb", "tentacle", "grains", "lighthouse", "ufo", "skull", "spikeball"
+  ];
+  // each mark in a unit circle (y down), `f` the mark's colour, `b` the patch's
+  const MOTIF_DRAW_V195B = {
+    paw(D, f) { D.ell(0, 0.35, 0.5, 0.42, f); [[-0.6, -0.3], [-0.22, -0.62], [0.22, -0.62], [0.6, -0.3]].forEach((p) => D.circ(p[0], p[1], 0.22, f)); },
+    claw(D, f) { D.line(-0.6, -0.7, -0.25, 0.7, 0.26, f); D.line(-0.08, -0.8, 0.25, 0.8, 0.26, f); D.line(0.42, -0.7, 0.72, 0.6, 0.26, f); },
+    feather(D, f, b) { D.poly([0, -0.95, 0.45, -0.25, 0.25, 0.55, 0, 0.95, -0.25, 0.55, -0.45, -0.25], f); D.line(0, -0.6, 0, 0.9, 0.12, b); },
+    teeth(D, f) { D.poly([-0.9, -0.35, 0.9, -0.35, 0.9, 0, 0.6, 0.55, 0.3, 0, 0, 0.55, -0.3, 0, -0.6, 0.55, -0.9, 0], f); },
+    fin(D, f) { D.poly([-0.8, 0.6, 0.15, -0.9, 0.5, -0.2, 0.8, 0.6], f); },
+    horns(D, f) { D.sym((s) => D.poly([s * 0.15, 0.4, s * 0.85, 0.05, s * 0.9, -0.85, s * 0.55, -0.15, s * 0.1, -0.05], f)); },
+    tusks(D, f) { D.sym((s) => D.poly([s * 0.3, 0.7, s * 0.65, -0.1, s * 0.45, -0.8, s * 0.55, 0.05, s * 0.1, 0.6], f)); },
+    spiral(D, f) { D.arc(0, 0, 0.7, 0, 5.2, 0.26, f); D.arc(0.08, 0, 0.32, 2.8, 8.2, 0.24, f); },
+    stripes(D, f) { D.poly([-0.95, -0.55, -0.05, -0.38, -0.95, -0.2], f); D.poly([0.95, -0.12, 0.05, 0.05, 0.95, 0.22], f); D.poly([-0.95, 0.28, -0.05, 0.45, -0.95, 0.62], f); },
+    sunburst(D, f, b) { for (let k = 0; k < 10; k++) { const a = (k / 10) * Math.PI * 2; D.poly([Math.cos(a - 0.3) * 0.45, Math.sin(a - 0.3) * 0.45, Math.cos(a) * 0.95, Math.sin(a) * 0.95, Math.cos(a + 0.3) * 0.45, Math.sin(a + 0.3) * 0.45], f); } D.circ(0, 0, 0.46, f); D.circ(0, 0, 0.26, b); },
+    spots(D, f) { [[-0.45, -0.4, 0.26], [0.4, -0.3, 0.22], [-0.2, 0.35, 0.24], [0.45, 0.45, 0.2]].forEach((p) => D.circ(p[0], p[1], p[2], f)); },
+    snowflake(D, f) { for (let k = 0; k < 3; k++) { const a = (k / 3) * Math.PI; D.line(Math.cos(a) * 0.85, Math.sin(a) * 0.85, -Math.cos(a) * 0.85, -Math.sin(a) * 0.85, 0.2, f); } D.circ(0, 0, 0.22, f); },
+    fang(D, f) { D.poly([-0.55, -0.6, -0.1, -0.6, -0.32, 0.75], f); D.poly([0.1, -0.6, 0.55, -0.6, 0.32, 0.75], f); },
+    flame(D, f, b) { D.poly([0, -0.95, 0.5, -0.25, 0.65, 0.3, 0.38, 0.85, -0.38, 0.85, -0.65, 0.3, -0.42, -0.1, -0.15, 0.05], f); D.poly([0, -0.05, 0.25, 0.4, 0, 0.7, -0.25, 0.4], b); },
+    horn(D, f) { D.poly([-0.38, 0.8, 0.38, 0.8, 0.1, -0.9], f); },
+    unihorn(D, f, b) { D.poly([-0.36, 0.85, 0.36, 0.85, 0, -0.95], f); D.line(-0.2, 0.3, 0.2, 0.15, 0.1, b); D.line(-0.12, -0.15, 0.12, -0.28, 0.1, b); },
+    tentacle(D, f, b) { D.pl([-0.5, 0.85, -0.35, 0.1, 0.25, -0.15, 0.45, -0.65, 0.1, -0.8], 0.34, f); D.circ(-0.32, 0.45, 0.08, b); D.circ(0.05, 0.02, 0.08, b); },
+    eyes(D, f, b) { D.sym((s) => { D.circ(s * 0.42, 0, 0.4, f); D.circ(s * 0.42, 0.05, 0.18, b); }); D.poly([-0.12, 0.35, 0.12, 0.35, 0, 0.6], f); },
+    stinger(D, f) { D.pl([-0.55, 0.75, -0.6, 0.05, -0.15, -0.6, 0.4, -0.55], 0.26, f); D.poly([0.35, -0.8, 0.85, -0.5, 0.35, -0.3], f); },
+    leaf(D, f, b) { D.ell(0, 0, 0.45, 0.85, f, 0.5); D.line(-0.35, 0.6, 0.35, -0.6, 0.1, b); },
+    antlers(D, f) { D.sym((s) => { D.pl([s * 0.15, 0.8, s * 0.35, 0, s * 0.6, -0.8], 0.18, f); D.pl([s * 0.38, -0.1, s * 0.85, -0.35], 0.16, f); D.pl([s * 0.5, -0.5, s * 0.2, -0.85], 0.14, f); }); },
+    ankh(D, f) { D.arc(0, -0.45, 0.32, 0, Math.PI * 2, 0.2, f); D.line(0, -0.1, 0, 0.9, 0.24, f); D.line(-0.55, 0.15, 0.55, 0.15, 0.22, f); },
+    star(D, f) { const p = []; for (let k = 0; k < 10; k++) { const a = -Math.PI / 2 + (k * Math.PI) / 5, r = k % 2 ? 0.4 : 0.95; p.push(Math.cos(a) * r, Math.sin(a) * r); } D.poly(p, f); },
+    wave(D, f) { D.pl([-0.9, 0.1, -0.55, -0.35, -0.2, 0.1, 0.15, -0.35, 0.5, 0.1, 0.85, -0.35], 0.24, f); D.pl([-0.9, 0.55, -0.55, 0.15, -0.2, 0.55, 0.15, 0.15, 0.5, 0.55, 0.85, 0.15], 0.2, f); },
+    lambda(D, f) { D.pl([-0.6, 0.8, 0, -0.8, 0.6, 0.8], 0.32, f); },
+    cross(D, f) { D.rect(-0.16, -0.8, 0.32, 1.6, f); D.rect(-0.6, -0.32, 1.2, 0.3, f); },
+    axe(D, f) { D.line(-0.6, 0.8, 0.45, -0.6, 0.18, f); D.poly([0.1, -0.85, 0.85, -0.55, 0.65, 0.05, 0.25, -0.25], f); },
+    mon(D, f, b) { D.circ(0, 0, 0.82, f); D.circ(0, 0, 0.6, b); D.circ(0, 0, 0.32, f); },
+    plume(D, f) { D.ell(0.1, -0.2, 0.42, 0.75, f, 0.4); D.ell(-0.35, 0.15, 0.3, 0.6, f, -0.3); D.rect(-0.12, 0.3, 0.24, 0.6, f); },
+    crown(D, f, b) { D.poly([-0.8, 0.6, 0.8, 0.6, 0.85, -0.5, 0.45, -0.05, 0, -0.75, -0.45, -0.05, -0.85, -0.5], f); D.circ(0, 0.25, 0.12, b); },
+    skull(D, f, b) { D.circ(0, -0.15, 0.62, f); D.rect(-0.35, 0.25, 0.7, 0.45, f); D.sym((s) => D.circ(s * 0.25, -0.15, 0.17, b)); D.poly([-0.06, 0.15, 0.06, 0.15, 0, 0.02], b); },
+    ghost(D, f, b) { D.poly([-0.6, 0.85, -0.6, -0.2, -0.3, -0.75, 0.3, -0.75, 0.6, -0.2, 0.6, 0.85, 0.3, 0.6, 0, 0.85, -0.3, 0.6], f); D.sym((s) => D.ell(s * 0.22, -0.2, 0.1, 0.17, b)); },
+    scythe(D, f) { D.line(-0.5, 0.85, 0.25, -0.7, 0.16, f); D.poly([0.25, -0.75, -0.75, -0.65, -0.4, -0.35, 0.15, -0.5], f); },
+    crack(D, f, b) { D.circ(0, 0, 0.8, f); D.pl([-0.2, -0.75, 0.05, -0.25, -0.2, 0.15, 0.15, 0.7], 0.14, b); },
+    crystal(D, f, b) { D.poly([0, -0.95, 0.6, -0.15, 0, 0.95, -0.6, -0.15], f); D.line(0, -0.95, 0, 0.95, 0.08, b); },
+    sparkle(D, f) { D.poly([0, -0.95, 0.2, -0.2, 0.95, 0, 0.2, 0.2, 0, 0.95, -0.2, 0.2, -0.95, 0, -0.2, -0.2], f); },
+    sun(D, f) { D.circ(0, 0, 0.42, f); for (let k = 0; k < 8; k++) { const a = (k / 8) * Math.PI * 2; D.line(Math.cos(a) * 0.58, Math.sin(a) * 0.58, Math.cos(a) * 0.92, Math.sin(a) * 0.92, 0.16, f); } },
+    moon(D, f, b) { D.circ(0, 0, 0.8, f); D.circ(0.36, -0.22, 0.66, b); },
+    spikeball(D, f) { D.circ(0, 0, 0.55, f); for (let k = 0; k < 8; k++) { const a = (k / 8) * Math.PI * 2; D.poly([Math.cos(a - 0.3) * 0.5, Math.sin(a - 0.3) * 0.5, Math.cos(a) * 0.95, Math.sin(a) * 0.95, Math.cos(a + 0.3) * 0.5, Math.sin(a + 0.3) * 0.5], f); } },
+    hourglass(D, f) { D.poly([-0.5, -0.8, 0.5, -0.8, 0, 0], f); D.poly([-0.5, 0.8, 0.5, 0.8, 0, 0], f); },
+    bulb(D, f, b) { D.circ(0, -0.15, 0.6, f); D.circ(-0.18, -0.32, 0.16, b); D.rect(-0.22, 0.42, 0.44, 0.4, f); },
+    pincer(D, f) { D.arc(0, 0, 0.62, -2.6, 1.6, 0.34, f); D.poly([0.05, -0.15, 0.85, -0.6, 0.55, 0.05], f); },
+    tree(D, f) { D.poly([0, -0.95, 0.5, -0.2, 0.25, -0.2, 0.7, 0.45, -0.7, 0.45, -0.25, -0.2, -0.5, -0.2], f); D.rect(-0.12, 0.45, 0.24, 0.45, f); },
+    bolt(D, f) { D.poly([0.25, -0.95, -0.55, 0.1, -0.05, 0.1, -0.3, 0.95, 0.55, -0.15, 0.05, -0.15, 0.4, -0.95], f); },
+    volcano(D, f, b) { D.poly([-0.9, 0.8, -0.25, -0.35, 0.25, -0.35, 0.9, 0.8], f); D.poly([-0.25, -0.35, 0, -0.95, 0.25, -0.35], b); D.pl([-0.1, -0.3, -0.25, 0.3], 0.12, b); },
+    meteor(D, f) { D.circ(-0.3, 0.3, 0.45, f); D.poly([-0.05, 0.05, 0.9, -0.85, 0.15, 0.55], f); },
+    gear(D, f, b) { for (let k = 0; k < 8; k++) { const a = (k / 8) * Math.PI * 2; D.rect(Math.cos(a) * 0.72 - 0.15, Math.sin(a) * 0.72 - 0.15, 0.3, 0.3, f); } D.circ(0, 0, 0.66, f); D.circ(0, 0, 0.26, b); },
+    ibeam(D, f) { D.rect(-0.7, -0.8, 1.4, 0.3, f); D.rect(-0.18, -0.6, 0.36, 1.2, f); D.rect(-0.7, 0.5, 1.4, 0.3, f); },
+    derrick(D, f) { D.pl([-0.6, 0.85, 0, -0.85, 0.6, 0.85], 0.18, f); D.line(-0.35, 0.2, 0.35, 0.2, 0.14, f); D.line(-0.2, -0.3, 0.2, -0.3, 0.14, f); D.ell(0, -0.95, 0.18, 0.12, f); },
+    mountain(D, f, b) { D.poly([-0.95, 0.75, -0.2, -0.75, 0.3, 0.05, 0.5, -0.25, 0.95, 0.75], f); D.poly([-0.2, -0.75, -0.42, -0.3, -0.2, -0.38, 0, -0.3], b); },
+    steer(D, f, b) { D.pl([-0.95, -0.55, -0.45, -0.25, 0.45, -0.25, 0.95, -0.55], 0.2, f); D.poly([-0.4, -0.35, 0.4, -0.35, 0.22, 0.85, -0.22, 0.85], f); D.sym((s) => D.circ(s * 0.18, 0, 0.1, b)); },
+    grains(D, f) { [[-0.5, -0.4], [0, -0.55], [0.5, -0.4], [-0.3, 0], [0.3, 0], [0, 0.4], [-0.55, 0.45], [0.55, 0.45]].forEach((p) => D.rect(p[0] - 0.12, p[1] - 0.12, 0.24, 0.24, f)); },
+    lighthouse(D, f, b) { D.poly([-0.3, 0.9, 0.3, 0.9, 0.2, -0.45, -0.2, -0.45], f); D.rect(-0.25, -0.75, 0.5, 0.3, b); D.poly([0.25, -0.65, 0.95, -0.9, 0.95, -0.35], f); D.rect(-0.25, 0.15, 0.5, 0.18, b); },
+    ufo(D, f, b) { D.ell(0, 0, 0.9, 0.3, f); D.ell(0, -0.25, 0.4, 0.3, f); D.poly([-0.3, 0.25, 0.3, 0.25, 0.55, 0.9, -0.55, 0.9], b); },
+    beetle(D, f, b) { D.ell(0, 0.15, 0.5, 0.7, f); D.circ(0, -0.65, 0.25, f); D.line(0, -0.45, 0, 0.8, 0.08, b); D.sym((s) => D.line(s * 0.45, -0.1, s * 0.9, -0.3, 0.12, f)); },
+    wings(D, f) { D.sym((s) => D.poly([s * 0.12, 0.1, s * 0.95, -0.6, s * 0.8, -0.1, s * 0.95, 0.1, s * 0.7, 0.35, s * 0.8, 0.55, s * 0.2, 0.45], f)); D.circ(0, 0.2, 0.16, f); }
+  };
+  // the crest's most vivid colour for the mark, its strongest contrast for the patch
+  function motifColsV195B(logo) {
+    const pal = logoPalV195B(logo), lit = pal.filter((p) => p.L[0] >= 20);
+    const vivid = (lit.length ? lit : pal).slice().sort((a, b) => chromaV195B(b.L) * (0.35 + b.share + (b.rim ? 0.1 : 0)) - chromaV195B(a.L) * (0.35 + a.share + (a.rim ? 0.1 : 0)))[0];
+    const bg = pal.slice().sort((a, b) => dEV195B(b.L, vivid.L) - dEV195B(a.L, vivid.L))[0];
+    return { f: vivid.hex, b: bg.hex };
+  }
+  function motifBadgeV195B(D, L, ry) {
+    const M = MOTIF_DRAW_V195B[L.motif]; if (!M) return;
+    const cy = ry * 0.36, r = Math.min(3.7, ry * 0.52);   // the belly, under the big head
+    D.circ(0, cy, r + 0.8, L.trim); D.circ(0, cy, r, L.motifCols.b);
+    D.at(0, cy); D.c.scale(r * 0.82, r * 0.82); M(D, L.motifCols.f, L.motifCols.b); D.restore();
+  }
+  function cuteEyesV195B(D, dx, y, kind, iris, o) {
+    if (CUTE_V195B) CUTE_V195B.eyes++;
+    o = o || {};
+    const r = Math.max(2.2, Math.min(3, (o.r || 2.4) * 1.08));
+    D.sym((s) => {
+      const x = s * dx;
+      if (kind === "glow") { D.ell(x, y, r * 0.9, r, iris || "#7cffd8"); D.rect(x - s * 0.5 - 0.55, y - r * 0.55, 1.1, 1.1, "#ffffff"); return; }
+      D.ell(x, y, r, r * 1.12, "#ffffff");
+      const pc = iris && iris !== "#ffffff" && kind !== "beady" ? iris : INK;
+      D.circ(x - s * 0.25, y + 0.4, r * 0.7, pc); D.circ(x - s * 0.25, y + 0.55, r * 0.38, INK);
+      D.rect(x - s * 0.25 - r * 0.5, y - r * 0.3, 1.1, 1.1, "#ffffff");   // the highlight
+      if (o.brow !== false) D.line(x + s * (r + 0.3), y - r - 1.3, x - s * r * 0.45, y - r - 0.6, 0.9, o.browCol || INK);   // cross, not menacing
+    });
+  }
+  // the heads with no eyes of their own (helms, visors, robots, the shark, the bugs, the skull): [dx, y, kind, iris, r]
+  function cuteEyeSpotV195B(L, v) {
+    const a = L.arch;
+    if (a === "knight") return v.samurai ? [3.4, -0.6, "glow", v.trim, 2] : v.cavalier ? [3.2, -1, "big", INK, 2] : v.valk ? null : [3.5, -0.3, "glow", v.eye || "#9fe8ff", 2.1];
+    if (a === "spartan") return [3.4, -1, "big", INK, 2];
+    if (a === "robot") return v.golem ? [3.6, -1.1, "glow", v.led, 2] : v.train ? [3.4, 0.4, "big", INK, 2] : v.mine ? [3.2, 0.4, "glow", v.led, 2.2] : [3, -1.6, "glow", v.led, 2];
+    if (a === "reptile" && v.gator) return [4.4, -6.8, "big", v.eye, 2.3];
+    if (a === "sea") return v.shark ? [4.8, -1.4, "big", INK, 2.3] : v.angler ? [3.8, -3.6, "big", INK, 2.2] : v.crab ? [4.8, -12.4, "big", INK, 2.2] : null;
+    if (a === "bug") return v.mantis ? [7, -5.4, "big", INK, 2.6] : v.widow || v.scorpion ? [2.9, -2, "glow", v.eye || (v.widow ? "#ff2a3a" : "#ff6a6a"), 1.8] : v.centi ? [3.6, -2, "big", INK, 2.1] : [4.4, -0.6, "big", INK, 2.8];
+    if (a === "pirate" && v.skull) return [3.5, -0.6, "glow", "#ff3b3b", 2];
+    if (a === "spook" && v.reaper) return [2.3, -0.4, "glow", "#ff3b3b", 1.7];
+    if (a === "alien") return [4.2, -1.4, "big", INK, 2.8];
+    return null;
+  }
+  const NO_BLUSH_V195B = { knight: 1, robot: 1, spartan: 1 };
+  function cuteFaceV195B(D, L, v) {
+    if (!CUTE_V195B.eyes) { const e = cuteEyeSpotV195B(L, v); if (e) cuteEyesV195B(D, e[0], e[1], e[2], e[3], { r: e[4], brow: false }); }
+    if (!NO_BLUSH_V195B[L.arch] && !(L.arch === "spook" && (v.phantom || v.reaper)) && !(L.arch === "pirate" && v.skull)) D.sym((s) => D.ell(s * 5.8, 2.6, 1.6, 0.85, BLUSH_V195B));
+  }
+  function chibiLookV195B(L, logo) {
+    L.pr = PR_CHIBI_V195B; L.cute = true;
+    L.motif = MOTIF_V195B[logo] || "star"; L.motifCols = motifColsV195B(logo);
+    if (L.snapPx) L.snapPx.push(rgbOf(BLUSH_V195B), [0xe8, 0x78, 0x9a]);
+    const sn = L.snap; if (sn) L.snap = (col) => (col === BLUSH_V195B || col === "#e8789a" ? col : sn(col));
+    return L;
+  }
+  const logoWinsV195B = (id) => { const w = chibiOnV195B() && LOGO_WINS_V195B[id.logo]; return w ? Object.assign({}, id, { arch: w[0], variant: w[1] }) : id; };
+  V195.api.motifs = () => MOTIF_V195B.slice();
+  V195.api.motifDrawers = () => Object.keys(MOTIF_DRAW_V195B);
+  V195.api.chibi = () => chibiOnV195B();
+  V195.api.headRatio = (pose, chibi) => { const pr = chibi ? PR_CHIBI_V195B : PR_V193AI, J = rig(POSES[pose || "stand"], pr), r = HEADR * pr.headS, top = J.head.y - r, foot = Math.max(J.legL.f.y, J.legR.f.y) + 2; return +((2 * r) / (foot - top)).toFixed(3); };
 
   /* ---------------- off the field: the season hero's crest card and the Locker ---------------- */
   const LIVE = new Set();   // canvases animated by one shared, self-stopping timer
@@ -2075,7 +2761,7 @@
     c.width = Math.round(w * dpr); c.height = Math.round(h * dpr); c.style.width = w + "px"; c.style.height = h + "px"; c.className = cls;
     c.__draw = (now) => {
       if (!onV193AI()) { c.getContext("2d").clearRect(0, 0, c.width, c.height); return; }
-      const T = teamFn(); const S = sheetV193AI(T.logo, T.cols, T.space, Math.max(1, TUv("mascotPosesPerFrameV193AI", 4)));   // a cold sheet fills over a few ticks
+      const T = teamFn(); const S = sheetV193AI(T.logo, T.cols, T.space, posesPerStepV195B());   // a cold sheet fills over a few ticks
       if (!S) return;
       const pose = showPose(now, ph); if (c.__last === pose + S.key) return; c.__last = pose + S.key;
       const x = c.getContext("2d"); x.clearRect(0, 0, c.width, c.height);
@@ -2160,11 +2846,12 @@
   /* one pose of one costume, without a whole sheet (~1 ms) — the Locker's gallery */
   const PORTRAITS = new Map();
   function portraitURL(logo, colsIn, pose) {
-    const cols = teamColours(colsIn), id = forLogo(logo), key = id.logo + cols.p1 + cols.p2 + (pose || "stand");
+    const v2 = on195(), cols0 = teamColours(colsIn), id = forLogo(logo), key = id.logo + cols0.p1 + cols0.p2 + (pose || "stand") + (v2 ? "_v195b" : "") + (chibiOnV195B() ? "_c" : "");
     if (PORTRAITS.has(key)) return PORTRAITS.get(key);
     const one = document.createElement("canvas"); one.width = LW; one.height = LH;
-    try { drawPose(one.getContext("2d", { willReadFrequently: true }), POSES[pose] || POSES.stand, lookFor(id, cols, false)); } catch (e) { err(e); }
-    pixelate(one);
+    const cols = v2 ? logoColsV195B(id.logo, cols0) : cols0, L = v2 ? lookV195B(lookFor(logoWinsV195B(id), cols, false), id.logo) : lookFor(id, cols, false);   // v195 B: the crest's colours in the Locker too
+    try { drawPose(one.getContext("2d", { willReadFrequently: true }), POSES[pose] || POSES.stand, L); } catch (e) { err(e); }
+    pixelate(one, L.snapPx);
     let url = ""; try { url = one.toDataURL(); } catch (e) { err(e); }
     PORTRAITS.set(key, url);
     return url;
@@ -2201,7 +2888,7 @@
     version: "v193ai",
     archetypes: () => Object.keys(ARCH).map((k) => ({ id: k, name: ARCH[k].name, variants: Object.keys(VAR[k]).map((vk) => ({ id: vk, name: VAR[k][vk].name })) })),
     emblems: () => EMBLEM_V193AI.map((e, i) => forLogo(i)),
-    forLogo, forTeam, mapAll, poses: () => POSE_NAMES.slice(),
+    forLogo, forTeam, mapAll, poses: () => (on195() ? NAMES_V195B : POSE_NAMES).slice(),   // v195 B: a v2 sheet adds the groove and the in-betweens after the base poses
     sheet: (logo, cols, space) => sheetV193AI(logo, cols, space), contactSheet, poseSheet,
     active, owned, frame, preview, decorate, refresh, celPose, idlePose, galleryHTML, portraitURL,
     // the live mascots, read (the checks)

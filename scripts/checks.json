@@ -352,7 +352,8 @@
    "anchors": [
     "v144",
     "v193 AG",
-    "v194 D"
+    "v194 D",
+    "v195 B"
    ],
    "files": [],
    "checks": [
@@ -388,6 +389,7 @@
     "v193AGcheck",
     "v193AIcheck",
     "v194Bcheck",
+    "v195Bcheck",
     "v194Dcheck"
    ]
   },
@@ -1510,7 +1512,8 @@
     "v158Bcheck",
     "v159Bcheck",
     "v193AIcheck",
-    "v194Bcheck"
+    "v194Bcheck",
+    "v195Bcheck"
    ]
   },
   "pwa": {
@@ -1644,7 +1647,8 @@
     "v177 H",
     "v193 Q",
     "v193 AI",
-    "v194 B"
+    "v194 B",
+    "v195 B"
    ],
    "files": [
     "src/28-cosmetics.js",
@@ -1685,7 +1689,8 @@
     "v193Qcheck",
     "v193Ycheck",
     "v193AIcheck",
-    "v194Bcheck"
+    "v194Bcheck",
+    "v195Bcheck"
    ]
   },
   "audio": {
@@ -5440,6 +5445,20 @@
    "needsServer": true,
    "pureNode": false,
    "flaky": []
+  },
+  "v195Bcheck": {
+   "file": "scripts/v195Bcheck.mjs",
+   "desc": "v195 B — the mascot, v2: crest palettes are colours the crest has, a v2 sheet's pixels are crest colours (8 crests) and the jersey too; 100+ lines with '|' beats, clean, UFF; the typewriter (one letter at a time on its schedule, the box its final size, the beat held, the line held to read); in-betweens + the groove, the cheer ~3x the frames, squash and stretch; no Math.random, seeded sim unchanged; TU v195B 0 = v194 B; MY PLAYS ONLY: v194 B vs v2 jumps / on-screen pops per minute (v2 none); the jumbotron pan: drawn, in frame, dancing (the gap too), on the deck beside the screen; no page errors",
+   "areas": [
+    "cosmetics",
+    "field"
+   ],
+   "runtimeSec": 150,
+   "slow": false,
+   "needsServer": true,
+   "pureNode": false,
+   "flaky": [],
+   "loadSensitive": true
   },
   "v194Bcheck": {
    "file": "scripts/v194Bcheck.mjs",
