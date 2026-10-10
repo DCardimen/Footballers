@@ -1951,6 +1951,7 @@
   "prestige-pacing": {
    "desc": "v179 — the long road: medal gates on the last climbs, the Interstellar Call waits on the era, big numbers; v185 — the chaos loop; v186 — rings are earned, chaos locks in, Stardust; v187 — medal looks and the ring respec; v189 — one stat line, the medal prompt, the bank at the season's end",
    "anchors": [
+    "v195 A",
     "v179",
     "v185",
     "v186",
@@ -1978,7 +1979,8 @@
     "v193Echeck",
     "v193Jcheck",
     "v193ADcheck",
-    "v193AFcheck"
+    "v193AFcheck",
+    "v195Acheck"
    ]
   }
  },
@@ -5538,6 +5540,18 @@
    "pureNode": false,
    "flaky": [],
    "loadSensitive": true
+  },
+  "v195Acheck": {
+   "file": "scripts/v195Acheck.mjs",
+   "desc": "v195 A — the scouts see the season: a top-10 rank at the position floors the scouts' verdict at 20% (#1) to 10% (#10) at College → Combine and Combine → UFF (not the Interstellar Call), so a #1 with no prestige declares at 10–20%; the pity timer eases a level's potential bar 8% a missed declare (compounding, ≥ 35% of the base), a make resets it, declareFromHub records both; A / A+ season grades need a top-10 rank at the position (else B+, the report card says why); the hub note, the verdict reveal and HOW THE SCOUTS DECIDE name it; v195A 0 restores v179. No page errors.",
+   "areas": [
+    "season"
+   ],
+   "runtimeSec": 45,
+   "slow": false,
+   "needsServer": true,
+   "pureNode": false,
+   "flaky": []
   }
  }
 }

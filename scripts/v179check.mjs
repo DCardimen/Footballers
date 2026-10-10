@@ -186,17 +186,17 @@ const F = await M(async () => {
   const AU = window.__GRIDIRON_AUDIT__, S = AU.freshState(); S.tutorialSeen = true; AU.setState(S)
   S.player = AU.newPlayer(); const p = S.player; p.pos = 'QB'; p.level = 6; p._wonShown = true; p.seasonsAtLevel = 1
   for (const k in p.attrs) p.attrs[k] = 300
-  const pot0 = window.__V179.potential(), B = window.__V179.bar(p), low = window.__V88.declareChance(p)
+  const pot0 = window.__V179.potential(), B = window.__V179.bar(p); window.RIB_TUNE.v195Afloor = 0; const low = window.__V88.declareChance(p); delete window.RIB_TUNE.v195Afloor; const lowTop = window.__V88.declareChance(p) /* v195 A: a top-10 season keeps 10–20% */
   window.go('hub'); await new Promise((r) => setTimeout(r, 300))
   const note = (document.querySelector('#dock .gate-v179') || {}).textContent || ''
   S.tree = Object.assign({}, S.tree, { etFortune: 40 }); const potEt = window.__V179.potential()
   S.tree = { freak: 2 }; const potFreak = window.__V179.potential()
   S.tree = {}; window.RIB_TUNE.scoutPotUffV179 = Math.round(pot0) - 40; const high = window.__V88.declareChance(p)
   delete window.RIB_TUNE.scoutPotUffV179
-  return { pot0, potBar: B.potBar, low, note, potEt, potFreak, high }
+  return { pot0, potBar: B.potBar, low, lowTop, note, potEt, potFreak, high }
 })
 console.log('F:', JSON.stringify(F))
-ok(F.potBar > F.pot0 + 30 && F.low < 10, 'a fresh bloodline far under the scouts\' potential bar is single digits at the Combine', F)
+ok(F.potBar > F.pot0 + 30 && F.low < 10 && F.lowTop >= 10 && F.lowTop <= 21, 'a fresh bloodline far under the scouts\' potential bar is single digits at the Combine (v195 A: a top-10 season keeps 10–20%)', F)
 ok(/POTENTIAL/.test(F.note) && /Freak/.test(F.note), 'the hub says the scouts judge potential and what raises it', F.note)
 ok(F.potEt - F.pot0 < 2 && F.potFreak - F.pot0 >= 70, 'forty levels of an eternal stack barely move potential; two levels of Freak move it by 72', { base: F.pot0, eternal40: F.potEt, freak2: F.potFreak })
 ok(F.high > 50, 'over the potential bar the odds are the game\'s own', F.high)

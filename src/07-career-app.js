@@ -3671,20 +3671,20 @@
     try {
       rk = nationalRank(e, playerOvr(e));
     } catch (_) {}
-    if (!rk || !rk.posSize || !cur) return g;
+    if (!rk || !rk.posSize || !cur) return gradeTopCapV195A(e, g, why);
     const top = rk.posRank / rk.posSize,
       L = ["F", "D", "C", "B", "B+", "A", "A+"],
       min = top <= 0.01 ? "A" : top <= 0.05 ? "B+" : top <= 0.15 ? "B" : top <= 0.35 ? "C" : null;
     why && (why.rank = { pos: rk.posRank, of: rk.posSize, top: Math.max(0.1, Math.round(top * 1000) / 10), min });
-    if (!min || L.indexOf(cur) < 0 || L.indexOf(cur) >= L.indexOf(min)) return g;
+    if (!min || L.indexOf(cur) < 0 || L.indexOf(cur) >= L.indexOf(min)) return gradeTopCapV195A(e, g, why); /* v195 A */
     why && (why.floored = { from: cur, to: min });
-    return obj ? Object.assign({}, g, { grade: min, floorV179: { from: cur } }) : min;
+    return gradeTopCapV195A(e, obj ? Object.assign({}, g, { grade: min, floorV179: { from: cur } }) : min, why);
   }
   // the report card's one line: what set the bar, what you averaged, what an A takes
   function gradeWhyHtmlV179(W, letter) {
     if (!W || !TU("v179M", 1)) return "";
     const pos = W.rank ? ` You're #${W.rank.pos.toLocaleString("en-US")} of ${W.rank.of.toLocaleString("en-US")} at your position (top ${W.rank.top}%).` : "",
-      fl = W.floored ? ` That standing lifts a ${W.floored.from} to ${W.floored.to}.` : "",
+      fl = (W.floored ? ` That standing lifts a ${W.floored.from} to ${W.floored.to}.` : "") + (W.capV195A ? ` An A belongs to the top ${W.capV195A.top} at your position${W.capV195A.pos ? ` — you're #${W.capV195A.pos.toLocaleString("en-US")}` : ""}, so this ${W.capV195A.from} reads B+.` : "") /* v195 A */,
       cap = W.capped ? " (capped — the bar never asks more than that)" : "";
     return `<div class="small grade-why-v179" style="margin:6px 0 2px;padding:8px 10px;border-radius:10px;background:rgba(0,0,0,.22);font-family:'Barlow Condensed';font-size:13.5px;line-height:1.35;color:var(--chalk-dim)">📋 <b style="color:var(--chalk)">Why ${escHtml(String(letter || W.grade))}:</b> your games averaged <b style="color:var(--chalk)">${W.U}</b> against a bar of <b style="color:var(--chalk)">${W.Va}</b> — ${escHtml(W.bySay)}${cap}${W.bonus ? `, ${W.bonus > 0 ? "+" : ""}${W.bonus} for your role and the level` : ""}. B at ${W.needB}+, A at ${W.needA}+, A+ at ${W.needAp}+.${pos}${fl}</div>`;
   }
@@ -5669,7 +5669,7 @@ ${col(
     try {
       B = e ? scoutBarV179(e) : null;
     } catch (_) {}
-    return { lv, level: L.name, stars: e ? e.stars | 0 : 0, ovr: Math.round(ovr), rank: rk ? rk.rank : null, of, topPct: rk ? Math.max(0.1, Math.round((rk.rank / of) * 1000) / 10) : null, pct: rk ? rk.pct : null, declare, rankCh, top1, top5, num1, half, pot: Math.round(pot), bars, next, verdict: B && B.potBar ? Math.round(B.v * 100) : null, medals, floorOn: !!TU("v193Erank", 1), rankLevel: lv <= TU("rankTopMaxLevelV193E", 4) };
+    return { lv, level: L.name, stars: e ? e.stars | 0 : 0, ovr: Math.round(ovr), rank: rk ? rk.rank : null, of, topPct: rk ? Math.max(0.1, Math.round((rk.rank / of) * 1000) / 10) : null, pct: rk ? rk.pct : null, declare, rankCh, top1, top5, num1, half, pot: Math.round(pot), bars, next, verdict: B && B.potBar ? Math.round(B.v * 100) : null, v195A: TU("v195A", 1) ? { top: Math.round(TU("domTopV195A", 10)), hi: Math.round(TU("domFloorTopV195A", 0.2) * 100), lo: Math.round(TU("domFloorLowV195A", 0.1) * 100), floor: B && B.floor ? Math.round(B.floor * 100) : 0, pct: Math.round(TU("pityPctV195A", 0.08) * 100), min: Math.round(TU("pityMinV195A", 0.35) * 100) } : null, medals, floorOn: !!TU("v193Erank", 1), rankLevel: lv <= TU("rankTopMaxLevelV193E", 4) };
   }
   function scoutsExplainHtmlV193E() {
     const D = scoutsExplainDataV193E(),
@@ -5678,7 +5678,7 @@ ${col(
     return `<div class="scouts-x-v193e" style="text-align:left">
 ${block("★", "RECRUIT STARS", `<b>${"★".repeat(Math.max(0, Math.min(5, D.stars))) || "—"}</b> (${D.stars} of 5) — the talent grade he was born with; the program tiers re-grade it. Coaches and the Recruiting Board rate him on sight by it. <b>It never rolls</b> — the declare does not read it.`)}
 ${block("🏅", "NATIONAL RANK", `${D.rank != null ? `<b>#${fmtInt(D.rank)}</b> of ${fmtInt(D.of)} at ${D.level} · <b>top ${D.topPct}%</b>` : `your place among the ${fmtInt(D.of)} at ${D.level}`} — THIS season's production and OVR against every peer at the level. It is the <b>floor under the declare roll</b>${D.rankCh != null ? ` (the rank alone: ${pc(D.rankCh)}; your declare odds now: <b>${pc(D.declare)}</b>)` : ""}. At ${D.level}: #1 rolls ≥ ${pc(D.num1)}, <b>top 1% ≥ ${pc(D.top1)}</b>, top 5% ≥ ${pc(D.top5)}, the last man inside the advancing ${D.half}% a coin flip, well outside it single digits. <b>One roll; a miss ends the career.</b>${D.floorOn ? ` A top-1% season rolls at ≥ ${TU("rankTop1FloorV193E", 99)}% now (v193 E) — before, 97%.` : ""}${D.lv >= 5 ? " From College on the season roll is followed by the scouts' verdict below." : ""}`)}
-${block("🧬", "BLOODLINE POTENTIAL", `<b>${fmtBigV179(D.pot)}</b> — the growth ceiling the tree hands every son, judged ONLY at the three big declares${D.bars.length ? ` (${D.bars.map(b => `${b.name} <b>${fmtBigV179(b.bar)}</b>`).join(" · ")})` : ""}: a coin flip at the bar, better over it${D.verdict != null ? ` — your verdict now <b>${D.verdict}%</b>` : ""}.${D.next ? ` Next bar: ${D.next.name} wants <b>${fmtBigV179(D.next.bar)}</b>, you show <b>${fmtBigV179(D.pot)}</b> (${D.pot >= D.next.bar ? "✓ cleared" : "need +" + fmtBigV179(Math.ceil(D.next.bar - D.pot))}).` : ""} Raise it with <b>Freak, Prime Genes, Superhuman, the +ceiling nodes, chaos and a Path</b> — a tree of everything else barely moves it. A top-1% season in high school does not need it: the national rank carries you to College.`)}
+${block("🧬", "BLOODLINE POTENTIAL", `<b>${fmtBigV179(D.pot)}</b> — the growth ceiling the tree hands every son, judged ONLY at the three big declares${D.bars.length ? ` (${D.bars.map(b => `${b.name} <b>${fmtBigV179(b.bar)}</b>`).join(" · ")})` : ""}: a coin flip at the bar, better over it${D.verdict != null ? ` — your verdict now <b>${D.verdict}%</b>` : ""}.${D.next ? ` Next bar: ${D.next.name} wants <b>${fmtBigV179(D.next.bar)}</b>, you show <b>${fmtBigV179(D.pot)}</b> (${D.pot >= D.next.bar ? "✓ cleared" : "need +" + fmtBigV179(Math.ceil(D.next.bar - D.pot))}).` : ""} Raise it with <b>Freak, Prime Genes, Superhuman, the +ceiling nodes, chaos and a Path</b> — a tree of everything else barely moves it. A top-1% season in high school does not need it: the national rank carries you to College.${D.v195A ? ` <b>A dominant season always has a shot:</b> a top-${D.v195A.top} rank at your position keeps the College and Combine verdicts at <b>${D.v195A.lo}–${D.v195A.hi}%</b> however low the bloodline${D.v195A.floor ? ` (yours now: <b>${D.v195A.floor}%</b>)` : ""}, and every declare the scouts turn down lowers that level's bar ${D.v195A.pct}% for the next career (down to ${D.v195A.min}% of it; a make resets it).` : ""}`)}
 ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, earned by every season and career (better grades and higher levels earn more). They open the tree's locked nodes and the Path, and the scouts can wait on them. They are not the player's stars, rank or potential.`)}
 </div>`;
   }
@@ -43539,12 +43539,13 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
       tries = ((state && state.scoutTriesV179) || {})[lv] | 0,
       ease = tries * TU("scoutBarDecayV179", 0.5),
       bar = base ? Math.max(0, base - ease) : 0,
-      potBar = potBase ? Math.max(1, potBase - ease * TU("scoutPotDecayMultV179", 0.5) * (potBase / 150)) : 0,
+      potBar = potBase ? (pityOnV195A() ? pityBarV195A(potBase, lv) : Math.max(1, potBase - ease * TU("scoutPotDecayMultV179", 0.5) * (potBase / 150))) : 0 /* v195 A: the pity timer */,
       kO = bar ? 1 / (1 + Math.exp(-(ovr - bar) / Math.max(0.5, TU("scoutBarSoftV179", 4)))) : 1;
     // the verdict: a logistic under the bar (a coin flip AT it); over it, diminishing returns toward a ceiling prestige raises
     let v = 1,
       sl = 0,
-      vMax = 1;
+      vMax = 1,
+      floor = 0;
     if (potBar) {
       const soft = Math.max(0.5, potBar * TU("scoutPotSoftPctV179", 0.04));
       if (!K) v = 1 / (1 + Math.exp(-(pot - potBar) / soft));
@@ -43555,6 +43556,8 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
         } catch (_) {}
         vMax = Math.min(TU("verdictCapV179", 96), TU("verdictBaseV179", 80) + adv * TU("verdictPerOddsV179", 1)) / 100;
         v = pot <= potBar ? 1 / (1 + Math.exp(-(pot - potBar) / soft)) : 0.5 + (vMax - 0.5) * (1 - Math.exp(-(pot - potBar) / (potBar * TU("verdictTauV179", 0.35))));
+        floor = domFloorV195A(e, lv); /* v195 A: a dominant season always has a shot */
+        v = Math.max(v, floor);
         // the GM overrules on a close call, not a long shot: only within `secondLookFloorV179` of the bar
         sl = pot >= potBar * TU("secondLookFloorV179", 0.8) ? Math.min(TU("secondLookCapV179", 50), TU("secondLookBaseV179", 10) + adv * TU("secondLookPerOddsV179", 1.5)) / 100 : 0;
         const lsV193AD = pathVal("secondLook", 0); /* v193 AD: The Long Shot — the GM looks again at any distance from the bar */
@@ -43562,8 +43565,99 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
       }
     }
     const vt = v + (1 - v) * sl;
-    return { bar: Math.round(bar), ovr: Math.round(ovr), potBar: Math.round(potBar), pot: Math.round(pot), kO, kP: v, v, sl, vt, vMax, k: kO * vt };
+    return { bar: Math.round(bar), ovr: Math.round(ovr), potBar: Math.round(potBar), pot: Math.round(pot), kO, kP: v, v, sl, vt, vMax, k: kO * vt, floor, pity: pityOnV195A() ? pityCountV195A(lv) : 0, potBase };
   }
+  /* ===== v195 A THE SCOUTS SEE THE SEASON =====
+   * The owner: "It feels bad being number 1 in the country at a position yet this arbitrary bloodline stat prevents me
+   * from progressing" → "Do A and D … Dominant seasons with little bloodline potential should still have a good chance
+   * with no prestige (10 to 20 percent). Maybe they get lucky then have 2 to 3 seasons before getting back there. Too
+   * many A seasons given out. A should be reserved for top 10 in position."
+   * Measured: a fresh bloodline's potential is ~30 against the College → Combine bar of 90; the verdict's logistic
+   * (softness 4% of the bar) put that at ~0.000006%, the GM's second look needs 80% of the bar, and the old decay
+   * (`scoutBarDecayV179`) took ~0.15 off the bar a declare — ~400 declares to close the gap. The player's own season
+   * counted for nothing in the second roll.
+   * A · THE DOMINANT-SEASON FLOOR (`domFloorV195A`): a top-`domTopV195A` (10) national rank AT HIS POSITION floors the
+   *     scouts' verdict at `domFloorTopV195A` (20%) for #1, sliding to `domFloorLowV195A` (10%) at #10 — at the
+   *     College → Combine and Combine → UFF declares (`domFloorIstV195A` 0: the Interstellar Call stays the bloodline's).
+   *     The season roll itself is untouched (a #1 rank already rolls ≥ 99), so a dominant year with no prestige is a
+   *     10–20% shot; potential over the bar still climbs toward vMax as before.
+   * D · THE PITY TIMER (`pityBarV195A`): every FAILED declare at a barred level eases that level's potential bar by
+   *     `pityPctV195A` (8%) of itself, compounding, never under `pityMinV195A` (35%) of the base; a declare that gets
+   *     through resets that level's count (`state.scoutPityV195A[lv]`, the account's, so it carries across careers).
+   *     Replaces v179 H's flat ~0.15-a-declare decay while on.
+   * GRADES · A IS THE TOP TEN (`gradeTopCapV195A`): an A or A+ season grade needs a national rank in the top
+   *     `gradeATopV195A` (10) at the position; anything else that graded A (the fair grade, v139's declare-odds floor,
+   *     v179 M's top-1% floor) is capped at B+, and the report card says why. Both grade sites pass through
+   *     `rankFloorV179`, so the cap sits at its end.
+   * Kill switch TU "v195A" 0 (or `v195Afloor` / `v195Apity` / `v195Agrade` 0 one at a time). `window.__V195A`;
+   * `v195Acheck`. */
+  function v195AOn(k) {
+    return !!TU("v195A", 1) && !!TU(k, 1);
+  }
+  function pityOnV195A() {
+    return v195AOn("v195Apity");
+  }
+  function pityCountV195A(lv) {
+    return ((state && state.scoutPityV195A) || {})[lv] | 0;
+  }
+  function pityBarV195A(potBase, lv) {
+    const n = pityCountV195A(lv),
+      k = Math.max(TU("pityMinV195A", 0.35), Math.pow(1 - TU("pityPctV195A", 0.08), n));
+    return Math.max(1, potBase * k);
+  }
+  // the declare's outcome at a barred level: a miss eases the bar, a make resets it
+  function pityRecordV195A(lv, win) {
+    if (!state) return;
+    const P = state.scoutPityV195A || (state.scoutPityV195A = {});
+    P[lv] = win ? 0 : (P[lv] | 0) + 1;
+  }
+  function posRankV195A(e) {
+    try {
+      const rk = nationalRank(e, playerOvr(e));
+      return rk && rk.posRank ? { pos: rk.posRank, of: rk.posSize } : null;
+    } catch (_) {
+      return null;
+    }
+  }
+  function domFloorV195A(e, lv) {
+    if (!v195AOn("v195Afloor") || !e) return 0;
+    if (lv >= 7 && !TU("domFloorIstV195A", 0)) return 0;
+    const R = posRankV195A(e),
+      top = Math.max(1, Math.round(TU("domTopV195A", 10)));
+    if (!R || R.pos > top) return 0;
+    const hi = TU("domFloorTopV195A", 0.2),
+      lo = TU("domFloorLowV195A", 0.1);
+    return top <= 1 ? hi : hi + (lo - hi) * ((R.pos - 1) / (top - 1));
+  }
+  // A and A+ belong to the top ten at the position; the rest cap at B+
+  function gradeTopCapV195A(e, g, why) {
+    if (!v195AOn("v195Agrade")) return g;
+    const obj = g && typeof g === "object",
+      cur = String((obj ? g.grade : g) || "");
+    if (cur !== "A" && cur !== "A+") return g;
+    const R = posRankV195A(e),
+      top = Math.max(1, Math.round(TU("gradeATopV195A", 10)));
+    if (R && R.pos <= top) return g;
+    why && (why.capV195A = { from: cur, pos: R ? R.pos : null, top });
+    return obj ? Object.assign({}, g, { grade: "B+", capV195A: { from: cur } }) : "B+";
+  }
+  // the hub's line: what the season and the misses are worth against the bar
+  function scoutNoteV195A(B) {
+    if (!B || !B.potBar || !TU("v195A", 1)) return "";
+    const top = Math.round(TU("domTopV195A", 10)),
+      fl = B.floor > 0 ? ` 🏅 Your top-${top} season keeps the verdict at <b>≥ ${Math.round(B.floor * 100)}%</b>.` : v195AOn("v195Afloor") && (state.player.level | 0) < 7 ? ` 🏅 A top-${top} season at your position keeps the verdict at ${Math.round(TU("domFloorLowV195A", 0.1) * 100)}–${Math.round(TU("domFloorTopV195A", 0.2) * 100)}%.` : "",
+      pi = B.pity > 0 && B.potBase ? ` The scouts have passed ${B.pity}× here — the bar is down ${Math.round((1 - B.potBar / B.potBase) * 100)}% from ${fmtBigV179(B.potBase)}.` : "";
+    return fl + pi;
+  }
+  window.__V195A = {
+    floor: e => domFloorV195A(e || state.player, ((e || state.player).level | 0)),
+    pity: lv => pityCountV195A(lv),
+    pityBar: (base, lv) => pityBarV195A(base, lv),
+    record: (lv, win) => pityRecordV195A(lv, win),
+    gradeCap: (g, why) => gradeTopCapV195A(state.player, g, why),
+    posRank: e => posRankV195A(e || state.player),
+    note: () => scoutNoteV195A(scoutBarV179(state.player))
+  };
   /* ===== v179 K THE SCOUTS' VERDICT =====
    * The owner: "diminishing returns for going above the potential bar, so there's still some nervousness in college and
    * UFF declaration … influenced by prestige … maybe a second roll". A barred declare is the season roll, then the
@@ -43597,7 +43691,8 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
       lv = e.level;
     e.seasonStats || (e.seasonStats = {});
     e.seasonStats.chance = total;
-    V179K.last = { lv, season, v: B0.v * 100, sl: B0.sl * 100, total, ok1, ok2, ok3, win, pot: B0.pot, potBar: B0.potBar };
+    V179K.last = { lv, season, v: B0.v * 100, sl: B0.sl * 100, total, ok1, ok2, ok3, win, pot: B0.pot, potBar: B0.potBar, floor: B0.floor * 100 };
+    if (pityOnV195A()) pityRecordV195A(lv, win); /* v195 A: a miss eases this level's bar, a make resets it */
     win ? advanceLevel() : failDeclareV77(e, total);
     try {
       verdictRevealV179(V179K.last);
@@ -43614,7 +43709,7 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
     let rows = row(0, "THE SEASON", R.season, R.ok1, "your year and your national rank");
     let n = 1;
     if (R.ok1) {
-      rows += row(n++, "THE SCOUTS' VERDICT", R.v, R.ok2, `potential ${fmtBigV179(R.pot)} vs the bar ${fmtBigV179(R.potBar)}`);
+      rows += row(n++, "THE SCOUTS' VERDICT", R.v, R.ok2, `potential ${fmtBigV179(R.pot)} vs the bar ${fmtBigV179(R.potBar)}${R.floor > 0 && R.v <= R.floor + 0.05 ? " · your top-" + Math.round(TU("domTopV195A", 10)) + " season keeps it at " + Math.round(R.floor) + "%" : ""}`);
       if (!R.ok2 && R.sl > 0) rows += row(n++, "THE GM'S SECOND LOOK", R.sl, R.ok3, "the front office can overrule the scouts");
     }
     const end = 0.35 + n * 1.05 + 0.2;
@@ -43721,10 +43816,10 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
         I = e.level === 7 && (e.nflRings || 0) >= 1 ? istGateV179(e) : null;
       const B = scoutBarV179(e);
       const verdict = B.potBar > 0 && B.pot >= B.potBar && TU("v179K", 1) && e.seasonsAtLevel >= minSeasons()
-        ? `🔭 Scouts' verdict <b>${Math.round(B.v * 100)}%</b> (potential ${fmtBigV179(B.pot)} vs ${fmtBigV179(B.potBar)}, tops out at ${Math.round(B.vMax * 100)}%)${B.sl > 0 ? ` · GM's second look <b>${Math.round(B.sl * 100)}%</b>` : ""} — on top of the season roll. Declare-odds nodes and medals raise both.`
+        ? `🔭 Scouts' verdict <b>${Math.round(B.v * 100)}%</b> (potential ${fmtBigV179(B.pot)} vs ${fmtBigV179(B.potBar)}, tops out at ${Math.round(B.vMax * 100)}%)${B.sl > 0 ? ` · GM's second look <b>${Math.round(B.sl * 100)}%</b>` : ""} — on top of the season roll. Declare-odds nodes and medals raise both.${scoutNoteV195A(B)}`
         : "";
       const msg = verdict ? verdict : B.potBar > 0 && B.pot < B.potBar
-        ? `${e.level >= 7 ? "🛸 The Interstellar League judges" : "🔭 The scouts judge"} <b>POTENTIAL</b>: they want <b>${fmtBigV179(B.potBar)}</b>, your bloodline shows <b>${fmtBigV179(B.pot)}</b> — the declare odds are cut to ${Math.round(B.k * 100)}% of what your season earned. Potential is the growth ceiling the prestige tree gives every player: Freak, Prime Genes, Superhuman, the ceiling nodes, chaos and your Path raise it; a tree of everything else barely moves it.`
+        ? `${e.level >= 7 ? "🛸 The Interstellar League judges" : "🔭 The scouts judge"} <b>POTENTIAL</b>: they want <b>${fmtBigV179(B.potBar)}</b>, your bloodline shows <b>${fmtBigV179(B.pot)}</b> — the declare odds are cut to ${Math.round(B.k * 100)}% of what your season earned. Potential is the growth ceiling the prestige tree gives every player: Freak, Prime Genes, Superhuman, the ceiling nodes, chaos and your Path raise it; a tree of everything else barely moves it.${scoutNoteV195A(B)}`
         : B.bar > 0 && B.kO < 0.85
         ? `🔭 The scouts' bar is <b>${B.bar} OVR</b> — you are <b>${B.ovr}</b>, so the declare odds are cut to ${Math.round(B.k * 100)}% of what your season earned. Starting attributes, growth and ceilings in the prestige tree (and the medal rewards) raise every future player.`
         : G.short
