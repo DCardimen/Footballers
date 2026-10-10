@@ -90,10 +90,10 @@ const snap = (page) => page.evaluate(() => {
   await page.click('.rib-dlg-v149 .btns-v149 button.danger-v149, .rib-dlg-v149 .btns-v149 button.primary-v149')
   await page.waitForTimeout(1200)
   const r = await snap(page)
-  const p = await page.evaluate(() => { const p = window.S.player; return p && { vol: !!p.voluntaryRetirementV12, gain: p._ppGain | 0 } })
+  const p = await page.evaluate(() => { const p = window.S.player; return p && { vol: !!p.voluntaryRetirementV12, gain: p._ppGain | 0, uffK: window.__V195C ? window.__V195C.uffMult(7) : 1 } })
   ok(r.view === 'gameover' && r.settled && p && p.vol, 'retiring there lands on the retired career-end screen', { view: r.view, settled: r.settled, p })
   ok(r.careers === k.careers && r.hof === k.hof, 'settled once: no second career, no second Hall row', { careers: [k.careers, r.careers], hof: [k.hof, r.hof] })
-  ok(p && p.gain > 0 && p.gain < 200, 'the end pays only the seasons after the arrival', p)
+  ok(p && p.gain > 0 && p.gain < 200 * p.uffK, 'the end pays only the seasons after the arrival (v195 C: at the UFF\'s ×10)', p)
   ok(r.dock.some(t => /Run It Back Now/i.test(t)) && r.dock.some(t => /Hall of Fame/i.test(t)) && r.dock.some(t => /RUN IT BACK|Prestige|vault|Vault/i.test(t)), 'the retired end offers the vault, RUN IT BACK, a skip and the Hall', r.dock)
   await ctx.close()
 }
