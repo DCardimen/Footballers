@@ -7158,7 +7158,50 @@
     if (!cols) { var U = resolveU((item("uniform") || {}).k || null, null); cols = U ? [U.j, U.p] : [teamCol(0), teamCol(1)]; }
     var H = V.kit && V.kit.helmet ? ((item("helmet") || {}).h || null) : null;   // the helmet the field dressed him in (fieldKit)
     var tones = (F && F.tones) || ["#bf8a62"], tn = (typeof tone === "string" && skinHexV193Q(tone)) || tones[tone != null && tones[tone] ? tone : Math.min(3, tones.length - 1)];   // v193 Q: a custom hex
-    return { p1: cols[0], p2: cols[1], H: H, tone: tn, key: cols[0] + cols[1] + "|" + (H ? [H.s, H.st, H.f].join(",") : "-") + "|" + tn };
+    var UD = decoUV194C(kitKey || "you");   // v194 C: the pattern the field painted on this kit (null: none / off)
+    return { p1: cols[0], p2: cols[1], H: H, U: UD, tone: tn, key: cols[0] + cols[1] + "|" + (H ? [H.s, H.st, H.f].join(",") : "-") + "|" + tn + (UD ? "|u:" + UD.stamp : "") };
+  }
+  /* ===== v194 C THE JUMBO WEARS THE JERSEY =====
+   * The owner: "Ensure jersey colors match the team celebration on the jumbo." The board's body (v177 C's party: the
+   * v161 A flex / backflip / spike, or HIS v177 I routine) was recoloured with the kit's two colours and nothing else,
+   * while the field dresses the user's team in the equipped uniform and helmet through `fieldKit` (v151 B, v159 A: HIS
+   * textures and, with the team palette on, the whole team's "off" kit): the uniform's PATTERN and trim (Road Whites'
+   * navy sleeves, hoops, stripes, a split, a fade, the pants stripe) and the helmet's shell, stripe and finish. So a
+   * teammate's touchdown played on the board in a bare team-coloured helmet with no stripe, and anyone in a patterned
+   * uniform celebrated in a plain shirt. Now the board's kit is the field's: `dressedV194C(kitKey)` says whether the
+   * field dressed that kit ("you" when he wears something; "off" when v159 A dressed the team — `__V159A_FIELD.kit`;
+   * never the opponent's "def", which the field never dresses), `decoUV194C` hands the same resolved uniform the field
+   * used (`fieldKit`'s `V.kit.uniform` — null when it clashed with the opponent and was left off), its pattern is
+   * painted on each board frame by the field's own `kitDeco` (uniform only: the board draws the helmet itself, off
+   * the art's measured shell), and `boardCel.tex` keeps the helmet for a dressed teammate instead of dropping it.
+   * The colours are the field's palette (`__V161A_FIELD.kit`) as before. Looks only. Kill switch `TU("v194Cjumbo", 0)`.
+   * `window.__V194C.jumbo` (`kits`, `last`: the kit key, its colours, helmet, pattern). ===== */
+  function dressedV194C(kitKey) {
+    if (!TUv("v194Cjumbo", 1) || !V.kit) return false;
+    if (kitKey === "you") return true;
+    if (kitKey === "off") { var F9 = window.__V159A_FIELD; return !!(F9 && F9.kit === true); }
+    return false;
+  }
+  var decoV194C = { key: "", fn: null };
+  function decoUV194C(kitKey) {
+    try {
+      if (!dressedV194C(kitKey) || !V.kit.uniform) return null;
+      var F9 = window.__V159A_FIELD, base = F9 && F9.base ? F9.base() : null;
+      var U = resolveU((item("uniform") || {}).k || null, base || null); if (!U) return null;
+      var stamp = [U.j, U.p, U.t || "-", U.pat || "solid", U.ps || "-"].join(",");
+      if (decoV194C.key !== stamp) decoV194C = { key: stamp, fn: kitDeco(U, null) };
+      return { stamp: stamp, pat: U.pat || "solid", t: U.t || null, ps: U.ps || null, fn: decoV194C.fn };
+    } catch (e) { return null; }
+  }
+  // the field's pattern on one recoloured board frame (`orig` the drawn cell, untouched)
+  function decoFrameV194C(out, orig, name, kit) {
+    if (!kit || !kit.U || !kit.U.fn) return out;
+    try { kit.U.fn(out, "board_" + name, null, orig); } catch (e) {}
+    return out;
+  }
+  function noteKitV194C(kitKey, kit) {
+    try { var J = (window.__V194C = window.__V194C || {}); J.jumbo = J.jumbo || { kits: 0, last: null }; J.jumbo.kits++;
+      J.jumbo.last = { kit: kitKey, p1: kit.p1, p2: kit.p2, helmet: kit.H ? kit.H.s : null, pattern: kit.U ? kit.U.pat : null, dressed: dressedV194C(kitKey) }; } catch (e) {}
   }
   function frameCanvasV161A(name, k, scale, kit) {
     var M = DATA_V161A.M, A = M.anims[k === "ball" ? "spike" : name], fr = k === "ball" ? null : A.frames[k];
@@ -7166,6 +7209,7 @@
     var cv = document.createElement("canvas"); cv.width = w; cv.height = h; var x = cv.getContext("2d"); x.drawImage(DATA_V161A.img[scale], r[0], r[1], w, h, 0, 0, w, h);
     if (k === "ball" || !kit) return cv;
     var src = x.getImageData(0, 0, w, h).data, F = window.__V161A_FIELD, out = F && F.recolor ? F.recolor(cv, kit.p1, kit.p2) : cv;
+    if (out !== cv) decoFrameV194C(out, cv, name, kit);   // v194 C: the field's pattern, before the skin goes back on
     var ox = out.getContext("2d"), img = ox.getImageData(0, 0, w, h), d = img.data, sk = DATA_V161A.skin[scale], sw = DATA_V161A.sw[scale];
     // skin: v151 D's grey luminance, times his tone
     if (sk) { var ls = 0, ln = 0, j, i4, L, lm = skinLocalV193I(sk, sw, r, w, h, src, F);
@@ -7819,7 +7863,9 @@
     // the frames in a kit: HIS (helmet and all), or another man's kit with no helmet of his
     tex: function (scene, name, kitKey, you, tone) {
       var kit = kitV161A(kitKey || "you", tone);
-      if (!you) kit = { p1: kit.p1, p2: kit.p2, H: null, tone: kit.tone, key: kit.p1 + kit.p2 + "|-|" + kit.tone };
+      // v194 C: a teammate the field dressed in the equipped helmet wears it on the board too (the opponent never does)
+      if (!you && !dressedV194C(kitKey || "you")) kit = { p1: kit.p1, p2: kit.p2, H: null, U: null, tone: kit.tone, key: kit.p1 + kit.p2 + "|-|" + kit.tone };
+      noteKitV194C(kitKey || "you", kit);
       return texV161A(scene, name, kit, TUv("v161Ahd", 1) ? 2 : 1);
     },
     // the equipped celebration (his moments only): what the board plays round him
@@ -7841,7 +7887,7 @@
     total177: function (name, calm) { return tlV177I(name, !!calm).total; },
     pose177: function (name, t, calm) { return poseV177I(name, t, !!calm); },
     frame177: function (name, k) { var A = DATA_V177I.M && DATA_V177I.M.anims[name]; return A ? A.frames[k] : null; },
-    tex177: function (scene, name, kitKey, tone) { return texV177I(scene, name, kitV161A(kitKey || "you", tone), TUv("v161Ahd", 1) ? 2 : 1); },
+    tex177: function (scene, name, kitKey, tone) { var kit = kitV161A(kitKey || "you", tone); noteKitV194C(kitKey || "you", kit); return texV177I(scene, name, kit, TUv("v161Ahd", 1) ? 2 : 1); },
     props177: function (name, t, o, D, calm) { var A = DATA_V177I.M && DATA_V177I.M.anims[name]; if (!A) return 0; return propsV177I(name, t, o, A.frames[o.k], D, !!calm, colsV177I(item("celebration"), name)); }
   };
 
@@ -8144,6 +8190,7 @@
     var cv = document.createElement("canvas"); cv.width = w; cv.height = h; var x = cv.getContext("2d"); x.drawImage(DATA_V177I.img[scale], r[0], r[1], w, h, 0, 0, w, h);
     if (k === "ball" || !kit) return cv;
     var src = x.getImageData(0, 0, w, h).data, F = window.__V161A_FIELD, out = F && F.recolor ? F.recolor(cv, kit.p1, kit.p2) : cv;
+    if (out !== cv) decoFrameV194C(out, cv, name, kit);   // v194 C: the field's pattern, before the skin goes back on
     var ox = out.getContext("2d"), img = ox.getImageData(0, 0, w, h), d = img.data, sk = DATA_V177I.skin[scale], sw = DATA_V177I.sw[scale], j, i4, L;
     if (sk) { var ls = 0, ln = 0, lm = skinLocalV193I(sk, sw, r, w, h, src, F);
       for (j = 0; j < w * h; j++) { if (lm[j] !== 1) continue; i4 = j * 4; if (src[i4 + 3] < 20) continue;
@@ -8961,7 +9008,7 @@
     CATS.mascot = { name: "MASCOTS", icon: "🎭", def: "mascot_none" };
     addItemsV177([
       { id: "mascot_none", cat: "mascot", name: "No Mascot", rarity: "common", source: "free", blurb: "The benches without a mascot." },
-      { id: "mascot_team", cat: "mascot", name: "Team Mascots", rarity: "legendary", source: "member", blurb: "Every crest has its mascot — a knight, a bear, a pirate, an alien… On both benches, dancing the players' celebrations." }
+      { id: "mascot_team", cat: "mascot", name: "Team Mascots", rarity: "legendary", source: "member", blurb: "Every crest has its mascot — a knight, a bear, a pirate, an alien… The home side's mascot works the end zone and the sideline: cartwheels, merch into the stands, signs, tears — and the players' celebrations." }
     ], "v193AI");
     API.slots = SLOTS.slice();
   }

@@ -23,8 +23,8 @@ const anchor = html.indexOf("/* ===== RIB_TUNE"), open = html.lastIndexOf("<scri
 if (anchor < 0 || open < 0 || close < 0) throw new Error("play engine script block not found");
 const src = html.slice(open + "<script>".length, close);
 function mulberry32(seed) { return function () { let t = seed += 0x6D2B79F5; t = Math.imul(t ^ t >>> 15, t | 1); t ^= t + Math.imul(t ^ t >>> 7, t | 61); return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
-function runtime(seed) { const M = Object.create(Math); M.random = mulberry32(seed); const ctx = vm.createContext({ console, Math: M }); ctx.window = ctx; ctx.globalThis = ctx;
-  vm.runInContext(src, ctx, { filename: "index.html" }); ctx.__getGridironState = () => ({ player: { level: 4 } }); return ctx; }
+function runtime(seed, tune) { const M = Object.create(Math); M.random = mulberry32(seed); const ctx = vm.createContext({ console, Math: M }); ctx.window = ctx; ctx.globalThis = ctx;
+  vm.runInContext(src, ctx, { filename: "index.html" }); ctx.__getGridironState = () => ({ player: { level: 4 } }); if (tune) Object.assign(ctx.RIB_TUNE, tune); return ctx; }
 
 const POS_OFF = ["WR","WR","TE","OL","OL","OL","OL","OL","QB","RB","WR"], POS_DEF = ["CB","CB","S","S","LB","LB","LB","DL","DL","DL","DL"];
 const SKILLS = ["speed","quickness","acceleration","burst","strength","blocking","tackling","coverage","agility","awareness","catching","jumping","throwing","vision","stamina","grit","discipline","ballControl"];
@@ -47,8 +47,8 @@ const N = +(process.env.READ_N || 160);
 const avg = a => a.length ? a.reduce((x, y) => x + y, 0) / a.length : 0;
 const sd = a => { const m = avg(a); return Math.sqrt(avg(a.map(v => (v - m) ** 2))); };
 
-function runs(seed, concept, defOver = {}, offOver = {}, n = N) {
-  const ctx = runtime(seed);
+function runs(seed, concept, defOver = {}, offOver = {}, n = N, tune) {
+  const ctx = runtime(seed, tune);
   const m = { n: 0, yds: 0, long: 0, untouched80: 0, reads: [], lb: [], cb: [], bites: 0, blocks: { push: 0, drive: 0, lost: 0 }, pancakes: 0, holes: 0, jobPlays: 0, lookPlays: 0, simul: 0, ev: {} };
   for (let i = 0; i < n; i++) {
     const off = POS_OFF.map((p, j) => player(p, j, "off", offOver)), def = POS_DEF.map((p, j) => player(p, j, "def", defOver));
@@ -118,7 +118,9 @@ Pz.mobileQB = passes(0xBEEF, false, {}, N, { speed: 78 });
  * every run, deterministically), while seeds 1..7 read -0.08 / +0.55 / +1.82 / +1.35 / +2.68 / +0.82 / +0.18 and the
  * eight together 9.05 plain vs 9.81 play action. Judge it on the pooled YPA of four streams (1,280 attempts a side),
  * never on one sample path (CLAUDE.md: compare against the spread). */
-const PA_SEEDS = [0xBEEF, 1, 2, 3];
+/* v194 A: four streams were still one sample path — v194 A's out-of-bounds draws (a different path, no PA mechanism)
+ * read 9.91 vs 10.39 on the four, while twelve read 10.92 vs 9.61 with v194 A on and 11.38 vs 9.48 off. Pool twelve. */
+const PA_SEEDS = [0xBEEF, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11];
 const poolYpa = pa => { const rows = PA_SEEDS.map(sd => sd === 0xBEEF ? (pa ? Pz.pa : Pz.plain) : passes(sd, pa, {}, N * 2)); return +(rows.reduce((a, r) => a + r.ypa, 0) / rows.length).toFixed(2); };
 Pz.pool = { plainYpa: poolYpa(false), paYpa: poolYpa(true), seeds: PA_SEEDS.length };
 const K = { punt: kicks(0xF00D, "punt"), kickoff: kicks(0xF00D, "kickoff"), fg: kicks(0xF00D, "fg") };
@@ -163,7 +165,12 @@ ok((pe.stepUp || 0) > .1 && (pe.rollout || 0) > .03 && Pz.plain.sackPct <= 5, `t
 ok((pe.swat || 0) > .01, `the catch point is contested (${pe.swat || 0} swats/play)`);
 ok((re.bounce || 0) > .005 && (re.bounce || 0) < .15, `carriers bounce off glancing hits, rarely (${re.bounce || 0}/play)`);
 ok((re.effort || 0) > .3 && (re.pilePush || 0) > .2, `effort shows — jogging on the far side, a late man into the pile (${re.effort || 0} effort, ${re.pilePush || 0} pile pushes per play)`);
-ok((re.press || 0) > .02, `the back presses a closed hole and bounces (${re.press || 0}/play)`);
+/* v194 A: this harness snaps with no formation, so v194 A's mesh (the QB and the back must touch before the ball moves)
+ * hands off later — after the hole has opened — and the back rarely meets a closed one here (~0.006/play). In real game
+ * sims the press rate ROSE with the mesh on (0.125 vs 0.05 per run). So the press read is measured on the pre-mesh
+ * exchange; the mesh itself is v194Acheck's. */
+const rePress = runs(0xC0FFEE, "inside", {}, {}, N, { meshV194A: 0 }).ev;
+ok((rePress.press || 0) > .02, `the back presses a closed hole and bounces (${rePress.press || 0}/play on the pre-mesh exchange; ${re.press || 0} with the mesh in this formation-less harness)`);
 ok(K.punt.fairPct >= 10 && K.punt.fairPct <= 55 && K.punt.avgRet >= 3 && K.punt.avgRet <= 14, `punts: fair catches when the coverage is on him, real returns otherwise (${K.punt.fairPct}% fair, ${K.punt.avgRet} avg return)`);
 ok(K.kickoff.avgRet >= 10 && K.kickoff.avgRet <= 30 && K.kickoff.tdPct <= 2, `kickoffs: the wedge buys a return (${K.kickoff.avgRet} avg, ${K.kickoff.tdPct}% housed)`);
 ok(K.fg.blockedPct <= 3 && K.punt.blockedPct <= 2.5, `kicks get blocked, rarely (${K.fg.blockedPct}% of field goals, ${K.punt.blockedPct}% of punts)`);

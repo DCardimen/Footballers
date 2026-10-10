@@ -5200,6 +5200,8 @@
         if (tz)
           chips +=
             '<span class="si-chip-v142 si-tilt-v193z">FOCUS <b style="color:' + (tz < 0 ? "#ff8a80" : "#7fe0a0") + '">' + focusPctTxtV193Z(tz) + "</b> THIS SEASON</span>";
+        const bfm = pl.pos && pl.body && TU("v194E", 1) ? buildCapMulV194E(pl, k) : 1; /* v194 E: the build's share of that max */
+        if (cap && Math.abs(bfm - 1) >= 0.005) chips += '<span class="si-chip-v142">🧬 BUILD <b>' + (bfm > 1 ? "+" : "") + Math.round((bfm - 1) * 100) + "%</b></span>";
         if (L.metric)
           chips +=
             '<span class="si-chip-v142">' + L.metric.label.toUpperCase() + " <b>" + L.metric.fmt(cur) + "</b></span>";
@@ -15058,7 +15060,7 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
     const T = {};
     for (const R of ATTR_KEYS) {
       const O = e.attrs[R] || 1;
-      const kR = Math.min(attrCap(), Math.round(k * ((e.statCeilV17 && e.statCeilV17[R]) || 1)));
+      const kR = Math.min(attrCap(), Math.round(k * ceilMulV194E(e, R))); /* v194 E: the build moves the growth ceiling too */
       let Pe = clamp99(1 - (O / attrCap()) * 0.55, 0.35, 1);
       if (O >= kR - 18) {
         const Ro = (O - (kR - 18)) / 18;
@@ -16813,6 +16815,7 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
         : ""
     }
     <div class="sub">Standout traits: ${s.map(i => `<b style="color:var(--gold)">${ATTR_INFO[i].name}</b>`).join(", ")}. Your body shape gives a natural edge at some positions — pick where it fits.</div>
+    ${bfPanelV194E(e, t) /* v194 E: the build sets the ceiling — a preview per position */}
     <div class="h2">Choose a Position</div>
     ${t
       .map(i => {
@@ -16830,7 +16833,7 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
         <div class="pos-info">
           <div class="pn">${POSITIONS[i.pos].name}</div>
           <div class="pd">${POS_BODY[i.pos].note} · ${c}</div>
-          <span class="fit-tag fit-${r}">${l}</span>
+          <span class="fit-tag fit-${r}">${l}</span>${TU("v194E", 1) ? bfGradeChipV194E(buildFitV194E(e.body, i.pos), "mini") : ""}
         </div>
         <div class="pos-fit"><div class="ovr" style="color:${r === "natural" ? "var(--gold)" : "var(--chalk)"}">${i.ovr}</div><div class="lbl">OVR</div></div>
       </div>`;
@@ -17370,7 +17373,7 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
         let J = st * Oq + Rt;
         a.focus && a.focus.includes(R) && (J += Tt);
         J = Math.max(0, J) * pathGrowthV193AD(e, R); /* v193 AD: the preview reads the same legend growth */
-        const kR = Math.min(attrCap(), Math.round(k * ((e.statCeilV17 && e.statCeilV17[R]) || 1)));
+        const kR = Math.min(attrCap(), Math.round(k * ceilMulV194E(e, R))); /* v194 E: the build moves the growth ceiling too */
         let Pe = clamp99(1 - (O / attrCap()) * 0.55, 0.35, 1);
         if (O >= kR - 18) {
           const Ro = (O - (kR - 18)) / 18;
@@ -19785,7 +19788,8 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
             down: typeof down !== "undefined" ? down : 1,
             toGo: typeof toGo !== "undefined" ? toGo : 10,
             formation: formationV164P(play, "run", typeof down !== "undefined" ? down : 1, typeof toGo !== "undefined" ? toGo : 10, typeof pos !== "undefined" ? pos : 50) /* v164 P */,
-            dcV165D: dcSnapV165D /* v165 D: the defense's call */
+            dcV165D: dcSnapV165D /* v165 D: the defense's call */,
+            clockV194A: clockCtxV194A(!!w) /* v194 A: the clock tells the carrier whether to get out of bounds */
           })
         );
       /* v101: the call names the gap. v103: and the sticks, so a back can strain for them */ let base;
@@ -19894,7 +19898,8 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
           routes: (ctx.play && ctx.play.routes) || null,
           play: (ctx.play && ctx.play.id) || null,
           formation: formationV164P(ctx.play, "pass", typeof down !== "undefined" ? down : 1, typeof toGo !== "undefined" ? toGo : 10, typeof pos !== "undefined" ? pos : 50) /* v164 P */,
-          dcV165D: dcSnapV165D /* v165 D: the defense's call */
+          dcV165D: dcSnapV165D /* v165 D: the defense's call */,
+          clockV194A: clockCtxV194A(!!w) /* v194 A */
         }); /* v101: the call names the routes */
       if (__r) {
         if (__r.complete && __r.yards > 0) {
@@ -20214,6 +20219,25 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
           extra || {}
         )
       );
+    }
+    /* ===== v194 A OUT OF BOUNDS — the game side =====
+     * The sim decides who goes out (the carrier's step-out, the tackler's push-out — the v194 A banner in 04); the
+     * game hands it the clock so the decision can read it, books the row's `oob` from the sim's own dead ball (the
+     * v109 side roll only fills in for a play the sim did not resolve), names nobody for an untouched step-out, and
+     * says it in the play-by-play ("out of bounds" / "pushed out of bounds by …"). Kill switch `TU("v194A", 0)`
+     * restores the v109 roll. `window.__V109_D.oob` counts as before. */
+    function clockCtxV194A(offUs) {
+      try {
+        const late = quarter >= 4 ? clock <= TU("oobLateQ4SecV194A", 300) : quarter === 2 && clock <= TU("oobLateQ2SecV194A", 120),
+          m = offUs ? h - p : p - h;
+        return { late: !!late, trailing: !!late && m < 0, leading: !!late && quarter >= 4 && m > 0 };
+      } catch (e) {
+        return null;
+      }
+    }
+    function oobTxtV194A(X, you) {
+      const a = X && X.tackler && !(you && pe(X.tackler)) ? nm(X.tackler) : null;
+      return a ? `, pushed out of bounds by ${a}` : X && X.tackler ? ", pushed out of bounds" : ", out of bounds";
     }
     /* the tail of the FieldSim queue is THIS play's log only if the queue grew since the resolver was called */
     const qLenV109 = () => {
@@ -21506,6 +21530,10 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
                   ? `💨 Nothing open — you see the lane and SCRAMBLE for ${de}!`
                   : `${nm(qb2)} sees the lane and SCRAMBLES for ${de}.`
                 : `${nm(qb2)} tucks it and scrambles for ${de}.`;
+            if (TU("v194A", 1) && !_e && simOobV109(_q0)) {   // v194 A: a scramble the sim ran out of bounds stops the clock and says so
+              oobSim = oob = !0;
+              ue += X.tackler ? ` Pushed out of bounds by ${pe(X.tackler) && !usDrive && ce ? "YOU" : nm(X.tackler)}.` : " He gets out of bounds.";
+            }
             if (!usDrive && ce && !_e && (pe(X.tackler) || pe(X.assist))) {
               P.tackle += tkCreditV180(X);
               me = !0;
@@ -21543,7 +21571,7 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
               V109.oob.passN++;
               oobSim && V109.oob.passSim++;
               const _ps = clamp99(TU("oobPassSim", 0.047), 0, 0.99);
-              oob = oobSim || _r < Math.max(0, (TU("oobPassRate", 0.18) - _ps) / (1 - _ps));
+              oob = oobSim || (!(TU("v194A", 1) && simTailV109(_q0)) && _r < Math.max(0, (TU("oobPassRate", 0.18) - _ps) / (1 - _ps)));   // v194 A: a resolved play is out only if the sim put it out
             } /* v109: one roll either way; p' keeps the aggregate at the target */
             {
               const _sd = simSideV109(_q0, usDrive);
@@ -21566,11 +21594,12 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
               me = usDrive && (t === "QB" ? pe(X.qb) && Math.random() < 0.92 : pe(X.rec));
               usDrive && pe(X.rec) && P.rec_c++;
               {
-                const _tk = tkTxtV109(X, !usDrive && ce),
+                const _oob194 = !!(TU("v194A", 1) && oobSim),   // v194 A: the sim put him out — say so
+                  _tk = _oob194 ? oobTxtV194A(X, !usDrive && ce) : tkTxtV109(X, !usDrive && ce),
                   _dr = dirV109 ? " " + dirV109 : ""; /* v109: where he caught it and who put him down */
                 ue = usDrive
                   ? me
-                    ? J2("recv", de, X.breakaway)
+                    ? J2("recv", de, X.breakaway) + (_oob194 ? (X.tackler ? " You're pushed out of bounds." : " You step out of bounds.") : "")
                     : `${nm(X.qb)} finds ${nm(X.rec)}${_dr} for ${de}${X.breakaway ? " — big gain!" : ""}${_tk}.`
                   : `${nm(X.qb)} completes to ${nm(X.rec)}${_dr} for ${de}${_tk}.`;
               }
@@ -21578,7 +21607,7 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
               if (!usDrive && ce && (pe(X.tackler) || pe(X.assist))) {
                 P.tackle += tkCreditV180(X);
                 me = !0;
-                ue += (pe(X.tackler) ? " 🔨 You bring him down." : " 🤝 You're in on the stop.") + tkNoteV180(X);
+                ue += (pe(X.tackler) ? (TU("v194A", 1) && oobSim ? " 🔨 You drive him out of bounds." : " 🔨 You bring him down.") : " 🤝 You're in on the stop.") + tkNoteV180(X);
               }
             }
           } else if (X.intercepted) {
@@ -21793,14 +21822,14 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
             V109.oob.runN++;
             oobSim && V109.oob.runSim++;
             const _ps = clamp99(TU("oobRunSim", 0), 0, 0.99);
-            oob = oobSim || _r < Math.max(0, (TU("oobRunRate", 0.12) - _ps) / (1 - _ps));
+            oob = oobSim || (!(TU("v194A", 1) && simTailV109(_q0)) && _r < Math.max(0, (TU("oobRunRate", 0.12) - _ps) / (1 - _ps)));   // v194 A: a resolved run is out only if the sim put it out
           } /* v109 */
           {
             const _sd = simSideV109(_q0, usDrive);
             dirV109 = runDirV109(_sd, playV101, concept);
             tkV109 = X.tackler ? nm(X.tackler) : null;
             asV109 = X.assist ? nm(X.assist) : null;
-            if (!X.tackler && !X.fumble && pos + de < 100) {
+            if (!X.tackler && !X.fumble && pos + de < 100 && !(TU("v194A", 1) && oobSim)) {   // v194 A: an untouched step-out has no tackler to guess
               const _pool = Dk.def.filter(z => !z.you);
               if (_pool.length) {
                 tkGuessV109 = !0;
@@ -21821,16 +21850,16 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
             me = usDrive && pe(X.carrier);
             me && t === "RB" && P.carries++;
             {
-              const _tk = tkTxtV109(
-                X,
-                !usDrive && ce
-              ); /* v109: the direction and the tackler — the you-player keeps his J2 line */
+              const _oob194 = !!(TU("v194A", 1) && oobSim),   // v194 A: the sim put him out — say so
+                _tk = _oob194
+                  ? oobTxtV194A(X, !usDrive && ce)
+                  : tkTxtV109(X, !usDrive && ce); /* v109: the direction and the tackler — the you-player keeps his J2 line */
               ue = usDrive
                 ? me
-                  ? J2("run", de, X.breakaway)
+                  ? J2("run", de, X.breakaway) + (_oob194 ? (X.tackler ? " You're pushed out of bounds." : " You get out of bounds.") : "")
                   : X.breakaway
                     ? `${nm(X.carrier)} breaks free ${dirV109} for ${de}${_tk}!`
-                    : de <= 1
+                    : de <= 1 && !_oob194
                       ? `${nm(X.carrier)} is stuffed ${dirV109}${_tk}.`
                       : `${nm(X.carrier)} rushes ${dirV109} for ${de}${_tk}.`
                 : `${nm(X.carrier)} rushes ${dirV109} for ${de}${_tk}.`;
@@ -21900,7 +21929,9 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
                     (me = !0),
                     (ue = (_asst
                       ? "🤝 You rally to the ball — in on the gang tackle."
-                      : "🔨 You read it and make the tackle.") + tkNoteV180(X)));
+                      : TU("v194A", 1) && oobSim
+                        ? "🔨 You string it out and drive him out of bounds." /* v194 A: a push-out names its pusher */
+                        : "🔨 You read it and make the tackle.") + tkNoteV180(X)));
               }
             }
           }
@@ -22092,7 +22123,9 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
       }
       const stops = ne === "incomplete" || oob;
       if (!stops) {
-        let runoff = milk ? 39 : hurry ? (ne === "run" ? 16 : 11) : 24 + randInt(-3, 4);
+        /* v194 A: the hidden clock roll is gone (a play stops the clock only when the sim put it out), so fewer plays
+         * stop it — the in-bounds runoff gives that back (`runoffV194A`), keeping the plays a game where they were */
+        let runoff = milk ? 39 : hurry ? (ne === "run" ? 16 : 11) : (TU("v194A", 1) ? TU("runoffV194A", 21) : 24) + randInt(-3, 4);
         // late-half timeout: the trailing team burns one to stop the clock and save time
         const late = quarter >= 4 ? clock <= 180 : quarter === 2 && clock <= 120,
           trailing = margin < 0 ? T0 : margin > 0 ? other(T0) : null;
@@ -26839,7 +26872,7 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
     const isKey = a => !!(POSITIONS[e.pos].w[a] && POSITIONS[e.pos].w[a] >= 0.14);
     ((byId("screen").innerHTML = `
     <div class="up-v153">
-    <div class="eyebrow">${e.pos} · Current OVR ${t}</div>
+    <div class="eyebrow up-eye-v194e">${e.pos} · Current OVR ${t}${bfUpStripV194E(e) /* v194 E: the build's grade and what it does to the maxes — on the eyebrow line, so the sheet still fits one page */}</div>
     <div class="up-top-v153">
       <div class="h1">Train Your Player</div>
       <div class="pts-banner up-pts-v153">
@@ -27099,9 +27132,261 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
     const st = clamp99(Math.round(e.stars || 1), 1, 5),
       base = TU("drStarBase", 0.6) + (st - 1) * TU("drStarStep", 0.0625),
       pres = TU("drPrestigePct", 0.01) * (state.prestige || 0) + softPctV146() + gearV147("softCap"),
-      m = (e.statCeilV17 && e.statCeilV17[k]) || 1;
+      m = ceilMulV194E(e, k); /* v194 E: the personality × the build */
     return Math.min(attrCap(), Math.max(20, Math.round(hs(e) * (base + pres) * m)));
   }
+  /* ===== v194 E THE BUILD SETS THE CEILING =====
+   * The owner: "Would rather have overall value from your build impact your max stats. Have it range depending on
+   * how well suited you are. Make this experience satisfying."
+   * The build is the projected adult frame against the position's ideal (`bodyFit`, the same read as the OVR's
+   * "+N build"). It now moves every stat's MAX — the soft cap the price is written against (`drSoftCap`) and the
+   * growth ceiling a season grows toward (both growth paths' `kR`) — through ONE multiplier, `ceilMulV194E(e, k)`
+   * (the personality's `statCeilV17` × the build's `buildCapMulV194E`). A frame built for the position lifts every
+   * ceiling by up to `bfAllUpV194E` (5%) and the position's KEY stats by up to `bfKeyUpV194E` (+17% more, scaled by
+   * how much the position weighs the stat); a miscast frame takes up to `bfAllDnV194E` / `bfKeyDnV194E` off.
+   * The grade (A+ … F, `buildFitV194E`) and why ride on the position screen (a ceiling preview per position,
+   * `bfPanelV194E`, live as you flip positions), the skill sheet (`bfUpStripV194E`, a 🧬 tag per row, "N from
+   * max", a toast when a stat reaches it) and a "📈 Ceiling raised!" toast whenever a max rises
+   * (`ceilingWatchV194E`, a snapshot `player.capSnapV194E`). It never touches an attribute — only the price and the
+   * growth slope — so no save loses a point. Never through `pointsFlat` / `coachStart`; `attrCap()` still bounds it.
+   * Kill switch TU "v194E" 0 (multiplier 1, no strip / panel / toasts). `window.__V194E`; `v194Echeck`. */
+  const BF_GRADES_V194E = [
+    [0.86, "A+", "Built for it", "#ffd86b"],
+    [0.78, "A", "Elite", "#f0bb45"],
+    [0.68, "B", "Strong", "#7fe0a0"],
+    [0.56, "C", "Workable", "#c9d3dc"],
+    [0.4, "D", "Poor", "#e0a070"],
+    [-1, "F", "Miscast", "#e08a8a"]
+  ];
+  // the fit of a frame at a position: bodyFit's raw 0…~1, its signed swing g (−1 … +1 around the neutral 0.6) and the grade
+  function buildFitV194E(body, pos) {
+    if (!body || !pos || !POS_BODY[pos]) return { b: 0.6, g: 0, grade: "C", label: "Workable", color: "#c9d3dc" };
+    const b = bodyFit(body, pos),
+      mid = TU("bfMidV194E", 0.6),
+      hi = TU("bfHiV194E", 0.9),
+      lo = TU("bfLoV194E", 0.15),
+      g = b >= mid ? Math.min(1, (b - mid) / Math.max(0.01, hi - mid)) : Math.max(-1, (b - mid) / Math.max(0.01, mid - lo)),
+      G = BF_GRADES_V194E.find(r => b >= r[0]) || BF_GRADES_V194E[BF_GRADES_V194E.length - 1];
+    return { b, g, grade: G[1], label: G[2], color: G[3] };
+  }
+  // how much the position leans on a stat, 0 (not weighed) … 1 (its heaviest)
+  function bfKeyRelV194E(pos, k) {
+    const w = (POSITIONS[pos] && POSITIONS[pos].w) || {},
+      top = Math.max(0.0001, ...Object.values(w));
+    return w[k] ? w[k] / top : 0;
+  }
+  // the build's multiplier on one stat's max (1 = neutral). Monotone in the fit; key stats swing hardest.
+  function buildCapMulV194E(e, k, fitOverride) {
+    if (!TU("v194E", 1) || !e || !e.pos || !e.body) return 1;
+    const g = fitOverride != null ? fitOverride : buildFitV194E(e.body, e.pos).g,
+      rel = bfKeyRelV194E(e.pos, k),
+      span = g >= 0 ? TU("bfAllUpV194E", 0.05) + TU("bfKeyUpV194E", 0.17) * rel : TU("bfAllDnV194E", 0.03) + TU("bfKeyDnV194E", 0.1) * rel;
+    return Math.max(0.5, 1 + g * span);
+  }
+  // the one ceiling multiplier both the soft cap and the growth ceiling read
+  function ceilMulV194E(e, k) {
+    return ((e && e.statCeilV17 && e.statCeilV17[k]) || 1) * buildCapMulV194E(e, k);
+  }
+  function bfShortV194E(k) {
+    return ((ATTR_INFO[k] && ATTR_INFO[k].name) || k).slice(0, 3).toUpperCase();
+  }
+  // why the grade: the frame against the position's ideal, one line each (✓ / ✗)
+  function bfWhyV194E(body, pos) {
+    const P = POS_BODY[pos];
+    if (!body || !P) return [];
+    const out = [],
+      dh = body.height - P.h[0],
+      dw = body.weight - P.w[0];
+    out.push(
+      Math.abs(dh) <= P.h[1]
+        ? { ok: 1, t: fmtHeight(body.height) + " — right on the " + pos + " frame (" + fmtHeight(P.h[0]) + ")" }
+        : { ok: 0, t: fmtHeight(body.height) + " — " + Math.abs(dh) + '" too ' + (dh < 0 ? "short" : "tall") + " for " + pos + " (" + fmtHeight(P.h[0]) + ")" }
+    );
+    out.push(
+      Math.abs(dw) <= P.w[1]
+        ? { ok: 1, t: body.weight + " lb — in the " + pos + " window (" + P.w[0] + " ± " + P.w[1] + ")" }
+        : { ok: 0, t: body.weight + " lb — " + Math.abs(dw) + " lb too " + (dw < 0 ? "light" : "heavy") + " for " + pos + " (" + P.w[0] + ")" }
+    );
+    if (P.mus >= 0.75)
+      out.push(
+        body.muscle >= 58
+          ? { ok: 1, t: body.muscle + " muscle — " + pos + " wants it dense, and it is" }
+          : { ok: 0, t: body.muscle + " muscle — " + pos + " wants a denser frame" }
+      );
+    else out.push({ ok: 1, t: body.muscle + " muscle — " + pos + " cares less about bulk (" + P.note.toLowerCase() + ")" });
+    return out;
+  }
+  // a man's maxes at a position (heaviest-weighed first), with the neutral (build ×1) max beside each
+  function bfCapsV194E(e, pos) {
+    const tmp = Object.assign({}, e, { pos }),
+      w = (POSITIONS[pos] && POSITIONS[pos].w) || {},
+      keys = ATTR_KEYS.slice().sort((a, b) => (w[b] || 0) - (w[a] || 0));
+    return keys.map(k => {
+      const cap = drSoftCap(tmp, k),
+        mul = buildCapMulV194E(tmp, k),
+        base = Math.max(20, Math.round(cap / Math.max(0.01, mul)));
+      return { k, cap, base, d: cap - base, mul, key: !!w[k], v: Math.round((e.attrs && e.attrs[k]) || 0) };
+    });
+  }
+  function bfGradeChipV194E(f, cls) {
+    return `<span class="bf-grade-v194e ${cls || ""}" style="--bfc:${f.color}"><b>${f.grade}</b>${f.label}</span>`;
+  }
+  // the position screen: the preview card — a chip per position, the grade + why, and every key stat's max as a bar marker.
+  // The chips are spans under ONE onclick on the card (whose text starts with 🧬), so a walker looking for the "RB" card
+  // never lands on a chip.
+  function bfPanelV194E(e, list) {
+    if (!TU("v194E", 1) || !e || !e.body) return "";
+    const order = (list || []).map(i => i.pos),
+      sel = order.indexOf(window.__bfSelV194E) >= 0 ? window.__bfSelV194E : order[0];
+    window.__bfSelV194E = sel;
+    return `<div class="card tight bf-card-v194e" id="bfCardV194E" onclick="bfPickV194E(event)">
+      <div class="bf-h-v194e">🧬 Your build sets your ceilings <small>tap a chip to preview its maxes · pick the position below</small></div>
+      <div class="bf-chips-v194e" role="tablist">${order
+        .map(p => {
+          const f = buildFitV194E(e.body, p);
+          return `<span role="tab" tabindex="0" data-bfpos="${p}" class="bf-chip-v194e${p === sel ? " on" : ""}" aria-selected="${p === sel}" style="--bfc:${f.color}">${p}<i>${f.grade}</i></span>`;
+        })
+        .join("")}</div>
+      <div id="bfBodyV194E">${bfBodyV194E(e, sel)}</div>
+    </div>`;
+  }
+  function bfBodyV194E(e, pos) {
+    const f = buildFitV194E(e.body, pos),
+      why = bfWhyV194E(e.body, pos),
+      caps = bfCapsV194E(e, pos),
+      keys = caps.filter(c => c.key),
+      rest = caps.filter(c => !c.key),
+      tmp = Object.assign({}, e, { pos }),
+      keyPct = Math.round((buildCapMulV194E(tmp, keys[0] ? keys[0].k : "speed") - 1) * 100),
+      allPct = Math.round((buildCapMulV194E(tmp, rest[0] ? rest[0].k : "injuryResist") - 1) * 100),
+      top = Math.max(1, ...keys.map(c => Math.max(c.cap, c.base, c.v))) * 1.08,
+      pc = n => Math.min(100, (n / top) * 100).toFixed(1),
+      sgn = n => (n > 0 ? "+" : "") + n;
+    return `<div class="bf-head-v194e">${bfGradeChipV194E(f, "big")}<div class="bf-say-v194e"><b>Build fit at ${POSITIONS[pos].name}</b><span>${
+      keyPct > 0
+        ? `Raises his key maxes up to <em class="up">+${keyPct}%</em>, every other stat <em class="up">${sgn(allPct)}%</em>`
+        : keyPct < 0
+          ? `Lowers his key maxes up to <em class="dn">${keyPct}%</em>, every other stat <em class="dn">${allPct}%</em>`
+          : "A neutral frame — the maxes sit where his potential puts them"
+    }</span></div></div>
+      <ul class="bf-why-v194e">${why.map(w => `<li class="${w.ok ? "ok" : "no"}">${w.ok ? "✓" : "✗"} ${w.t}</li>`).join("")}</ul>
+      <div class="bf-rows-v194e">${keys
+        .map(
+          c =>
+            `<div class="bf-row-v194e" data-k="${c.k}"><span class="bf-n-v194e">${ATTR_INFO[c.k].icon} ${bfShortV194E(c.k)}</span><span class="bf-bar-v194e"><i style="width:${pc(c.v)}%"></i>${
+              c.d ? `<u class="${c.d > 0 ? "up" : "dn"}" style="left:${pc(Math.min(c.cap, c.base))}%;width:${pc(Math.abs(c.d))}%"></u>` : ""
+            }<b style="left:${pc(c.cap)}%"></b></span><span class="bf-max-v194e">max <b>${c.cap}</b>${c.d ? `<small class="${c.d > 0 ? "up" : "dn"}">${sgn(c.d)}</small>` : ""}</span></div>`
+        )
+        .join("")}</div>
+      <div class="small bf-foot-v194e">The ▮ is each stat's max: 1 pt per +1 up to it, more past it, and every season grows toward it. Every other stat ${sgn(allPct)}%. Maxes rise with stars, medals and the tree; a better frame (Prestige → Body) lifts them all.</div>`;
+  }
+  function bfPickV194E(ev) {
+    const t = ev && ev.target && ev.target.closest && ev.target.closest("[data-bfpos]");
+    if (!t) return;
+    ev.stopPropagation();
+    window.__bfSelV194E = t.dataset.bfpos;
+    const e = state && state.player,
+      card = byId("bfCardV194E");
+    if (!e || !card) return;
+    card.querySelectorAll("[data-bfpos]").forEach(c => {
+      const on = c.dataset.bfpos === window.__bfSelV194E;
+      c.classList.toggle("on", on);
+      c.setAttribute("aria-selected", on ? "true" : "false");
+    });
+    const body = byId("bfBodyV194E");
+    body && ((body.innerHTML = bfBodyV194E(e, window.__bfSelV194E)), body.classList.remove("pop-v194e"), void body.offsetWidth, body.classList.add("pop-v194e"));
+    try {
+      playSfx("tap");
+    } catch (_) {}
+  }
+  window.bfPickV194E = bfPickV194E;
+  // the skill sheet: one strip naming the grade and what it does to the maxes
+  function bfUpStripV194E(e) {
+    if (!TU("v194E", 1) || !e || !e.body || !e.pos || !POSITIONS[e.pos]) return "";
+    const f = buildFitV194E(e.body, e.pos),
+      w = POSITIONS[e.pos].w,
+      kTop = Object.keys(w).sort((a, b) => w[b] - w[a])[0],
+      kOther = ATTR_KEYS.find(k => !w[k]) || kTop,
+      kPct = Math.round((buildCapMulV194E(e, kTop) - 1) * 100),
+      oPct = Math.round((buildCapMulV194E(e, kOther) - 1) * 100),
+      sgn = n => (n > 0 ? "+" : "") + n;
+    return `<span class="bf-up-v194e" id="bfUpV194E" title="Build fit at ${e.pos}: your frame moves the key stats' maxes ${sgn(kPct)}%, the rest ${sgn(oPct)}%">${bfGradeChipV194E(f, "lite")}<span>Build fit · key maxes <em class="${kPct >= 0 ? "up" : "dn"}">${sgn(kPct)}%</em> · rest <em class="${oPct >= 0 ? "up" : "dn"}">${sgn(oPct)}%</em></span></span>`;
+  }
+  // a row's 🧬 tag (the build's push on this stat's max) and how close the stat sits to it
+  function bfRowTagV194E(e, k, sc) {
+    if (!TU("v194E", 1) || !e || !e.body || !e.pos) return "";
+    const mul = buildCapMulV194E(e, k),
+      d = sc - Math.max(20, Math.round(sc / Math.max(0.01, mul))),
+      v = Math.round(e.attrs[k] || 0),
+      gap = sc - v,
+      near =
+        gap > 0 && gap <= TU("bfNearV194E", 3)
+          ? ` <b class="bf-near-v194e" title="${gap} from this stat's max">⚡ NEAR MAX</b>`
+          : gap === 0
+            ? ' <b class="bf-near-v194e at">🎯 AT MAX</b>'
+            : "";
+    // one tag a row (the line stays one line): near / at the max wins, else the build's push
+    return near || (d ? ` <span class="bf-tag-v194e ${d > 0 ? "up" : "dn"}" title="Your build ${d > 0 ? "raises" : "lowers"} this stat's max by ${Math.abs(d)}">🧬${d > 0 ? "+" : ""}${d}</span>` : "");
+  }
+  // the toast when a +1 on the sheet reaches the stat's max
+  function bfHitV194E(e, k, before) {
+    if (!TU("v194E", 1)) return;
+    const sc = drSoftCap(e, k),
+      v = Math.round(e.attrs[k] || 0);
+    if (before < sc && v >= sc) showToast("🎯 " + ATTR_INFO[k].name + " hit its max (" + sc + ") — every point past it costs more");
+  }
+  // "📈 Ceiling raised!" — any max that rose since he was last looked at (the build, the stars, the medals, the tree)
+  function ceilingWatchV194E() {
+    if (!TU("v194E", 1) || !state || !state.player) return;
+    const e = state.player;
+    if (!e.pos || !e.attrs || !e.body || !POSITIONS[e.pos] || ["hub", "upgrade", "training", "season", "result"].indexOf(state.view) < 0) return;
+    const now = {};
+    ATTR_KEYS.forEach(k => (now[k] = drSoftCap(e, k)));
+    const fit = Math.round(buildFitV194E(e.body, e.pos).b * 1000),
+      old = e.capSnapV194E;
+    e.capSnapV194E = { pos: e.pos, fit, caps: now };
+    if (!old || old.pos !== e.pos || !old.caps) return; // a first look (an old save, a new man, a new position) is silent
+    const up = ATTR_KEYS.map(k => ({ k, d: now[k] - (old.caps[k] != null ? old.caps[k] : now[k]) }))
+      .filter(r => r.d > 0)
+      .sort((a, b) => bfKeyRelV194E(e.pos, b.k) - bfKeyRelV194E(e.pos, a.k) || b.d - a.d);
+    if (!up.length) return;
+    const msg =
+      "📈 Ceiling raised! " +
+      up
+        .slice(0, 3)
+        .map(r => "+" + r.d + " max " + bfShortV194E(r.k))
+        .join(" · ") +
+      (up.length > 3 ? " +" + (up.length - 3) + " more" : "") +
+      (fit > (old.fit || 0) + 2 ? " — your build grew" : "");
+    ceilingWatchV194E.last = msg;
+    ceilingWatchV194E.n++;
+    setTimeout(() => {
+      try {
+        state && state.view !== "live" && showToast(msg);
+      } catch (_) {}
+    }, TU("bfToastDelayMsV194E", 1400));
+  }
+  ceilingWatchV194E.last = "";
+  ceilingWatchV194E.n = 0;
+  const r0V194E = render;
+  render = function () {
+    const r = r0V194E.apply(this, arguments);
+    try {
+      ceilingWatchV194E();
+    } catch (_) {}
+    return r;
+  };
+  window.__V194E = {
+    fit: (body, pos) => buildFitV194E(body || (state && state.player && state.player.body), pos || (state && state.player && state.player.pos)),
+    mul: (k, e) => buildCapMulV194E(e || (state && state.player), k),
+    cap: (k, e) => drSoftCap(e || (state && state.player), k),
+    capAt: (body, pos, k, e) => drSoftCap(Object.assign({}, e || (state && state.player), { body, pos }), k),
+    caps: (pos, e) => bfCapsV194E(e || (state && state.player), pos || (state && state.player && state.player.pos)),
+    why: (body, pos) => bfWhyV194E(body, pos),
+    watch: () => ceilingWatchV194E(),
+    last: () => ceilingWatchV194E.last,
+    toasts: () => ceilingWatchV194E.n
+  };
   window.__drCostV97 = (e, k) => drCost(e, k);
   function drCost(e, k) {
     const v = e.attrs[k] || 0,
@@ -27173,6 +27458,7 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
         showToast(c > 1 ? "Needs " + c + " pts — " + (ch.tilt < 0 && ch.base < c ? "your focus roll's " + focusPctTxtV193Z(ch.tilt) + " this season" : "diminishing returns past " + drSoftCap(a, e)) : "No points left");
         return;
       }
+      const before = Math.round(a.attrs[e]);
       ((a.attrs[e] = Math.round(a.attrs[e]) + 1),
         (a.points -= c),
         (allocSpent[e] = (allocSpent[e] || 0) + 1),
@@ -27180,6 +27466,7 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
         (allocCarryV193Z[e] = allocCarryV193Z[e] || []).push(ch.carry0),
         focusPayV193Z(a, e, ch),
         (allocSpillV193AB[e] = allocSpillV193AB[e] || []).push(spillPayV193AB(a, c)) /* v193 AB: the held Spillovers take their share */);
+      bfHitV194E(a, e, before); /* v194 E: "🎯 Speed hit its max" */
     } else {
       if ((allocSpent[e] || 0) <= 0) return;
       ((a.attrs[e] = Math.round(a.attrs[e]) - 1),
@@ -27245,6 +27532,7 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
         ch.tilt &&
         (e.attrs[a] || 0) < attrCap() &&
         (cp.innerHTML = (over ? "Past soft cap " : "Soft cap ") + sc + ' — <b style="color:' + (ch.tilt < 0 ? "#ff8a80" : "#7fe0a0") + '">' + focusPriceTxtV193Z(c, ch.tilt) + "</b>");
+      cp && cp.insertAdjacentHTML("beforeend", bfRowTagV194E(e, a, sc)); /* v194 E: the build's push on this max, and how close he sits to it */
       /* v153 E: the soft-cap bar — fills to the cap (green), gold past it, red where a +1 costs 4 or more */
       const bar = byId("bar-" + a);
       if (bar) {

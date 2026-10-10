@@ -189,7 +189,8 @@
     "sidelinecheck",
     "v144check",
     "v148check",
-    "v193AGcheck"
+    "v193AGcheck",
+    "v194Ccheck"
    ],
    "variants": [
     "`READ_POS=WR MODES=0,1,4,5` for `v147Dcheck`"
@@ -222,7 +223,9 @@
     "v153 A",
     "v177 A",
     "v177 B",
-    "v193 AJ"
+    "v193 AJ",
+    "v194 D",
+    "v194 A"
    ],
    "files": [],
    "checks": [
@@ -241,7 +244,9 @@
     "v151Dcheck",
     "v153Acheck",
     "scrumcheck",
-    "v193AJcheck"
+    "v193AJcheck",
+    "v194Dcheck",
+    "v194Acheck"
    ]
   },
   "cuts": {
@@ -346,7 +351,8 @@
    "desc": "v144 — sprite scale by age, stall watchdog, between-plays shuffle, goalpost pad, apron, pylons, weather",
    "anchors": [
     "v144",
-    "v193 AG"
+    "v193 AG",
+    "v194 D"
    ],
    "files": [],
    "checks": [
@@ -380,7 +386,9 @@
     "v193Ccheck",
     "v193Icheck",
     "v193AGcheck",
-    "v193AIcheck"
+    "v193AIcheck",
+    "v194Bcheck",
+    "v194Dcheck"
    ]
   },
   "statinfo": {
@@ -402,7 +410,8 @@
     "v193Ncheck",
     "v193Zcheck",
     "v193ABcheck",
-    "v193AEcheck"
+    "v193AEcheck",
+    "v194Echeck"
    ]
   },
   "sim-keys": {
@@ -962,7 +971,8 @@
     "v86check",
     "screenpancheck",
     "jumboPartycheck",
-    "v192Echeck"
+    "v192Echeck",
+    "v194Ccheck"
    ],
    "steps": [
     "`node scripts/build-badge-art.mjs` (if a badge changed)"
@@ -1025,7 +1035,8 @@
     "postgamecheck",
     "v112Bcheck",
     "menu-integration-check",
-    "screenpancheck"
+    "screenpancheck",
+    "v194Ccheck"
    ],
    "steps": [
     "`scripts/build-stadium-art.*` (if the stadium art changed)"
@@ -1353,7 +1364,8 @@
    "anchors": [
     "v113",
     "v124",
-    "v64"
+    "v64",
+    "v194 E"
    ],
    "files": [
     "public/rib_skill*"
@@ -1369,7 +1381,8 @@
     "growthcheck",
     "walk",
     "shot",
-    "v153Bcheck"
+    "v153Bcheck",
+    "v194Echeck"
    ]
   },
   "rivalry": {
@@ -1496,7 +1509,8 @@
     "v156Ccheck",
     "v158Bcheck",
     "v159Bcheck",
-    "v193AIcheck"
+    "v193AIcheck",
+    "v194Bcheck"
    ]
   },
   "pwa": {
@@ -1629,7 +1643,8 @@
     "v177 G",
     "v177 H",
     "v193 Q",
-    "v193 AI"
+    "v193 AI",
+    "v194 B"
    ],
    "files": [
     "src/28-cosmetics.js",
@@ -1669,7 +1684,8 @@
     "v177FGHcheck",
     "v193Qcheck",
     "v193Ycheck",
-    "v193AIcheck"
+    "v193AIcheck",
+    "v194Bcheck"
    ]
   },
   "audio": {
@@ -1928,7 +1944,8 @@
     "screenpancheck",
     "v147Dcheck",
     "creditcheck",
-    "v100check"
+    "v100check",
+    "v194Ccheck"
    ]
   },
   "prestige-pacing": {
@@ -2589,12 +2606,12 @@
     "pile",
     "plant"
    ],
-   "runtimeSec": 420,
+   "runtimeSec": 520,
    "slow": false,
    "needsServer": false,
    "pureNode": true,
    "flaky": [],
-   "note": "v150 B: play action vs dropback is judged on four seeded streams.",
+   "note": "v150 B: play action vs dropback is judged on pooled seeded streams (twelve since v194 A).",
    "timeoutSec": 1800
   },
   "refcheck": {
@@ -5420,6 +5437,20 @@
    "pureNode": false,
    "flaky": []
   },
+  "v194Bcheck": {
+   "file": "scripts/v194Bcheck.mjs",
+   "desc": "v194 B — the mascot comes alive: 50+ bucketed quippy lines (UFF only) and the new poses; store OFF no mascot; preview: ONE mascot, the home team's (away week: the opponent's); a forced home TD raises the mood and starts a celebration with merch, an opponent TD lowers it (cry / mad / circles); bad runs furious/desperate, good runs ecstatic; merch lands in a crowd section; one bubble at a time; never inside the painted field; no Math.random from 300 frames and a seeded sim unchanged; TU v194B 0 restores v193 AI's two benches; no page errors",
+   "areas": [
+    "cosmetics",
+    "field"
+   ],
+   "runtimeSec": 70,
+   "slow": false,
+   "needsServer": true,
+   "pureNode": false,
+   "flaky": [],
+   "loadSensitive": true
+  },
   "v193AIcheck": {
    "file": "scripts/v193AIcheck.mjs",
    "desc": "v193 AI — the mascots dance: all 90 crests map to one of 16 costume archetypes (each used) and every team name the game builds resolves to a mascot whose costume is its name's animal or figure; every sheet builds every pose; store OFF \"Team Mascots\" is a member look listed \"🔒 Membership\" in the Locker's MASCOTS row (its tile dancing), never owned / granted / equipped, no RIB_MONETIZE call, no mascot in the broadcast; TU mascotPreviewV193AI 1 puts one on each bench (its crest's costume), idle-bouncing, a touchdown starts the scorer's team's mascot on the cheer cycle at celebrateFrameMs, HIS v161 A backflip is mirrored (tuck, spin), the opponent's score moves the other bench, a too-small mascot is culled; the season hero shows his mascot; Interstellar bubbles; TU v193AI 0 removes them everywhere; store ON with a membership owned and drawn, F2P locked; the per-frame cost; no page errors",
@@ -5445,6 +5476,64 @@
    ],
    "runtimeSec": 420,
    "slow": true,
+   "needsServer": true,
+   "pureNode": false,
+   "flaky": [],
+   "loadSensitive": true
+  },
+  "v194Echeck": {
+   "file": "scripts/v194Echeck.mjs",
+   "desc": "v194 E — the build sets the ceiling: the frame's fit at the position moves every stat's max (soft cap + growth ceiling), monotone, key stats hardest (×0.87…×1.22); the position screen previews the maxes per position live, the skill sheet tags each row and toasts a stat reaching its max, 'Ceiling raised!' when a max rises; old saves keep every attribute.",
+   "areas": [
+    "upgrade",
+    "position"
+   ],
+   "runtimeSec": 45,
+   "slow": false,
+   "needsServer": true,
+   "pureNode": false,
+   "flaky": []
+  },
+  "v194Dcheck": {
+   "file": "scripts/v194Dcheck.mjs",
+   "desc": "v194 D — idle V2, the huddle faces in, the stiff arm, the turf remembers its paint: seeded games identical with v194D on and off (the stiff arm is graded, never rolled), stiff arms at a sane rate per contact, each graded (pow, drop, sick), never the tackler in his beaten window; live: every huddler faces his huddle centre (QB included), each whistle plans varied gaits/poses/gestures with staggered starts and own paces, nobody leaves his whistle-spot leash and the field keeps its spread; in the lab the arm locks out AT the man, his head snaps back, a drop goes down and up, a weak one staggers, a sick one freezes the frame, an ungraded one keeps v193 AJ shove; an impact reads white on a yard line, green on grass, paint in an end zone, with no Math.random; the kill switches; no page errors",
+   "areas": [
+    "broadcast",
+    "contact",
+    "animation"
+   ],
+   "runtimeSec": 180,
+   "slow": false,
+   "needsServer": true,
+   "pureNode": false,
+   "flaky": [],
+   "loadSensitive": true
+  },
+  "v194Ccheck": {
+   "file": "scripts/v194Ccheck.mjs",
+   "desc": "v194 C — the far masts stand on the stadium's roof (lamp banks clear of the skyline, poles on the canopy), drawn with their bloom and beam behind the stands, seated once per side and held snap after snap (stepping down only when the line goes behind every one seen), on fixed field spots; a kick framed while the men jog in from the 20 never dives into the foreground band at either goal line, and plays from the 20 to the end line keep the zoom continuous; the board's celebrating body wears the field's kit (palette, uniform pattern, helmet) for our team and him, the opponent only his own; each with its kill switch.",
+   "areas": [
+    "broadcast",
+    "lights",
+    "camera",
+    "jumbo"
+   ],
+   "runtimeSec": 120,
+   "slow": false,
+   "needsServer": true,
+   "pureNode": false,
+   "flaky": []
+  },
+  "v194Acheck": {
+   "file": "scripts/v194Acheck.mjs",
+   "desc": "v194 A — out of bounds + the mesh: runs (the pitches) and catches end over the sideline far more often than OFF, every out-of-bounds end is a real crossing in the carrier's frames, an untouched step-out names no tackler and a push-out names the gripping man, the game stops the clock and says \"out of bounds\", scoring roughly neutral; every handoff that is not a pitch is a meeting (QB and back within contact range, the ball at hand height and in reach), and the broadcast draws it as a flat hand with no ribbon",
+   "areas": [
+    "contact",
+    "tackle",
+    "sim"
+   ],
+   "runtimeSec": 240,
+   "slow": false,
    "needsServer": true,
    "pureNode": false,
    "flaky": [],
