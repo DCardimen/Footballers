@@ -166,23 +166,25 @@
       secs: [
         { k: "end",    name: "THE END", re: /(^|\s)banner(\s|$)|legacy-summary-v11|end-pay-v150/ },
         { k: "xp",     name: "LEGACY XP", re: /legacy-card-v152/ },   // v152 A: the pour gets its own tab — folded into THE END it played unseen
+        { k: "blood",  name: "BLOODLINE", re: /blood-v195c/ },   // v195 C: the bloodline's count-up gets its own tab, like the pour
         { k: "life",   name: "LIFE",    re: /regret-card-v12|finance-legacy-v12/ },
         { k: "log",    name: "LOG",     re: /\bnever-v150\b/ },
         { k: "legacy", name: "HIS SON", re: /end-legacy-v150/ },
       ],
       txt: [{ k: "log", re: /^Career Log$/i }],
-      nofold: ["xp"],
+      nofold: ["xp", "blood"],
     },
     win: {
       start: "end",
       secs: [
         { k: "end",    name: "THE END", re: /(^|\s)banner(\s|$)|legacy-summary-v11|end-pay-v150/ },
         { k: "xp",     name: "LEGACY XP", re: /legacy-card-v152/ },   // v152 A: the pour gets its own tab — folded into THE END it played unseen
+        { k: "blood",  name: "BLOODLINE", re: /blood-v195c/ },   // v195 C: the bloodline's count-up gets its own tab, like the pour
         { k: "log",    name: "JOURNEY", re: /\bnever-v150\b/ },
         { k: "legacy", name: "HIS SON", re: /end-legacy-v150/ },
       ],
       txt: [{ k: "log", re: /^The Journey$/i }],
-      nofold: ["xp"],
+      nofold: ["xp", "blood"],
     },
     /* v153 E: the stats screen stacked the leaders table and the promotion-odds card, and the shell squeezed the
      * TABLE to fit (three rows in a 149px box on a linebacker, whose odds card runs five tiers). Two tabs: the board

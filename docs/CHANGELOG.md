@@ -10,6 +10,21 @@ Names in older entries are the career app's pre-v149 C minified names (`q`, `ms`
 `index.html` + `src/` (`docs/LAYOUT.md`).
 
 <!-- new entries go here, newest first -->
+- **v195 C · The bloodline grows.** (`src/07-career-app.js`, `src/22-hub-sections.js`.) The owner: "No matter what add
+  one bloodline at career end. Add 4 new prestige upgrades twisted to bloodline gains … Ensure UFF is 10x prestige
+  points and it's hard to stay in the league. Satisfying animation due bloodline gain and any multiples." **The
+  bloodline** is now a number the account keeps (`state.bloodlineV195C`), added straight to the bloodline potential the
+  scouts judge; every career end adds at least 1, however it ended. **🧬 Bloodline** is a new prestige branch: Family
+  Tree (+1 a career a level), Proven Stock (+0.5 a level for every rung past Varsity the career reached), Pure Blood
+  (×1.25, ×1.5 … on the whole gain) and Compound Genes (1% a level of the bloodline you already carry, every career).
+  **The UFF pays ×10** prestige points — the arrival, a cut or retirement there, the seasons after the arrival and the
+  season salary; the career receipt shows it as its own "× the UFF" row (a 100-base arrival now pays 1,000). **Staying
+  is hard:** a wear on the season-end cut roll at the UFF, 6% the first season and +4% every season after (capped at
+  45%), eased up to 60% for a man playing far over the bar — measured on real season sims, a solid starter's UFF run
+  went from never cut in 25 seasons to a median of 5. **The animation:** the career end gets a 🧬 BLOODLINE tab (it
+  pulses until opened): a DNA helix, every source of the gain landing in turn with the count climbing, each multiplier
+  pulsing gold with a spark burst, the total stamped in, then the bloodline before → after and a bar toward the next
+  scouts' bar. Kill switch `v195C` 0 (`v195Cnodes` / `v195Cuff` / `v195Ccut` / `bloodAnimV195C`). `v195Ccheck`.
 - **v195 A · The scouts see the season.** (`src/07-career-app.js`.) The owner: "It feels bad being number 1 in the
   country at a position yet this arbitrary bloodline stat prevents me from progressing" → "Dominant seasons with little
   bloodline potential should still have a good chance with no prestige (10 to 20 percent) … Too many A seasons given

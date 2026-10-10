@@ -1951,6 +1951,7 @@
   "prestige-pacing": {
    "desc": "v179 — the long road: medal gates on the last climbs, the Interstellar Call waits on the era, big numbers; v185 — the chaos loop; v186 — rings are earned, chaos locks in, Stardust; v187 — medal looks and the ring respec; v189 — one stat line, the medal prompt, the bank at the season's end",
    "anchors": [
+    "v195 C",
     "v195 A",
     "v179",
     "v185",
@@ -1980,7 +1981,8 @@
     "v193Jcheck",
     "v193ADcheck",
     "v193AFcheck",
-    "v195Acheck"
+    "v195Acheck",
+    "v195Ccheck"
    ]
   }
  },
@@ -5548,6 +5550,18 @@
     "season"
    ],
    "runtimeSec": 45,
+   "slow": false,
+   "needsServer": true,
+   "pureNode": false,
+   "flaky": []
+  },
+  "v195Ccheck": {
+   "file": "scripts/v195Ccheck.mjs",
+   "desc": "v195 C — the bloodline grows: every career end adds ≥ 1 to state.bloodlineV195C once (a real settle), the potential reads it; the 🧬 Bloodline branch (Family Tree, Proven Stock, Pure Blood, Compound Genes) buys through window.buy and its gain sums right; the UFF pays ×10 (the arrival on two fresh contexts, the estimator, the receipt's row); the UFF wear (6% + 4% a season, eased over the bar, capped 45%) at level 7 only, and a measured UFF run is shorter with it; the career-end card's count-up waits on its own pulsing BLOODLINE tab, then lands; v195C 0. No page errors.",
+   "areas": [
+    "season"
+   ],
+   "runtimeSec": 60,
    "slow": false,
    "needsServer": true,
    "pureNode": false,

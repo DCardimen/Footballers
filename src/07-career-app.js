@@ -5523,7 +5523,7 @@
     let seasons = 0;
     for (let i = 0; i <= lv; i++) seasons += (LEVELS[i] && LEVELS[i].seasons) || 2;
     const ii = careerBaseV193AC(lv);
-    return Math.max(1, Math.round((ii + seasons * 0.35) * sm * chaosEarnedAtV193E(lv, c)));
+    return Math.max(1, Math.round((ii + seasons * 0.35) * sm * chaosEarnedAtV193E(lv, c) * uffPPMultV195C(lv))); /* v195 C */
   }
   function chaosProjectV193E(lv) {
     lv = lv == null ? bestLevelV193E() : lv;
@@ -5678,7 +5678,7 @@ ${col(
     return `<div class="scouts-x-v193e" style="text-align:left">
 ${block("★", "RECRUIT STARS", `<b>${"★".repeat(Math.max(0, Math.min(5, D.stars))) || "—"}</b> (${D.stars} of 5) — the talent grade he was born with; the program tiers re-grade it. Coaches and the Recruiting Board rate him on sight by it. <b>It never rolls</b> — the declare does not read it.`)}
 ${block("🏅", "NATIONAL RANK", `${D.rank != null ? `<b>#${fmtInt(D.rank)}</b> of ${fmtInt(D.of)} at ${D.level} · <b>top ${D.topPct}%</b>` : `your place among the ${fmtInt(D.of)} at ${D.level}`} — THIS season's production and OVR against every peer at the level. It is the <b>floor under the declare roll</b>${D.rankCh != null ? ` (the rank alone: ${pc(D.rankCh)}; your declare odds now: <b>${pc(D.declare)}</b>)` : ""}. At ${D.level}: #1 rolls ≥ ${pc(D.num1)}, <b>top 1% ≥ ${pc(D.top1)}</b>, top 5% ≥ ${pc(D.top5)}, the last man inside the advancing ${D.half}% a coin flip, well outside it single digits. <b>One roll; a miss ends the career.</b>${D.floorOn ? ` A top-1% season rolls at ≥ ${TU("rankTop1FloorV193E", 99)}% now (v193 E) — before, 97%.` : ""}${D.lv >= 5 ? " From College on the season roll is followed by the scouts' verdict below." : ""}`)}
-${block("🧬", "BLOODLINE POTENTIAL", `<b>${fmtBigV179(D.pot)}</b> — the growth ceiling the tree hands every son, judged ONLY at the three big declares${D.bars.length ? ` (${D.bars.map(b => `${b.name} <b>${fmtBigV179(b.bar)}</b>`).join(" · ")})` : ""}: a coin flip at the bar, better over it${D.verdict != null ? ` — your verdict now <b>${D.verdict}%</b>` : ""}.${D.next ? ` Next bar: ${D.next.name} wants <b>${fmtBigV179(D.next.bar)}</b>, you show <b>${fmtBigV179(D.pot)}</b> (${D.pot >= D.next.bar ? "✓ cleared" : "need +" + fmtBigV179(Math.ceil(D.next.bar - D.pot))}).` : ""} Raise it with <b>Freak, Prime Genes, Superhuman, the +ceiling nodes, chaos and a Path</b> — a tree of everything else barely moves it. A top-1% season in high school does not need it: the national rank carries you to College.${D.v195A ? ` <b>A dominant season always has a shot:</b> a top-${D.v195A.top} rank at your position keeps the College and Combine verdicts at <b>${D.v195A.lo}–${D.v195A.hi}%</b> however low the bloodline${D.v195A.floor ? ` (yours now: <b>${D.v195A.floor}%</b>)` : ""}, and every declare the scouts turn down lowers that level's bar ${D.v195A.pct}% for the next career (down to ${D.v195A.min}% of it; a make resets it).` : ""}`)}
+${block("🧬", "BLOODLINE POTENTIAL", `<b>${fmtBigV179(D.pot)}</b> — the growth ceiling the tree hands every son, judged ONLY at the three big declares${D.bars.length ? ` (${D.bars.map(b => `${b.name} <b>${fmtBigV179(b.bar)}</b>`).join(" · ")})` : ""}: a coin flip at the bar, better over it${D.verdict != null ? ` — your verdict now <b>${D.verdict}%</b>` : ""}.${D.next ? ` Next bar: ${D.next.name} wants <b>${fmtBigV179(D.next.bar)}</b>, you show <b>${fmtBigV179(D.pot)}</b> (${D.pot >= D.next.bar ? "✓ cleared" : "need +" + fmtBigV179(Math.ceil(D.next.bar - D.pot))}).` : ""} Raise it with <b>Freak, Prime Genes, Superhuman, the +ceiling nodes, chaos and a Path</b> — a tree of everything else barely moves it.${bloodOnV195C() ? ` And <b>every career end adds to it</b> (at least 1; the 🧬 Bloodline branch grows that).` : ""} A top-1% season in high school does not need it: the national rank carries you to College.${D.v195A ? ` <b>A dominant season always has a shot:</b> a top-${D.v195A.top} rank at your position keeps the College and Combine verdicts at <b>${D.v195A.lo}–${D.v195A.hi}%</b> however low the bloodline${D.v195A.floor ? ` (yours now: <b>${D.v195A.floor}%</b>)` : ""}, and every declare the scouts turn down lowers that level's bar ${D.v195A.pct}% for the next career (down to ${D.v195A.min}% of it; a make resets it).` : ""}`)}
 ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, earned by every season and career (better grades and higher levels earn more). They open the tree's locked nodes and the Path, and the scouts can wait on them. They are not the player's stars, rank or potential.`)}
 </div>`;
   }
@@ -7872,6 +7872,20 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
       }
     ]
   };
+  /* v195 C: the bloodline branch — four nodes that grow what every career end adds to the bloodline (see v195 C) */
+  TU("v195C", 1) &&
+    TU("v195Cnodes", 1) &&
+    (TREE.bloodline = {
+      name: "Bloodline",
+      icon: "🧬",
+      color: "#e0527a",
+      nodes: [
+        { key: "bloodFamily", name: "Family Tree", icon: "🌳", desc: "+1 bloodline at every career end, per level (on top of the 1 every career adds).", cost: 8, mult: 1.6, max: 10 },
+        { key: "bloodProven", name: "Proven Stock", icon: "🏟️", desc: "+0.5 bloodline per level for every rung past Varsity the career reached (College 1 · Combine 2 · UFF 3 · Interstellar 4).", cost: 15, mult: 1.8, max: 6 },
+        { key: "bloodPure", name: "Pure Blood", icon: "🩸", desc: "×(1 + 0.25 per level) on the career's whole bloodline gain.", cost: 40, mult: 2.2, max: 6, req: { node: "bloodFamily", lvl: 3 } },
+        { key: "bloodCompound", name: "Compound Genes", icon: "🧪", desc: "+1% per level of the bloodline you already carry, added at every career end — it snowballs.", cost: 120, mult: 2.5, max: 5, req: { node: "bloodPure", lvl: 2 } }
+      ]
+    });
   const TREE_NODES = {};
   Object.entries(TREE).forEach(([e, t]) =>
     t.nodes.forEach(a => {
@@ -23349,7 +23363,7 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
   }
   function al(e) {
     return Math.round(
-      (6 + (e.titles || 0) * 2 + (e.nflSeasons || 0)) * chaosPPMult() * eraMult() * (1 + hofWings() * 0.05) * (e.level >= 8 ? 1 + forgeFxV186("nova") : 1) /* v186 E */
+      (6 + (e.titles || 0) * 2 + (e.nflSeasons || 0)) * chaosPPMult() * eraMult() * (1 + hofWings() * 0.05) * (e.level >= 8 ? 1 + forgeFxV186("nova") : 1) /* v186 E */ * uffPPMultV195C(e.level) /* v195 C */
     );
   }
   function playoffRoundNames(e) {
@@ -27720,7 +27734,7 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
       i = careerBaseV193AC(a),
       r = arr
         ? tailPPV154(e, arr, s, a)
-        : Math.max(1, Math.round(((i + e.totalSeasons * 0.35 + (e.titles || 0) * 4) * s + n) * chaosEarnedMult(a))),
+        : Math.max(1, Math.round(((i + e.totalSeasons * 0.35 + (e.titles || 0) * 4) * s + n) * chaosEarnedMult(a) * uffPPMultV195C(a))) /* v195 C: the UFF pays ×10 */,
       l = arr ? 0 : prestigeStarReward(e, a, !1);
     payCaptureV193D(e, "gameover"); /* v193 D: the ledger, before the settle moves the multiplier (wings, rings) */
     e._settled ||
@@ -27730,6 +27744,7 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
       (e._vaultPayV137 = r + (e._ppBankV136 || 0)),
       flipPPSettleV186(e, r + (e._ppBankV136 || 0)) /* v186 F: the Prestige cards pay now */,
       payHistPushV190(e._vaultPayV137) /* v190 E: what careers pay, for the medal windfall */,
+      bloodAwardV195C(e, a) /* v195 C: every career end adds to the bloodline */,
       payoutBoostV150C(e, r, "gameover") /* v150 C H4 */,
       (state.prestige = +(state.prestige + honorGainV156A(l)).toFixed(1)) /* v156 A: no Honors — the medals are the rank */,
       (state.careersCompleted = (state.careersCompleted || 0) + (arr ? 0 : 1)) /* counted once, at the arrival */,
@@ -27768,6 +27783,7 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
     </div>
     ${ledger ? payLedgerHtmlV193D(ledger) : "" /* v193 D: the career's pay, every term a row */}
     ${legacyCardV152("career")}
+    ${bloodCardHtmlV195C(e) /* v195 C */}
     <div class="h2">Career Log</div>
     <div class="card"><div class="career-log">${d}</div></div>
     ${
@@ -27788,7 +27804,8 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
     ${state.pp > 0 ? `<button class="btn" onclick="go('shop')">🌳 Spend ${state.pp} PP First</button><div style="height:8px"></div>` : ""}
     <button class="btn ${state.pp > 0 ? "secondary" : ""}" onclick="prestigeReset()">Run It Back — His Son's Career</button>
   `),
-      payLedgerStartV193D(e, ledger) /* v193 D: the total counts up */);
+      payLedgerStartV193D(e, ledger) /* v193 D: the total counts up */,
+      bloodAnimateV195C(e) /* v195 C */);
   }
   function screenWin() {
     const e = state.player;
@@ -27812,8 +27829,9 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
           eraMult(),
         s = 1 + nodeLvl("hof") * 0.3,
         n = Math.round(
-          (85 + e.totalSeasons * 0.75 + (e.titles || 0) * 6) * a * s * chaosEarnedMult(Math.max(7, e.level)) +
-            (TU("v190F", 1) ? nodeLvl("legacy") * e.totalSeasons : 0) /* v190 F: Family Legacy pays on the UFF arrival too */
+          ((85 + e.totalSeasons * 0.75 + (e.titles || 0) * 6) * a * s * chaosEarnedMult(Math.max(7, e.level)) +
+            (TU("v190F", 1) ? nodeLvl("legacy") * e.totalSeasons : 0)) /* v190 F: Family Legacy pays on the UFF arrival too */ *
+            uffPPMultV195C(Math.max(7, e.level)) /* v195 C: the UFF pays ×10 */
         ),
         i = prestigeStarReward(e, Math.max(7, e.level), !0);
       ((e._ppBankV136 = flushBankV136(n)) /* v192 A */,
@@ -27821,6 +27839,7 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
         (e._vaultPayV137 = (e._vaultPayV137 || 0) + n + (e._ppBankV136 || 0)),
         flipPPSettleV186(e, n + (e._ppBankV136 || 0)) /* v186 F */,
         payHistPushV190(n + (e._ppBankV136 || 0)) /* v190 E */,
+        bloodAwardV195C(e, Math.max(7, e.level)) /* v195 C */,
         payoutBoostV150C(e, n, "win") /* v150 C H5 */,
         (state.prestige = +(state.prestige + honorGainV156A(i)).toFixed(1)) /* v156 A */,
         (state.bestLevel = 7),
@@ -27852,6 +27871,7 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
     </div>
     ${ledger ? payLedgerHtmlV193D(ledger) : "" /* v193 D */}
     ${legacyCardV152("career")}
+    ${bloodCardHtmlV195C(e) /* v195 C */}
     <div class="h2">The Journey</div>
     <div class="card"><div class="career-log">${e.career.map(a => `<div><span class="lvl-done">✓</span> ${a.level} — OVR ${a.ovr} at ${a.age}</div>`).join("")}<div><span class="lvl-done" style="color:var(--gold)">★</span> The UFF — OVR ${t}, age ${e.age}</div></div></div>
     <div class="card tight end-legacy-v150"><div class="center" style="font-family:'Oswald';color:var(--gold);font-size:16px">${medalsOnV156A() ? `${MEDAL_ICON_V156A} ${medalsV156A()} MEDAL${medalsV156A() === 1 ? "" : "S"}` : `+${e._starGain} HONORS ${HONOR_ICON_V130}`} · His son starts with everything he learned</div></div>
@@ -27862,7 +27882,8 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
     <div style="height:8px"></div>
     <button class="btn secondary" onclick="prestigeReset()">Hand It to His Son</button>
   `),
-      payLedgerStartV193D(e, ledger) /* v193 D */);
+      payLedgerStartV193D(e, ledger) /* v193 D */,
+      bloodAnimateV195C(e) /* v195 C */);
   }
   function continueNFL() {
     reopenCareerV154(state.player) /* v154 A: keep playing = the career is not over */;
@@ -27899,7 +27920,7 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
     const n = Math.max(0, (e.totalSeasons | 0) - (arr.seasons | 0)),
       t = Math.max(0, (e.titles | 0) - (arr.titles | 0));
     const hof = TU("v190F", 1) ? 1 + nodeLvl("hof") * 0.3 : 1; /* v190 F: Hall of Fame Path pays on the UFF tail too */
-    return Math.max(1, Math.round((n * TU("uffTailPPV154", 4) + t * 4) * mult * hof * chaosEarnedMult(lv)));
+    return Math.max(1, Math.round((n * TU("uffTailPPV154", 4) + t * 4) * mult * hof * chaosEarnedMult(lv) * uffPPMultV195C(lv))); /* v195 C */
   }
   function refreshHofV154(e, arr, lv) {
     const rows = state.hof || (state.hof = []),
@@ -28659,6 +28680,7 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
           0,
           0.94
         )),
+        (i = uffCutV195C(e, i, a, n)) /* v195 C: the league wears every man down */,
         (i *= Math.max(0.35, 1 - treeFx("cutSave"))),
         (i *= simCutRiskV164C(e)) /* v164 C: a season simmed from the sofa is a season the club noticed less of */),
         Math.random() < i && ((e.nflCutPending = !0), (t.nflCut = !0), (t.cutChance = Math.round(i * 100))));
@@ -43658,6 +43680,294 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
     posRank: e => posRankV195A(e || state.player),
     note: () => scoutNoteV195A(scoutBarV179(state.player))
   };
+  /* ===== v195 C THE BLOODLINE GROWS =====
+   * The owner: "No matter what add one bloodline at career end. Add 4 new prestige upgrades twisted to bloodline
+   * gains … Ensure UFF is 10x prestige points and it's hard to stay in the league. Satisfying animation due bloodline
+   * gain and any multiples."
+   * THE BLOODLINE: an account number, `state.bloodlineV195C`, added straight to the bloodline potential
+   * (`rawCeilingV179`, so every scouts' bar, the potential card's "careers' bloodline" part and the explainer read
+   * it). Every career end adds to it ONCE (`bloodAwardV195C`, called inside both settles — `screenGameOver` and
+   * `screenWin`; `e._bloodV195C` guards it, so a UFF arrival that keeps playing is not paid twice):
+   *   1 (always — `bloodBaseV195C`) + Family Tree (+1 a level) + Proven Stock (+0.5 a level × the rungs past Varsity
+   *   reached: College 1 … Interstellar 4), × Pure Blood (1 + 0.25 a level), + Compound Genes (1% a level of the
+   *   bloodline already carried). Never under 1. `bloodPartsV195C(lv)` returns the rows.
+   * THE BRANCH: 🧬 Bloodline in the prestige tree (`TREE.bloodline`, beside `TREE_NODES`' build; core-branch pricing).
+   * THE UFF PAYS ×10: `uffPPMultV195C(lv)` (`uffPPMultV195C` 10 at level ≥ 7) multiplies the arrival (`screenWin`), a
+   *   cut or retirement there (`screenGameOver`, `tailPPV154`), the season salary PP (`al`), the estimators
+   *   (`careerPotV189`, `careerPayAtV193E`) and the receipt (`payPartsV193D` gets its own "× the UFF" row).
+   * STAYING IS HARD: `uffCutV195C` adds a wear to the season-end cut roll at the UFF (level 7; `uffCutIstV195C` 0
+   *   leaves the Interstellar League alone): `uffWearBaseV195C` .06 + `uffWearPerV195C` .04 a UFF season after the
+   *   first, capped at `uffWearCapV195C` .45, eased for a man over the bar (× max(`uffWearFloorV195C` .4,
+   *   1 − (avg − bar) / 50)), combined as 1 − (1 − roll)(1 − wear). Guaranteed Deal, Survivor and the sofa factor
+   *   still apply after it.
+   * THE ANIMATION: `bloodCardHtmlV195C` / `bloodAnimateV195C` — a DNA helix, the gain counted up row by row (each
+   *   multiplier lands with a pulse and a spark burst), then the bloodline's before → after and the bar toward the
+   *   next scouts' bar. It waits for the Vault to close and for the card to be on screen; reduced motion shows it
+   *   finished.
+   * Kill switch TU "v195C" 0 (`v195Cnodes` / `v195Cuff` / `v195Ccut` one at a time). `window.__V195C`; `v195Ccheck`. */
+  function bloodOnV195C() {
+    return !!TU("v195C", 1);
+  }
+  function bloodStoredV195C() {
+    if (!bloodOnV195C()) return 0;
+    const b = state && +state.bloodlineV195C;
+    return b > 0 ? b : 0;
+  }
+  function uffPPMultV195C(lv) {
+    if (!bloodOnV195C() || !TU("v195Cuff", 1) || (lv | 0) < 7) return 1;
+    return Math.max(1, TU("uffPPMultV195C", 10));
+  }
+  function uffWearV195C(e, avg, bar) {
+    if (!bloodOnV195C() || !TU("v195Ccut", 1) || !e) return 0;
+    const lv = e.level | 0;
+    if (lv < 7 || (lv >= 8 && !TU("uffCutIstV195C", 0))) return 0;
+    const yrs = Math.max(0, (e.nflSeasons | 0) - 1),
+      w = Math.min(TU("uffWearCapV195C", 0.45), TU("uffWearBaseV195C", 0.06) + yrs * TU("uffWearPerV195C", 0.04)),
+      ease = Math.max(TU("uffWearFloorV195C", 0.4), Math.min(1, 1 - ((avg || 0) - (bar || 58)) / 50));
+    return w * ease;
+  }
+  function uffCutV195C(e, roll, avg, bar) {
+    const w = uffWearV195C(e, avg, bar);
+    return w > 0 ? Math.min(0.94, 1 - (1 - (roll || 0)) * (1 - w)) : roll;
+  }
+  function round1V195C(x) {
+    return Math.round(x * 10) / 10;
+  }
+  function bloodPartsV195C(lv) {
+    lv = lv | 0;
+    const rows = [],
+      base = TU("bloodBaseV195C", 1),
+      fam = nodeLvl("bloodFamily"),
+      prov = nodeLvl("bloodProven"),
+      pure = nodeLvl("bloodPure"),
+      comp = nodeLvl("bloodCompound"),
+      rungs = Math.max(0, Math.min(8, lv) - 4),
+      carried = bloodStoredV195C();
+    let t = base;
+    rows.push({ k: "base", op: "+", v: base, label: "Every career", note: "no matter how it ended" });
+    if (fam) (t += fam), rows.push({ k: "fam", op: "+", v: fam, label: "Family Tree · Lv " + fam, note: "+1 a level" });
+    if (prov && rungs) {
+      const v = 0.5 * prov * rungs;
+      t += v;
+      rows.push({ k: "prov", op: "+", v, label: "Proven Stock · Lv " + prov, note: (LEVELS[Math.min(lv, 8)] || {}).name + " is " + rungs + " rung" + (rungs === 1 ? "" : "s") + " past Varsity" });
+    }
+    if (pure) {
+      const m = 1 + 0.25 * pure;
+      t *= m;
+      rows.push({ k: "pure", op: "×", v: m, label: "Pure Blood · Lv " + pure, note: "on everything above" });
+    }
+    if (comp && carried > 0) {
+      const v = carried * 0.01 * comp;
+      t += v;
+      rows.push({ k: "comp", op: "+", v, label: "Compound Genes · Lv " + comp, note: comp + "% of the " + round1V195C(carried) + " you carry" });
+    }
+    return { rows, total: Math.max(base, round1V195C(t)), carried };
+  }
+  // once a career, inside the settle
+  function bloodAwardV195C(e, lv) {
+    if (!bloodOnV195C() || !e || e._bloodV195C) return 0;
+    const P = bloodPartsV195C(lv),
+      before = bloodStoredV195C(),
+      after = round1V195C(before + P.total);
+    state.bloodlineV195C = after;
+    e._bloodV195C = { gain: P.total, rows: P.rows, before, after, lv: lv | 0, shown: 0 };
+    return P.total;
+  }
+  // the next scouts' bar the bloodline is climbing toward (College, the Combine, the Interstellar Call)
+  function bloodNextBarV195C(pot) {
+    const L = [
+      [5, "College → Combine", TU("scoutPotCombineV179", 90)],
+      [6, "Combine → UFF", TU("scoutPotUffV179", 150)],
+      [7, "the Interstellar Call", TU("istPotV179", 1600)]
+    ];
+    for (const b of L) if (pot < b[2]) return { name: b[1], bar: b[2], prev: (L[L.indexOf(b) - 1] || [0, "", 30])[2] };
+    return null;
+  }
+  function bloodFmtV195C(v, op) {
+    return op === "×" ? "×" + (Math.round(v * 100) / 100) : "+" + round1V195C(v);
+  }
+  function bloodCssV195C() {
+    if (document.getElementById("bloodCssV195C")) return;
+    const st = document.createElement("style");
+    st.id = "bloodCssV195C";
+    st.textContent = `.blood-v195c{position:relative;overflow:hidden;border:1px solid rgba(224,82,122,.55);background:radial-gradient(120% 90% at 0% 0%,rgba(224,82,122,.22),transparent 60%),linear-gradient(180deg,#22121a,#120a10);padding:12px 12px 10px}
+.blood-v195c .bl-top{display:flex;align-items:center;gap:12px}
+.blood-v195c .bl-dna{position:relative;width:34px;height:64px;flex:0 0 34px}
+.blood-v195c .bl-dna i{position:absolute;left:50%;width:8px;height:8px;margin-left:-4px;border-radius:50%;animation:blDnaV195C 1.6s ease-in-out infinite}
+.blood-v195c .bl-dna i:nth-child(odd){background:#ff6f96;box-shadow:0 0 6px #ff6f96}
+.blood-v195c .bl-dna i:nth-child(even){background:#f2c94c;box-shadow:0 0 6px #f2c94c;animation-direction:reverse}
+@keyframes blDnaV195C{0%,100%{transform:translateX(-12px) scale(.75);opacity:.65}50%{transform:translateX(12px) scale(1.1);opacity:1}}
+.blood-v195c.bl-fast .bl-dna i{animation-duration:.55s}
+.blood-v195c .bl-k{font:700 11px Oswald,sans-serif;letter-spacing:2.5px;color:#ff8fb0}
+.blood-v195c .bl-n{font:700 38px/1 Oswald,sans-serif;color:#fff;text-shadow:0 0 14px rgba(255,111,150,.6);transition:transform .18s ease-out}
+.blood-v195c .bl-n.pop{transform:scale(1.22)}
+.blood-v195c .bl-n.mult{color:#f2c94c;text-shadow:0 0 18px rgba(242,201,76,.85)}
+.blood-v195c .bl-rows{margin-top:8px}
+.blood-v195c .bl-row{display:flex;justify-content:space-between;align-items:baseline;gap:8px;padding:4px 0;border-bottom:1px solid rgba(255,255,255,.06);font-family:'Barlow Condensed',sans-serif;font-size:14.5px;opacity:0;transform:translateX(-14px);transition:opacity .3s,transform .3s}
+.blood-v195c .bl-row.on{opacity:1;transform:none}
+.blood-v195c .bl-row small{display:block;font-size:12px;color:var(--chalk-dim)}
+.blood-v195c .bl-row b{font-family:Oswald,sans-serif;font-size:17px;color:#ff8fb0;white-space:nowrap}
+.blood-v195c .bl-row.x b{color:#f2c94c}
+.blood-v195c .bl-end{margin-top:9px;opacity:0;transition:opacity .4s}
+.blood-v195c .bl-end.on{opacity:1}
+.blood-v195c .bl-ba{font:600 15px Oswald,sans-serif;color:#fff;text-align:center}
+.blood-v195c .bl-bar{position:relative;height:10px;border-radius:6px;background:rgba(255,255,255,.08);overflow:hidden;margin-top:6px}
+.blood-v195c .bl-bar i{position:absolute;left:0;top:0;bottom:0;border-radius:6px;background:linear-gradient(90deg,#b83b62,#ff6f96)}
+.blood-v195c .bl-bar em{position:absolute;top:0;bottom:0;border-radius:6px;background:linear-gradient(90deg,#f2c94c,#fff1b8);transition:width 1.1s cubic-bezier(.2,.8,.2,1);box-shadow:0 0 10px #f2c94c}
+.blood-v195c .bl-sub{font-size:12px;color:var(--chalk-dim);text-align:center;margin-top:4px}
+.blood-v195c .bl-spark{position:absolute;width:6px;height:6px;border-radius:50%;pointer-events:none;animation:blSparkV195C .7s ease-out forwards}
+@keyframes blSparkV195C{from{transform:translate(0,0) scale(1);opacity:1}to{transform:translate(var(--dx),var(--dy)) scale(.2);opacity:0}}
+.blood-v195c .bl-stamp{animation:blStampV195C .5s cubic-bezier(.2,1.6,.4,1)}
+.hubv75-tab.bl-tab-v195c{animation:blTabV195C 1.1s ease-in-out infinite;color:#ff8fb0!important}
+@keyframes blTabV195C{0%,100%{box-shadow:0 0 0 rgba(255,111,150,0)}50%{box-shadow:0 0 14px rgba(255,111,150,.9)}}
+@keyframes blStampV195C{0%{transform:scale(2.2);opacity:0}100%{transform:scale(1);opacity:1}}`;
+    document.head.appendChild(st);
+  }
+  function bloodCardHtmlV195C(e) {
+    const B = e && e._bloodV195C;
+    if (!bloodOnV195C() || !B) return "";
+    try {
+      bloodCssV195C();
+    } catch (_) {}
+    const pot = Math.round(potentialV179()),
+      nx = bloodNextBarV195C(pot),
+      pct = v => Math.max(0, Math.min(100, v)),
+      wBefore = nx ? pct(((pot - B.gain) / Math.max(1, nx.bar)) * 100) : 100,
+      wAfter = nx ? pct((pot / Math.max(1, nx.bar)) * 100) : 100;
+    return `<div class="card blood-v195c" id="bloodV195C" data-gain="${B.gain}">
+  <div class="bl-top"><div class="bl-dna">${'<i style="top:0px"></i><i style="top:0px"></i><i style="top:14px"></i><i style="top:14px"></i><i style="top:28px"></i><i style="top:28px"></i><i style="top:42px"></i><i style="top:42px"></i><i style="top:56px"></i><i style="top:56px"></i>'.replace(/<i style="top:(\d+)px"><\/i>/g, (m, t) => `<i style="top:${t}px;animation-delay:-${(t / 56) * 0.8}s"></i>`)}</div>
+    <div style="flex:1"><div class="bl-k">🧬 THE BLOODLINE GROWS</div><div class="bl-n" data-final="${bloodFmtV195C(B.gain, "+")}">${bloodFmtV195C(B.gain, "+")}</div></div></div>
+  <div class="bl-rows">${B.rows.map(r => `<div class="bl-row on${r.op === "×" ? " x" : ""}" data-op="${r.op}" data-v="${r.v}"><span>${escHtml(r.label)}<small>${escHtml(r.note || "")}</small></span><b>${bloodFmtV195C(r.v, r.op)}</b></div>`).join("")}</div>
+  <div class="bl-end on"><div class="bl-ba">Bloodline <b>${round1V195C(B.before)}</b> → <b style="color:#ff8fb0">${round1V195C(B.after)}</b> · potential <b>${fmtBigV179(pot)}</b></div>
+    ${nx ? `<div class="bl-bar"><em style="width:${wAfter}%"></em><i style="width:${wBefore}%"></i></div><div class="bl-sub">${fmtBigV179(pot)} of ${fmtBigV179(nx.bar)} — the scouts' bar for ${escHtml(nx.name)}</div>` : `<div class="bl-sub">past every scouts' bar</div>`}
+    <div class="bl-sub">Every career adds at least 1 · 🧬 Bloodline in the prestige tree grows it</div></div>
+</div>`;
+  }
+  // the count-up: rows land one by one, the multiplier pulses gold and throws sparks, then the before → after and the bar
+  function bloodAnimateV195C(e) {
+    const B = e && e._bloodV195C;
+    if (!bloodOnV195C() || !B || !TU("bloodAnimV195C", 1)) return;
+    const card = document.getElementById("bloodV195C");
+    if (!card) return;
+    let reduce = !1;
+    try {
+      reduce = !!(window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches);
+    } catch (_) {}
+    if (reduce || B.shown >= 1) return; /* the finished card is already drawn */
+    const n = card.querySelector(".bl-n"),
+      rows = [...card.querySelectorAll(".bl-row")],
+      end = card.querySelector(".bl-end"),
+      em = card.querySelector(".bl-bar em"),
+      emW = em ? em.style.width : "",
+      i0 = card.querySelector(".bl-bar i");
+    rows.forEach(r => r.classList.remove("on"));
+    end && end.classList.remove("on");
+    em && (em.style.width = i0 ? i0.style.width : "0%");
+    n.textContent = "+0";
+    const step = TU("bloodRowMsV195C", 650),
+      view = state.view;
+    let started = !1;
+    const spark = (x, y, col) => {
+      for (let k = 0; k < 12; k++) {
+        const s = document.createElement("i"),
+          a = (k / 12) * Math.PI * 2;
+        s.className = "bl-spark";
+        s.style.left = x + "px";
+        s.style.top = y + "px";
+        s.style.background = col;
+        s.style.setProperty("--dx", Math.cos(a) * (28 + Math.random() * 22) + "px");
+        s.style.setProperty("--dy", Math.sin(a) * (22 + Math.random() * 18) + "px");
+        card.appendChild(s);
+        setTimeout(() => s.remove(), 760);
+      }
+    };
+    const buzz = ms => {
+      try {
+        typeof buzzV193O === "function" ? buzzV193O(ms) : navigator.vibrate && navigator.vibrate(ms);
+      } catch (_) {}
+    };
+    const countTo = (from, to, ms, done) => {
+      const t0 = performance.now();
+      const tick = now => {
+        const k = Math.min(1, (now - t0) / ms),
+          v = from + (to - from) * (1 - Math.pow(1 - k, 3));
+        n.textContent = "+" + round1V195C(v);
+        k < 1 ? requestAnimationFrame(tick) : done && done();
+      };
+      requestAnimationFrame(tick);
+    };
+    const run = () => {
+      started = !0;
+      card.classList.add("bl-fast");
+      let running = 0,
+        i = 0;
+      const next = () => {
+        if (state.view !== view || !document.body.contains(card)) return;
+        if (i >= rows.length) {
+          n.textContent = bloodFmtV195C(B.gain, "+");
+          n.classList.remove("mult");
+          n.classList.add("bl-stamp");
+          card.classList.remove("bl-fast");
+          buzz(30);
+          const r0 = n.getBoundingClientRect(),
+            c0 = card.getBoundingClientRect();
+          spark(r0.left - c0.left + r0.width / 2, r0.top - c0.top + r0.height / 2, "#ff6f96");
+          setTimeout(() => {
+            end && end.classList.add("on");
+            em && setTimeout(() => (em.style.width = emW), 120);
+            B.shown = 1;
+          }, 420);
+          return;
+        }
+        const r = rows[i++],
+          op = r.dataset.op,
+          v = +r.dataset.v,
+          to = op === "×" ? running * v : running + v;
+        r.classList.add("on");
+        n.classList.toggle("mult", op === "×");
+        n.classList.add("pop");
+        setTimeout(() => n.classList.remove("pop"), 180);
+        if (op === "×") {
+          const rb = r.getBoundingClientRect(),
+            cb = card.getBoundingClientRect();
+          spark(rb.right - cb.left - 24, rb.top - cb.top + rb.height / 2, "#f2c94c");
+          buzz(18);
+        } else buzz(8);
+        countTo(running, to, step * 0.7, () => setTimeout(next, step * 0.35));
+        running = to;
+      };
+      setTimeout(next, 250);
+    };
+    // wait until the Vault is closed and the card is on screen
+    const t0 = Date.now(),
+      poll = () => {
+        if (started || state.view !== view || !document.body.contains(card)) return;
+        let vaultOpen = !1;
+        try {
+          vaultOpen = !!(window.__RIB_VAULT && window.__RIB_VAULT.isOpen && window.__RIB_VAULT.isOpen());
+        } catch (_) {}
+        const r = card.getBoundingClientRect(),
+          onScreen = r.top < (window.innerHeight || 800) - 40 && r.bottom > 40;
+        const sec = card.closest(".hubv75-sec"),
+          tab = sec && document.querySelector('.hubv75-tab[data-sec="' + sec.dataset.sec + '"]'),
+          paging = document.documentElement.classList.contains("shell-v146") && !sec && Date.now() - t0 < TU("bloodPagerWaitMsV195C", 4000); /* the shell has not paged the screen yet */
+        if (!vaultOpen && onScreen && !paging) return document.querySelectorAll(".bl-tab-v195c").forEach(t => t.classList.remove("bl-tab-v195c")), run();
+        if (tab && !sec.classList.contains("on")) tab.classList.add("bl-tab-v195c"); /* the paged end screen: the tab pulses until it is opened */
+        setTimeout(poll, 250);
+      };
+    setTimeout(poll, 300);
+  }
+  window.__V195C = {
+    stored: () => bloodStoredV195C(),
+    parts: lv => bloodPartsV195C(lv == null ? (state.player ? state.player.level : 0) : lv),
+    award: (e, lv) => bloodAwardV195C(e || state.player, lv),
+    uffMult: lv => uffPPMultV195C(lv),
+    wear: (e, avg, bar) => uffWearV195C(e || state.player, avg, bar),
+    cut: (e, roll, avg, bar) => uffCutV195C(e || state.player, roll, avg, bar),
+    card: e => bloodCardHtmlV195C(e || state.player),
+    animate: e => bloodAnimateV195C(e || state.player),
+    nextBar: pot => bloodNextBarV195C(pot)
+  };
   /* ===== v179 K THE SCOUTS' VERDICT =====
    * The owner: "diminishing returns for going above the potential bar, so there's still some nervousness in college and
    * UFF declaration … influenced by prestige … maybe a second roll". A barred declare is the season roll, then the
@@ -43765,7 +44075,8 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
       treeFx("ceilPlus") +
       chaosTotal() * 1.6 +
       (pathVal("growthMult", 1) - 1) * 36 +
-      (state.path === "phenom" ? 30 : 0)
+      (state.path === "phenom" ? 30 : 0) +
+      bloodStoredV195C() /* v195 C: what every career end added */
     );
   }
   function ceilLevelsV179(w) {
@@ -43819,7 +44130,7 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
         ? `🔭 Scouts' verdict <b>${Math.round(B.v * 100)}%</b> (potential ${fmtBigV179(B.pot)} vs ${fmtBigV179(B.potBar)}, tops out at ${Math.round(B.vMax * 100)}%)${B.sl > 0 ? ` · GM's second look <b>${Math.round(B.sl * 100)}%</b>` : ""} — on top of the season roll. Declare-odds nodes and medals raise both.${scoutNoteV195A(B)}`
         : "";
       const msg = verdict ? verdict : B.potBar > 0 && B.pot < B.potBar
-        ? `${e.level >= 7 ? "🛸 The Interstellar League judges" : "🔭 The scouts judge"} <b>POTENTIAL</b>: they want <b>${fmtBigV179(B.potBar)}</b>, your bloodline shows <b>${fmtBigV179(B.pot)}</b> — the declare odds are cut to ${Math.round(B.k * 100)}% of what your season earned. Potential is the growth ceiling the prestige tree gives every player: Freak, Prime Genes, Superhuman, the ceiling nodes, chaos and your Path raise it; a tree of everything else barely moves it.${scoutNoteV195A(B)}`
+        ? `${e.level >= 7 ? "🛸 The Interstellar League judges" : "🔭 The scouts judge"} <b>POTENTIAL</b>: they want <b>${fmtBigV179(B.potBar)}</b>, your bloodline shows <b>${fmtBigV179(B.pot)}</b> — the declare odds are cut to ${Math.round(B.k * 100)}% of what your season earned. Potential is the growth ceiling the prestige tree gives every player: Freak, Prime Genes, Superhuman, the ceiling nodes, chaos and your Path raise it; a tree of everything else barely moves it.${bloodOnV195C() ? " Every career end adds bloodline too (🧬 in the tree)." : ""}${scoutNoteV195A(B)}`
         : B.bar > 0 && B.kO < 0.85
         ? `🔭 The scouts' bar is <b>${B.bar} OVR</b> — you are <b>${B.ovr}</b>, so the declare odds are cut to ${Math.round(B.k * 100)}% of what your season earned. Starting attributes, growth and ceilings in the prestige tree (and the medal rewards) raise every future player.`
         : G.short
@@ -44164,7 +44475,7 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
           eraMult(),
         nn = nodeLvl("legacy") * (e.totalSeasons || 0),
         ii = careerBaseV193AC(a);
-      r = e._arrivedV154 && a >= 7 ? tailPPV154(e, e._arrivedV154, sm, a) : Math.max(1, Math.round(((ii + (e.totalSeasons || 0) * 0.35 + (e.titles || 0) * 4) * sm + nn) * chaosEarnedMult(a)));
+      r = e._arrivedV154 && a >= 7 ? tailPPV154(e, e._arrivedV154, sm, a) : Math.max(1, Math.round(((ii + (e.totalSeasons || 0) * 0.35 + (e.titles || 0) * 4) * sm + nn) * chaosEarnedMult(a) * uffPPMultV195C(a))); /* v195 C */
     } catch (_) {
       r = 0;
     }
@@ -44960,6 +45271,11 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
       row("add", `+ Family Legacy ${legacyLv} × ${plural193D(seasons, "season")}`, legacy, "flat");
       running += legacy;
     }
+    const uffK = uffPPMultV195C(kind === "win" ? Math.max(7, lv) : lv);
+    if (uffK > 1) {
+      row("mult", `× ${lv >= 8 ? "the Interstellar League" : "the UFF"}`, uffK, "the big league pays ×" + uffK);
+      running *= uffK;
+    }
     const careerPays = Math.max(1, Math.round(running));
     row("sum", "= THE CAREER PAYS", careerPays);
     running = careerPays;
@@ -45398,8 +45714,9 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
     const total = rawCeilingV179(w),
       chaos = chaosTotal() * 1.6,
       path = (pathVal("growthMult", 1) - 1) * 36 + (state.path === "phenom" ? 30 : 0),
-      levels = total - 30 - nodes - prestige - chaos - path;
-    return { total, base: 30, nodes, levels, chaos, path, prestige };
+      blood = bloodStoredV195C() /* v195 C */,
+      levels = total - 30 - nodes - prestige - chaos - path - blood;
+    return { total, base: 30, nodes, levels, chaos, path, prestige, blood };
   }
   function nodePotGainV179(key) {
     try {
@@ -45476,7 +45793,7 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
   <div class="pv-bars">${bars
     .map(b => `<div class="${pot >= b.bar ? "ok" : ""}"><span>${b.name}</span><b>${fmtBigV179(b.bar)}</b><small>${pot >= b.bar ? "✓ cleared — the verdict climbs toward its ceiling" : "need +" + fmtBigV179(Math.ceil(b.bar - pot))}</small></div>`)
     .join("")}</div>
-  <div class="pv-parts">base <b>30</b>${part("ceiling nodes", P.nodes)}${part("other tree levels", P.levels)}${part("chaos", P.chaos)}${part("Path", P.path)}${part("prestige", P.prestige)}</div>
+  <div class="pv-parts">base <b>30</b>${part("ceiling nodes", P.nodes)}${part("other tree levels", P.levels)}${part("chaos", P.chaos)}${part("Path", P.path)}${part("prestige", P.prestige)}${part("careers' bloodline", P.blood || 0)}</div>
   <div class="pv-note">Potential is the growth ceiling every future player is born with. The scouts judge it at every big declare — a coin flip at the bar, better over it. <b>Freak, Prime Genes, Superhuman and every +ceiling node</b> count ×${nf1V179(TU("ceilNodeMultV179", 3))}; the gold <b>+POTENTIAL</b> tag on a node says what its next level adds.</div>
 </div>`;
   }
