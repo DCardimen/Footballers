@@ -3107,8 +3107,8 @@ class Ot extends mt.Scene {
      * exact frame the whistle caught them. Then the next play's glide started and they all
      * sprinted off together. They breathe and shuffle through the gap now, so the restart is a
      * continuation rather than a cut. */
-    if (!P) { this.idleBetweenV144(delta); try { this.screenPanTickV175(delta); } catch (e) {} return; }   // v175: the camera stays on the screen through the gap
-    if (P.done) { if (P.post) this.updatePostV86(P, delta); else { try { this.screenPanTickV175(delta); } catch (e) {} } return; }   // v86: the whistle is not the end of the picture
+    if (!P) { this.idleBetweenV144(delta); try { this.screenPanTickV175(delta); } catch (e) {} this.mascotGapV195B(delta); return; }   // v175: the camera stays on the screen through the gap. v195 B: the mascot dances on through it
+    if (P.done) { if (P.post) this.updatePostV86(P, delta); else { try { this.screenPanTickV175(delta); } catch (e) {} this.mascotGapV195B(delta); } return; }   // v86: the whistle is not the end of the picture
     if (this.hitStop > 0) { this.hitStop -= delta; return; }   // freeze-frame on big moments
     // v24: base movement runs 30% slower for everyone — a more deliberate, readable
     // pace where cuts, jukes and pursuit angles land as real moves instead of a blur.
@@ -12224,6 +12224,14 @@ class Ot extends mt.Scene {
     S._lt += dt;
     if (S._lt > .12) { S._lt = 0; this.sideRelight(); }
     /* v193 AI THE MASCOTS DANCE (renderer): each bench's mascot (src/35-mascots.js) — a no-op unless they are his */
+    try { if (window.RIB_MASCOTS) window.RIB_MASCOTS.frame(this, delta, { FW, PLAY_L, PLAY_W, VDIR, MIDY: (F_TOP + F_BOT) / 2 }); } catch (e) {}
+  }
+  /* ===== v195 B THE MASCOT, V2 (renderer) =====
+   * The mascot's frame rides `updateSideline` (above), which the gap between plays and a finished play with no post phase
+   * never call — exactly where v175's pan holds the camera on the big screen, so he froze there. Those two branches of
+   * `update` tick him through here (src/35-mascots.js `v195 B THE MASCOT, V2`). TU "v195B" 0: the old freeze. ===== */
+  mascotGapV195B(delta) {
+    if (!TU("v195B", 1)) return;
     try { if (window.RIB_MASCOTS) window.RIB_MASCOTS.frame(this, delta, { FW, PLAY_L, PLAY_W, VDIR, MIDY: (F_TOP + F_BOT) / 2 }); } catch (e) {}
   }
   clearSideline() {

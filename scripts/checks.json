@@ -352,7 +352,8 @@
    "anchors": [
     "v144",
     "v193 AG",
-    "v194 D"
+    "v194 D",
+    "v195 B"
    ],
    "files": [],
    "checks": [
@@ -388,6 +389,7 @@
     "v193AGcheck",
     "v193AIcheck",
     "v194Bcheck",
+    "v195Bcheck",
     "v194Dcheck"
    ]
   },
@@ -1510,7 +1512,8 @@
     "v158Bcheck",
     "v159Bcheck",
     "v193AIcheck",
-    "v194Bcheck"
+    "v194Bcheck",
+    "v195Bcheck"
    ]
   },
   "pwa": {
@@ -1644,7 +1647,8 @@
     "v177 H",
     "v193 Q",
     "v193 AI",
-    "v194 B"
+    "v194 B",
+    "v195 B"
    ],
    "files": [
     "src/28-cosmetics.js",
@@ -1685,7 +1689,8 @@
     "v193Qcheck",
     "v193Ycheck",
     "v193AIcheck",
-    "v194Bcheck"
+    "v194Bcheck",
+    "v195Bcheck"
    ]
   },
   "audio": {
@@ -1951,6 +1956,8 @@
   "prestige-pacing": {
    "desc": "v179 — the long road: medal gates on the last climbs, the Interstellar Call waits on the era, big numbers; v185 — the chaos loop; v186 — rings are earned, chaos locks in, Stardust; v187 — medal looks and the ring respec; v189 — one stat line, the medal prompt, the bank at the season's end",
    "anchors": [
+    "v195 C",
+    "v195 A",
     "v179",
     "v185",
     "v186",
@@ -1978,7 +1985,9 @@
     "v193Echeck",
     "v193Jcheck",
     "v193ADcheck",
-    "v193AFcheck"
+    "v193AFcheck",
+    "v195Acheck",
+    "v195Ccheck"
    ]
   }
  },
@@ -5437,6 +5446,20 @@
    "pureNode": false,
    "flaky": []
   },
+  "v195Bcheck": {
+   "file": "scripts/v195Bcheck.mjs",
+   "desc": "v195 B — the mascot, v2: crest palettes are colours the crest has, a v2 sheet's pixels are crest colours (8 crests) and the jersey too; 100+ lines with '|' beats, clean, UFF; the typewriter (one letter at a time on its schedule, the box its final size, the beat held, the line held to read); in-betweens + the groove, the cheer ~3x the frames, squash and stretch; no Math.random, seeded sim unchanged; TU v195B 0 = v194 B; MY PLAYS ONLY: v194 B vs v2 jumps / on-screen pops per minute (v2 none); the jumbotron pan: drawn, in frame, dancing (the gap too), on the deck beside the screen; no page errors",
+   "areas": [
+    "cosmetics",
+    "field"
+   ],
+   "runtimeSec": 150,
+   "slow": false,
+   "needsServer": true,
+   "pureNode": false,
+   "flaky": [],
+   "loadSensitive": true
+  },
   "v194Bcheck": {
    "file": "scripts/v194Bcheck.mjs",
    "desc": "v194 B — the mascot comes alive: 50+ bucketed quippy lines (UFF only) and the new poses; store OFF no mascot; preview: ONE mascot, the home team's (away week: the opponent's); a forced home TD raises the mood and starts a celebration with merch, an opponent TD lowers it (cry / mad / circles); bad runs furious/desperate, good runs ecstatic; merch lands in a crowd section; one bubble at a time; never inside the painted field; no Math.random from 300 frames and a seeded sim unchanged; TU v194B 0 restores v193 AI's two benches; no page errors",
@@ -5538,6 +5561,30 @@
    "pureNode": false,
    "flaky": [],
    "loadSensitive": true
+  },
+  "v195Acheck": {
+   "file": "scripts/v195Acheck.mjs",
+   "desc": "v195 A — the scouts see the season: a top-10 rank at the position floors the scouts' verdict at 20% (#1) to 10% (#10) at College → Combine and Combine → UFF (not the Interstellar Call), so a #1 with no prestige declares at 10–20%; the pity timer eases a level's potential bar 8% a missed declare (compounding, ≥ 35% of the base), a make resets it, declareFromHub records both; A / A+ season grades need a top-10 rank at the position (else B+, the report card says why); the hub note, the verdict reveal and HOW THE SCOUTS DECIDE name it; v195A 0 restores v179. No page errors.",
+   "areas": [
+    "season"
+   ],
+   "runtimeSec": 45,
+   "slow": false,
+   "needsServer": true,
+   "pureNode": false,
+   "flaky": []
+  },
+  "v195Ccheck": {
+   "file": "scripts/v195Ccheck.mjs",
+   "desc": "v195 C — the bloodline grows: every career end adds ≥ 1 to state.bloodlineV195C once (a real settle), the potential reads it; the 🧬 Bloodline branch (Family Tree, Proven Stock, Pure Blood, Compound Genes) buys through window.buy and its gain sums right; the UFF pays ×10 (the arrival on two fresh contexts, the estimator, the receipt's row); the UFF wear (6% + 4% a season, eased over the bar, capped 45%) at level 7 only, and a measured UFF run is shorter with it; the career-end card's count-up waits on its own pulsing BLOODLINE tab, then lands; v195C 0. No page errors.",
+   "areas": [
+    "season"
+   ],
+   "runtimeSec": 60,
+   "slow": false,
+   "needsServer": true,
+   "pureNode": false,
+   "flaky": []
   }
  }
 }

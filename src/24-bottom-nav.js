@@ -96,7 +96,7 @@
     "sec:progs": "dumbbell", "sec:pick": "check", "sec:nodes": "coin", "sec:perks": "brain",
     "branch:physical": "barbell", "branch:mental": "brainl", "branch:career": "trend", "branch:economy": "crownl", "branch:body": "figure",
     "branch:camp": "tent", "branch:swagger": "shades", "branch:eternal": "infinity", "branch:locker": "shirt", "branch:apex": "peak",
-    "branch:franchise": "stadium", "branch:fate": "die", "branch:impossible": "sparkle",
+    "branch:franchise": "stadium", "branch:fate": "die", "branch:impossible": "sparkle", "branch:bloodline": "family" /* v195 C */,
     /* the spray's pages name themselves by their emoji */
     "\u{1F3C8}": "football", "\u{1FA79}": "heart", "\u{1F4C8}": "chart", "\u{1F3DF}": "team", "\u{1F3DF}️": "team", "\u{1F4D6}": "book", "\u{1F305}": "sun",
     "\u{1F3E0}": "home", "\u{1F6CB}": "home", "\u{1F3E1}": "home", "\u{1F3AF}": "target", "\u{1F4C5}": "calendar", "\u{1F5D3}": "calendar",
@@ -432,6 +432,7 @@
     "\u{1F9EC}": "dna", "\u{1F4A8}": "wind", "\u{1F3CB}️": "barbell", "\u{1F3CB}": "barbell", "\u{1F9BE}": "arm", "\u{1F300}": "swirl", "\u{1FAC1}": "lungs", "⚙️": "gear", "⚙": "gear",
     "⚡": "bolt", "\u{1F40E}": "horseshoe", "\u{1F98D}": "fist", "\u{1F9EA}": "flask", "\u{1F9B8}": "mask", "\u{1F998}": "spring", "⚓": "anchor", "\u{1F9CA}": "crystal",
     "\u{1F50B}": "battery", "\u{1F6DE}": "wheel",
+    "\u{1F333}": "sprout", "\u{1FA78}": "drop" /* v195 C: Family Tree, Pure Blood */,
     // Mental
     "\u{1F9D8}": "lotus", "\u{1FA9E}": "mirror", "\u{1F4EF}": "megaphone" /* v193 AH: Pied Piper */, "⭐": "star", "\u{1F4CB}": "clipboard", "\u{1F39E}️": "film", "\u{1F39E}": "film", "\u{1F525}": "flame", "\u{1F9E4}": "glove",
     "\u{1F3AF}": "target", "\u{1F6E1}️": "shield", "\u{1F6E1}": "shield", "\u{1F4DA}": "book", "\u{1F9D3}": "chevron", "\u{1F31F}": "nova", "\u{1F9E9}": "puzzle", "♟️": "pawn", "♟": "pawn",
