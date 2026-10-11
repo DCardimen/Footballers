@@ -23658,7 +23658,9 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
   `),
       d)
     )
-      byId("dock").innerHTML = `
+      byId("dock").innerHTML = !a.length
+        ? `<button class="btn" onclick="go('hub')">🏠 Season Complete — Back to Hub</button>` /* v196 A: the season is already finished — never offer it again */
+        : `
       <button class="btn" onclick="finishSeasonGames()">Finish Season & See Results ▸</button>
       <div style="height:8px"></div>
       <div class="btn-row">
@@ -43333,6 +43335,7 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
     const a = e.weekResults || [],
       reg = a.filter(w => !w.playoff),
       y = a.find(w => !w.played);
+    if (!a.length) return `<button class="btn" onclick="window.__V178.leave();go('hub')">🏠 Season Complete — Back to Hub</button>`; /* v196 A */
     if (!y) return `<button class="btn" onclick="window.__V178.leave();finishSeasonGames()">Finish Season &amp; See Results ▸</button>`;
     const C = y.playoff ? y.round : "Week " + (reg.findIndex(w => !w.played) + 1);
     const quick = liveOnlyV164D(e) || playoffLockV156B(e, y) ? betaSkipBtnV181(e, y) /* v181 */ : `<button class="btn secondary" onclick="window.__V178.leave();window.__V178.quick()">⏩ Quick Play ${C}${gameSimTagV158B()}</button>`;
@@ -46412,6 +46415,36 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
   typeof window.finishSeasonGames === "function" && (window.finishSeasonGames = finishWrapV193O(window.finishSeasonGames));
   startSeasonGames = startWrapV193O(startSeasonGames);
   typeof window.startSeasonGames === "function" && (window.startSeasonGames = startWrapV193O(window.startSeasonGames));
+  /* ===== v196 A THE SEASON FINISHES ONCE =====
+   * The owner: "I'm able to finish the season over and over again getting unlimited points... switching to hub tab over and
+   * over, please only finish season once, and prevent any issue like this." The roll clears `weekResults`, and an EMPTY
+   * schedule read as "every game played" — the season screen (and v178's flow dock) offered Finish Season again, and every
+   * tap re-ran the whole stack: the season roll, the Legacy XP, the Upgrade Point cards, the bank, the story. Now the
+   * OUTERMOST layer (the last wrapper runs first) refuses unless a real schedule is all played, and a lock covers a
+   * double tap; the docks show "Season Complete — Back to Hub" instead. Kill switch TU `v196A` 0 (the old path).
+   * `window.__V196A`; `v196Acheck`. */
+  const V196A = (window.__V196A = { runs: 0, refused: 0 });
+  function finishOnceWrapV196A(f0) {
+    return function () {
+      if (!TU("v196A", 1)) return f0.apply(this, arguments);
+      const e = state && state.player,
+        wr = e && e.weekResults;
+      if (!e || V196A.busy || !Array.isArray(wr) || !wr.length) {
+        V196A.refused++;
+        if (e && !V196A.busy) goView("hub"); // nothing to finish: the season is over (or never started)
+        return;
+      }
+      V196A.busy = !0;
+      try {
+        V196A.runs++;
+        return f0.apply(this, arguments);
+      } finally {
+        V196A.busy = !1;
+      }
+    };
+  }
+  finishSeasonGames = finishOnceWrapV196A(finishSeasonGames);
+  typeof window.finishSeasonGames === "function" && (window.finishSeasonGames = finishOnceWrapV196A(window.finishSeasonGames));
 
   // the rows: every attribute that moved, the biggest gain first, declines last (the steepest last)
   function growDataV193O(p) {

@@ -10,6 +10,16 @@ Names in older entries are the career app's pre-v149 C minified names (`q`, `ms`
 `index.html` + `src/` (`docs/LAYOUT.md`).
 
 <!-- new entries go here, newest first -->
+- **v196 B · The mascot, smaller and grounded.** (`src/35-mascots.js`.) The owner: "keep the mascot smaller, and dont
+  teleport him in the air by the jumbotron... keep on ground. His text bubbles are massive and distracting. Make like 70
+  percent smaller." He is drawn at `mascotScaleV196B` 1.15 (v194 B's 1.8); v195 B's jumbotron deck is off by default
+  (`v195Bjumbo` 0) — he stays on his sideline spot; the bubble is held at `mascotBubbleCssPxV196B` 6.5 css px a line (12),
+  ~70% less screen. Kill switch `v196B` 0. `v196Bcheck`.
+- **v196 A · The season finishes once.** (`src/07-career-app.js`.) The owner: "I'm able to finish the season over and
+  over again getting unlimited points... switching to hub tab." The roll clears the week rows, and an empty schedule read
+  as "every game played", so the season tab offered Finish Season again and every tap re-ran the whole payout. The
+  outermost `finishSeasonGames` layer now refuses unless a real schedule is all played (and locks a double tap); the
+  season dock and v178's flow dock say "Season Complete — Back to Hub". Kill switch `v196A` 0. `v196Acheck`.
 - **v195 C · The bloodline grows.** (`src/07-career-app.js`, `src/22-hub-sections.js`.) The owner: "No matter what add
   one bloodline at career end. Add 4 new prestige upgrades twisted to bloodline gains … Ensure UFF is 10x prestige
   points and it's hard to stay in the league. Satisfying animation due bloodline gain and any multiples." **The
