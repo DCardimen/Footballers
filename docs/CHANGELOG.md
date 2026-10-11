@@ -10,6 +10,27 @@ Names in older entries are the career app's pre-v149 C minified names (`q`, `ms`
 `index.html` + `src/` (`docs/LAYOUT.md`).
 
 <!-- new entries go here, newest first -->
+- **v196 C · An injury is a choice.** (`src/07-career-app.js`.) The owner: "Sometimes injuries are instantly cleared …
+  Once injured, tell how many weeks, make obvious. … One should be play through it with stat losses during, or rest and
+  recover x weeks. I think clicking off the injury screen ignore it." **Never instant:** the week's result (and its
+  injury) is rolled before the game is booked, so `startWeek` saw "must sit" and turned the very game he got hurt in into
+  a DNP that healed it — a one-game injury was gone before its pop-up (and a knock, 0 games, through the same game's
+  condition tick). The injury is `freshV196C` for its own week now: that game is his to play and heals nothing; a knock
+  is one game hurt. **How long:** the pop-up opens on a big "N WEEKS" ("OUT FOR THE SEASON"), and the season dock carries
+  "OUT N WEEKS" / "PLAYING HURT · N WEEKS LEFT". **The choice** (replacing "His body / Got it"): 🩹 PLAY THROUGH IT — he
+  plays every game at −(5% + 5% × severity) to every attribute (−15% at severity 2), fewer snaps and a higher re-injury
+  risk until it heals — or 🛌 REST N WEEKS — he sits them and comes back whole. A tap outside or Escape no longer closes
+  it. Kill switch `v196C` 0. `v196Ccheck`.
+- **v196 B · The mascot, smaller and grounded.** (`src/35-mascots.js`.) The owner: "keep the mascot smaller, and dont
+  teleport him in the air by the jumbotron... keep on ground. His text bubbles are massive and distracting. Make like 70
+  percent smaller." He is drawn at `mascotScaleV196B` 1.15 (v194 B's 1.8); v195 B's jumbotron deck is off by default
+  (`v195Bjumbo` 0) — he stays on his sideline spot; the bubble is held at `mascotBubbleCssPxV196B` 6.5 css px a line (12),
+  ~70% less screen. Kill switch `v196B` 0. `v196Bcheck`.
+- **v196 A · The season finishes once.** (`src/07-career-app.js`.) The owner: "I'm able to finish the season over and
+  over again getting unlimited points... switching to hub tab." The roll clears the week rows, and an empty schedule read
+  as "every game played", so the season tab offered Finish Season again and every tap re-ran the whole payout. The
+  outermost `finishSeasonGames` layer now refuses unless a real schedule is all played (and locks a double tap); the
+  season dock and v178's flow dock say "Season Complete — Back to Hub". Kill switch `v196A` 0. `v196Acheck`.
 - **v195 C · The bloodline grows.** (`src/07-career-app.js`, `src/22-hub-sections.js`.) The owner: "No matter what add
   one bloodline at career end. Add 4 new prestige upgrades twisted to bloodline gains … Ensure UFF is 10x prestige
   points and it's hard to stay in the league. Satisfying animation due bloodline gain and any multiples." **The

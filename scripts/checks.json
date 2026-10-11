@@ -390,7 +390,8 @@
     "v193AIcheck",
     "v194Bcheck",
     "v195Bcheck",
-    "v194Dcheck"
+    "v194Dcheck",
+    "v196Bcheck"
    ]
   },
   "statinfo": {
@@ -893,7 +894,8 @@
     "injurycheck",
     "availabilitycheck",
     "v153Bcheck",
-    "v193Wcheck"
+    "v193Wcheck",
+    "v196Ccheck"
    ]
   },
   "ovr": {
@@ -1513,7 +1515,8 @@
     "v159Bcheck",
     "v193AIcheck",
     "v194Bcheck",
-    "v195Bcheck"
+    "v195Bcheck",
+    "v196Bcheck"
    ]
   },
   "pwa": {
@@ -1690,7 +1693,8 @@
     "v193Ycheck",
     "v193AIcheck",
     "v194Bcheck",
-    "v195Bcheck"
+    "v195Bcheck",
+    "v196Bcheck"
    ]
   },
   "audio": {
@@ -1987,7 +1991,8 @@
     "v193ADcheck",
     "v193AFcheck",
     "v195Acheck",
-    "v195Ccheck"
+    "v195Ccheck",
+    "v196Acheck"
    ]
   }
  },
@@ -5581,6 +5586,44 @@
     "season"
    ],
    "runtimeSec": 60,
+   "slow": false,
+   "needsServer": true,
+   "pureNode": false,
+   "flaky": []
+  },
+  "v196Acheck": {
+   "file": "scripts/v196Acheck.mjs",
+   "desc": "v196 A — the season finishes once: a real season ends once; after it the season dock and v178's flow dock offer no Finish Season; hub → season → finish over and over pays nothing and lands on the hub; TU v196A 0 = the old re-run; no page errors",
+   "areas": [
+    "season"
+   ],
+   "runtimeSec": 30,
+   "slow": false,
+   "needsServer": true,
+   "pureNode": false,
+   "flaky": []
+  },
+  "v196Bcheck": {
+   "file": "scripts/v196Bcheck.mjs",
+   "desc": "v196 B — the mascot, smaller and grounded: ~0.64 of v194 B's scale; the same bubble ~70% less screen area; a forced jumbotron pan never lifts him to the deck (TU v196B 0 still does); no page errors",
+   "areas": [
+    "cosmetics",
+    "field"
+   ],
+   "runtimeSec": 90,
+   "slow": false,
+   "needsServer": true,
+   "pureNode": false,
+   "flaky": [],
+   "loadSensitive": true
+  },
+  "v196Ccheck": {
+   "file": "scripts/v196Ccheck.mjs",
+   "desc": "v196 C — an injury is a choice: a 1-game injury and a knock survive the game they happen in (TU v196C 0: gone at once); the pop-up's big N WEEKS and exactly Play through it / Rest N weeks; a tap outside / Escape does not close it; Rest sits N games then clears; Play through plays every game at −15% (severity 2) and heals a game a game; the season dock says it; a season-ender has no choice; no page errors",
+   "areas": [
+    "injury"
+   ],
+   "runtimeSec": 40,
    "slow": false,
    "needsServer": true,
    "pureNode": false,

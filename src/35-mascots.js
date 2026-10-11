@@ -1882,7 +1882,19 @@
   }
 
   /* ---- where he stands ---- */
-  const scaleV194B = () => TUv("mascotScaleV194B", 1.8);   // bigger than v193 AI's 1.45: he is the show now
+  /* ===== v196 B THE MASCOT, SMALLER AND GROUNDED =====
+   * The owner: "I want to keep the mascot smaller, and dont teleport him in the air by the jumbotron... keep on ground. His
+   * text bubbles are massive and distracting. Make like 70 percent smaller."
+   *   SMALLER    `mascotScaleV196B` 1.15 (v194 B's 1.8 — about a third smaller; under v193 AI's 1.45).
+   *   GROUNDED   v195 B's jumbotron deck (`jumboV195B`) is off by default (`v195Bjumbo` 0): while the shot is up on the
+   *              screen he stays on his sideline spot (off camera), never lifted up to the bowl's top deck.
+   *   BUBBLES    the bubble is held at `mascotBubbleCssPxV196B` 6.5 css px a text line (v194 B's 12): the same line's box
+   *              covers ~70% less of the screen. The cull height (`mascotMinPxV193AI`) scales with him, so he is shown
+   *              at the same camera distances as before.
+   * Kill switch TU `v196B` 0: v195 B's sizes and the jumbotron. Cosmetic only. `v196Bcheck`. */
+  const on196B = () => !!TUv("v196B", 1);
+  const scaleV194B = () => (on196B() ? TUv("mascotScaleV196B", 1.15) : TUv("mascotScaleV194B", 1.8));   // v194 B: bigger than v193 AI's 1.45; v196 B: smaller again
+  const bubblePxV196B = () => (on196B() ? TUv("mascotBubbleCssPxV196B", 6.5) : TUv("mascotBubbleCssPxV194B", 12));
   function laneW(scene, G, m, u, bank) {
     const paint = (scene.side && scene.side.paint) || 206;
     const p0 = scene.crowdProject(u, G.MIDY), p1 = scene.crowdProject(u, G.MIDY + 10);
@@ -2029,7 +2041,7 @@
     let vis = true;
     if (cam) {
       const hPx = img.displayHeight * (cam.zoom || 1);
-      if (hPx < TUv("mascotMinPxV193AI", 14)) vis = false;
+      if (hPx < TUv("mascotMinPxV193AI", 14) * (on196B() ? scaleV194B() / TUv("mascotScaleV194B", 1.8) : 1)) vis = false;   // v196 B: smaller, culled at the same camera distance as before
       else if (wv && wv.width > 0 && (img.x + 40 * k < wv.x || img.x - 40 * k > wv.x + wv.width || img.y + 40 * k < wv.y || img.y - 60 * k > wv.y + wv.height)) vis = false;
     }
     if (vis !== m.vis) { m.vis = vis; img.setVisible(vis); m.sh.setVisible(vis); }
@@ -2080,7 +2092,7 @@
         try { A.bubbleBox && A.bubbleBox.destroy(); } catch (e) {}
         A.bubbleBox = boxV194B(scene, B.text, { fs: 20, fill: 0xffffff, tail: true, padX: 16, padY: 8, wrap: 230 }); B.drawn = B.text;
       }
-      const z = (cam ? cam.zoom || 1 : 1) * kcssV194B(scene, A, now), want = TUv("mascotBubbleCssPxV194B", 12) / (20 * z);
+      const z = (cam ? cam.zoom || 1 : 1) * kcssV194B(scene, A, now), want = bubblePxV196B() / (20 * z);
       const age = now - B.at, pop = REDUCED ? 1 : 0.6 + 0.4 * Math.min(1, age / 140), fade = Math.min(1, (B.until - now) / 250);
       const topY = hy - f.hipY * k - 4 * k - (wantSign ? 30 * k : 0);
       const bw2 = (A.bubbleBox.__w / 2) * want, bh = A.bubbleBox.__h * want;
@@ -2471,7 +2483,7 @@
       const bi = B.plan.beats.indexOf(n - 1); if (bi >= 0 && bi >= B.beatI) { B.popAt = now; B.beatI = bi + 1; }   // the punchline's first letter
       if (V195.type && V195.type.text === B.text) { V195.type.shown = n; if (V195.typeLog.length < 400) V195.typeLog.push([Math.round(age), n]); }
     }
-    const z = (cam ? cam.zoom || 1 : 1) * kcssV194B(scene, A, now), want = TUv("mascotBubbleCssPxV194B", 12) / (20 * z);
+    const z = (cam ? cam.zoom || 1 : 1) * kcssV194B(scene, A, now), want = bubblePxV196B() / (20 * z);
     const pop0 = REDUCED ? 1 : 0.6 + 0.4 * Math.min(1, age / 140), pq = (now - B.popAt) / 220, pop = pop0 * (REDUCED || pq >= 1 ? 1 : 1 + 0.1 * Math.sin(Math.PI * pq));
     const fade = Math.min(1, (B.until - now) / 250);
     const topY = hy - f.hipY * k - 4 * k - (wantSign ? 30 * k : 0);
@@ -2533,7 +2545,7 @@
 
   /* ---- 6. the jumbotron: while the shot is up on the screen, he dances on the top deck beside it ---- */
   function jumboV195B(scene, m, A, wv, fieldSeen) {
-    if (!on195() || !TUv("v195Bjumbo", 1)) { A.jumboV195B = null; return null; }
+    if (!on195() || !TUv("v195Bjumbo", on196B() ? 0 : 1)) { A.jumboV195B = null; return null; }   // v196 B: off by default — he keeps to the ground
     const ST = scene.stadium, R = ST && ST.rect, BZ = ST && ST.bezelV177C, PN = scene._panV175;
     if (!R || !BZ || !ST.on || !(wv && wv.width > 0)) { A.jumboV195B = null; return null; }
     const panning = !!(PN && PN.t >= TUv("screenPanDelayMsV175", 350));

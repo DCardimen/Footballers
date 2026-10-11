@@ -218,7 +218,7 @@ ok(mp[1].jumpsPerMin <= 0.5 && mp[1].jumpsPerMin <= mp[0].jumpsPerMin, 'v2: no w
 
 // ================= 6. the jumbotron =================
 {
-  const { p, context } = await open(390, 844, { tune: { screenPanChanceV175: 1, screenPanGapV175: 0 }, tag: 'jumbo' })
+  const { p, context } = await open(390, 844, { tune: { screenPanChanceV175: 1, screenPanGapV175: 0, v195Bjumbo: 1 /* v196 B turned it off by default */ }, tag: 'jumbo' })
   await goLive(p, { pos: 'WR' })
   // wait for a pan that has arrived, then watch him for 1.5 s
   let J = null
