@@ -1889,7 +1889,8 @@
    *   GROUNDED   v195 B's jumbotron deck (`jumboV195B`) is off by default (`v195Bjumbo` 0): while the shot is up on the
    *              screen he stays on his sideline spot (off camera), never lifted up to the bowl's top deck.
    *   BUBBLES    the bubble is held at `mascotBubbleCssPxV196B` 6.5 css px a text line (v194 B's 12): the same line's box
-   *              covers ~70% less of the screen.
+   *              covers ~70% less of the screen. The cull height (`mascotMinPxV193AI`) scales with him, so he is shown
+   *              at the same camera distances as before.
    * Kill switch TU `v196B` 0: v195 B's sizes and the jumbotron. Cosmetic only. `v196Bcheck`. */
   const on196B = () => !!TUv("v196B", 1);
   const scaleV194B = () => (on196B() ? TUv("mascotScaleV196B", 1.15) : TUv("mascotScaleV194B", 1.8));   // v194 B: bigger than v193 AI's 1.45; v196 B: smaller again
@@ -2040,7 +2041,7 @@
     let vis = true;
     if (cam) {
       const hPx = img.displayHeight * (cam.zoom || 1);
-      if (hPx < TUv("mascotMinPxV193AI", 14)) vis = false;
+      if (hPx < TUv("mascotMinPxV193AI", 14) * (on196B() ? scaleV194B() / TUv("mascotScaleV194B", 1.8) : 1)) vis = false;   // v196 B: smaller, culled at the same camera distance as before
       else if (wv && wv.width > 0 && (img.x + 40 * k < wv.x || img.x - 40 * k > wv.x + wv.width || img.y + 40 * k < wv.y || img.y - 60 * k > wv.y + wv.height)) vis = false;
     }
     if (vis !== m.vis) { m.vis = vis; img.setVisible(vis); m.sh.setVisible(vis); }
