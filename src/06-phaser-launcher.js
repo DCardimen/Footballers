@@ -14,6 +14,27 @@ function read(k){ var i=localStorage.getItem(k); if(!i)return null; try{return J
 function isSave(e){ return !!e && typeof e==='object' && !Array.isArray(e) && ('prestige' in e); }
 function rolling(){ try{ var idx=JSON.parse(localStorage.getItem('rib_backups_v149')||'[]'); if(!Array.isArray(idx))return null; for(var i=0;i<idx.length;i++){ var m=idx[i]||{}, e=read('rib_backup_v149_'+m.id); if(isSave(e))return {save:e,meta:m}; } }catch(err){} return null; }
 function whole(t){ return typeof t==='string' && t.charAt(0)==='{' && t.charAt(t.length-1)==='}'; }
+/* ===== v196 D A FULL STORAGE NEVER EATS A SAVE =====
+ * The owner: "Progress didn't save last time for some reason... I should have 120ish medals?" The save is written
+ * whole to localStorage (~5 MB a site) beside a one-deep copy and v149 D's five rolling backups — seven copies of a save
+ * that grows with every season. Once they no longer fit, setItem threw QuotaExceededError, the career app's saveGame
+ * swallowed it (a console warning), and every save after that was lost while the game played on. Now `saveRoomy` writes
+ * the MAIN save first; on a quota error it frees room — the oldest rolling backup, then the next … then the one-deep
+ * copy — and tries again; only the main save is never given up for a copy. If it still will not fit, it throws, and the
+ * career app says so on screen (`saveFailV196D`). `window.__V196D` (fails, freed, last). Kill switch TU `v196D` 0. */
+var V196D=window.__V196D={fails:0,freed:0,last:''};
+function quota(err){ return !!err && (err.name==='QuotaExceededError'||err.name==='NS_ERROR_DOM_QUOTA_REACHED'||err.code===22||err.code===1014); }
+function freeOne(){ try{ var idx=JSON.parse(localStorage.getItem('rib_backups_v149')||'[]'); if(Array.isArray(idx)&&idx.length){ var m=idx.pop(); localStorage.removeItem('rib_backup_v149_'+(m&&m.id)); localStorage.setItem('rib_backups_v149',JSON.stringify(idx)); V196D.freed++; return true; } }catch(err){}
+  if(localStorage.getItem(BACKUP)!=null){ localStorage.removeItem(BACKUP); V196D.freed++; return true; }
+  return false; }
+function saveRoomy(text,prev){
+  for(var tries=0;tries<12;tries++){
+    try{ localStorage.setItem(SAVE,text); break; }
+    catch(err){ if(!quota(err)||!freeOne()){ V196D.fails++; V196D.last=String(err&&err.name||err); throw err; } }
+  }
+  // the one-deep copy of the save before this one: only when it fits (a copy never costs the save itself)
+  if(prev&&whole(prev)&&prev!==text){ try{ localStorage.setItem(BACKUP,prev); }catch(err){ try{ localStorage.removeItem(BACKUP); }catch(e2){} } }
+}
 window.GridironStorage={
   load:function(){
     var raw=localStorage.getItem(SAVE), e=read(SAVE); if(isSave(e))return migrate(e);
@@ -24,7 +45,9 @@ window.GridironStorage={
     if(raw)note('fresh');
     return null;
   },
-  save:function(e){ var i=migrate(typeof structuredClone==='function'?structuredClone(e):JSON.parse(JSON.stringify(e))); var l=localStorage.getItem(SAVE); if(l&&whole(l))localStorage.setItem(BACKUP,l); localStorage.setItem(SAVE,JSON.stringify(i)); try{window.__savePulse&&window.__savePulse();}catch(err){} },
+  save:function(e){ var i=migrate(typeof structuredClone==='function'?structuredClone(e):JSON.parse(JSON.stringify(e))), text=JSON.stringify(i), l=localStorage.getItem(SAVE);
+    if(!(window.RIB_TUNE&&window.RIB_TUNE.v196D===0)){ saveRoomy(text,l); try{window.__savePulse&&window.__savePulse();}catch(err){} return; }
+    if(l&&whole(l))localStorage.setItem(BACKUP,l); localStorage.setItem(SAVE,text); try{window.__savePulse&&window.__savePulse();}catch(err){} },
   export:function(){ return localStorage.getItem(SAVE); }
 };
 var inst;

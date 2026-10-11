@@ -13001,8 +13001,21 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
         : localStorage.setItem(SAVE_KEY, JSON.stringify(state));
     } catch (e) {
       console.warn("Running It Back save failed", e);
+      saveFailV196D(e); /* v196 D: never silent */
     }
   }
+  /* ===== v196 D A FULL STORAGE NEVER EATS A SAVE (the career app) ===== a save that could not be written says so
+   * (once a minute), with the way out — see the block in src/06-phaser-launcher.js. */
+  function saveFailV196D(err) {
+    try {
+      const now = Date.now();
+      if (now - (saveFailV196D.at || 0) < 60000) return;
+      saveFailV196D.at = now;
+      const msg = "⚠️ Progress NOT saved — this device's storage is full. Settings › 💾 Save File & Backups → export your save.";
+      showToast(msg);
+    } catch (_) {}
+  }
+  window.__V196D && (window.__V196D.saveGame = () => saveGame()); /* v196 D: the checks save through the real path */
   function loadSave() {
     try {
       if (window.GridironStorage) return window.GridironStorage.load();
@@ -43302,7 +43315,7 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
       j.choiceV196C = how;
       window.__V196C.chosen.push({ how, name: j.name, weeks: j.weeksRemaining });
       const n = j.weeksRemaining || 0;
-      toast(how === "through" ? `🩹 Playing through ${j.name} — −${throughPctV196C(j)}% for ${n} game${n === 1 ? "" : "s"}` : `🛌 Resting ${j.name} — out ${n} week${n === 1 ? "" : "s"}`);
+      showToast(how === "through" ? `🩹 Playing through ${j.name} — −${throughPctV196C(j)}% for ${n} game${n === 1 ? "" : "s"}` : `🛌 Resting ${j.name} — out ${n} week${n === 1 ? "" : "s"}`);
       saveGame();
       typeof render === "function" && ["season", "hub"].includes(state.view) && render();
     } catch (_) {}

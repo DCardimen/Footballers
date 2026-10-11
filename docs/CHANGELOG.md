@@ -10,6 +10,14 @@ Names in older entries are the career app's pre-v149 C minified names (`q`, `ms`
 `index.html` + `src/` (`docs/LAYOUT.md`).
 
 <!-- new entries go here, newest first -->
+- **v196 D · A full storage never eats a save.** (`src/06-phaser-launcher.js`, `src/07-career-app.js`.) The owner:
+  "Progress didn't save last time for some reason... I should have 120ish medals?" The save sits in localStorage (~5 MB a
+  site) beside a one-deep copy and v149 D's five rolling backups; once they no longer fit, the main write threw a quota
+  error that `saveGame` swallowed — every save after that was lost while the game played on. `saveRoomy` writes the main
+  save first and, on a quota error, frees the oldest rolling backup (then the next, then the one-deep copy) and tries
+  again; if it still cannot, the game says "⚠️ Progress NOT saved" on screen (`saveFailV196D`). Also: v196 C's injury
+  choice called the `#toast` element (a DOM global) instead of `showToast`, so the choice reached the save only with the
+  next save — fixed. Kill switch `v196D` 0. `v196Dcheck`.
 - **v196 C · An injury is a choice.** (`src/07-career-app.js`.) The owner: "Sometimes injuries are instantly cleared …
   Once injured, tell how many weeks, make obvious. … One should be play through it with stat losses during, or rest and
   recover x weeks. I think clicking off the injury screen ignore it." **Never instant:** the week's result (and its

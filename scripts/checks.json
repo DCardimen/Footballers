@@ -1540,7 +1540,8 @@
     "walk",
     "menu-integration-check",
     "layoutcheck",
-    "v150Acheck"
+    "v150Acheck",
+    "v196Dcheck"
    ]
   },
   "rows": {
@@ -5624,6 +5625,18 @@
     "injury"
    ],
    "runtimeSec": 40,
+   "slow": false,
+   "needsServer": true,
+   "pureNode": false,
+   "flaky": []
+  },
+  "v196Dcheck": {
+   "file": "scripts/v196Dcheck.mjs",
+   "desc": "v196 D — a full storage never eats a save: storage filled with rolling backups in it, the save still lands (the oldest backups make room); nothing left to free, the save fails loudly ('Progress NOT saved'); TU v196D 0 = the old quota throw; no page errors",
+   "areas": [
+    "pwa"
+   ],
+   "runtimeSec": 20,
    "slow": false,
    "needsServer": true,
    "pureNode": false,
