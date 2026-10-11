@@ -618,6 +618,7 @@
       );
     return (
       n.injury &&
+        !freshInjV196C(e, n.injury, t) /* v196 C: the game he got hurt in is not a game of healing */ &&
         ((n.injury.weeksRemaining = Math.max(
           0,
           n.injury.weeksRemaining - (a === "recovery" || a === "recover" ? 2 : 1)
@@ -13333,7 +13334,7 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
       m =
         1 -
         ((x - from) / Math.max(1, 100 - from)) * (1 - TU("condWornMax", 0.8)) * fatKeepV146(); /* v146 C: Iron Lungs */
-    if (inj) m = Math.min(m, TU("condWorn", 0.9));
+    if (inj) m = Math.min(m, inj.playThroughV196C && onV196C() ? throughMulV196C(inj) : TU("condWorn", 0.9)); /* v196 C: playing through it costs more */
     return m;
   }
   window.__fatigueMulV120 = fatigueMulV120;
@@ -23671,7 +23672,7 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
       const y = a.find(P => !P.played),
         C = y && y.playoff ? y.round : "Week " + (s.findIndex(P => !P.played) + 1),
         V = a.filter(P => !P.played).length;
-      byId("dock").innerHTML = `
+      byId("dock").innerHTML = `${injDockV196C(e) /* v196 C: hurt — how many weeks, in plain sight */}
       <button class="btn" onclick="playWeek(true)">▶ Play ${C} Live</button>
       ${liveOnlyV164D(e) ? liveOnlyNoteV164D() /* v164 D: a Live Sim Only career — no Quick Play, no sim */ : playoffLockV156B(e, y) ? playoffNoteV156B() + betaSkipBtnV181(e, y) /* v156 B: the playoffs are played live — no Quick Play, no sim; v181: the beta skip */ : `<div style="height:8px"></div>
       <button class="btn secondary" onclick="playWeek(false)">⏩ Quick Play ${C}${gameSimTagV158B() /* v158 B: "" while the store is off */}</button>${watchNoteV164C()}`}
@@ -23823,6 +23824,7 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
       c.injury = inj;
       wk.injName = inj.name;
       inj.rawWeeksV193W = rawWeeksV193W;
+      newInjV196C(e, inj, wk); /* v196 C: fresh this game; a knock is one game played hurt */
       hurtNoteV193W(e, wk, inj, "week"); /* v193 W: the pop-up, on the next screen */
       if (injPopOnV193W()) return;
       try {
@@ -23839,6 +23841,8 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
   function mustSitV18(e) {
     const c = e && e.conditionV11,
       j = c && c.injury;
+    if (j && j.playThroughV196C && !j.seasonEnding && onV196C()) return !1; /* v196 C: he chose to play through it */
+    if (j && j.freshV196C && onV196C() && e.weekResults && e.weekResults.findIndex(w => w && !w.played) === j.bornWkV196C) return !1; /* v196 C: the game he got hurt in is still his to play — never a DNP that heals it */
     return !!(j && (j.weeksRemaining || 0) > 0 && ((j.severity || 1) >= 2 || j.resting || j.seasonEnding));
   }
   window.__mustSitV18 = mustSitV18;
@@ -23861,6 +23865,7 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
       s.them = Math.max(u, s.them || 0);
       s.won = s.us > s.them;
     }
+    inj && (delete inj.freshV196C, delete inj.bornWkV196C); /* v196 C: a sat week always heals */
     if (inj && !inj.seasonEnding) {
       inj.weeksRemaining = Math.max(0, (inj.weeksRemaining || 0) - 1);
       if (inj.weeksRemaining <= 0) {
@@ -43102,7 +43107,7 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
         gain = yd > 0 ? "a " + yd + "-yard " + (p.off && p.ev === "pass" ? "catch" : what) : yd < 0 ? "a " + what + " for a loss of " + Math.abs(yd) : "a " + what + " that went nowhere";
       return `${P.verb} ${p.off ? "on " + gain : "making the stop on " + gain}, ${ord}${p.clock ? " (" + p.clock + ")" : ""} — ${wkL}.`;
     }
-    if (q.src === "game") return `${P.verb} in the game — ${wkL}.`;
+    if (q.src === "game" || onV196C()) return `${P.verb} in the game — ${wkL}.`; /* v196 C: he plays the game it happens in */
     if (q.knock) return `${P.hurt} going into ${wkL} — a knock; he plays through it.`;
     return `${P.hurt} in practice before ${wkL} — he did not dress for the game.`;
   }
@@ -43194,8 +43199,9 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
       return injPumpV193W();
     }
     INJ_W.open = q;
+    const choiceV196C = q.k === "hurt" ? injChoosableV196C(e, q) : null;
     const D = window.ribDialog,
-      html = q.k === "heal" ? injHealHtmlV193W(e, q) : injHtmlV193W(e, q);
+      html = q.k === "heal" ? injHealHtmlV193W(e, q) : choiceV196C ? injChoiceHtmlV196C(e, q, choiceV196C) : injWeeksBannerV196C(e, q) + injHtmlV193W(e, q);
     INJ_W.last = { k: q.k, id: q.id, name: q.name, at: Date.now() };
     INJ_W.shown.push(INJ_W.last);
     INJ_W.shown.length > 40 && INJ_W.shown.shift();
@@ -43216,10 +43222,22 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
         saveGame();
       } catch (_) {}
       if (v === "body") injToBodyV193W();
+      if (choiceV196C) injChooseV196C(e, choiceV196C, v === "through" ? "through" : "rest");
       injSoonV193W(500);
     };
-    const btns = q.k === "heal" ? [{ label: "Back to work", value: "ok", kind: "primary" }] : [{ label: "🩺 His body", value: "body" }, { label: "Got it", value: "ok", kind: "primary" }];
-    if (D && D.show) D.show({ title: q.k === "heal" ? "BACK FROM INJURY" : "INJURY", html, buttons: btns, cancelValue: "ok" }).then(done, done);
+    const btns =
+      q.k === "heal"
+        ? [{ label: "Back to work", value: "ok", kind: "primary" }]
+        : choiceV196C
+          ? [
+              { label: `🩹 Play through it (−${throughPctV196C(choiceV196C)}%)`, value: "through" },
+              { label: `🛌 Rest ${choiceV196C.weeksRemaining} week${choiceV196C.weeksRemaining === 1 ? "" : "s"}`, value: "rest", kind: "primary" }
+            ] /* v196 C: the two real choices */
+          : onV196C()
+            ? [{ label: "Got it", value: "ok", kind: "primary" }]
+            : [{ label: "🩺 His body", value: "body" }, { label: "Got it", value: "ok", kind: "primary" }];
+    // v196 C: an injury is never waved away by a tap outside the card — he has to pick
+    if (D && D.show) D.show({ title: q.k === "heal" ? "BACK FROM INJURY" : "INJURY", html, buttons: btns, cancelValue: choiceV196C ? "rest" : "ok", dismissable: !(onV196C() && q.k === "hurt") }).then(done, done);
     else {
       try {
         window.alert((q.k === "heal" ? "Back from injury: " : "Injury: ") + q.name);
@@ -43228,6 +43246,106 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
     }
     return !0;
   }
+  /* ===== v196 C AN INJURY IS A CHOICE =====
+   * The owner: "Sometimes injuries are instantly cleared, please fix this. Once injured, tell how many weeks, make obvious.
+   * 2 choices dont make much sense as they stand now. One should be play through it with stat losses during, or rest and
+   * recover x weeks. I think clicking off the injury screen ignore it."
+   *   NEVER INSTANT  an injury is rolled with the week's result (`resolveWeekV11` → `materializeInjuryV18`) BEFORE the
+   *                 game is booked, so `startWeek` saw `mustSitV18` and turned THE GAME HE GOT HURT IN into a DNP that
+   *                 healed it (`sitOutWeekV18`); a one-game injury was gone before the pop-up, and the knock (0 games, 45%)
+   *                 too, through the same game's `updateConditionAfterGame` tick. It is `freshV196C` now (`bornWkV196C`,
+   *                 its week): that week is never sat out for it, and its condition update heals nothing; the games after
+   *                 it do (`sitOutWeekV18` always heals). A knock is one game played hurt (it was zero).
+   *   HOW LONG      the pop-up opens on a big "N WEEKS" (`injWeeksBannerV196C`) — "OUT FOR THE SEASON" for an ender.
+   *   THE CHOICE    while the injury is his and still to heal (`injChoosableV196C`; a season-ender has no choice):
+   *                   🩹 PLAY THROUGH IT — he plays every game; until it heals every attribute is
+   *                      −(`v196CthroughBase` 5% + `v196CthroughSev` 5% × severity) (`throughMulV196C`, in `fatigueMulV120`),
+   *                      on top of the hurt man's fewer snaps, lower rating and re-injury risk; it heals a game a game.
+   *                   🛌 REST N WEEKS — he sits the N games (`resting`), and comes back whole.
+   *                 `dismissable` false: a tap outside does nothing — he picks. Unanswered (an automated browser, the pop-up
+   *                 off) the old rule stands: severity ≥ 2 sits, a knock plays.
+   * Kill switch TU `v196C` 0 (the old tick, the old buttons). `window.__V196C`; `v196Ccheck`. */
+  function onV196C() {
+    return !!TU("v196C", 1);
+  }
+  // the game it was made in (its week row's index): that game's condition update heals nothing
+  function freshInjV196C(e, j, wk) {
+    if (!j || !j.freshV196C) return !1;
+    const born = j.bornWkV196C,
+      wi = e && e.weekResults && wk ? e.weekResults.indexOf(wk) : -2;
+    delete j.freshV196C;
+    delete j.bornWkV196C;
+    return onV196C() && born === wi;
+  }
+  function newInjV196C(e, j, wk) {
+    if (!j || !onV196C()) return;
+    j.freshV196C = !0;
+    j.bornWkV196C = e && e.weekResults && wk ? e.weekResults.indexOf(wk) : -1;
+    j.knock && !j.seasonEnding && (j.weeksRemaining || 0) < 1 && (j.weeksRemaining = 1);
+  }
+  function throughMulV196C(j) {
+    return clamp99(1 - TU("v196CthroughBase", 0.05) - TU("v196CthroughSev", 0.05) * Math.min(4, (j && j.severity) || 1), 0.5, 1);
+  }
+  function throughPctV196C(j) {
+    return Math.round((1 - throughMulV196C(j)) * 100);
+  }
+  // the injury this note is about, while it is his and still to heal (a season-ender has no choice)
+  function injChoosableV196C(e, q) {
+    if (!onV196C()) return null;
+    const j = cv18(e).injury;
+    return j && j.idV193W === q.id && !j.seasonEnding && (j.weeksRemaining || 0) > 0 ? j : null;
+  }
+  function injChooseV196C(e, j, how) {
+    try {
+      if (how === "through") ((j.playThroughV196C = !0), (j.resting = !1));
+      else ((j.playThroughV196C = !1), (j.resting = !0));
+      j.choiceV196C = how;
+      window.__V196C.chosen.push({ how, name: j.name, weeks: j.weeksRemaining });
+      const n = j.weeksRemaining || 0;
+      toast(how === "through" ? `🩹 Playing through ${j.name} — −${throughPctV196C(j)}% for ${n} game${n === 1 ? "" : "s"}` : `🛌 Resting ${j.name} — out ${n} week${n === 1 ? "" : "s"}`);
+      saveGame();
+      typeof render === "function" && ["season", "hub"].includes(state.view) && render();
+    } catch (_) {}
+  }
+  function injWeeksBannerV196C(e, q, choosing) {
+    if (!onV196C()) return "";
+    const j = cv18(e).injury,
+      cur = j && j.idV193W === q.id ? j : null;
+    if (!cur) return "";
+    const n = cur.weeksRemaining || 0,
+      big = cur.seasonEnding ? "OUT FOR THE SEASON" : `${n} WEEK${n === 1 ? "" : "S"}`,
+      sub = cur.seasonEnding ? "He is back next season." : choosing ? "to heal — your call below" : cur.playThroughV196C ? "playing through it" : mustSitV18(e) ? "out — he sits every game until it heals" : "to heal";
+    return `<div class="inj-weeks-v196c" data-weeks="${cur.seasonEnding ? 99 : n}" style="text-align:center;margin:0 0 12px;padding:10px 8px;border-radius:12px;background:#ff5a4a1f;border:1px solid #ff6b6b88"><div style="font:700 34px/1 Oswald,Impact,sans-serif;letter-spacing:1px;color:#ff6b6b">${big}</div><div style="margin-top:4px;font:700 10.5px Oswald,sans-serif;letter-spacing:1.6px;color:#ffb3a8;text-transform:uppercase">${escHtml(sub)}</div></div>`;
+  }
+  function injChoiceHtmlV196C(e, q, j) {
+    const P = injPartV193W(q.name),
+      sev = injSevV193W(q),
+      n = j.weeksRemaining || 0,
+      wk = `${n} week${n === 1 ? "" : "s"}`,
+      g = `${n} game${n === 1 ? "" : "s"}`,
+      snaps = Math.round(Math.min(3, j.severity || 1) * 11),
+      opt = (ic, t, d, col) => `<div style="flex:1;min-width:0;padding:8px 9px;border-radius:10px;border:1px solid ${col}66;background:${col}14"><div style="font:700 13px/1.15 Oswald,sans-serif;letter-spacing:.5px;color:${col}">${ic} ${t}</div><div style="margin-top:3px;font-size:11.5px;line-height:1.35">${d}</div></div>`;
+    return `<div class="inj-choice-v196c inj-pop-v193w" data-id="${escHtml(q.id)}" data-weeks="${n}" style="font:13px/1.45 system-ui,sans-serif;color:#d6e0ea;white-space:normal">
+      <div style="display:flex;align-items:center;gap:10px;margin:0 0 8px"><div style="flex:0 0 auto;font-size:28px">${artV193Y(P.ic, 32, "#ff8a5c")}</div><div style="min-width:0"><div class="inj-name-v193w" style="font:700 19px/1.1 Oswald,Impact,sans-serif;color:#fff">${escHtml(q.name)}</div><div style="font:700 10px Oswald,sans-serif;letter-spacing:1.4px;color:#ff8a5c">${sev} · ${escHtml(P.part.toUpperCase())}</div></div></div>
+      ${injWeeksBannerV196C(e, q, !0)}
+      <div class="inj-what-v193w" style="margin:0 0 10px;font-size:12px;color:#9fb0c2">${escHtml(injWhatV193W(e, q))}</div>
+      <div style="font:700 10px Oswald,sans-serif;letter-spacing:1.6px;color:#f0bb45;margin-bottom:5px">YOUR CALL</div>
+      <div style="display:flex;gap:8px">
+        ${opt("🩹", "PLAY THROUGH IT", `Plays the next ${n === 1 ? "game" : g}, hurt: <b>−${throughPctV196C(j)}% to every attribute</b>, −${snaps}% snaps and a higher re-injury risk until it heals.`, "#ffb347")}
+        ${opt("🛌", `REST ${wk.toUpperCase()}`, `Sits the next ${n === 1 ? "game" : g} (DNP) and comes back at full strength.`, "#7fd3ff")}
+      </div>
+    </div>`;
+  }
+  // the season dock: hurt, how many weeks, and what he chose
+  function injDockV196C(e) {
+    if (!onV196C()) return "";
+    const j = e && e.conditionV11 && e.conditionV11.injury;
+    if (!j || !((j.weeksRemaining || 0) > 0)) return "";
+    const n = j.weeksRemaining,
+      what = j.seasonEnding ? "OUT FOR THE SEASON" : mustSitV18(e) ? `OUT ${n} WEEK${n === 1 ? "" : "S"}` : `PLAYING HURT · ${n} WEEK${n === 1 ? "" : "S"} LEFT · −${j.playThroughV196C ? throughPctV196C(j) : Math.round((1 - TU("condWorn", 0.9)) * 100)}%`;
+    return `<div class="inj-dock-v196c" style="margin:0 0 8px;padding:7px 10px;border-radius:10px;border:1px solid #ff6b6b88;background:#ff5a4a1c;font:700 13px Oswald,sans-serif;letter-spacing:.8px;color:#ff8a7a;text-align:center">🩹 ${escHtml(String(j.name || "Injury").toUpperCase())} — ${what}</div>`;
+  }
+  window.__V196C = { chosen: [], on: () => onV196C(), throughMul: j => throughMulV196C(j), choosable: q => injChoosableV196C(state.player, q) };
   function injHtmlV193W(e, q) {
     const P = injPartV193W(q.name),
       H = injHowLongV193W(e, q),

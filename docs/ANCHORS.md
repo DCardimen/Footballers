@@ -160,6 +160,7 @@ all `src/NN-*.js`; `public/rib-menu*.js|css` menu + coach; `public/rib-vault*` v
 
 ## 3. Career and progression (`src/07-career-app.js`)
 
+- `v196 C AN INJURY IS A CHOICE` — `src/07-career-app.js` (before `injHtmlV193W`; + hooks in `updateConditionAfterGame`, `materializeInjuryV18`, `mustSitV18`, `sitOutWeekV18`, `fatigueMulV120`, `injPumpV193W`, `injWhatV193W`, `screenSeason`'s dock) · `newInjV196C` marks a new injury `freshV196C` + `bornWkV196C` (its week row) and makes a knock 1 game; `mustSitV18` never sits the week it was born in (the result is rolled before `startWeek` books it); `freshInjV196C` skips that week's `updateConditionAfterGame` tick; `injChoosableV196C` → `injChoiceHtmlV196C` (the `injWeeksBannerV196C` "N WEEKS", PLAY THROUGH / REST), `dismissable` false, `injChooseV196C` sets `playThroughV196C` (mustSit false; `throughMulV196C` = 1 − `v196CthroughBase` .05 − `v196CthroughSev` .05 × severity in `fatigueMulV120`) or `resting`; `injDockV196C` on the season dock. Kill switch `TU("v196C", 0)`. `window.__V196C`; `v196Ccheck`.
 - `v196 A THE SEASON FINISHES ONCE` — `src/07-career-app.js` (after v193 O's wrappers: `finishOnceWrapV196A`, the LAST `finishSeasonGames` wrapper, so it runs first; + `screenSeason`'s dock and `flowDockV178`) · refuses (→ the hub) unless `weekResults` is a non-empty array, `busy` lock against a double tap; the docks show "Season Complete — Back to Hub" on an empty schedule. Kill switch `TU("v196A", 0)`. `window.__V196A` (runs, refused); `v196Acheck`.
 
 <!-- new career entries go here, newest first -->

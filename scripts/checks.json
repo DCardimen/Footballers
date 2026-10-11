@@ -894,7 +894,8 @@
     "injurycheck",
     "availabilitycheck",
     "v153Bcheck",
-    "v193Wcheck"
+    "v193Wcheck",
+    "v196Ccheck"
    ]
   },
   "ovr": {
@@ -5615,6 +5616,18 @@
    "pureNode": false,
    "flaky": [],
    "loadSensitive": true
+  },
+  "v196Ccheck": {
+   "file": "scripts/v196Ccheck.mjs",
+   "desc": "v196 C — an injury is a choice: a 1-game injury and a knock survive the game they happen in (TU v196C 0: gone at once); the pop-up's big N WEEKS and exactly Play through it / Rest N weeks; a tap outside / Escape does not close it; Rest sits N games then clears; Play through plays every game at −15% (severity 2) and heals a game a game; the season dock says it; a season-ender has no choice; no page errors",
+   "areas": [
+    "injury"
+   ],
+   "runtimeSec": 40,
+   "slow": false,
+   "needsServer": true,
+   "pureNode": false,
+   "flaky": []
   }
  }
 }
