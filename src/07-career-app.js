@@ -18312,6 +18312,7 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
   // v178 O: the per-level team baseline every roster is built on (live rosters, the quick sim's ratings, the displays).
   // Interstellar (8) had no entry and fell back to 55 — weaker than Varsity — so it sits above the UFF now. Hoisted.
   function levelBaseV178(lv) {
+    if ((lv | 0) === 7 && onV197()) return TU("v197uffBase", 160); /* v197: the UFF is a league of men who built themselves — a newcomer is average, the MVP is earned */
     return [18, 30, 42, 54, 66, 78, 86, 90, TU("v178O", 1) ? TU("aiBaseIstV178", TU("v183IST", 1) ? (TU("v186", 1) ? 700 : 400) : 100) : 55 /* v183: the Interstellar League is a league of legends — a newcomer (~OVR 350) wins ~55%, a title wants ~OVR 600 */][lv | 0] || 55;
   }
   window.__levelBaseV178 = levelBaseV178;
@@ -43788,7 +43789,7 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
     const hi = TU("domFloorTopV195A", 0.2),
       lo = TU("domFloorLowV195A", 0.1),
       f = top <= 1 ? hi : hi + (lo - hi) * ((R.pos - 1) / (top - 1));
-    return lv >= 6 && onV197() ? f * TU("v197domCombineK", 0.25) : f; /* v197: a dominant College season still gets its shot; the UFF is earned */
+    return lv >= 6 && onV197() ? f * TU("v197domCombineK", 0.05) : f; /* v197: a dominant College season still gets its shot; the UFF is earned */
   }
   // A and A+ belong to the top ten at the position; the rest cap at B+
   function gradeTopCapV195A(e, g, why) {
