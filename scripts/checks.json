@@ -1993,7 +1993,8 @@
     "v193AFcheck",
     "v195Acheck",
     "v195Ccheck",
-    "v196Acheck"
+    "v196Acheck",
+    "v197check"
    ]
   }
  },
@@ -5635,6 +5636,18 @@
    "desc": "v196 D — a full storage never eats a save: storage filled with rolling backups in it, the save still lands (the oldest backups make room); nothing left to free, the save fails loudly ('Progress NOT saved'); TU v196D 0 = the old quota throw; no page errors",
    "areas": [
     "pwa"
+   ],
+   "runtimeSec": 20,
+   "slow": false,
+   "needsServer": true,
+   "pureNode": false,
+   "flaky": []
+  },
+  "v197check": {
+   "file": "scripts/v197check.mjs",
+   "desc": "v197 — prestige v2, potential is what you built: Economy/Swagger/Fate nodes cost PP and do not move potential, a Physical node's price is invested and potential rises; stat upgrades = the four stat branches + every ceiling/growth node; diminishing returns; the 🧬 branch refunded once, its tab gone, its nodes locked, no bloodline at a career end; 50 misses never take a bar under 80%; TU v197 0 restores the bloodline; no page errors",
+   "areas": [
+    "prestige-pacing"
    ],
    "runtimeSec": 20,
    "slow": false,

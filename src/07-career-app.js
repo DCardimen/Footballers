@@ -43907,7 +43907,10 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
    * ranging heavily from good decisions to bad, 250 hours for UFF championship as MVP (should be hard to stay in UFF once
    * there but massive prestige bonus). Then interstellar hours 300 and on. I'm not in love with the bloodline system …
    * maybe it's tied to the amount of prestige upgrades you have purchased which impact stats and max stats."
-   *   POTENTIAL     the scouts' number (`rawCeilingV179`) loses the bloodline and gains `potInvestV197`:
+   *   POTENTIAL     the scouts' number (`rawCeilingV179`) is ONE thing now (`v197unify`): 30 + `potInvestV197` + the medals
+   *                 × `v197medalK` + chaos + the Path — the bloodline, the per-level part and the ceiling nodes' own bonus
+   *                 (Freak ×12, Superhuman ×20, every +ceiling ×3: a 14-PP Eternal Ceiling level was worth +6) are gone;
+   *                 a ceiling node counts at the PP it cost, like any stat upgrade. `potInvestV197`:
    *                 `v197potK` × (PP invested in STAT upgrades)^`v197potExp` — the Physical, Mental, Body and Camp branches
    *                 and every node anywhere that raises a ceiling, a cap, growth or every starting attribute
    *                 (`statNodeV197`); every level priced as it was bought (`nodeCost(n, k)`). The medals' share drops from
@@ -44281,6 +44284,9 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
   // the growth ceiling every attribute grows toward — the sum both growth paths used to spell out
   function rawCeilingV179(w) {
     if (w == null) w = Object.values(state.tree || {}).reduce((R, O) => R + O, 0);
+    /* v197: ONE source — the PP spent on stat upgrades (ceiling nodes count at the price they cost, never again on top) */
+    if (onV197() && TU("v197unify", 1))
+      return 30 + effectivePrestige(state.prestige) * medalPotKV197() + potInvestV197() + chaosTotal() * 1.6 + (pathVal("growthMult", 1) - 1) * 36 + (state.path === "phenom" ? 30 : 0);
     return (
       30 +
       effectivePrestige(state.prestige) * medalPotKV197() /* v197: medals weigh less, the stat upgrades you built more */ +
@@ -45924,7 +45930,7 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
     let nodes = 0,
       prestige = 0;
     try {
-      nodes = (nodeLvl("freak") * 12 + nodeLvl("superhuman") * 20 + nodeLvl("primeGenes") * 9 + treeFx("ceilPlus")) * mult;
+      nodes = onV197() && TU("v197unify", 1) ? 0 : (nodeLvl("freak") * 12 + nodeLvl("superhuman") * 20 + nodeLvl("primeGenes") * 9 + treeFx("ceilPlus")) * mult; /* v197: counted through the PP they cost */
       prestige = effectivePrestige(state.prestige) * medalPotKV197();
     } catch (_) {}
     const total = rawCeilingV179(w),
