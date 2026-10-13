@@ -178,6 +178,8 @@ function installDriver () {
       if ((p.nflRings || 0) > 0 && rec.ringAt == null) rec.ringAt = p.totalSeasons
       if (p.level >= 8 && rec.istAt == null) { rec.istAt = p.totalSeasons; rec.end = 'interstellar'; break }
       if (until === 'uff' && p.level >= 7) { rec.end = 'uff'; break }
+      // v197: --until mvp — the UFF title as its League MVP (the `dflMvpTitle` feat, "The Man Who Won It")
+      if (S().challenges && S().challenges.dflMvpTitle && rec.mvpAt == null) { rec.mvpAt = p.totalSeasons; if (until === 'mvp') { rec.end = 'mvp'; rec.title = true; break } }
       const key = v + '|' + p.totalSeasons + '|' + unplayed(p).length + '|' + (p.pendingEvent || '') + '|' + !!p.offersV146B
       if (key === lastKey) { if (++sameView > 12) return dump('stuck on ' + v) } else { sameView = 0; lastKey = key }
       lastView = v
@@ -325,10 +327,11 @@ async function playRun (page, runNo) {
     if (rec.uffAt != null && out.seasonsToUff == null) out.seasonsToUff = before + rec.uffAt
     if (rec.ringAt != null && out.seasonsToRing == null) out.seasonsToRing = before + rec.ringAt
     if (rec.istAt != null && out.seasonsToIst == null) out.seasonsToIst = before + rec.istAt
+    if (rec.mvpAt != null && out.seasonsToMvp == null) out.seasonsToMvp = before + rec.mvpAt
     const hrs = (n) => (n == null ? '—' : n + ' seasons (' + ((n * SEASON_MIN) / 60).toFixed(1) + ' h)')
     out.traj = (out.traj || []).concat([[before + (rec.totalSeasons || 0), rec.medals2 != null ? rec.medals2 : rec.medals, rec.maxLevel]])
     console.log(`   traj: seasons ${before + (rec.totalSeasons || 0)} medals ${rec.medals2 != null ? rec.medals2 : rec.medals} level ${rec.maxLevel}`)
-    console.log(`   milestones: UFF ${hrs(out.seasonsToUff)} · ring ${hrs(out.seasonsToRing)} · Interstellar ${hrs(out.seasonsToIst)} · pp ${rec.pp} · chaos ${rec.chaos || 0} · era ${rec.era || 0}`)
+    console.log(`   milestones: UFF ${hrs(out.seasonsToUff)} · ring ${hrs(out.seasonsToRing)} · MVP title ${hrs(out.seasonsToMvp)} · Interstellar ${hrs(out.seasonsToIst)} · pp ${rec.pp} · chaos ${rec.chaos || 0} · era ${rec.era || 0}`)
     if (rec.title) { out.title = true; break }
     if (UNTIL === 'uff' && out.seasonsToUff != null) { out.title = true; break }
     if (UNTIL === 'interstellar' && out.seasonsToIst != null) { out.title = true; break }

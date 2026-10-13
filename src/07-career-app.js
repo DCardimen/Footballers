@@ -5679,7 +5679,7 @@ ${col(
     return `<div class="scouts-x-v193e" style="text-align:left">
 ${block("★", "RECRUIT STARS", `<b>${"★".repeat(Math.max(0, Math.min(5, D.stars))) || "—"}</b> (${D.stars} of 5) — the talent grade he was born with; the program tiers re-grade it. Coaches and the Recruiting Board rate him on sight by it. <b>It never rolls</b> — the declare does not read it.`)}
 ${block("🏅", "NATIONAL RANK", `${D.rank != null ? `<b>#${fmtInt(D.rank)}</b> of ${fmtInt(D.of)} at ${D.level} · <b>top ${D.topPct}%</b>` : `your place among the ${fmtInt(D.of)} at ${D.level}`} — THIS season's production and OVR against every peer at the level. It is the <b>floor under the declare roll</b>${D.rankCh != null ? ` (the rank alone: ${pc(D.rankCh)}; your declare odds now: <b>${pc(D.declare)}</b>)` : ""}. At ${D.level}: #1 rolls ≥ ${pc(D.num1)}, <b>top 1% ≥ ${pc(D.top1)}</b>, top 5% ≥ ${pc(D.top5)}, the last man inside the advancing ${D.half}% a coin flip, well outside it single digits. <b>One roll; a miss ends the career.</b>${D.floorOn ? ` A top-1% season rolls at ≥ ${TU("rankTop1FloorV193E", 99)}% now (v193 E) — before, 97%.` : ""}${D.lv >= 5 ? " From College on the season roll is followed by the scouts' verdict below." : ""}`)}
-${block("🧬", "BLOODLINE POTENTIAL", `<b>${fmtBigV179(D.pot)}</b> — the growth ceiling the tree hands every son, judged ONLY at the three big declares${D.bars.length ? ` (${D.bars.map(b => `${b.name} <b>${fmtBigV179(b.bar)}</b>`).join(" · ")})` : ""}: a coin flip at the bar, better over it${D.verdict != null ? ` — your verdict now <b>${D.verdict}%</b>` : ""}.${D.next ? ` Next bar: ${D.next.name} wants <b>${fmtBigV179(D.next.bar)}</b>, you show <b>${fmtBigV179(D.pot)}</b> (${D.pot >= D.next.bar ? "✓ cleared" : "need +" + fmtBigV179(Math.ceil(D.next.bar - D.pot))}).` : ""} Raise it with <b>Freak, Prime Genes, Superhuman, the +ceiling nodes, chaos and a Path</b> — a tree of everything else barely moves it.${bloodOnV195C() ? ` And <b>every career end adds to it</b> (at least 1; the 🧬 Bloodline branch grows that).` : ""} A top-1% season in high school does not need it: the national rank carries you to College.${D.v195A ? ` <b>A dominant season always has a shot:</b> a top-${D.v195A.top} rank at your position keeps the College and Combine verdicts at <b>${D.v195A.lo}–${D.v195A.hi}%</b> however low the bloodline${D.v195A.floor ? ` (yours now: <b>${D.v195A.floor}%</b>)` : ""}, and every declare the scouts turn down lowers that level's bar ${D.v195A.pct}% for the next career (down to ${D.v195A.min}% of it; a make resets it).` : ""}`)}
+${block(onV197() ? "📈" : "🧬", onV197() ? "POTENTIAL" : "BLOODLINE POTENTIAL", `<b>${fmtBigV179(D.pot)}</b> — ${onV197() ? "what your prestige upgrades built into every son" : "the growth ceiling the tree hands every son"}, judged ONLY at the three big declares${D.bars.length ? ` (${D.bars.map(b => `${b.name} <b>${fmtBigV179(b.bar)}</b>`).join(" · ")})` : ""}: a coin flip at the bar, better over it${D.verdict != null ? ` — your verdict now <b>${D.verdict}%</b>` : ""}.${D.next ? ` Next bar: ${D.next.name} wants <b>${fmtBigV179(D.next.bar)}</b>, you show <b>${fmtBigV179(D.pot)}</b> (${D.pot >= D.next.bar ? "✓ cleared" : "need +" + fmtBigV179(Math.ceil(D.next.bar - D.pot))}).` : ""} ${onV197() ? `Raise it by <b>buying stat upgrades</b> — every PP spent in Physical, Mental, Body and Camp, and on any ceiling or growth node, counts (the first PP count most); medals, chaos and a Path add a little. Economy, Swagger and Fate nodes earn PP instead — they do not raise it.` : `Raise it with <b>Freak, Prime Genes, Superhuman, the +ceiling nodes, chaos and a Path</b> — a tree of everything else barely moves it.${bloodOnV195C() ? ` And <b>every career end adds to it</b> (at least 1; the 🧬 Bloodline branch grows that).` : ""}`} A top-1% season in high school does not need it: the national rank carries you to College.${D.v195A ? ` <b>A dominant season always has a shot:</b> a top-${D.v195A.top} rank at your position keeps the College and Combine verdicts at <b>${D.v195A.lo}–${D.v195A.hi}%</b> however low the bloodline${D.v195A.floor ? ` (yours now: <b>${D.v195A.floor}%</b>)` : ""}, and every declare the scouts turn down lowers that level's bar ${D.v195A.pct}% for the next career (down to ${D.v195A.min}% of it; a make resets it).` : ""}`)}
 ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, earned by every season and career (better grades and higher levels earn more). They open the tree's locked nodes and the Path, and the scouts can wait on them. They are not the player's stars, rank or potential.`)}
 </div>`;
   }
@@ -8849,6 +8849,7 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
     curve: n => Li(n)
   };
   function nodeUnlocked(e) {
+    if (e && onV197() && (e.branch === "bloodline" || (TREE_NODES[e.key] && TREE_NODES[e.key].branch === "bloodline"))) return !1; /* v197: retired */
     return e.req
       ? !(
           (honorHasReqV130(e.req) &&
@@ -28130,6 +28131,7 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
 
     <div class="btn-row" style="margin-bottom:14px;flex-wrap:wrap;gap:6px">
       ${Object.entries(TREE)
+        .filter(([n]) => !(n === "bloodline" && onV197())) /* v197: the bloodline is retired */
         .map(
           ([n, i]) =>
             `<button class="branch-tab ${branchTab === n ? "active" : ""}" onclick="setBranch('${n}')" style="flex:1;min-width:70px;padding:9px 4px;border-radius:9px;border:1px solid ${branchTab === n ? i.color : "var(--line)"};background:${branchTab === n ? i.color + "22" : "transparent"};color:${branchTab === n ? i.color : "var(--chalk-dim)"};font-family:'Oswald';font-weight:600;font-size:13px;cursor:pointer">${branchIconV193V(n, i)} ${i.name}</button>`
@@ -43758,7 +43760,9 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
   }
   function pityBarV195A(potBase, lv) {
     const n = pityCountV195A(lv),
-      k = Math.max(TU("pityMinV195A", 0.35), Math.pow(1 - TU("pityPctV195A", 0.08), n));
+      k = onV197()
+        ? Math.max(TU("v197pityMin", 0.8), Math.pow(1 - TU("v197pityPct", 0.02), n)) /* v197: a miss eases the bar a little, never a lot */
+        : Math.max(TU("pityMinV195A", 0.35), Math.pow(1 - TU("pityPctV195A", 0.08), n));
     return Math.max(1, potBase * k);
   }
   // the declare's outcome at a barred level: a miss eases the bar, a make resets it
@@ -43898,8 +43902,86 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
     return { rows, total: Math.max(base, round1V195C(t)), carried };
   }
   // once a career, inside the settle
+  /* ===== v197 PRESTIGE V2 — POTENTIAL IS WHAT YOU BUILT =====
+   * The owner: "I'm struggling with the prestige mechanic … difficult but not impossible … 40 to 100ish hours to UFF,
+   * ranging heavily from good decisions to bad, 250 hours for UFF championship as MVP (should be hard to stay in UFF once
+   * there but massive prestige bonus). Then interstellar hours 300 and on. I'm not in love with the bloodline system …
+   * maybe it's tied to the amount of prestige upgrades you have purchased which impact stats and max stats."
+   *   POTENTIAL     the scouts' number (`rawCeilingV179`) loses the bloodline and gains `potInvestV197`:
+   *                 `v197potK` × (PP invested in STAT upgrades)^`v197potExp` — the Physical, Mental, Body and Camp branches
+   *                 and every node anywhere that raises a ceiling, a cap, growth or every starting attribute
+   *                 (`statNodeV197`); every level priced as it was bought (`nodeCost(n, k)`). The medals' share drops from
+   *                 ×1.9 to `v197medalK`. So a decision: PP into stats raises the bar you clear NOW; PP into the Economy /
+   *                 Swagger / Fate branches earns more PP LATER — it does not move potential.
+   *   BLOODLINE     retired: no career end adds to it, the 🧬 branch is hidden and locked, and what was spent on it is
+   *                 refunded once (`bloodRefundV197`, `state.bloodRefundV197`).
+   *   PITY          v195 A's timer eased a bar 8% a miss down to 35% — ~13 misses carried ANY account through, good
+   *                 decisions or bad. Now `v197pityPct` 2% a miss, never under `v197pityMin` 80%: it helps a near miss,
+   *                 never a bad account. v195 A's dominant-season floor stays.
+   * Kill switch TU `v197` 0 (the bloodline, its branch, the old pity and the ×1.9). `window.__V197`; `v197check`. */
+  function onV197() {
+    return !!TU("v197", 1);
+  }
+  function medalPotKV197() {
+    return onV197() ? TU("v197medalK", 0.6) : 1.9;
+  }
+  function statNodeV197(n) {
+    if (!n) return !1;
+    if (/^(physical|mental|body|camp)$/.test(n.branch)) return !0;
+    const fx = n.fx || {};
+    return !!(fx.ceilPlus || fx.capPlus || fx.eGrowth || fx.startAll);
+  }
+  let investCacheV197 = { sig: "", v: 0 };
+  // the PP the stat upgrades cost, every level at the price it was bought at
+  function statInvestV197() {
+    const T = (state && state.tree) || {},
+      sig = JSON.stringify(T) + "|" + ((state && state.path) || "");
+    if (sig === investCacheV197.sig) return investCacheV197.v;
+    let sum = 0;
+    for (const k in T) {
+      const n = TREE_NODES[k],
+        L = T[k] | 0;
+      if (!n || L <= 0 || !statNodeV197(n)) continue;
+      for (let i = 0; i < Math.min(L, 5000); i++) sum += nodeCost(n, i);
+    }
+    investCacheV197 = { sig, v: sum };
+    return sum;
+  }
+  function potInvestV197() {
+    if (!onV197()) return 0;
+    const inv = statInvestV197();
+    return inv > 0 ? TU("v197potK", 1) * Math.pow(inv, TU("v197potExp", 0.5)) : 0;
+  }
+  // once: what the account spent on the retired 🧬 branch goes back into its PP
+  function bloodRefundV197() {
+    if (!onV197() || !state || state.bloodRefundV197) return 0;
+    const T = state.tree || {};
+    let back = 0;
+    ["bloodFamily", "bloodProven", "bloodPure", "bloodCompound"].forEach(k => {
+      const n = TREE_NODES[k],
+        L = T[k] | 0;
+      if (n && L > 0) for (let i = 0; i < L; i++) back += nodeCost(n, i);
+      delete T[k];
+    });
+    state.bloodRefundV197 = { pp: back, at: Date.now() };
+    if (back > 0) {
+      state.pp = (state.pp || 0) + back;
+      try {
+        showToast("🧬 The Bloodline branch is retired — " + back.toLocaleString("en-US") + " PP refunded. Potential is now what you build.");
+      } catch (_) {}
+    }
+    return back;
+  }
+  const decV197 = decorateScreen;
+  decorateScreen = function () {
+    decV197();
+    try {
+      bloodRefundV197();
+    } catch (_) {}
+  };
+  window.__V197 = { invest: () => statInvestV197(), pot: () => potInvestV197(), stat: k => statNodeV197(TREE_NODES[k]), refund: () => bloodRefundV197(), on: () => onV197() };
   function bloodAwardV195C(e, lv) {
-    if (!bloodOnV195C() || !e || e._bloodV195C) return 0;
+    if (!bloodOnV195C() || !e || e._bloodV195C || onV197()) return 0; /* v197: the bloodline is retired — potential is what you built */
     const P = bloodPartsV195C(lv),
       before = bloodStoredV195C(),
       after = round1V195C(before + P.total);
@@ -44201,7 +44283,7 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
     if (w == null) w = Object.values(state.tree || {}).reduce((R, O) => R + O, 0);
     return (
       30 +
-      effectivePrestige(state.prestige) * 1.9 +
+      effectivePrestige(state.prestige) * medalPotKV197() /* v197: medals weigh less, the stat upgrades you built more */ +
       ceilLevelsV179(w) +
       nodeLvl("freak") * 12 +
       nodeLvl("superhuman") * 20 +
@@ -44210,7 +44292,7 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
       chaosTotal() * 1.6 +
       (pathVal("growthMult", 1) - 1) * 36 +
       (state.path === "phenom" ? 30 : 0) +
-      bloodStoredV195C() /* v195 C: what every career end added */
+      (onV197() ? potInvestV197() /* v197: the stat upgrades you bought */ : bloodStoredV195C() /* v195 C: what every career end added */)
     );
   }
   function ceilLevelsV179(w) {
@@ -44264,7 +44346,7 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
         ? `🔭 Scouts' verdict <b>${Math.round(B.v * 100)}%</b> (potential ${fmtBigV179(B.pot)} vs ${fmtBigV179(B.potBar)}, tops out at ${Math.round(B.vMax * 100)}%)${B.sl > 0 ? ` · GM's second look <b>${Math.round(B.sl * 100)}%</b>` : ""} — on top of the season roll. Declare-odds nodes and medals raise both.${scoutNoteV195A(B)}`
         : "";
       const msg = verdict ? verdict : B.potBar > 0 && B.pot < B.potBar
-        ? `${e.level >= 7 ? "🛸 The Interstellar League judges" : "🔭 The scouts judge"} <b>POTENTIAL</b>: they want <b>${fmtBigV179(B.potBar)}</b>, your bloodline shows <b>${fmtBigV179(B.pot)}</b> — the declare odds are cut to ${Math.round(B.k * 100)}% of what your season earned. Potential is the growth ceiling the prestige tree gives every player: Freak, Prime Genes, Superhuman, the ceiling nodes, chaos and your Path raise it; a tree of everything else barely moves it.${bloodOnV195C() ? " Every career end adds bloodline too (🧬 in the tree)." : ""}${scoutNoteV195A(B)}`
+        ? `${e.level >= 7 ? "🛸 The Interstellar League judges" : "🔭 The scouts judge"} <b>POTENTIAL</b>: they want <b>${fmtBigV179(B.potBar)}</b>, your ${onV197() ? "potential" : "bloodline"} shows <b>${fmtBigV179(B.pot)}</b> — the declare odds are cut to ${Math.round(B.k * 100)}% of what your season earned. ${onV197() ? "Potential is what you BUILT: every PP spent on stat upgrades (Physical, Mental, Body, Camp and every ceiling or growth node) raises it, with diminishing returns; medals, chaos and your Path add some. Economy, Swagger and Fate nodes earn PP — they do not raise it." : "Potential is the growth ceiling the prestige tree gives every player: Freak, Prime Genes, Superhuman, the ceiling nodes, chaos and your Path raise it; a tree of everything else barely moves it." + (bloodOnV195C() ? " Every career end adds bloodline too (🧬 in the tree)." : "")}${scoutNoteV195A(B)}`
         : B.bar > 0 && B.kO < 0.85
         ? `🔭 The scouts' bar is <b>${B.bar} OVR</b> — you are <b>${B.ovr}</b>, so the declare odds are cut to ${Math.round(B.k * 100)}% of what your season earned. Starting attributes, growth and ceilings in the prestige tree (and the medal rewards) raise every future player.`
         : G.short
@@ -45843,14 +45925,15 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
       prestige = 0;
     try {
       nodes = (nodeLvl("freak") * 12 + nodeLvl("superhuman") * 20 + nodeLvl("primeGenes") * 9 + treeFx("ceilPlus")) * mult;
-      prestige = effectivePrestige(state.prestige) * 1.9;
+      prestige = effectivePrestige(state.prestige) * medalPotKV197();
     } catch (_) {}
     const total = rawCeilingV179(w),
       chaos = chaosTotal() * 1.6,
       path = (pathVal("growthMult", 1) - 1) * 36 + (state.path === "phenom" ? 30 : 0),
-      blood = bloodStoredV195C() /* v195 C */,
-      levels = total - 30 - nodes - prestige - chaos - path - blood;
-    return { total, base: 30, nodes, levels, chaos, path, prestige, blood };
+      blood = onV197() ? 0 : bloodStoredV195C() /* v195 C */,
+      invest = onV197() ? potInvestV197() : 0 /* v197 */,
+      levels = total - 30 - nodes - prestige - chaos - path - blood - invest;
+    return { total, base: 30, nodes, levels, chaos, path, prestige, blood, invest };
   }
   function nodePotGainV179(key) {
     try {
@@ -45927,7 +46010,7 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
   <div class="pv-bars">${bars
     .map(b => `<div class="${pot >= b.bar ? "ok" : ""}"><span>${b.name}</span><b>${fmtBigV179(b.bar)}</b><small>${pot >= b.bar ? "✓ cleared — the verdict climbs toward its ceiling" : "need +" + fmtBigV179(Math.ceil(b.bar - pot))}</small></div>`)
     .join("")}</div>
-  <div class="pv-parts">base <b>30</b>${part("ceiling nodes", P.nodes)}${part("other tree levels", P.levels)}${part("chaos", P.chaos)}${part("Path", P.path)}${part("prestige", P.prestige)}${part("careers' bloodline", P.blood || 0)}</div>
+  <div class="pv-parts">base <b>30</b>${part("ceiling nodes", P.nodes)}${part("other tree levels", P.levels)}${part("chaos", P.chaos)}${part("Path", P.path)}${part("prestige", P.prestige)}${part("careers' bloodline", P.blood || 0)}${part("stat upgrades", P.invest || 0)}</div>
   <div class="pv-note">Potential is the growth ceiling every future player is born with. The scouts judge it at every big declare — a coin flip at the bar, better over it. <b>Freak, Prime Genes, Superhuman and every +ceiling node</b> count ×${nf1V179(TU("ceilNodeMultV179", 3))}; the gold <b>+POTENTIAL</b> tag on a node says what its next level adds.</div>
 </div>`;
   }
