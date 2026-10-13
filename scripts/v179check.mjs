@@ -34,6 +34,7 @@ const ok = (c, m, d) => { console.log((c ? 'ok   ' : 'FAIL ') + m + (d !== undef
 const errors = []
 const context = await browser.newContext({ viewport: { width: 400, height: 860 } })
 await context.addInitScript(() => {
+  window.RIB_TUNE = Object.assign(window.RIB_TUNE || {}, { v197: 0 }) /* v197 replaced these rules; this check keeps testing the old path (v197check has the new) */
   try { localStorage.setItem('rib.coachTour.v119', 'off'); localStorage.setItem('rib.debriefOff.v122', 'off') } catch {}
   setInterval(() => { try { if (window.S) window.S.tutorialSeen = true } catch {} document.querySelector('.onboard')?.remove(); document.getElementById('growthV42')?.remove(); document.getElementById('gv139gate')?.remove() }, 80)
 })

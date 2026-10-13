@@ -43950,6 +43950,14 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
     investCacheV197 = { sig, v: sum };
     return sum;
   }
+  // the medal rewards' "Higher Ceiling" (+ceiling, not bought with PP): it keeps v179 I's ×3
+  function medalCeilV197() {
+    try {
+      return medalFxV179("ceilPlus") * TU("ceilNodeMultV179", 3);
+    } catch (_) {
+      return 0;
+    }
+  }
   function potInvestV197() {
     if (!onV197()) return 0;
     const inv = statInvestV197();
@@ -44286,7 +44294,7 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
     if (w == null) w = Object.values(state.tree || {}).reduce((R, O) => R + O, 0);
     /* v197: ONE source — the PP spent on stat upgrades (ceiling nodes count at the price they cost, never again on top) */
     if (onV197() && TU("v197unify", 1))
-      return 30 + effectivePrestige(state.prestige) * medalPotKV197() + potInvestV197() + chaosTotal() * 1.6 + (pathVal("growthMult", 1) - 1) * 36 + (state.path === "phenom" ? 30 : 0);
+      return 30 + effectivePrestige(state.prestige) * medalPotKV197() + potInvestV197() + medalCeilV197() + chaosTotal() * 1.6 + (pathVal("growthMult", 1) - 1) * 36 + (state.path === "phenom" ? 30 : 0);
     return (
       30 +
       effectivePrestige(state.prestige) * medalPotKV197() /* v197: medals weigh less, the stat upgrades you built more */ +
@@ -45930,7 +45938,7 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
     let nodes = 0,
       prestige = 0;
     try {
-      nodes = onV197() && TU("v197unify", 1) ? 0 : (nodeLvl("freak") * 12 + nodeLvl("superhuman") * 20 + nodeLvl("primeGenes") * 9 + treeFx("ceilPlus")) * mult; /* v197: counted through the PP they cost */
+      nodes = onV197() && TU("v197unify", 1) ? medalCeilV197() : (nodeLvl("freak") * 12 + nodeLvl("superhuman") * 20 + nodeLvl("primeGenes") * 9 + treeFx("ceilPlus")) * mult; /* v197: counted through the PP they cost */
       prestige = effectivePrestige(state.prestige) * medalPotKV197();
     } catch (_) {}
     const total = rawCeilingV179(w),

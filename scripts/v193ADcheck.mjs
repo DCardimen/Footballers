@@ -25,7 +25,7 @@ const errs = []
 const ctx = await browser.newContext({ viewport: { width: 400, height: 860 } })
 const page = await ctx.newPage()
 page.on('pageerror', (e) => errs.push('PAGEERROR: ' + (e.message || String(e))))
-await page.addInitScript(() => { setInterval(() => { try { document.querySelectorAll('.onboard,#growthV42,#gv139gate').forEach((e) => e.remove()) } catch {} }, 60) })
+await page.addInitScript(() => { window.RIB_TUNE = Object.assign(window.RIB_TUNE || {}, { v197: 0 }) /* v197: Phenom's potential is measured on the old formula */; setInterval(() => { try { document.querySelectorAll('.onboard,#growthV42,#gv139gate').forEach((e) => e.remove()) } catch {} }, 60) })
 const U = gameUrl('index.html') + (gameUrl('index.html').includes('?') ? '&' : '?') + 'stayStale&noFilmV114'
 const boot = async () => {
   await page.goto(U, { waitUntil: 'networkidle', timeout: 60000 })

@@ -204,7 +204,7 @@ const X = await M(() => {
   return { D, hub, rank, rankLine, pot, dlg }
 })
 ok(X.hub && X.rank && X.pot, 'the ⓘ is on the hub, the Recruiting Board and the BLOODLINE POTENTIAL card', { hub: X.hub, rank: X.rank, pot: X.pot })
-ok(X.dlg && /HOW THE SCOUTS DECIDE/.test(X.dlg.title) && /RECRUIT STARS/.test(X.dlg.txt) && /NATIONAL RANK/.test(X.dlg.txt) && /BLOODLINE POTENTIAL/.test(X.dlg.txt) && /LEGACY MEDALS/.test(X.dlg.txt), 'tapping it opens HOW THE SCOUTS DECIDE with the four blocks', X.dlg && X.dlg.title)
+ok(X.dlg && /HOW THE SCOUTS DECIDE/.test(X.dlg.title) && /RECRUIT STARS/.test(X.dlg.txt) && /NATIONAL RANK/.test(X.dlg.txt) && /POTENTIAL/.test(X.dlg.txt) /* v197: "POTENTIAL" (was "BLOODLINE POTENTIAL") */ && /LEGACY MEDALS/.test(X.dlg.txt), 'tapping it opens HOW THE SCOUTS DECIDE with the four blocks', X.dlg && X.dlg.title)
 ok(X.dlg && new RegExp('#' + X.D.rank.toLocaleString('en-US').replace(/,/g, ',?') + ' of').test(X.dlg.txt) && new RegExp('top ' + X.D.topPct + '%').test(X.dlg.txt) && new RegExp(X.D.stars + ' of 5').test(X.dlg.txt) && /never rolls/.test(X.dlg.txt) && /One roll; a miss ends the career/.test(X.dlg.txt), 'with this player\'s numbers: his rank and top-%, his stars, the one roll', { rank: X.D.rank, topPct: X.D.topPct, stars: X.D.stars })
 ok(X.dlg && /top 1% ≥ 99%/.test(X.dlg.txt) && /before, 97%/.test(X.dlg.txt) && /College → Combine/.test(X.dlg.txt) && new RegExp(X.D.medals + ' — the ACCOUNT').test(X.dlg.txt), 'it answers the owner: a top-1% season rolls at ≥ 99% now (before 97%); the potential bars and the medals', { medals: X.D.medals })
 ok(X.dlg && X.dlg.w <= 360, 'the dialog fits at 360 wide', X.dlg && X.dlg.w)

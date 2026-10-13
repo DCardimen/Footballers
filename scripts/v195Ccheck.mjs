@@ -19,7 +19,7 @@ const ok = (c, m, d) => { console.log((c ? 'ok   ' : 'FAIL ') + m + (d !== undef
 const errors = []
 const ctx = await browser.newContext({ viewport: { width: 390, height: 844 } })
 await ctx.addInitScript(() => {
-  window.RIB_TUNE = Object.assign(window.RIB_TUNE || {}, { careerVaultDelayMsV192B: 60000 })
+  window.RIB_TUNE = Object.assign(window.RIB_TUNE || {}, { careerVaultDelayMsV192B: 60000, v197: 0 /* v197 retired the bloodline; this check keeps testing it */ })
   try { localStorage.setItem('rib.coachTour.v119', 'off'); localStorage.setItem('rib.debriefOff.v122', 'off') } catch {}
   setInterval(() => { try { if (window.S) window.S.tutorialSeen = true } catch {} document.querySelector('.onboard')?.remove(); document.getElementById('personaV13')?.remove(); document.getElementById('growthV42')?.remove(); document.getElementById('gv139gate')?.remove() }, 80)
 })
