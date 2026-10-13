@@ -43682,12 +43682,12 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
       potBase = !on
         ? 0
         : lv === 5
-          ? (K ? TU("scoutPotCombineV179", 90) : 0)
+          ? (K ? (onV197() ? TU("v197barCombine", 65) : TU("scoutPotCombineV179", 90)) : 0)
           : lv === 6
-            ? TU("scoutPotUffV179", 150)
+            ? (onV197() ? TU("v197barUff", 124) : TU("scoutPotUffV179", 150))
             : lv === 7
-              ? TU("istPotV179", 1600)
-              : 0; /* v179 J: the Interstellar Call too; v179 K: College → Combine */
+              ? (onV197() ? TU("v197barIst", 1600) : TU("istPotV179", 1600))
+              : 0; /* v179 J: the Interstellar Call too; v179 K: College → Combine; v197: the bars for the new potential */
     if (!base && !potBase) return { bar: 0, ovr: 0, k: 1, potBar: 0, pot: 0, v: 1, sl: 0, vt: 1 };
     let ovr = 0;
     try {
@@ -43786,8 +43786,9 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
       top = Math.max(1, Math.round(TU("domTopV195A", 10)));
     if (!R || R.pos > top) return 0;
     const hi = TU("domFloorTopV195A", 0.2),
-      lo = TU("domFloorLowV195A", 0.1);
-    return top <= 1 ? hi : hi + (lo - hi) * ((R.pos - 1) / (top - 1));
+      lo = TU("domFloorLowV195A", 0.1),
+      f = top <= 1 ? hi : hi + (lo - hi) * ((R.pos - 1) / (top - 1));
+    return lv >= 6 && onV197() ? f * TU("v197domCombineK", 0.25) : f; /* v197: a dominant College season still gets its shot; the UFF is earned */
   }
   // A and A+ belong to the top ten at the position; the rest cap at B+
   function gradeTopCapV195A(e, g, why) {
@@ -43926,7 +43927,7 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
     return !!TU("v197", 1);
   }
   function medalPotKV197() {
-    return onV197() ? TU("v197medalK", 0.6) : 1.9;
+    return onV197() ? TU("v197medalK", 0.1) : 1.9;
   }
   function statNodeV197(n) {
     if (!n) return !1;
@@ -43961,7 +43962,7 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
   function potInvestV197() {
     if (!onV197()) return 0;
     const inv = statInvestV197();
-    return inv > 0 ? TU("v197potK", 1) * Math.pow(inv, TU("v197potExp", 0.5)) : 0;
+    return inv > 0 ? TU("v197potK", 0.85) * Math.pow(inv, TU("v197potExp", 0.5)) : 0;
   }
   // once: what the account spent on the retired 🧬 branch goes back into its PP
   function bloodRefundV197() {
