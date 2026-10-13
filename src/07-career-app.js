@@ -43991,7 +43991,7 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
       bloodRefundV197();
     } catch (_) {}
   };
-  window.__V197 = { invest: () => statInvestV197(), pot: () => potInvestV197(), stat: k => statNodeV197(TREE_NODES[k]), refund: () => bloodRefundV197(), on: () => onV197() };
+  window.__V197 = { invest: () => statInvestV197(), pot: () => potInvestV197(), mceil: () => medalCeilV197(), stat: k => statNodeV197(TREE_NODES[k]), refund: () => bloodRefundV197(), on: () => onV197() };
   function bloodAwardV195C(e, lv) {
     if (!bloodOnV195C() || !e || e._bloodV195C || onV197()) return 0; /* v197: the bloodline is retired — potential is what you built */
     const P = bloodPartsV195C(lv),

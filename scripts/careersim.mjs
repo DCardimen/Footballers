@@ -276,6 +276,7 @@ function installDriver () {
     rec.games = rec.seasons.reduce((a, c) => a + c.games, 0)
     // settle it (the ring's career is settled through the life screen's retire so the account gets its PP)
     if (rec.title && p && !p._settled) { try { p.retirementPending = true; window.endCareer(); await sleep(10) } catch (e) {} }
+    try { const V7 = window.__V197; if (V7) rec.v197 = { inv: Math.round(V7.invest()), pot: Math.round(window.__V179.potential() * 10) / 10, mceil: window.__V197.mceil ? window.__V197.mceil() : null, ppTotal: Math.round(S().pp || 0) } } catch (e) {}
     rec.settled = !!(P() && P()._settled); rec.pp = S().pp; rec.chaos = (() => { try { return window.__chaosTotalV179 ? window.__chaosTotalV179() : null } catch (e) { return null } })(); rec.medals2 = (() => { try { return window.__V156B.medals() } catch (e) { return null } })(); rec.era = S().era || 0; rec.medals = (() => { try { return window.__V156B.medals() } catch (e) { return null } })()
     return rec
   }
@@ -330,6 +331,7 @@ async function playRun (page, runNo) {
     if (rec.mvpAt != null && out.seasonsToMvp == null) out.seasonsToMvp = before + rec.mvpAt
     const hrs = (n) => (n == null ? '—' : n + ' seasons (' + ((n * SEASON_MIN) / 60).toFixed(1) + ' h)')
     out.traj = (out.traj || []).concat([[before + (rec.totalSeasons || 0), rec.medals2 != null ? rec.medals2 : rec.medals, rec.maxLevel]])
+    if (rec.v197) console.log(`   v197: careers ${c} seasons ${before + (rec.totalSeasons || 0)} inv ${rec.v197.inv} pot ${rec.v197.pot} mceil ${rec.v197.mceil} medals ${rec.medals} +pp ${rec.ppGain} spent ${spend.bought.length} maxLevel ${rec.maxLevel}`)
     console.log(`   traj: seasons ${before + (rec.totalSeasons || 0)} medals ${rec.medals2 != null ? rec.medals2 : rec.medals} level ${rec.maxLevel}`)
     console.log(`   milestones: UFF ${hrs(out.seasonsToUff)} · ring ${hrs(out.seasonsToRing)} · MVP title ${hrs(out.seasonsToMvp)} · Interstellar ${hrs(out.seasonsToIst)} · pp ${rec.pp} · chaos ${rec.chaos || 0} · era ${rec.era || 0}`)
     if (rec.title) { out.title = true; break }
