@@ -43684,7 +43684,7 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
         : lv === 5
           ? (K ? (onV197() ? TU("v197barCombine", 65) : TU("scoutPotCombineV179", 90)) : 0)
           : lv === 6
-            ? (onV197() ? TU("v197barUff", 124) : TU("scoutPotUffV179", 150))
+            ? (onV197() ? TU("v197barUff", 210) : TU("scoutPotUffV179", 150))
             : lv === 7
               ? (onV197() ? TU("v197barIst", 1600) : TU("istPotV179", 1600))
               : 0; /* v179 J: the Interstellar Call too; v179 K: College → Combine; v197: the bars for the new potential */
