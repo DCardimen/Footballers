@@ -243,6 +243,8 @@ function installDriver () {
       }
       if (v === 'season') {
         if (!p.weekResults) { window.go('hub'); continue }
+        // v197: a club offer that lands mid-season (a UFF waiver) is answered on the club screen, or the sim waits forever
+        if (p.offersV146B && sameView > 2) { window.go('club'); await sleep(10); if (S().view !== 'club' && p.offersV146B) { try { window.__V146B.sign(bestOffer(p.offersV146B)) } catch (e) {} } continue }
         if (!unplayed(p).length) {
           const c = seasonCounts(p); c.level = p.level; c.n = p.totalSeasons + 1
           c.won = !!(p.playoffState && p.playoffState.champion); c.qualified = !!(p.playoffState && p.playoffState.qualified)
@@ -337,7 +339,7 @@ async function playRun (page, runNo) {
     if (rec.title) { out.title = true; break }
     if (UNTIL === 'uff' && out.seasonsToUff != null) { out.title = true; break }
     if (UNTIL === 'interstellar' && out.seasonsToIst != null) { out.title = true; break }
-    if (/evaluate threw|watchdog/.test(rec.end)) { /* a page that cannot go on: reload it and continue on the same save */ try { await page.reload({ waitUntil: 'networkidle', timeout: 60000 }); await page.waitForFunction(() => !!window.__GRIDIRON_AUDIT__ && !!window.__V164B, null, { timeout: 60000 }); await page.evaluate(() => document.getElementById('splash')?.remove()); await page.evaluate(installDriver); await page.evaluate(() => { const A = window.__GRIDIRON_AUDIT__, S = A.getState(); if (S.player && !S.player._settled) { S.player._settled = true; S.player = null; window.GridironStorage.save(S) } }) } catch (e) { console.log('   reload failed: ' + e.message) } }
+    if (/evaluate threw|watchdog|stuck on|live player was still/.test(rec.end)) { /* a page that cannot go on: reload it and continue on the same save */ try { await page.reload({ waitUntil: 'networkidle', timeout: 60000 }); await page.waitForFunction(() => !!window.__GRIDIRON_AUDIT__ && !!window.__V164B, null, { timeout: 60000 }); await page.evaluate(() => document.getElementById('splash')?.remove()); await page.evaluate(installDriver); await page.evaluate(() => { const A = window.__GRIDIRON_AUDIT__, S = A.getState(); if (S.player && !S.player._settled) { S.player._settled = true; S.player = null; window.GridironStorage.save(S) } }) } catch (e) { console.log('   reload failed: ' + e.message) } }
   }
   if (SNAP) fs.writeFileSync(SNAP.replace(/(\.json)?$/, (RUNS > 1 ? '.' + runNo : '') + '.json'), await page.evaluate(() => JSON.stringify(window.__GRIDIRON_AUDIT__.getState())))
   out.careersToTitle = out.title ? out.careers.length : null
