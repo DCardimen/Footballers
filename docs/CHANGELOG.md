@@ -10,23 +10,25 @@ Names in older entries are the career app's pre-v149 C minified names (`q`, `ms`
 `index.html` + `src/` (`docs/LAYOUT.md`).
 
 <!-- new entries go here, newest first -->
-- **v197 · Prestige v2 — potential is what you built.** (`src/07-career-app.js`.) The owner: "difficult but not
-  impossible … 40 to 100ish hours to UFF, ranging heavily from good decisions to bad, 250 hours for UFF championship as
-  MVP (hard to stay in UFF once there but massive prestige bonus), interstellar 300 and on … not in love with the
-  bloodline … maybe tied to the prestige upgrades you have purchased which impact stats and max stats." **Potential** —
-  what the scouts judge at the three big declares — is ONE number now: 30 + `v197potK` 0.85 × √(PP spent on STAT
-  upgrades: the Physical, Mental, Body and Camp branches and every ceiling / growth node anywhere) + medals × 0.1 (was
-  ×1.9) + the medal rewards' Higher Ceiling + chaos + Path. Economy, Swagger and Fate nodes earn PP and never raise it,
-  so the tree is a decision: stats now or income later. **The bloodline is retired** (its 🧬 branch hidden, its PP
-  refunded once, no career adds to it). **The bars:** College → Combine 65, Combine → UFF 210, the Interstellar Call
-  1600; a turned-down declare eases a bar 2% (never under 80% of it; v195 A's 8% to 35% let any account through in ~13
-  misses); a dominant College season keeps its 10–20% shot, at the Combine ×0.05. **The UFF plays at 220** (was 90): a
-  newcomer is outclassed and hard to keep; the ×10 PP of every UFF trip is what builds the man who can win it as MVP.
-  **Measured** (`scripts/careersim.mjs`, fast mode, 7 min a season): a power-first player reached the UFF in 358
-  seasons (41.8 h); a casual player (random position, program and nodes) in 374 (43.6 h, under the earlier Combine
-  floor) — the Economy nodes it bought compounded its PP; a player who never buys a stat upgrade never gets there.
-  careersim gains `--until mvp` and per-career `v197:` lines (invest, potential, medals). Kill switch `v197` 0.
-  `v197check`.
+- **v197 · Prestige v2 — potential is what you built.** (`src/07-career-app.js`, `src/26-platform.js`,
+  `scripts/careersim.mjs`.) The owner: "difficult but not impossible … 40 to 100ish hours to UFF, ranging heavily from good
+  decisions to bad, 250 hours for UFF championship as MVP (hard to stay in UFF once there but massive prestige bonus),
+  interstellar 300 and on … not in love with the bloodline … maybe tied to the prestige upgrades you have purchased which
+  impact stats and max stats." **Potential** (what the scouts judge at the three big declares) is ONE number: 30 +
+  0.85 × √(PP spent on STAT upgrades — Physical, Mental, Body, Camp and every ceiling / growth node anywhere) + medals ×
+  0.1 (was ×1.9) + the medal rewards' Higher Ceiling + chaos + Path. Economy, Swagger and Fate earn PP and never raise it.
+  **The bloodline is retired** (the 🧬 branch hidden, its PP refunded once). **Bars:** College → Combine 65, Combine → UFF
+  210, a turned-down declare eases a bar 2% (never under 80%; it was 8% to 35%); a dominant College season keeps its
+  10–20% shot, ×0.05 at the Combine. **The UFF is played at 290** (`v197uffNeed` — its games' bar and its rosters; the
+  call-up roll keeps the old need): a newcomer at ~180–260 OVR is cut on waivers within weeks, and every trip still pays
+  the ×10 PP. **The Interstellar League calls dynasties:** 3 UFF rings (`v197istRings`) and potential 2,400.
+  **Measured** (`careersim --formula 1`, 7 min a season): the UFF at 24–46 h across 9 runs (good and casual alike —
+  Economy compounds a careless spender's PP; a player who never buys stats never arrives); the UFF title as MVP at
+  80–115 h at 290 (and 170 h at 275 — the difference is POSITION: with a heavy tree a QB or an OL reaches 300–390 OVR
+  where a WR / TE / CB / DL plateaus near 200–260, so a QB/OL career clears any fixed UFF bar); the Interstellar call
+  past 125 h and still measuring. **Faster sims:** `--formula 1` resolves simmed weeks by the game's rating formula
+  (no play-by-play) and, under the simulator's fast mode, saves coalesce to one a second — a season sims in ~1 s instead
+  of ~15 s. careersim gains `--until mvp` and per-career `v197:` lines. Kill switch `v197` 0. `v197check`.
 - **v196 D · A full storage never eats a save.** (`src/06-phaser-launcher.js`, `src/07-career-app.js`.) The owner:
   "Progress didn't save last time for some reason... I should have 120ish medals?" The save sits in localStorage (~5 MB a
   site) beside a one-deep copy and v149 D's five rolling backups; once they no longer fit, the main write threw a quota
