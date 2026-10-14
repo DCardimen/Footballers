@@ -18312,7 +18312,7 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
   // v178 O: the per-level team baseline every roster is built on (live rosters, the quick sim's ratings, the displays).
   // Interstellar (8) had no entry and fell back to 55 — weaker than Varsity — so it sits above the UFF now. Hoisted.
   function levelBaseV178(lv) {
-    if ((lv | 0) === 7 && onV197()) return TU("v197uffBase", 275); /* v197: the UFF is a league of men who built themselves — a newcomer is average, the MVP is earned */
+    if ((lv | 0) === 7 && onV197()) return TU("v197uffBase", 290); /* v197: the UFF is a league of men who built themselves — a newcomer is average, the MVP is earned */
     return [18, 30, 42, 54, 66, 78, 86, 90, TU("v178O", 1) ? TU("aiBaseIstV178", TU("v183IST", 1) ? (TU("v186", 1) ? 700 : 400) : 100) : 55 /* v183: the Interstellar League is a league of legends — a newcomer (~OVR 350) wins ~55%, a title wants ~OVR 600 */][lv | 0] || 55;
   }
   window.__levelBaseV178 = levelBaseV178;
@@ -26127,7 +26127,7 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
     const t = e.seasonStats,
       a = LEVELS[e.level],
       s = t.newOvr,
-      n = e.level >= 8 || (a.key === "nfl" && !((e.nflRings || 0) >= 1));
+      n = e.level >= 8 || (a.key === "nfl" && (!((e.nflRings || 0) >= 1) || !istGateV179(e).ok)) /* v197: the call waits on the dynasty too */;
     a.key === "nfl" && (e.nflRings || 0) >= 1;
     const i = declareChanceV88(e),
       r = maxSeasons() - e.seasonsAtLevel,
@@ -43933,7 +43933,7 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
   // the bar a game AT this level is played against (the UFF's own, not the call-up's)
   function playNeedV197(lv) {
     const n = (LEVELS[lv | 0] || LEVELS[0]).need;
-    return (lv | 0) === 7 && onV197() ? Math.max(n, TU("v197uffNeed", 275)) : n;
+    return (lv | 0) === 7 && onV197() ? Math.max(n, TU("v197uffNeed", 290)) : n;
   }
   function medalPotKV197() {
     return onV197() ? TU("v197medalK", 0.1) : 1.9;
@@ -44333,6 +44333,12 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
     return (w - et) * TU("ceilPerLevelV179", 0.05) + et * TU("ceilEternalV179", 0) + nodes * (TU("ceilNodeMultV179", 3) - 1);
   }
   function istGateV179(e) {
+    /* v197: the Interstellar League calls dynasties — `v197istRings` UFF rings, not one */
+    if (onV197() && e) {
+      const want = Math.max(1, Math.round(TU("v197istRings", 3))),
+        have = e.nflRings | 0;
+      if (have < want) return { ok: false, need: want, era: have, say: "The Interstellar League only calls dynasties — win " + want + " UFF rings (you have " + have + ")." };
+    }
     const need = Math.round(TU("istEraV179", 0)) /* v179 J: the era gate is off — the scouts judge potential (scoutBarV179) */,
       era = (state && state.era) | 0;
     if (!TU("v179", 1) || era >= need) return { ok: true, need, era, say: "" };
