@@ -38,6 +38,9 @@ const GEAR = arg('gear', '1') !== '0', POT_TARGET = +arg('potTarget', 150), FAST
 // v185: the CHAOS LOOP — --seed <state.json> starts every run from a saved account (not a fresh one), --chaosSet N puts
 // chaos at N (capacity N, every chaos card dealt) before the first career, --snap <file> writes the account at a run's end,
 // --until none plays --maxCareers careers back to back. Each career logs the PP it earned (` · +pp N`).
+// v197: --formula 1 resolves every simmed week with the game's rating formula instead of the play-by-play engine (~20× faster;
+// no box scores, so stat-driven ranks lean on the rating). For pacing sweeps; spot-check against a full run.
+const FORMULA = arg('formula', '0') !== '0'
 const SEED = arg('seed', ''), SNAP = arg('snap', ''), CHAOS_SET = arg('chaosSet', '')
 const SEED_STATE = SEED ? fs.readFileSync(SEED, 'utf8') : null
 const url = gameUrl('index.html')
@@ -60,6 +63,7 @@ async function open (tag) {
   await page.goto(U(), { waitUntil: 'networkidle', timeout: 60000 })
   await page.waitForFunction(() => !!window.__GRIDIRON_AUDIT__ && !!window.__V156B && !!window.__V164B && !!window.__V147A, null, { timeout: 60000 })
   if (FAST) await page.evaluate(() => { window.__RIB_SIM_FAST = true })
+  if (FORMULA) await page.evaluate(() => { window.__RIB_SIM_FORMULA = true }) // v197: simmed weeks by the rating formula, no play-by-play
   await page.waitForFunction(() => { const sp = document.getElementById('splash'); return !sp || sp.classList.contains('gone') }, null, { timeout: 30000 }).catch(() => null)
   await page.evaluate(() => document.getElementById('splash')?.remove())
   await page.evaluate(installDriver)
@@ -339,7 +343,7 @@ async function playRun (page, runNo) {
     if (rec.title) { out.title = true; break }
     if (UNTIL === 'uff' && out.seasonsToUff != null) { out.title = true; break }
     if (UNTIL === 'interstellar' && out.seasonsToIst != null) { out.title = true; break }
-    if (/evaluate threw|watchdog|stuck on|live player was still/.test(rec.end)) { /* a page that cannot go on: reload it and continue on the same save */ try { await page.reload({ waitUntil: 'networkidle', timeout: 60000 }); await page.waitForFunction(() => !!window.__GRIDIRON_AUDIT__ && !!window.__V164B, null, { timeout: 60000 }); await page.evaluate(() => document.getElementById('splash')?.remove()); await page.evaluate(installDriver); await page.evaluate(() => { const A = window.__GRIDIRON_AUDIT__, S = A.getState(); if (S.player && !S.player._settled) { S.player._settled = true; S.player = null; window.GridironStorage.save(S) } }) } catch (e) { console.log('   reload failed: ' + e.message) } }
+    if (/evaluate threw|watchdog|stuck on|live player was still/.test(rec.end)) { /* a page that cannot go on: reload it and continue on the same save */ try { await page.reload({ waitUntil: 'networkidle', timeout: 60000 }); await page.waitForFunction(() => !!window.__GRIDIRON_AUDIT__ && !!window.__V164B, null, { timeout: 60000 }); await page.evaluate(() => document.getElementById('splash')?.remove()); await page.evaluate(installDriver); await page.evaluate(([f, fm]) => { if (f) window.__RIB_SIM_FAST = true; if (fm) window.__RIB_SIM_FORMULA = true }, [FAST, FORMULA]); await page.evaluate(() => { const A = window.__GRIDIRON_AUDIT__, S = A.getState(); if (S.player && !S.player._settled) { S.player._settled = true; S.player = null; window.GridironStorage.save(S) } }) } catch (e) { console.log('   reload failed: ' + e.message) } }
   }
   if (SNAP) fs.writeFileSync(SNAP.replace(/(\.json)?$/, (RUNS > 1 ? '.' + runNo : '') + '.json'), await page.evaluate(() => JSON.stringify(window.__GRIDIRON_AUDIT__.getState())))
   out.careersToTitle = out.title ? out.careers.length : null

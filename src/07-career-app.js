@@ -14689,7 +14689,7 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
     a = a || {};
     const s = playerPower(e) /* v193 E: the game-day percent is gone */ + hotPerfLiftV193AB(e) /* v193 AB: the Hot Streak's OVR */,
       n = LEVELS[e.level],
-      i = n.need - 6 + chaosOppBoost(e.level) + seasonModFx("peerShift"),
+      i = playNeedV197(e.level) - 6 + chaosOppBoost(e.level) + seasonModFx("peerShift") /* v197: the UFF plays at its own bar */,
       r = 1 + nodeLvl("clutch") * 0.02,
       l = 1 + (e.attrs.grit - 10) * 0.003 * r,
       d = 1 + (e.attrs.stamina - 10) * 0.0015;
@@ -22378,7 +22378,7 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
   function __seasonSeed(e) {
     const s = playerPower(e),
       n = LEVELS[e.level],
-      base = (s - (n.need - 6)) * 1.35 + 52;
+      base = (s - (playNeedV197(e.level) - 6)) * 1.35 + 52; /* v197 */
     return clamp99(Math.round(base + ((state && state._fateBoost) || 0)), 8, 99);
   }
   function __aiSeasonGame(e, opts) {
@@ -22424,7 +22424,10 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
         gs: _gsB,
         mu: opts.mu171 || null
       };
-      g = window.__simGameV2(seed, e.pos);
+      /* v197: the pacing simulator's FORMULA mode (`window.__RIB_SIM_FORMULA`, set by scripts/careersim.mjs --formula 1
+       * only — never in the game): a simmed week skips the play-by-play engine and is resolved by the rating formula
+       * below (the engine-unavailable fallback) — ~20× faster, no box score. */
+      g = window.__RIB_SIM_FORMULA ? null : window.__simGameV2(seed, e.pos);
     } catch (_) {
       g = null;
     } finally {
@@ -43926,6 +43929,11 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
    * Kill switch TU `v197` 0 (the bloodline, its branch, the old pity and the ×1.9). `window.__V197`; `v197check`. */
   function onV197() {
     return !!TU("v197", 1);
+  }
+  // the bar a game AT this level is played against (the UFF's own, not the call-up's)
+  function playNeedV197(lv) {
+    const n = (LEVELS[lv | 0] || LEVELS[0]).need;
+    return (lv | 0) === 7 && onV197() ? Math.max(n, TU("v197uffNeed", 220)) : n;
   }
   function medalPotKV197() {
     return onV197() ? TU("v197medalK", 0.1) : 1.9;
