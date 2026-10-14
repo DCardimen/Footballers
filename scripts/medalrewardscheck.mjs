@@ -106,8 +106,8 @@ const F = await M(async () => {
   const p0 = V.potential(); claim({ id: 'ceiling', major: true, fx: { ceilPlus: 3 } }); out.potential = +(V.potential() - p0).toFixed(2)
   // declare odds: the scouts' verdict ceiling and the second look
   S.player = A.newPlayer(); const pl = S.player; pl.pos = 'QB'; pl.level = 6; pl._wonShown = true; pl.originV11 = 'walk-on'
-  window.RIB_TUNE.scoutPotUffV179 = 20
-  const b0 = V.bar(pl); claim({ id: 'scoutsEye', major: true, fx: { advFlat: 3 } }); const b1 = V.bar(pl); delete window.RIB_TUNE.scoutPotUffV179
+  window.RIB_TUNE.scoutPotUffV179 = 20; window.RIB_TUNE.v197barUff = 20 // v197: the bar it reads now
+  const b0 = V.bar(pl); claim({ id: 'scoutsEye', major: true, fx: { advFlat: 3 } }); const b1 = V.bar(pl); delete window.RIB_TUNE.scoutPotUffV179; delete window.RIB_TUNE.v197barUff
   out.vMax = +((b1.vMax - b0.vMax) * 100).toFixed(2); out.sl = +((b1.sl - b0.sl) * 100).toFixed(2); out.adv = +(fx('advFlat')).toFixed(2)
   // the post-game reel: one more pick, a bigger paycheck, luckier cards
   pl.level = 3; A.startSeasonGames()
