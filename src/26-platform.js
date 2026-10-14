@@ -249,8 +249,16 @@
     var GS = window.GridironStorage;
     if (!GS || GS.__v149) return !!GS;
     var orig = GS.save;
+    var fastPending = null, fastT = 0;
     GS.save = function (s) {
       if (saveLocked) { note('save held (import in flight)'); return; }
+      // v197: the pacing simulator (`window.__RIB_SIM_FAST`, never set in the game) saves ~900 times a career — a whole
+      // account each time; it keeps the LAST state of each second instead (half of a simulated career's time was saves)
+      if (window.__RIB_SIM_FAST && !s.__flushV197) {
+        fastPending = s;
+        if (!fastT) fastT = setTimeout(function () { fastT = 0; var x = fastPending; fastPending = null; if (x) { x.__flushV197 = true; try { GS.save(x); } finally { delete x.__flushV197; } } }, 1000);
+        return;
+      }
       var r = orig.apply(this, arguments);
       try { maybeSnapshot(s); } catch (e) {}
       if (P.native) { clearTimeout(mirrorT); mirrorT = setTimeout(mirrorNative, 1500); }
