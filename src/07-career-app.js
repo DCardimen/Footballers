@@ -18312,7 +18312,7 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
   // v178 O: the per-level team baseline every roster is built on (live rosters, the quick sim's ratings, the displays).
   // Interstellar (8) had no entry and fell back to 55 — weaker than Varsity — so it sits above the UFF now. Hoisted.
   function levelBaseV178(lv) {
-    if ((lv | 0) === 7 && onV197()) return TU("v197uffBase", 220); /* v197: the UFF is a league of men who built themselves — a newcomer is average, the MVP is earned */
+    if ((lv | 0) === 7 && onV197()) return TU("v197uffBase", 275); /* v197: the UFF is a league of men who built themselves — a newcomer is average, the MVP is earned */
     return [18, 30, 42, 54, 66, 78, 86, 90, TU("v178O", 1) ? TU("aiBaseIstV178", TU("v183IST", 1) ? (TU("v186", 1) ? 700 : 400) : 100) : 55 /* v183: the Interstellar League is a league of legends — a newcomer (~OVR 350) wins ~55%, a title wants ~OVR 600 */][lv | 0] || 55;
   }
   window.__levelBaseV178 = levelBaseV178;
@@ -43690,7 +43690,7 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
           : lv === 6
             ? (onV197() ? TU("v197barUff", 210) : TU("scoutPotUffV179", 150))
             : lv === 7
-              ? (onV197() ? TU("v197barIst", 1600) : TU("istPotV179", 1600))
+              ? (onV197() ? TU("v197barIst", 2400) : TU("istPotV179", 1600))
               : 0; /* v179 J: the Interstellar Call too; v179 K: College → Combine; v197: the bars for the new potential */
     if (!base && !potBase) return { bar: 0, ovr: 0, k: 1, potBar: 0, pot: 0, v: 1, sl: 0, vt: 1 };
     let ovr = 0;
@@ -43933,7 +43933,7 @@ ${block("🎖️", "LEGACY MEDALS", `<b>${D.medals}</b> — the ACCOUNT's rank, 
   // the bar a game AT this level is played against (the UFF's own, not the call-up's)
   function playNeedV197(lv) {
     const n = (LEVELS[lv | 0] || LEVELS[0]).need;
-    return (lv | 0) === 7 && onV197() ? Math.max(n, TU("v197uffNeed", 220)) : n;
+    return (lv | 0) === 7 && onV197() ? Math.max(n, TU("v197uffNeed", 275)) : n;
   }
   function medalPotKV197() {
     return onV197() ? TU("v197medalK", 0.1) : 1.9;
